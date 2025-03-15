@@ -1,0 +1,94 @@
+# TAAXDOG Web App Development Plan
+
+This document outlines the step-by-step plan for building the TAAXDOG web app, a SAAS finance platform for tax reports and financial management. The app uses Firebase for user data, Basiq for banking transactions, DocuClipper for receipt scanning, DevExpress Dashboard API for data visualization, and Claude 3.7 for financial insights. Cursor will refer to this plan for every prompt, following each step sequentially to ensure systematic development.
+
+---
+
+### Phase 1: Setting Up the Environment
+- **Step 1.1**: Set up the project structure with folders: `frontend`, `backend`, `database`, `ai`.
+- **Step 1.2**: Install necessary tools and libraries:
+  - Node.js (for frontend and backend servers)
+  - Python (for Flask backend)
+  - Flask (for backend framework)
+  - Firebase CLI (for user database)
+  - Other dependencies as needed (e.g., requests, axios)
+
+---
+
+### Phase 2: User Authentication and Database
+- **Step 2.1**: Integrate Firebase for user authentication and database management.
+- **Step 2.2**: Create user registration and login functionality in the frontend (`frontend/login.html`, `frontend/register.html`).
+- **Step 2.3**: Implement backend routes in Flask (`backend/app.py`) to handle user authentication with Firebase.
+
+---
+
+### Phase 3: Banking Integration with Basiq
+- **Step 3.1**: Integrate Basiq API for real-time banking transactions.
+- **Step 3.2**: Implement functionality to connect multiple bank accounts per user.
+- **Step 3.3**: Create a secure method to store and manage bank connection tokens.
+
+---
+
+### Phase 4: Receipt Scanning and Data Extraction
+- **Step 4.1**: Integrate Tabscanner OCR API for receipt scanning and data extraction.
+- **Step 4.2**: Create a feature to upload receipts and extract data (e.g., amount, date, merchant).
+- **Step 4.3**: Implement receipt matching with banking transactions from Basiq.
+
+---
+
+### Phase 5: Data Dashboard with DevExpress
+- **Step 5.1**: Integrate DevExpress Dashboard API for data visualization.
+- **Step 5.2**: Create dashboards to display:
+  - Financial insights
+  - Expense tracking
+  - Transaction history
+  - Tax reports
+- **Step 5.3**: Ensure the dashboard is user-friendly and responsive across devices.
+
+---
+
+### Phase 6: Financial Analysis with Claude 3.7
+- **Step 6.1**: Integrate Claude 3.7 for generating financial insights based on user data from Basiq.
+- **Step 6.2**: Implement dynamic financial goals that adjust based on income/expenses.
+- **Step 6.3**: Add AI-powered tax deductions by analyzing expenses.
+- **Step 6.4**: Enable real-time tax report updates throughout the year.
+
+---
+
+### Phase 7: Core Functions
+- **Step 7.1**: Implement automatic monthly report generation and send notifications to users.
+- **Step 7.2**: Create on-demand financial reports for tax purposes.
+- **Step 7.3**: Add a feature for users to request tax-related financial reports.
+
+---
+
+### Phase 8: Additional Features
+- **Step 8.1**: Implement a subscriptions analyzer to track recurring expenses.
+- **Step 8.2**: Add carbon footprint tracking for transactions with a show/hide option.
+- **Step 8.3**: Create an emergency fund tracker.
+- **Step 8.4**: Set up AI-powered notifications (e.g., "You are currently spending too much on groceries").
+- **Step 8.5**: Integrate tax return functionality.
+- **Step 8.6**: Enable multi-bank account processing.
+- **Step 8.7**: Implement automatic expense categorization.
+- **Step 8.8**: Add multicurrency support.
+- **Step 8.9**: Implement offline mode to show transactions from the last connection.
+- **Step 8.10**: Add collaborative financial management features for businesses.
+
+---
+
+### Phase 9: Testing and Deployment
+- **Step 9.1**: Test all functionalities thoroughly, including user authentication, banking integration, receipt scanning, dashboard, and AI features.
+- **Step 9.2**: Debug any issues using browser developer tools.
+- **Step 9.3**: Deploy the web app to a hosting platform (e.g., Heroku, Vercel).
+- **Step 9.4**: Ensure the GitHub repository (if used) remains private and updated.
+
+---
+
+### Guidelines for Development
+- Keep all files under 100 lines with clear comments for readability.
+- Use consistent naming conventions (e.g., camelCase for variables).
+- Securely manage sensitive data (API keys, tokens) using environment variables.
+
+---
+
+Cursor will follow this plan step by step, asking for confirmation after each step before proceeding to the next.
