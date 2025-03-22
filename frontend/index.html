@@ -1142,20 +1142,6 @@
                             </form>
                         </div>
                     </div>
-                    
-                    <!-- Income Sources Chart -->
-                    <div class="row mt-4">
-                        <div class="col-12">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h6 class="mb-0">Income Distribution</h6>
-                                </div>
-                                <div class="card-body" style="height: 300px;">
-                                    <canvas id="incomeSourcesChart"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -1163,7 +1149,9 @@
             </div>
         </div>
     </div>
-
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <script>
         // Function to load bank connections on page load
         function loadSavedConnections() {
@@ -1304,45 +1292,41 @@
 
         // Function to open the net income modal
         function openNetIncomeModal() {
-            // Create new modal instance and show it
+            console.log('Opening net income modal');
             const netIncomeModal = new bootstrap.Modal(document.getElementById('net-income-modal'));
             netIncomeModal.show();
             
-            // Load income sources into the modal
+            // Load income sources
             loadIncomeSources();
             
-            // Update the total income value in the modal
-            updateModalIncomeValue();
+            // Update the total net income value
+            updateModalNetIncomeValue();
         }
         
-        // Function to load income sources into the modal
+        // Function to load income sources
         function loadIncomeSources() {
-            const incomesContainer = document.getElementById('income-sources-container');
-            if (!incomesContainer) return;
+            const container = document.getElementById('income-sources-container');
+            if (!container) return;
             
-            // Get income sources from localStorage
-            const incomeSources = getIncomeSources();
+            // Get saved income sources
+            const sources = getIncomeSources();
             
-            if (incomeSources.length === 0) {
-                // Show the no income sources message
-                incomesContainer.innerHTML = `
+            if (sources.length === 0) {
+                // If no sources, show message and create default ones
+                container.innerHTML = `
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
                         No income sources added yet. Click the "Add Income Source" button to get started.
                     </div>
                 `;
-                
-                // Create some default income sources if we have transactions
                 createDefaultIncomeSources();
                 return;
             }
             
-            // Create HTML for income sources
+            // Display the sources
             let html = '';
-            
-            incomeSources.forEach(source => {
+            sources.forEach(source => {
                 const monthlyAmount = calculateMonthlyAmount(source.amount, source.frequency);
-                
                 html += `
                     <div class="card mb-3">
                         <div class="card-body">
@@ -1369,198 +1353,164 @@
                 `;
             });
             
-            incomesContainer.innerHTML = html;
-            
-            // Update the income sources chart
-            updateIncomeSourcesChart(incomeSources);
+            container.innerHTML = html;
         }
         
-        // Function to get income sources from localStorage
+        // Helper functions
         function getIncomeSources() {
             return JSON.parse(localStorage.getItem('incomeSources') || '[]');
         }
         
-        // Function to create default income sources
         function createDefaultIncomeSources() {
-            // Check if we have any transactions to base our defaults on
+            // Create some default income sources based on transactions
             const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
             
-            if (transactions.length === 0) return;
-            
-            // Get income transactions
-            const incomeTransactions = transactions.filter(tx => parseFloat(tx.amount) > 0);
-            
-            if (incomeTransactions.length === 0) return;
-            
-            // Create some default income sources based on transaction descriptions
-            const defaultSources = [];
-            const salaryDescriptions = ['salary', 'wages', 'pay', 'payroll', 'deposit'];
-            const investmentDescriptions = ['dividend', 'interest', 'investment'];
-            const rentalDescriptions = ['rent', 'rental', 'property'];
-            
-            // Group transactions by description and create income sources
-            const salaryTxs = incomeTransactions.filter(tx => 
-                salaryDescriptions.some(desc => tx.description.toLowerCase().includes(desc)));
-            
-            const investmentTxs = incomeTransactions.filter(tx => 
-                investmentDescriptions.some(desc => tx.description.toLowerCase().includes(desc)));
-                
-            const rentalTxs = incomeTransactions.filter(tx => 
-                rentalDescriptions.some(desc => tx.description.toLowerCase().includes(desc)));
-                
-            const otherTxs = incomeTransactions.filter(tx => 
-                !salaryTxs.includes(tx) && !investmentTxs.includes(tx) && !rentalTxs.includes(tx));
-            
-            // Add salary source if we have any
-            if (salaryTxs.length > 0) {
-                const totalSalary = salaryTxs.reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
-                defaultSources.push({
-                    id: 'income-' + Date.now() + '-salary',
-                    name: 'Full-time Job',
-                    amount: totalSalary.toFixed(2),
-                    frequency: 'monthly',
-                    category: 'salary'
-                });
-            }
-            
-            // Add investment source if we have any
-            if (investmentTxs.length > 0) {
-                const totalInvestment = investmentTxs.reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
-                defaultSources.push({
-                    id: 'income-' + (Date.now() + 1) + '-investment',
-                    name: 'Investment Income',
-                    amount: totalInvestment.toFixed(2),
-                    frequency: 'quarterly',
-                    category: 'investment'
-                });
-            }
-            
-            // Add rental source if we have any
-            if (rentalTxs.length > 0) {
-                const totalRental = rentalTxs.reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
-                defaultSources.push({
-                    id: 'income-' + (Date.now() + 2) + '-rental',
-                    name: 'Rental Income',
-                    amount: totalRental.toFixed(2),
-                    frequency: 'monthly',
-                    category: 'rental'
-                });
-            }
-            
-            // Add other income source if we have any
-            if (otherTxs.length > 0) {
-                const totalOther = otherTxs.reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
-                defaultSources.push({
-                    id: 'income-' + (Date.now() + 3) + '-other',
-                    name: 'Side Hustle',
-                    amount: totalOther.toFixed(2),
-                    frequency: 'monthly',
-                    category: 'side-hustle'
-                });
-            }
-            
-            // If we don't have any sources yet, create some mocked ones
-            if (defaultSources.length === 0) {
-                defaultSources.push(
+            // If we don't have any transactions, create basic defaults
+            if (transactions.length === 0) {
+                const defaults = [
                     {
-                        id: 'income-' + Date.now() + '-salary',
+                        id: 'income-' + Date.now(),
                         name: 'Full-time Job',
                         amount: '4500.00',
                         frequency: 'monthly',
                         category: 'salary'
                     },
                     {
-                        id: 'income-' + (Date.now() + 1) + '-freelance',
+                        id: 'income-' + (Date.now() + 1),
                         name: 'Freelance Work',
                         amount: '1200.00',
                         frequency: 'monthly',
                         category: 'freelance'
                     },
                     {
-                        id: 'income-' + (Date.now() + 2) + '-investment',
+                        id: 'income-' + (Date.now() + 2),
                         name: 'Dividend Income',
                         amount: '950.00',
                         frequency: 'quarterly',
                         category: 'investment'
                     }
-                );
+                ];
+                
+                localStorage.setItem('incomeSources', JSON.stringify(defaults));
+                loadIncomeSources();
+                return;
             }
             
-            // Save default sources to localStorage
-            if (defaultSources.length > 0) {
-                localStorage.setItem('incomeSources', JSON.stringify(defaultSources));
-                
-                // Reload income sources display
+            // Otherwise, base defaults on actual transactions
+            const incomeTransactions = transactions.filter(tx => parseFloat(tx.amount) > 0);
+            if (incomeTransactions.length === 0) return;
+            
+            // Group transactions by category
+            const categories = {
+                salary: incomeTransactions.filter(tx => 
+                    tx.description.toLowerCase().includes('salary') || 
+                    tx.description.toLowerCase().includes('wage') ||
+                    tx.description.toLowerCase().includes('pay')),
+                investment: incomeTransactions.filter(tx => 
+                    tx.description.toLowerCase().includes('dividend') || 
+                    tx.description.toLowerCase().includes('interest')),
+                rental: incomeTransactions.filter(tx => 
+                    tx.description.toLowerCase().includes('rent')),
+                other: []
+            };
+            
+            // Put remaining transactions in "other"
+            categories.other = incomeTransactions.filter(tx => 
+                !categories.salary.includes(tx) && 
+                !categories.investment.includes(tx) && 
+                !categories.rental.includes(tx));
+            
+            const sources = [];
+            
+            // Create sources based on categories
+            if (categories.salary.length > 0) {
+                const total = categories.salary.reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
+                sources.push({
+                    id: 'income-' + Date.now(),
+                    name: 'Full-time Employment',
+                    amount: total.toFixed(2),
+                    frequency: 'monthly',
+                    category: 'salary'
+                });
+            }
+            
+            if (categories.investment.length > 0) {
+                const total = categories.investment.reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
+                sources.push({
+                    id: 'income-' + (Date.now() + 1),
+                    name: 'Investment Returns',
+                    amount: total.toFixed(2),
+                    frequency: 'quarterly',
+                    category: 'investment'
+                });
+            }
+            
+            if (categories.rental.length > 0) {
+                const total = categories.rental.reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
+                sources.push({
+                    id: 'income-' + (Date.now() + 2),
+                    name: 'Rental Property Income',
+                    amount: total.toFixed(2),
+                    frequency: 'monthly',
+                    category: 'rental'
+                });
+            }
+            
+            if (categories.other.length > 0) {
+                const total = categories.other.reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
+                sources.push({
+                    id: 'income-' + (Date.now() + 3),
+                    name: 'Additional Income',
+                    amount: total.toFixed(2),
+                    frequency: 'monthly',
+                    category: 'other'
+                });
+            }
+            
+            if (sources.length > 0) {
+                localStorage.setItem('incomeSources', JSON.stringify(sources));
                 loadIncomeSources();
             }
         }
         
-        // Function to update the income sources chart
-        function updateIncomeSourcesChart(incomeSources) {
-            const ctx = document.getElementById('incomeSourcesChart');
-            if (!ctx) return;
-            
-            // If we have an existing chart, destroy it
-            if (window.incomeSourcesChart) {
-                window.incomeSourcesChart.destroy();
+        function calculateMonthlyAmount(amount, frequency) {
+            amount = parseFloat(amount);
+            switch (frequency) {
+                case 'weekly': return amount * 4.33;
+                case 'fortnightly': return amount * 2.17;
+                case 'monthly': return amount;
+                case 'quarterly': return amount / 3;
+                case 'annually': return amount / 12;
+                case 'one-time': return amount / 12;
+                default: return amount;
             }
-            
-            if (incomeSources.length === 0) return;
-            
-            // Convert all income sources to monthly amounts for fair comparison
-            const monthlyData = incomeSources.map(source => ({
-                name: source.name,
-                amount: calculateMonthlyAmount(source.amount, source.frequency),
-                category: source.category
-            }));
-            
-            // Sort by amount descending
-            monthlyData.sort((a, b) => b.amount - a.amount);
-            
-            // Create the chart
-            window.incomeSourcesChart = new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels: monthlyData.map(item => item.name),
-                    datasets: [{
-                        data: monthlyData.map(item => item.amount),
-                        backgroundColor: [
-                            '#4CAF50', '#2196F3', '#FF9800', '#9C27B0', 
-                            '#3F51B5', '#E91E63', '#00BCD4', '#FFC107'
-                        ]
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'right',
-                            labels: {
-                                boxWidth: 15,
-                                padding: 15
-                            }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const label = context.label || '';
-                                    const value = context.raw || 0;
-                                    return label + ': $' + value.toFixed(2) + '/month';
-                                }
-                            }
-                        }
-                    }
-                }
-            });
         }
         
-        // Function to add a new income source
-        function addIncomeSource(name, amount, frequency, category) {
-            // Get existing sources
-            const incomeSources = getIncomeSources();
+        function updateModalNetIncomeValue() {
+            const valueElem = document.getElementById('modal-net-income-value');
+            if (!valueElem) return;
             
-            // Create a new source object
+            const sources = getIncomeSources();
+            let total = 0;
+            
+            sources.forEach(source => {
+                total += calculateMonthlyAmount(source.amount, source.frequency);
+            });
+            
+            valueElem.textContent = '$' + total.toFixed(2);
+        }
+        
+        function capitalizeFirstLetter(string) {
+            if (!string) return '';
+            // Handle hyphenated words like "side-hustle"
+            return string.split('-').map(word => 
+                word.charAt(0).toUpperCase() + word.slice(1)
+            ).join(' ');
+        }
+        
+        function addIncomeSource(name, amount, frequency, category) {
+            const sources = getIncomeSources();
+            
             const newSource = {
                 id: 'income-' + Date.now(),
                 name: name,
@@ -1569,509 +1519,79 @@
                 category: category
             };
             
-            // Add to the array and save
-            incomeSources.push(newSource);
-            localStorage.setItem('incomeSources', JSON.stringify(incomeSources));
+            sources.push(newSource);
+            localStorage.setItem('incomeSources', JSON.stringify(sources));
             
-            // Reload the UI
             loadIncomeSources();
-            updateModalIncomeValue();
-            
-            // Show success message
+            updateModalNetIncomeValue();
             showSuccessAlert('Income source added successfully!');
         }
         
-        // Function to delete an income source
         function deleteIncomeSource(id) {
-            // Get existing sources
-            let incomeSources = getIncomeSources();
+            const sources = getIncomeSources();
+            const updated = sources.filter(source => source.id !== id);
             
-            // Remove the source with the matching ID
-            incomeSources = incomeSources.filter(source => source.id !== id);
+            localStorage.setItem('incomeSources', JSON.stringify(updated));
             
-            // Save back to localStorage
-            localStorage.setItem('incomeSources', JSON.stringify(incomeSources));
-            
-            // Reload the UI
             loadIncomeSources();
-            updateModalIncomeValue();
-            
-            // Show success message
-            showSuccessAlert('Income source deleted successfully!');
+            updateModalNetIncomeValue();
+            showSuccessAlert('Income source deleted successfully.');
         }
         
-        // Function to calculate monthly amount based on frequency
-        function calculateMonthlyAmount(amount, frequency) {
-            amount = parseFloat(amount);
-            
-            switch (frequency) {
-                case 'weekly':
-                    return amount * 4.33; // Average weeks in a month
-                case 'fortnightly':
-                    return amount * 2.17; // Average fortnights in a month
-                case 'monthly':
-                    return amount;
-                case 'quarterly':
-                    return amount / 3;
-                case 'annually':
-                    return amount / 12;
-                case 'one-time':
-                    return amount / 12; // Spread one-time over a year
-                default:
-                    return amount;
-            }
-        }
-        
-        // Function to update the total income value in the modal
-        function updateModalIncomeValue() {
-            const incomeValueElement = document.getElementById('modal-net-income-value');
-            if (!incomeValueElement) return;
-            
-            // Get income sources
-            const incomeSources = getIncomeSources();
-            
-            // Calculate total monthly income
-            let totalMonthlyIncome = 0;
-            
-            incomeSources.forEach(source => {
-                totalMonthlyIncome += calculateMonthlyAmount(source.amount, source.frequency);
-            });
-            
-            // Update the element
-            incomeValueElement.textContent = '$' + totalMonthlyIncome.toFixed(2);
-        }
-        
-        // Helper function to capitalize first letter
-        function capitalizeFirstLetter(string) {
-            return string.charAt(0).toUpperCase() + string.slice(1).replace(/-/g, ' ');
-        }
-
-        // Function to disconnect a bank
-        function disconnectBank(connectionId) {
-            console.log('Disconnecting bank connection with ID:', connectionId);
-            
-            try {
-                // Get current connections
-                let connections = JSON.parse(localStorage.getItem('bankConnections') || '[]');
-                
-                // Filter out the connection to remove
-                connections = connections.filter(conn => conn.id !== connectionId);
-                
-                // Save updated connections
-                localStorage.setItem('bankConnections', JSON.stringify(connections));
-                
-                // Update both the modal and the dashboard display
-                loadSavedConnections();
-                loadBankAccountsIntoModal();
-                
-                // Show success message
-                showSuccessAlert('Bank account disconnected successfully.');
-            } catch (e) {
-                console.error('Error disconnecting bank:', e);
-                showSuccessAlert('Error disconnecting bank: ' + e.message);
-            }
-        }
-
-        // Function to open the bank connection modal
-        function openBankConnectionModal() {
-            console.log('Opening bank connection modal');
-            
-            // Show the modal
-            const bankModal = new bootstrap.Modal(document.getElementById('bank-connection-modal'));
-            bankModal.show();
-            
-            // Select the dev mode option in development environment
-            document.getElementById('bank-connection-loading').classList.add('d-none');
-            document.getElementById('bank-connection-dev-mode').classList.remove('d-none');
-            
-            // Setup the mock connection button
-            const mockConnectionButton = document.getElementById('complete-mock-connection');
-            if (mockConnectionButton) {
-                mockConnectionButton.addEventListener('click', function() {
-                    handleMockConnection();
-                    
-                    // Close the modal after successful connection
-                    setTimeout(function() {
-                        const modalElement = document.getElementById('bank-connection-modal');
-                        const bsModal = bootstrap.Modal.getInstance(modalElement);
-                        if (bsModal) bsModal.hide();
-                    }, 500);
-                });
-            }
-            
-            // Setup the bank mockup links
-            const bankMockupLinks = document.querySelectorAll('.bank-mockup-link');
-            let selectedBank = null;
-            
-            bankMockupLinks.forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    
-                    // Remove active class from all links
-                    bankMockupLinks.forEach(l => l.classList.remove('active'));
-                    
-                    // Add active class to clicked link
-                    this.classList.add('active');
-                    
-                    // Store selected bank
-                    selectedBank = this.getAttribute('data-bank');
-                    
-                    console.log('Selected bank:', selectedBank);
-                });
-            });
-            
-            // Helper function to handle mock connection
-            function handleMockConnection() {
-                if (!selectedBank) {
-                    selectedBank = 'commonwealth'; // Default if none selected
-                }
-                
-                console.log('Creating mock connection for bank:', selectedBank);
-                
-                // Create a mock connection
-                const bankMap = {
-                    'commonwealth': {
-                        name: 'Commonwealth Bank',
-                        country: 'AU',
-                        accounts: [
-                            { id: 'cba-001', name: 'Everyday Account', type: 'Checking', balance: '3245.67' },
-                            { id: 'cba-002', name: 'Savings Account', type: 'Savings', balance: '12500.00' }
-                        ]
-                    },
-                    'anz': {
-                        name: 'ANZ Bank',
-                        country: 'AU',
-                        accounts: [
-                            { id: 'anz-001', name: 'Access Advantage', type: 'Checking', balance: '1852.12' },
-                            { id: 'anz-002', name: 'Progress Saver', type: 'Savings', balance: '8720.33' }
-                        ]
-                    },
-                    'westpac': {
-                        name: 'Westpac',
-                        country: 'AU',
-                        accounts: [
-                            { id: 'westpac-001', name: 'Choice Account', type: 'Checking', balance: '4325.18' },
-                            { id: 'westpac-002', name: 'eSaver Account', type: 'Savings', balance: '15750.42' }
-                        ]
-                    }
-                };
-                
-                const bankDetails = bankMap[selectedBank];
-                
-                // Get existing connections
-                let connections = JSON.parse(localStorage.getItem('bankConnections') || '[]');
-                
-                // Create a new connection
-                const newConnection = {
-                    id: 'conn-' + Date.now(),
-                    institution: {
-                        name: bankDetails.name,
-                        country: bankDetails.country
-                    },
-                    accounts: bankDetails.accounts,
-                    connected_date: new Date().toISOString()
-                };
-                
-                // Add the new connection
-                connections.push(newConnection);
-                
-                // Save the updated connections
-                localStorage.setItem('bankConnections', JSON.stringify(connections));
-                
-                // Create some mock transactions for each account
-                createMockTransactions(newConnection.accounts);
-                
-                // Update the UI
-                loadSavedConnections();
-                
-                // Ensure income exceeds expenses
-                ensureIncomeExceedsExpenses();
-                
-                // Show success message
-                showSuccessAlert(`Successfully connected to ${bankDetails.name}`);
-            }
-            
-            // Helper function to create mock transactions
-            function createMockTransactions(accounts) {
-                // Sample descriptions and merchants for transactions
-                const incomeDescriptions = [
-                    'Salary Payment', 'Interest Payment', 'Dividend Payment',
-                    'Rental Income', 'Tax Refund', 'Client Payment'
-                ];
-                
-                const expenseDescriptions = [
-                    'Grocery Shopping', 'Electricity Bill', 'Internet Bill',
-                    'Restaurant Payment', 'Fuel Purchase', 'Clothing Purchase',
-                    'Rent Payment', 'Subscription Payment', 'Phone Bill'
-                ];
-                
-                const merchants = [
-                    'Woolworths', 'Coles', 'Energy Australia', 'Telstra',
-                    'McDonald\'s', 'BP', 'Shell', 'H&M', 'Netflix', 'Spotify'
-                ];
-                
-                const categories = [
-                    'Food', 'Groceries', 'Utilities', 'Entertainment',
-                    'Transport', 'Shopping', 'Housing', 'Subscriptions'
-                ];
-                
-                // Create 20-30 random transactions across all accounts
-                const numTransactions = Math.floor(Math.random() * 11) + 20; // 20-30 transactions
-                const transactions = [];
-                
-                for (let i = 0; i < numTransactions; i++) {
-                    const isIncome = Math.random() < 0.4; // 40% chance of income
-                    const accountIndex = Math.floor(Math.random() * accounts.length);
-                    const account = accounts[accountIndex];
-                    
-                    // Transaction date (random within last 30 days)
-                    const date = new Date();
-                    date.setDate(date.getDate() - Math.floor(Math.random() * 30));
-                    
-                    // Transaction amount
-                    let amount;
-                    if (isIncome) {
-                        amount = (Math.random() * 1000 + 100).toFixed(2); // $100-$1100
-                    } else {
-                        amount = (-1 * (Math.random() * 200 + 10)).toFixed(2); // -$10 to -$210
-                    }
-                    
-                    // Create transaction
-                    const transaction = {
-                        id: 'tx-' + Date.now() + '-' + i,
-                        accountId: account.id,
-                        accountName: account.name,
-                        description: isIncome ? 
-                            incomeDescriptions[Math.floor(Math.random() * incomeDescriptions.length)] :
-                            expenseDescriptions[Math.floor(Math.random() * expenseDescriptions.length)],
-                        amount: amount,
-                        date: date.toISOString(),
-                        category: isIncome ? 'Income' : categories[Math.floor(Math.random() * categories.length)],
-                        merchant: isIncome ? null : merchants[Math.floor(Math.random() * merchants.length)]
-                    };
-                    
-                    transactions.push(transaction);
-                }
-                
-                // Save transactions to localStorage
-                const existingTransactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
-                localStorage.setItem('bankTransactions', JSON.stringify([...existingTransactions, ...transactions]));
-                
-                // Update financial stats
-                updateFinancialStats();
-            }
-        }
-
-        // Function to update financial stats on the dashboard
-        function updateFinancialStats() {
-            console.log('Updating financial stats');
-            
-            // Get all transactions
-            const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
-            
-            if (transactions.length === 0) {
-                console.log('No transactions found');
-                return;
-            }
-            
-            // Calculate income, expenses, balance, and subscriptions
-            let income = 0;
-            let expenses = 0;
-            let subscriptions = 0;
-            
-            transactions.forEach(tx => {
-                const amount = parseFloat(tx.amount);
-                
-                if (amount > 0) {
-                    income += amount;
-                } else {
-                    expenses += Math.abs(amount);
-                    
-                    // Check if it's a subscription (recurring payment)
-                    if (tx.category === 'Subscriptions' || 
-                        tx.description.toLowerCase().includes('subscription') ||
-                        tx.description.toLowerCase().includes('membership')) {
-                        subscriptions += Math.abs(amount);
-                    }
-                }
-            });
-            
-            // Update the dashboard stats
-            const netIncomeElement = document.getElementById('net-income-value');
-            const totalExpensesElement = document.getElementById('total-expenses-value');
-            const netBalanceElement = document.getElementById('net-balance-value');
-            const subscriptionsElement = document.getElementById('subscriptions-value');
-            
-            if (netIncomeElement) {
-                netIncomeElement.textContent = '$' + income.toFixed(2);
-            }
-            
-            if (totalExpensesElement) {
-                totalExpensesElement.textContent = '$' + expenses.toFixed(2);
-            }
-            
-            if (netBalanceElement) {
-                const balance = income - expenses;
-                netBalanceElement.textContent = '$' + balance.toFixed(2);
-            }
-            
-            if (subscriptionsElement) {
-                subscriptionsElement.textContent = '$' + subscriptions.toFixed(2);
-            }
-            
-            console.log(`Stats updated: Income: $${income.toFixed(2)}, Expenses: $${expenses.toFixed(2)}, Balance: $${(income - expenses).toFixed(2)}, Subscriptions: $${subscriptions.toFixed(2)}`);
-        }
-
-        // Function to show a success alert
-        function showSuccessAlert(message) {
-            // Create the alert element
-            const alertElement = document.createElement('div');
-            alertElement.className = 'alert alert-success alert-dismissible fade show position-fixed';
-            alertElement.setAttribute('role', 'alert');
-            alertElement.style.top = '20px';
-            alertElement.style.right = '20px';
-            alertElement.style.zIndex = '9999';
-            alertElement.style.maxWidth = '500px';
-            
-            alertElement.innerHTML = `
-                <strong><i class="fas fa-check-circle me-2"></i>Success!</strong> ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            `;
-            
-            // Add to the document
-            document.body.appendChild(alertElement);
-            
-            // Remove after 3 seconds
-            setTimeout(() => {
-                alertElement.classList.remove('show');
-                setTimeout(() => {
-                    document.body.removeChild(alertElement);
-                }, 500);
-            }, 3000);
-        }
-
-        // Function to load bank connections into the dashboard
-        function updateDashboardConnections() {
-            console.log('Updating dashboard bank connections');
-            const dashboardConnectionsContainer = document.querySelector('#bank-connections-container');
-            if (!dashboardConnectionsContainer) return;
-            
-            const connections = JSON.parse(localStorage.getItem('bankConnections') || '[]');
-            
-            if (connections.length === 0) {
-                // No connections
-                dashboardConnectionsContainer.innerHTML = `
-                    <div class="text-center py-4" id="no-connections-message">
-                        <i class="fas fa-university fa-3x mb-3 text-muted"></i>
-                        <p>No bank accounts connected yet. Click the "Connect Bank" button in the top-right corner to get started.</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            // Hide the no connections message
-            const noConnectionsMessage = document.getElementById('no-connections-message');
-            if (noConnectionsMessage) {
-                noConnectionsMessage.style.display = 'none';
-            }
-            
-            // Show the connections list
-            const connectionsList = document.createElement('div');
-            connectionsList.id = 'dashboard-connections-list';
-            
-            connections.forEach(connection => {
-                const institution = connection.institution || { name: 'Unknown Bank', country: 'AU' };
-                
-                // Create a bank connection item
-                const connectionItem = document.createElement('div');
-                connectionItem.className = 'bank-connection-item';
-                connectionItem.innerHTML = `
-                    <div class="d-flex align-items-center">
-                        <img src="https://cdn.jsdelivr.net/gh/transferwise/currency-flags/master/src/flags/${institution.country.toLowerCase()}.png" class="bank-logo">
-                        <div class="bank-info">
-                            <div class="bank-name">${institution.name}</div>
-                            <div class="bank-status success">${connection.accounts.length} accounts connected</div>
-                        </div>
-                    </div>
-                    <div class="bank-actions">
-                        <button onclick="openBankAccountsModal()" data-connection-id="${connection.id}">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    </div>
-                `;
-                
-                connectionsList.appendChild(connectionItem);
-            });
-            
-            // Clear and update the dashboard container
-            dashboardConnectionsContainer.innerHTML = '';
-            dashboardConnectionsContainer.appendChild(connectionsList);
-        }
-
-        // Add this to the document ready event to ensure everything is properly initialized
+        // Add event listeners to ensure everything works
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('Document ready, initializing app');
+            // Setup click handlers for Net Income in sidebar and dashboard
             
-            // Bank accounts nav link click handler
-            const bankAccountsNavLink = document.getElementById('bank-accounts-nav-link');
-            if (bankAccountsNavLink) {
-                bankAccountsNavLink.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    openBankAccountsModal();
-                });
-            }
-            
-            // Net Income nav link and tile click handlers
-            const netIncomeNavLink = document.querySelector('.nav-link i.fa-money-bill-wave').closest('.nav-link');
-            
-            if (netIncomeNavLink) {
-                netIncomeNavLink.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    openNetIncomeModal();
-                });
-            }
-            
-            // Since querySelector with :contains doesn't work in standard JS, use alternative approach
-            document.querySelectorAll('.card-header').forEach(header => {
-                if (header.textContent.includes('Net Income')) {
-                    header.closest('.card').addEventListener('click', function() {
+            // For sidebar net income link
+            document.querySelectorAll('.nav-link').forEach(link => {
+                if (link.textContent.trim().includes('Net Income')) {
+                    link.addEventListener('click', function(e) {
+                        e.preventDefault();
                         openNetIncomeModal();
                     });
                 }
             });
             
-            // Add income source form event listeners
-            const addIncomeBtn = document.getElementById('add-income-source-btn');
-            const cancelAddBtn = document.getElementById('cancel-add-income-btn');
-            const saveIncomeBtn = document.getElementById('save-income-source-btn');
-            const addIncomeForm = document.getElementById('add-income-source-form');
+            // For dashboard net income tile
+            document.querySelectorAll('.card').forEach(card => {
+                if (card.textContent.includes('Net Income')) {
+                    card.style.cursor = 'pointer';
+                    card.addEventListener('click', function() {
+                        openNetIncomeModal();
+                    });
+                }
+            });
             
-            if (addIncomeBtn) {
-                addIncomeBtn.addEventListener('click', function() {
-                    if (addIncomeForm) {
-                        addIncomeForm.classList.remove('d-none');
-                    }
+            // Add event listeners for the income source form
+            const addBtn = document.getElementById('add-income-source-btn');
+            const cancelBtn = document.getElementById('cancel-add-income-btn');
+            const saveBtn = document.getElementById('save-income-source-btn');
+            const form = document.getElementById('add-income-source-form');
+            
+            if (addBtn) {
+                addBtn.addEventListener('click', function() {
+                    if (form) form.classList.remove('d-none');
                 });
             }
             
-            if (cancelAddBtn) {
-                cancelAddBtn.addEventListener('click', function() {
-                    if (addIncomeForm) {
-                        addIncomeForm.classList.add('d-none');
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', function() {
+                    if (form) {
+                        form.classList.add('d-none');
                         document.getElementById('income-source-form').reset();
                     }
                 });
             }
             
-            if (saveIncomeBtn) {
-                saveIncomeBtn.addEventListener('click', function() {
+            if (saveBtn) {
+                saveBtn.addEventListener('click', function() {
                     const name = document.getElementById('income-source-name').value.trim();
                     const amount = document.getElementById('income-source-amount').value;
                     const frequency = document.getElementById('income-source-frequency').value;
                     const category = document.getElementById('income-source-category').value;
                     
                     if (!name || !amount || parseFloat(amount) <= 0) {
-                        showSuccessAlert('Please enter a valid name and amount for the income source.');
+                        showSuccessAlert('Please enter a valid name and amount.');
                         return;
                     }
                     
@@ -2079,23 +1599,10 @@
                     
                     // Reset and hide the form
                     document.getElementById('income-source-form').reset();
-                    addIncomeForm.classList.add('d-none');
+                    form.classList.add('d-none');
                 });
             }
-            
-            // Load saved bank connections and update dashboard
-            loadSavedConnections();
-            updateDashboardConnections();
-            
-            // Ensure income exceeds expenses
-            setTimeout(ensureIncomeExceedsExpenses, 500);
-            
-            // Update financial stats
-            updateFinancialStats();
         });
     </script>
-        
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html> 
