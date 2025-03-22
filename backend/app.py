@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, redirect, url_for, flash, jsonify, session
+from flask import Flask, request, render_template, redirect, url_for, flash, jsonify, session, send_from_directory
 from flask_cors import CORS
 import re
 import os
@@ -16,9 +16,15 @@ from basiq_api import (
     refresh_connection,
     delete_connection
 )
-from docuclipper_api import extract_receipt_data, match_receipt_with_transaction
 from tabscanner_api import process_receipt_with_polling as tabscanner_process_receipt
-from datetime import datetime
+from datetime import datetime, timedelta
+# Import financial insights module
+from ai.financial_insights import (
+    analyze_transactions,
+    identify_tax_deductions,
+    generate_financial_report,
+    suggest_financial_goals
+)
 
 # Load environment variables
 load_dotenv()
@@ -246,46 +252,74 @@ def setup_basiq_user():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/api/banking/create-auth-link', methods=['POST'])
+@app.route('/api/banking/auth-link', methods=['POST'])
 @login_required
-def create_bank_auth_link():
+def get_auth_link():
     """
-    Create an authentication link for connecting a bank account.
+    Get an authentication link for connecting bank accounts.
     """
     try:
         firebase_user_id = request.user_id
-        user_doc = db.collection('users').document(firebase_user_id).get()
-        
-        if not user_doc.exists:
-            return jsonify({
-                'success': False, 
-                'error': 'User not found in Firebase'
-            }), 404
-            
-        user_data = user_doc.to_dict()
-        basiq_user_id = user_data.get('basiq_user_id')
-        
-        if not basiq_user_id:
-            return jsonify({
-                'success': False,
-                'error': 'Basiq user not set up. Please call /api/banking/setup-user first.'
-            }), 400
-            
         data = request.get_json() or {}
-        mobile = data.get('mobile', True)
-        
-        result = create_auth_link(basiq_user_id, mobile)
-        
-        if result['success']:
-            return jsonify({
+        user_doc = None
+
+        # Check if we're in development mode
+        if os.environ.get('FLASK_ENV') == 'development' or not db:
+            # In dev mode, create a mock auth link
+            mock_auth_link = {
                 'success': True,
-                'auth_link': result['auth_link']
-            })
+                'auth_link': {
+                    'url': 'https://mockbank-connect.basiq.io?token=mock-token',
+                    'expiresAt': (datetime.now() + timedelta(hours=1)).isoformat()
+                },
+                'message': 'Generated mock auth link for development'
+            }
+            return jsonify(mock_auth_link)
         else:
-            return jsonify(result), 400
+            # In production mode, use real Basiq API
+            user_doc = db.collection('users').document(firebase_user_id).get()
             
+            if not user_doc.exists:
+                return jsonify({
+                    'success': False, 
+                    'error': 'User not found in Firebase'
+                }), 404
+                
+            user_data = user_doc.to_dict()
+            basiq_user_id = user_data.get('basiq_user_id')
+            
+            # If user doesn't have a Basiq ID yet, create one
+            if not basiq_user_id:
+                # Create a Basiq user first
+                setup_result = setup_basiq_user()
+                if not isinstance(setup_result, tuple):  # Not an error response
+                    response_data = json.loads(setup_result.data)
+                    if response_data.get('success'):
+                        basiq_user_id = response_data['user']['id']
+                    else:
+                        return jsonify({
+                            'success': False,
+                            'error': 'Failed to create Basiq user',
+                            'details': response_data.get('error')
+                        }), 400
+                else:
+                    return setup_result  # Return the error response
+            
+            # For mobile or desktop
+            mobile = data.get('mobile', True)
+            
+            # Get the auth link from Basiq
+            result = create_auth_link(basiq_user_id, mobile)
+            
+            if result['success']:
+                return jsonify(result)
+            else:
+                return jsonify(result), 400
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({
+            'success': False,
+            'error': f'Error getting auth link: {str(e)}'
+        }), 500
 
 @app.route('/api/banking/connections', methods=['GET'])
 @login_required
@@ -645,7 +679,7 @@ def submit_tax_info():
 @login_required
 def upload_receipt():
     """
-    Upload and process a receipt image using DocuClipper OCR.
+    Upload and process a receipt image using Tabscanner OCR.
     """
     try:
         firebase_user_id = request.user_id
@@ -675,21 +709,18 @@ def upload_receipt():
             # Use provided base64 data
             image_base64 = request.form.get('image_base64')
         
-        # Check if we should use Tabscanner or DocuClipper
-        use_tabscanner = request.form.get('use_tabscanner', 'false').lower() == 'true'
-        
-        if use_tabscanner:
-            # Extract receipt data using Tabscanner
-            receipt_data = tabscanner_process_receipt(image_base64, user_id=firebase_user_id)
-        else:
-            # Extract receipt data using DocuClipper
-            receipt_data = extract_receipt_data(image_base64, user_id=firebase_user_id)
+        # Extract receipt data using Tabscanner
+        receipt_data = tabscanner_process_receipt(image_base64, user_id=firebase_user_id)
         
         if not receipt_data.get('success', False):
             return jsonify({
                 'success': False,
                 'error': receipt_data.get('error', 'Failed to extract receipt data')
             }), 400
+        
+        # Save category and notes if provided
+        category = request.form.get('category', '')
+        notes = request.form.get('notes', '')
         
         # Store receipt in Firestore
         receipt_id = receipt_data.get('receipt_id')
@@ -703,9 +734,13 @@ def upload_receipt():
             'total_amount': receipt_data.get('total_amount'),
             'date': receipt_data.get('date'),
             'items': receipt_data.get('items', []),
-            'tax_amount': receipt_data.get('tax_amount'),
-            'created_at': datetime.now().isoformat(),
-            'matched_transaction_id': None
+            'tax_amount': receipt_data.get('tax_amount', 0.0),
+            'subtotal': receipt_data.get('subtotal', 0.0),
+            'confidence': receipt_data.get('confidence', 0.0),
+            'category': category,
+            'notes': notes,
+            'ocr_provider': 'tabscanner',
+            'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         })
         
         # Try to match with transactions
@@ -782,6 +817,10 @@ def upload_receipt_tabscanner():
                 'error': receipt_data.get('error', 'Failed to extract receipt data')
             }), 400
         
+        # Save category and notes if provided
+        category = request.form.get('category', '')
+        notes = request.form.get('notes', '')
+        
         # Store receipt in Firestore
         receipt_id = receipt_data.get('receipt_id')
         receipt_ref = db.collection('users').document(firebase_user_id).collection('receipts').document(receipt_id)
@@ -797,6 +836,8 @@ def upload_receipt_tabscanner():
             'tax_amount': receipt_data.get('tax_amount', 0.0),
             'subtotal': receipt_data.get('subtotal', 0.0),
             'confidence': receipt_data.get('confidence', 0.0),
+            'category': category,
+            'notes': notes,
             'ocr_provider': 'tabscanner',
             'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         })
@@ -954,5 +995,305 @@ def delete_receipt(receipt_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/receipts/<receipt_id>/match/suggest', methods=['GET'])
+@login_required
+def suggest_receipt_match(receipt_id):
+    """
+    Suggest possible transaction matches for a receipt.
+    This is part of step 5.3 to implement receipt matching with banking transactions.
+    """
+    try:
+        firebase_user_id = request.user_id
+        receipt_ref = db.collection('users').document(firebase_user_id).collection('receipts').document(receipt_id)
+        receipt_doc = receipt_ref.get()
+        
+        if not receipt_doc.exists:
+            return jsonify({
+                'success': False,
+                'error': 'Receipt not found'
+            }), 404
+            
+        receipt = receipt_doc.to_dict()
+        
+        # Get the user's Basiq ID to fetch transactions
+        user_doc = db.collection('users').document(firebase_user_id).get()
+        user_data = user_doc.to_dict()
+        basiq_user_id = user_data.get('basiq_user_id')
+        
+        if not basiq_user_id:
+            return jsonify({
+                'success': False,
+                'error': 'No banking connection found'
+            }), 400
+        
+        # Get recent transactions
+        transaction_result = get_user_transactions(basiq_user_id)
+        if not transaction_result.get('success'):
+            return jsonify({
+                'success': False,
+                'error': 'Failed to retrieve transactions'
+            }), 500
+            
+        transactions = transaction_result.get('transactions', [])
+        
+        # Try to match with a transaction
+        match_result = match_receipt_with_transaction(receipt, transactions)
+        
+        if match_result:
+            return jsonify({
+                'success': True,
+                'matched_transaction': match_result.get('transaction'),
+                'transaction_id': match_result.get('transaction_id'),
+                'confidence': match_result.get('confidence')
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'matched_transaction': None,
+                'message': 'No matching transaction found'
+            })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# API endpoint for financial insights
+@app.route('/api/financial/insights', methods=['GET'])
+@login_required
+def get_financial_insights():
+    """
+    Get AI-powered financial insights based on user's transactions
+    """
+    try:
+        # Get user ID from request
+        user_id = request.user_id
+        
+        # Get filter parameters from request
+        filter_str = request.args.get('filter')
+        
+        # Get user's transactions from Basiq
+        transactions_result = get_user_transactions(user_id, filter_str)
+        
+        if not transactions_result.get('success'):
+            return jsonify({
+                'success': False,
+                'error': 'Failed to get transactions',
+                'details': transactions_result.get('error')
+            }), 400
+        
+        # Get user profile
+        user_profile = None
+        if db:
+            try:
+                user_ref = db.collection('users').document(user_id)
+                user_doc = user_ref.get()
+                if user_doc.exists:
+                    user_profile = user_doc.to_dict()
+            except Exception as e:
+                print(f"Error fetching user profile: {e}")
+        
+        # Analyze transactions with Claude 3.7
+        insights = analyze_transactions(
+            transactions_result.get('transactions', {}).get('data', []),
+            user_profile
+        )
+        
+        if insights.get('error'):
+            return jsonify({
+                'success': False,
+                'error': 'Failed to analyze transactions',
+                'details': insights.get('error')
+            }), 500
+        
+        return jsonify({
+            'success': True,
+            'insights': insights
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# API endpoint for tax deductions
+@app.route('/api/financial/tax-deductions', methods=['GET'])
+@login_required
+def get_tax_deductions():
+    """
+    Get potential tax deductions based on user's transactions and receipts
+    """
+    try:
+        # Get user ID from request
+        user_id = request.user_id
+        
+        # Get filter parameters from request
+        filter_str = request.args.get('filter')
+        
+        # Get user's transactions from Basiq
+        transactions_result = get_user_transactions(user_id, filter_str)
+        
+        if not transactions_result.get('success'):
+            return jsonify({
+                'success': False,
+                'error': 'Failed to get transactions',
+                'details': transactions_result.get('error')
+            }), 400
+        
+        # Get user's receipts
+        receipts = []
+        if db:
+            try:
+                receipts_ref = db.collection('users').document(user_id).collection('receipts')
+                receipts_docs = receipts_ref.get()
+                for doc in receipts_docs:
+                    receipt = doc.to_dict()
+                    receipt['id'] = doc.id
+                    receipts.append(receipt)
+            except Exception as e:
+                print(f"Error fetching receipts: {e}")
+        
+        # Identify tax deductions with Claude 3.7
+        deductions = identify_tax_deductions(
+            transactions_result.get('transactions', {}).get('data', []),
+            receipts
+        )
+        
+        if isinstance(deductions, dict) and deductions.get('error'):
+            return jsonify({
+                'success': False,
+                'error': 'Failed to identify tax deductions',
+                'details': deductions.get('error')
+            }), 500
+        
+        return jsonify({
+            'success': True,
+            'deductions': deductions
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# API endpoint for financial reports
+@app.route('/api/financial/reports', methods=['GET'])
+@login_required
+def get_financial_report():
+    """
+    Generate a comprehensive financial report
+    """
+    try:
+        # Get user ID from request
+        user_id = request.user_id
+        
+        # Get time period from request
+        time_period = request.args.get('period', 'monthly')
+        
+        # Get filter parameters from request
+        filter_str = request.args.get('filter')
+        
+        # Get user's transactions from Basiq
+        transactions_result = get_user_transactions(user_id, filter_str)
+        
+        if not transactions_result.get('success'):
+            return jsonify({
+                'success': False,
+                'error': 'Failed to get transactions',
+                'details': transactions_result.get('error')
+            }), 400
+        
+        # Generate financial report with Claude 3.7
+        report = generate_financial_report(
+            user_id,
+            transactions_result.get('transactions', {}).get('data', []),
+            time_period
+        )
+        
+        if report.get('error'):
+            return jsonify({
+                'success': False,
+                'error': 'Failed to generate financial report',
+                'details': report.get('error')
+            }), 500
+        
+        return jsonify({
+            'success': True,
+            'report': report
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# API endpoint for financial goals
+@app.route('/api/financial/goals', methods=['GET'])
+@login_required
+def get_financial_goals():
+    """
+    Get AI-suggested financial goals based on user's transactions
+    """
+    try:
+        # Get user ID from request
+        user_id = request.user_id
+        
+        # Get filter parameters from request
+        filter_str = request.args.get('filter')
+        
+        # Get user's transactions from Basiq
+        transactions_result = get_user_transactions(user_id, filter_str)
+        
+        if not transactions_result.get('success'):
+            return jsonify({
+                'success': False,
+                'error': 'Failed to get transactions',
+                'details': transactions_result.get('error')
+            }), 400
+        
+        # Generate financial goals with Claude 3.7
+        goals = suggest_financial_goals(
+            user_id,
+            transactions_result.get('transactions', {}).get('data', [])
+        )
+        
+        if isinstance(goals, dict) and goals.get('error'):
+            return jsonify({
+                'success': False,
+                'error': 'Failed to suggest financial goals',
+                'details': goals.get('error')
+            }), 500
+        
+        return jsonify({
+            'success': True,
+            'goals': goals
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# Route to serve firebase-config.js from the root URL
+@app.route('/firebase-config.js')
+def serve_firebase_config():
+    """
+    Serve firebase-config.js from the frontend directory to fix 404 errors
+    """
+    return send_from_directory(app.static_folder, 'firebase-config.js')
+
+# Add a catch-all route for frontend files
+@app.route('/<path:filename>')
+def serve_static(filename):
+    """
+    Serve static files from the frontend directory
+    """
+    return send_from_directory(app.static_folder, filename)
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Run on a different port than the standard 5000 (which might be taken by AirPlay on macOS)
+    port = int(os.environ.get('FLASK_RUN_PORT', 8080))
+    host = os.environ.get('FLASK_RUN_HOST', '127.0.0.1')
+    app.run(debug=True, host=host, port=port, threaded=True)
