@@ -185,6 +185,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     reader.onload = function(e) {
                         receiptPreview.src = e.target.result;
                         previewContainer.style.display = 'block';
+                        
+                        // Auto-process the image immediately after preview is shown
+                        processReceiptImage(e.target.result);
                     };
                     reader.readAsDataURL(this.files[0]);
                 }
@@ -199,17 +202,27 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Get the form elements
             const fileInput = document.getElementById('receipt-image');
-            const category = document.getElementById('receipt-category').value;
-            const notes = document.getElementById('receipt-notes').value;
-            const ocrProvider = document.getElementById('receipt-ocr-provider').value;
-            const uploadProgress = document.getElementById('receipt-upload-progress');
-            const uploadResult = document.getElementById('receipt-upload-result');
-            const uploadAnother = document.getElementById('upload-another-receipt');
             
             if (!fileInput || !fileInput.files || !fileInput.files[0]) {
                 alert('Please select a receipt image to upload');
                 return;
             }
+            
+            // Read file and process it
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                processReceiptImage(e.target.result);
+            };
+            reader.readAsDataURL(fileInput.files[0]);
+        };
+        
+        // Function to process the receipt image
+        function processReceiptImage(imageData) {
+            const category = document.getElementById('receipt-category').value;
+            const notes = document.getElementById('receipt-notes').value;
+            const uploadProgress = document.getElementById('receipt-upload-progress');
+            const uploadResult = document.getElementById('receipt-upload-result');
+            const uploadAnother = document.getElementById('upload-another-receipt');
             
             // Show progress
             if (uploadProgress) {
@@ -233,170 +246,182 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             if (uploadResult) uploadResult.style.display = 'none';
-            uploadSubmit.disabled = true;
+            if (uploadSubmit) uploadSubmit.disabled = true;
             
-            // Process the receipt image
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                // Simulate OCR processing time (1-2 seconds)
-                setTimeout(() => {
-                    // Generate simulated OCR data based on the date
-                    const today = new Date();
-                    const randomAmount = (Math.random() * 145 + 5).toFixed(2);
-                    const taxAmount = (randomAmount * 0.0825).toFixed(2); // Approx 8.25% tax
+            // Simulate OCR processing time (1-2 seconds)
+            setTimeout(() => {
+                // Generate simulated OCR data based on the date
+                const today = new Date();
+                const randomAmount = (Math.random() * 145 + 5).toFixed(2);
+                const taxAmount = (randomAmount * 0.0825).toFixed(2); // Approx 8.25% tax
+                
+                // Use current date for the receipt
+                const date = today.toISOString().split('T')[0];
+                
+                // Get a random merchant
+                const merchants = [
+                    'Grocery Mart', 'Coffee Shop', 'Office Supplies', 
+                    'Restaurant', 'Gas Station', 'Hardware Store',
+                    'Electronics Store', 'Clothing Store', 'Pharmacy'
+                ];
+                const merchant = merchants[Math.floor(Math.random() * merchants.length)];
+                
+                // Create 1-3 random items
+                const itemCount = Math.floor(Math.random() * 3) + 1;
+                const items = [];
+                
+                for (let i = 0; i < itemCount; i++) {
+                    const itemName = `Item ${i+1}`;
+                    const quantity = Math.floor(Math.random() * 3) + 1;
+                    const unitPrice = (Math.random() * 20 + 5).toFixed(2);
+                    const total = (quantity * unitPrice).toFixed(2);
                     
-                    // Use current date for the receipt
-                    const date = today.toISOString().split('T')[0];
-                    
-                    // Get a random merchant
-                    const merchants = [
-                        'Grocery Mart', 'Coffee Shop', 'Office Supplies', 
-                        'Restaurant', 'Gas Station', 'Hardware Store',
-                        'Electronics Store', 'Clothing Store', 'Pharmacy'
-                    ];
-                    const merchant = merchants[Math.floor(Math.random() * merchants.length)];
-                    
-                    // Create 1-3 random items
-                    const itemCount = Math.floor(Math.random() * 3) + 1;
-                    const items = [];
-                    
-                    for (let i = 0; i < itemCount; i++) {
-                        const itemName = `Item ${i+1}`;
-                        const quantity = Math.floor(Math.random() * 3) + 1;
-                        const unitPrice = (Math.random() * 20 + 5).toFixed(2);
-                        const total = (quantity * unitPrice).toFixed(2);
-                        
-                        items.push({
-                            name: itemName,
-                            quantity: quantity,
-                            unit_price: unitPrice,
-                            total: total
-                        });
-                    }
-                    
-                    // Add tax as a separate item
                     items.push({
-                        name: 'Tax',
-                        quantity: 1,
-                        unit_price: taxAmount,
-                        total: taxAmount
+                        name: itemName,
+                        quantity: quantity,
+                        unit_price: unitPrice,
+                        total: total
                     });
-                    
-                    // Create the receipt object
-                    const receipt = {
-                        receipt_id: generateReceiptId(),
-                        merchant: merchant,
-                        date: date,
-                        total_amount: randomAmount,
-                        tax_amount: taxAmount,
-                        category: category || 'Uncategorized',
-                        notes: notes || '',
-                        image: e.target.result,
-                        items: items,
-                        status: 'processed',
-                        created_at: new Date().toISOString()
-                    };
-                    
-                    // First show the extracted data and ask for confirmation
-                    if (uploadProgress) uploadProgress.style.display = 'none';
-                    if (uploadResult) {
-                        uploadResult.innerHTML = `
-                            <div class="card mb-3">
-                                <div class="card-header bg-light">
-                                    <h6 class="mb-0">Extracted Receipt Data</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row mb-3">
-                                        <div class="col-md-6">
-                                            <label class="form-label">Merchant</label>
-                                            <input type="text" class="form-control" id="extracted-merchant" value="${receipt.merchant}">
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">Date</label>
-                                            <input type="date" class="form-control" id="extracted-date" value="${receipt.date}">
-                                        </div>
+                }
+                
+                // Add tax as a separate item
+                items.push({
+                    name: 'Tax',
+                    quantity: 1,
+                    unit_price: taxAmount,
+                    total: taxAmount
+                });
+                
+                // Create the receipt object
+                const receipt = {
+                    receipt_id: generateReceiptId(),
+                    merchant: merchant,
+                    date: date,
+                    total_amount: randomAmount,
+                    tax_amount: taxAmount,
+                    category: category || 'Uncategorized',
+                    notes: notes || '',
+                    image: imageData,
+                    items: items,
+                    status: 'processed',
+                    created_at: new Date().toISOString()
+                };
+                
+                // Show extracted data for confirmation
+                if (uploadProgress) uploadProgress.style.display = 'none';
+                if (uploadResult) {
+                    uploadResult.innerHTML = `
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">Extracted Receipt Data</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Merchant</label>
+                                        <input type="text" class="form-control" id="upload-merchant" value="${receipt.merchant}">
                                     </div>
-                                    <div class="row mb-3">
-                                        <div class="col-md-6">
-                                            <label class="form-label">Total Amount</label>
-                                            <div class="input-group">
-                                                <span class="input-group-text">$</span>
-                                                <input type="number" step="0.01" min="0" class="form-control" id="extracted-total" value="${receipt.total_amount}">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">Tax Amount</label>
-                                            <div class="input-group">
-                                                <span class="input-group-text">$</span>
-                                                <input type="number" step="0.01" min="0" class="form-control" id="extracted-tax" value="${receipt.tax_amount}">
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="alert alert-info">
-                                        <i class="fas fa-info-circle me-2"></i>You can edit any incorrect values before saving.
+                                    <div class="col-md-6">
+                                        <label class="form-label">Date</label>
+                                        <input type="date" class="form-control" id="upload-date" value="${receipt.date}">
                                     </div>
                                 </div>
-                                <div class="card-footer text-end">
-                                    <button type="button" class="btn btn-primary" id="confirm-extracted-data">
-                                        <i class="fas fa-check me-2"></i>Save Receipt
-                                    </button>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Total Amount</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            <input type="number" step="0.01" min="0" class="form-control" id="upload-total" value="${receipt.total_amount}">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Tax Amount</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            <input type="number" step="0.01" min="0" class="form-control" id="upload-tax" value="${receipt.tax_amount}">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Category</label>
+                                        <select class="form-select" id="upload-category">
+                                            <option value="Food and Dining" ${receipt.category === 'Food and Dining' ? 'selected' : ''}>Food and Dining</option>
+                                            <option value="Shopping" ${receipt.category === 'Shopping' ? 'selected' : ''}>Shopping</option>
+                                            <option value="Travel" ${receipt.category === 'Travel' ? 'selected' : ''}>Travel</option>
+                                            <option value="Entertainment" ${receipt.category === 'Entertainment' ? 'selected' : ''}>Entertainment</option>
+                                            <option value="Office" ${receipt.category === 'Office' ? 'selected' : ''}>Office</option>
+                                            <option value="Groceries" ${receipt.category === 'Groceries' ? 'selected' : ''}>Groceries</option>
+                                            <option value="Automotive" ${receipt.category === 'Automotive' ? 'selected' : ''}>Automotive</option>
+                                            <option value="Utilities" ${receipt.category === 'Utilities' ? 'selected' : ''}>Utilities</option>
+                                            <option value="Healthcare" ${receipt.category === 'Healthcare' ? 'selected' : ''}>Healthcare</option>
+                                            <option value="Other" ${receipt.category === 'Other' ? 'selected' : ''}>Other</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Notes (Optional)</label>
+                                        <textarea class="form-control" id="upload-notes" rows="1">${receipt.notes}</textarea>
+                                    </div>
+                                </div>
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>You can edit any incorrect values before saving.
                                 </div>
                             </div>
-                        `;
-                        uploadResult.style.display = 'block';
-                        
-                        // Add event listener to the confirm button
-                        const confirmBtn = document.getElementById('confirm-extracted-data');
-                        if (confirmBtn) {
-                            confirmBtn.addEventListener('click', function() {
-                                // Get the edited values
-                                const editedMerchant = document.getElementById('extracted-merchant').value;
-                                const editedDate = document.getElementById('extracted-date').value;
-                                const editedTotal = document.getElementById('extracted-total').value;
-                                const editedTax = document.getElementById('extracted-tax').value;
-                                
-                                // Update the receipt object
-                                receipt.merchant = editedMerchant;
-                                receipt.date = editedDate;
-                                receipt.total_amount = parseFloat(editedTotal).toFixed(2);
-                                receipt.tax_amount = parseFloat(editedTax).toFixed(2);
-                                
-                                // Save the receipt and update stats
-                                saveReceiptAndUpdateStats(receipt);
-                                
-                                // Show success message
-                                showSuccessMessage(receipt);
-                                
-                                // Enable the Upload Another button
-                                if (uploadAnother) {
-                                    uploadAnother.style.display = 'inline-block';
-                                    uploadAnother.onclick = function() {
-                                        // Reset the form
-                                        uploadForm.reset();
-                                        if (previewContainer) previewContainer.style.display = 'none';
-                                        if (uploadResult) uploadResult.style.display = 'none';
-                                        uploadAnother.style.display = 'none';
-                                        uploadSubmit.disabled = false;
-                                    };
-                                }
-                                
-                                // Close modal after a delay
-                                setTimeout(() => {
-                                    const modal = bootstrap.Modal.getInstance(document.getElementById('receipt-upload-modal'));
-                                    if (modal) {
-                                        modal.hide();
-                                    }
-                                }, 2000);
-                            });
-                        }
-                    }
+                            <div class="card-footer text-end">
+                                <button type="button" class="btn btn-primary" id="confirm-upload-data">
+                                    <i class="fas fa-check me-2"></i>Save Receipt
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    uploadResult.style.display = 'block';
                     
-                    uploadSubmit.disabled = false;
-                }, 1500); // Simulated OCR processing time
-            };
-            
-            reader.readAsDataURL(fileInput.files[0]);
-        };
+                    // Add event listener to the confirm button
+                    const confirmBtn = document.getElementById('confirm-upload-data');
+                    if (confirmBtn) {
+                        confirmBtn.addEventListener('click', function() {
+                            // Get the edited values
+                            const editedMerchant = document.getElementById('upload-merchant').value;
+                            const editedDate = document.getElementById('upload-date').value;
+                            const editedTotal = document.getElementById('upload-total').value;
+                            const editedTax = document.getElementById('upload-tax').value;
+                            const editedCategory = document.getElementById('upload-category').value;
+                            const editedNotes = document.getElementById('upload-notes').value;
+                            
+                            // Update the receipt object
+                            receipt.merchant = editedMerchant;
+                            receipt.date = editedDate;
+                            receipt.total_amount = parseFloat(editedTotal).toFixed(2);
+                            receipt.tax_amount = parseFloat(editedTax).toFixed(2);
+                            receipt.category = editedCategory;
+                            receipt.notes = editedNotes;
+                            
+                            // Save the receipt and update stats
+                            saveReceiptAndUpdateStats(receipt);
+                            
+                            // Show success message
+                            showSuccessMessage(receipt);
+                            
+                            // Reset form
+                            if (uploadAnother) {
+                                uploadAnother.style.display = 'block';
+                            }
+                            
+                            // Enable submit button
+                            if (uploadSubmit) uploadSubmit.disabled = false;
+                            
+                            // Close modal after a delay
+                            setTimeout(() => {
+                                const modal = bootstrap.Modal.getInstance(document.getElementById('receipt-upload-modal'));
+                                if (modal) {
+                                    modal.hide();
+                                }
+                            }, 2000);
+                        });
+                    }
+                }
+            }, 1500);
+        }
     }
     
     // Function to set up camera capture

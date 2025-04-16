@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAAXDOG - Progress Monitor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            padding-top: 20px;
+        }
+        .card {
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: none;
+            border-radius: 10px;
+        }
+        .card-header {
+            background-color: #fff;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+            font-weight: 600;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-working {
+            background-color: #28a745;
+        }
+        .status-partial {
+            background-color: #ffc107;
+        }
+        .status-failed {
+            background-color: #dc3545;
+        }
+        .status-unknown {
+            background-color: #6c757d;
+        }
+        .json-viewer {
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+        }
+        .feature-item {
+            padding: 10px 15px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+        .feature-item:last-child {
+            border-bottom: none;
+        }
+        .nav-pills .nav-link.active {
+            background-color: #4361ee;
+        }
+        .nav-pills .nav-link {
+            color: #333;
+        }
+        .nav-pills .nav-link:hover:not(.active) {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row mb-4">
+            <div class="col-12 text-center">
+                <h1 class="display-4"><i class="fas fa-wallet text-primary me-3"></i>TAAXDOG Progress Monitor</h1>
+                <p class="lead">Real-time status dashboard for app functionality</p>
+            </div>
+        </div>
+        
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between">
+                        <span>System Status</span>
+                        <button id="refresh-btn" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-sync-alt me-1"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>Overall Status</h5>
+                                <div class="progress mb-3" style="height: 25px;">
+                                    <div id="overall-progress" class="progress-bar bg-success" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                                </div>
+                                <div id="last-updated" class="small text-muted">Last updated: Never</div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <h5>Quick Actions</h5>
+                                </div>
+                                <div class="d-grid gap-2">
+                                    <a href="frontend/index.html" target="_blank" class="btn btn-primary">
+                                        <i class="fas fa-external-link-alt me-2"></i>Open App
+                                    </a>
+                                    <button id="clear-storage-btn" class="btn btn-warning">
+                                        <i class="fas fa-trash-alt me-2"></i>Clear localStorage
+                                    </button>
+                                    <button id="create-mock-data-btn" class="btn btn-success">
+                                        <i class="fas fa-database me-2"></i>Create Mock Data
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-12 mb-4">
+                <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="pills-features-tab" data-bs-toggle="pill" data-bs-target="#pills-features" type="button" role="tab" aria-controls="pills-features" aria-selected="true">Features Status</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="pills-data-tab" data-bs-toggle="pill" data-bs-target="#pills-data" type="button" role="tab" aria-controls="pills-data" aria-selected="false">App Data</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="pills-debug-tab" data-bs-toggle="pill" data-bs-target="#pills-debug" type="button" role="tab" aria-controls="pills-debug" aria-selected="false">Debug Tools</button>
+                    </li>
+                </ul>
+                <div class="tab-content" id="pills-tabContent">
+                    <div class="tab-pane fade show active" id="pills-features" role="tabpanel" aria-labelledby="pills-features-tab">
+                        <div class="card">
+                            <div class="card-header">
+                                Features Status
+                            </div>
+                            <div class="card-body p-0">
+                                <div id="features-list">
+                                    <!-- Features will be loaded here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="pills-data" role="tabpanel" aria-labelledby="pills-data-tab">
+                        <div class="card">
+                            <div class="card-header">
+                                localStorage Data
+                            </div>
+                            <div class="card-body">
+                                <ul class="nav nav-tabs" id="data-tabs" role="tablist">
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link active" id="transactions-tab" data-bs-toggle="tab" data-bs-target="#transactions" type="button" role="tab" aria-controls="transactions" aria-selected="true">Transactions</button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="income-tab" data-bs-toggle="tab" data-bs-target="#income" type="button" role="tab" aria-controls="income" aria-selected="false">Income</button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="expenses-tab" data-bs-toggle="tab" data-bs-target="#expenses" type="button" role="tab" aria-controls="expenses" aria-selected="false">Expenses</button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="other-data-tab" data-bs-toggle="tab" data-bs-target="#other-data" type="button" role="tab" aria-controls="other-data" aria-selected="false">Other Data</button>
+                                    </li>
+                                </ul>
+                                <div class="tab-content mt-3" id="data-tabs-content">
+                                    <div class="tab-pane fade show active" id="transactions" role="tabpanel" aria-labelledby="transactions-tab">
+                                        <h5>Bank Transactions <span id="transactions-count" class="badge bg-primary">0</span></h5>
+                                        <div id="transactions-viewer" class="json-viewer">
+                                            No transactions found
+                                        </div>
+                                    </div>
+                                    <div class="tab-pane fade" id="income" role="tabpanel" aria-labelledby="income-tab">
+                                        <h5>Income Transactions <span id="income-count" class="badge bg-success">0</span></h5>
+                                        <div id="income-viewer" class="json-viewer">
+                                            No income transactions found
+                                        </div>
+                                    </div>
+                                    <div class="tab-pane fade" id="expenses" role="tabpanel" aria-labelledby="expenses-tab">
+                                        <h5>Expense Transactions <span id="expenses-count" class="badge bg-danger">0</span></h5>
+                                        <div id="expenses-viewer" class="json-viewer">
+                                            No expense transactions found
+                                        </div>
+                                    </div>
+                                    <div class="tab-pane fade" id="other-data" role="tabpanel" aria-labelledby="other-data-tab">
+                                        <h5>Other localStorage Data</h5>
+                                        <div id="other-data-viewer" class="json-viewer">
+                                            No other data found
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="pills-debug" role="tabpanel" aria-labelledby="pills-debug-tab">
+                        <div class="card">
+                            <div class="card-header">
+                                Debug Tools
+                            </div>
+                            <div class="card-body">
+                                <!-- Receipt Upload Card -->
+                                <div class="row mb-4">
+                                    <div class="col-12">
+                                        <div class="card">
+                                            <div class="card-header">Receipt Processing (FormX.AI)</div>
+                                            <div class="card-body">
+                                                <div class="mb-3">
+                                                    <label for="receipt-file-input" class="form-label">Select Receipt Image:</label>
+                                                    <input class="form-control" type="file" id="receipt-file-input" accept="image/jpeg, image/png, image/gif">
+                                                </div>
+                                                <button id="upload-receipt-btn" class="btn btn-primary" disabled>
+                                                    <i class="fas fa-upload me-2"></i>Upload and Extract Data
+                                                </button>
+                                                <div id="receipt-status" class="mt-3" style="display: none;">
+                                                    <!-- Status messages and results will appear here -->
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- End Receipt Upload Card -->
+                                <div class="row mb-4">
+                                    <div class="col-md-6">
+                                        <div class="card h-100">
+                                            <div class="card-header">Quick Tests</div>
+                                            <div class="card-body">
+                                                <div class="d-grid gap-2">
+                                                    <button id="test-modals-btn" class="btn btn-outline-primary">
+                                                        <i class="fas fa-window-restore me-2"></i>Test Bootstrap Modals
+                                                    </button>
+                                                    <button id="test-connection-btn" class="btn btn-outline-primary">
+                                                        <i class="fas fa-plug me-2"></i>Test Bank Connection
+                                                    </button>
+                                                    <button id="test-expenses-btn" class="btn btn-outline-primary">
+                                                        <i class="fas fa-chart-pie me-2"></i>Test Expense Categories
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card h-100">
+                                            <div class="card-header">Error Diagnostics</div>
+                                            <div class="card-body">
+                                                <div id="error-log" class="json-viewer" style="max-height: 200px;">
+                                                    No errors logged yet
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-12">
+                                        <div class="card">
+                                            <div class="card-header">Console Output</div>
+                                            <div class="card-body">
+                                                <div id="console-output" class="json-viewer" style="max-height: 200px;">
+                                                    No console output captured yet
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test Modal -->
+    <div class="modal fade" id="test-modal" tabindex="-1" aria-labelledby="test-modal-label" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="test-modal-label">Bootstrap Modal Test</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>This is a test modal to verify that Bootstrap's modals are working correctly.</p>
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>Modal functionality is working!
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Features with their status
+        const features = [
+            { 
+                name: "Dashboard UI", 
+                status: "working", 
+                details: "Main dashboard UI with cards and sidebar",
+                lastUpdated: "2024-06-03"
+            },
+            { 
+                name: "Connect Bank Button", 
+                status: "working", 
+                details: "Button to trigger bank connection modal",
+                lastUpdated: "2024-06-05"
+            },
+            { 
+                name: "Bank Connection Modal", 
+                status: "working", 
+                details: "Modal for connecting to bank accounts",
+                lastUpdated: "2024-06-05"
+            },
+            { 
+                name: "Mock Transactions", 
+                status: "working", 
+                details: "Creation of mock transaction data",
+                lastUpdated: "2024-06-05"
+            },
+            { 
+                name: "Total Income Display", 
+                status: "working", 
+                details: "Display of total income in dashboard",
+                lastUpdated: "2024-06-05"
+            },
+            { 
+                name: "Total Expenses Display", 
+                status: "working", 
+                details: "Display of total expenses in dashboard",
+                lastUpdated: "2024-06-05"
+            },
+            { 
+                name: "Expense Categories Modal", 
+                status: "working", 
+                details: "Modal showing expenses by category with chart",
+                lastUpdated: "2024-06-05"
+            },
+            { 
+                name: "Detailed Expenses Modal", 
+                status: "working", 
+                details: "Modal showing detailed expense transactions",
+                lastUpdated: "2024-06-05"
+            },
+            { 
+                name: "Data Dashboard", 
+                status: "working", 
+                details: "Charts and tables for financial data analysis",
+                lastUpdated: "2024-06-04"
+            },
+            { 
+                name: "Receipt Upload", 
+                status: "working",
+                details: "Upload and processing of receipt images via FormX.AI",
+                lastUpdated: new Date().toISOString().split('T')[0]
+            },
+            { 
+                name: "AI Insights", 
+                status: "partial", 
+                details: "AI-powered financial insights feature",
+                lastUpdated: "2024-06-03"
+            }
+        ];
+
+        // Function to capture console output
+        const consoleOutput = [];
+        const originalConsole = {
+            log: console.log,
+            error: console.error,
+            warn: console.warn
+        };
+
+        console.log = function(...args) {
+            consoleOutput.push({ type: 'log', message: args.join(' '), timestamp: new Date().toISOString() });
+            updateConsoleOutput();
+            originalConsole.log.apply(console, args);
+        };
+
+        console.error = function(...args) {
+            consoleOutput.push({ type: 'error', message: args.join(' '), timestamp: new Date().toISOString() });
+            updateConsoleOutput();
+            updateErrorLog({ message: args.join(' '), timestamp: new Date().toISOString() });
+            originalConsole.error.apply(console, args);
+        };
+
+        console.warn = function(...args) {
+            consoleOutput.push({ type: 'warn', message: args.join(' '), timestamp: new Date().toISOString() });
+            updateConsoleOutput();
+            originalConsole.warn.apply(console, args);
+        };
+
+        // Update console output display
+        function updateConsoleOutput() {
+            const consoleOutputElement = document.getElementById('console-output');
+            if (consoleOutput.length === 0) {
+                consoleOutputElement.textContent = 'No console output captured yet';
+                return;
+            }
+            
+            const outputHtml = consoleOutput.slice(-20).map(entry => {
+                let color = 'black';
+                if (entry.type === 'error') color = 'red';
+                if (entry.type === 'warn') color = 'orange';
+                
+                return `<div style="color: ${color};">[${entry.timestamp.split('T')[1].split('.')[0]}] ${entry.message}</div>`;
+            }).join('');
+            
+            consoleOutputElement.innerHTML = outputHtml;
+        }
+
+        // Error logging
+        const errorLog = [];
+        
+        function updateErrorLog(error) {
+            errorLog.push(error);
+            const errorLogElement = document.getElementById('error-log');
+            
+            if (errorLog.length === 0) {
+                errorLogElement.textContent = 'No errors logged yet';
+                return;
+            }
+            
+            const errorHtml = errorLog.slice(-10).map(entry => {
+                return `<div class="text-danger">[${entry.timestamp.split('T')[1].split('.')[0]}] ${entry.message}</div>`;
+            }).join('');
+            
+            errorLogElement.innerHTML = errorHtml;
+        }
+
+        // Initialize the dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            // Log initialization
+            console.log('TAAXDOG Progress Monitor initialized');
+            
+            // Initialize features list
+            renderFeaturesList();
+            
+            // Load data from localStorage
+            refreshData();
+            
+            // Setup event listeners
+            setupEventListeners();
+            
+            // Auto-refresh data every 30 seconds
+            setInterval(refreshData, 30000);
+            
+            // Update last updated time
+            updateLastUpdated();
+        });
+
+        // Render features list
+        function renderFeaturesList() {
+            const featuresListElement = document.getElementById('features-list');
+            const featuresHtml = features.map(feature => {
+                return `
+                    <div class="feature-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="status-indicator status-${feature.status}"></span>
+                                <strong>${feature.name}</strong> - ${statusToText(feature.status)}
+                            </div>
+                            <small class="text-muted">Updated: ${feature.lastUpdated}</small>
+                        </div>
+                        <p class="mb-0 mt-1 text-muted small">${feature.details}</p>
+                    </div>
+                `;
+            }).join('');
+            
+            featuresListElement.innerHTML = featuresHtml;
+            
+            // Update overall progress
+            updateOverallProgress();
+        }
+
+        // Convert status to text
+        function statusToText(status) {
+            switch(status) {
+                case 'working': return 'Working';
+                case 'partial': return 'Partially Working';
+                case 'failed': return 'Not Working';
+                default: return 'Unknown';
+            }
+        }
+
+        // Update overall progress
+        function updateOverallProgress() {
+            const total = features.length;
+            const working = features.filter(f => f.status === 'working').length;
+            const partial = features.filter(f => f.status === 'partial').length;
+            
+            const progressPercent = Math.round((working + (partial * 0.5)) / total * 100);
+            
+            const progressBar = document.getElementById('overall-progress');
+            progressBar.style.width = `${progressPercent}%`;
+            progressBar.textContent = `${progressPercent}%`;
+            progressBar.setAttribute('aria-valuenow', progressPercent);
+            
+            // Update progress bar color
+            if (progressPercent >= 80) {
+                progressBar.className = 'progress-bar bg-success';
+            } else if (progressPercent >= 50) {
+                progressBar.className = 'progress-bar bg-warning';
+            } else {
+                progressBar.className = 'progress-bar bg-danger';
+            }
+        }
+
+        // Refresh data from localStorage
+        function refreshData() {
+            console.log('Refreshing data from localStorage');
+            
+            try {
+                // Get transactions
+                const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+                const transactionsViewer = document.getElementById('transactions-viewer');
+                const transactionsCount = document.getElementById('transactions-count');
+                
+                if (transactions.length === 0) {
+                    transactionsViewer.textContent = 'No transactions found';
+                } else {
+                    transactionsViewer.textContent = JSON.stringify(transactions, null, 2);
+                    transactionsCount.textContent = transactions.length;
+                }
+                
+                // Sort transactions into income and expenses
+                const income = transactions.filter(tx => parseFloat(tx.amount) > 0);
+                const expenses = transactions.filter(tx => parseFloat(tx.amount) < 0);
+                
+                // Update income tab
+                const incomeViewer = document.getElementById('income-viewer');
+                const incomeCount = document.getElementById('income-count');
+                
+                if (income.length === 0) {
+                    incomeViewer.textContent = 'No income transactions found';
+                } else {
+                    incomeViewer.textContent = JSON.stringify(income, null, 2);
+                    incomeCount.textContent = income.length;
+                }
+                
+                // Update expenses tab
+                const expensesViewer = document.getElementById('expenses-viewer');
+                const expensesCount = document.getElementById('expenses-count');
+                
+                if (expenses.length === 0) {
+                    expensesViewer.textContent = 'No expense transactions found';
+                } else {
+                    expensesViewer.textContent = JSON.stringify(expenses, null, 2);
+                    expensesCount.textContent = expenses.length;
+                }
+                
+                // Get all other localStorage data
+                const otherDataViewer = document.getElementById('other-data-viewer');
+                const otherData = {};
+                
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key !== 'bankTransactions') {
+                        try {
+                            otherData[key] = JSON.parse(localStorage.getItem(key));
+                        } catch (e) {
+                            otherData[key] = localStorage.getItem(key);
+                        }
+                    }
+                }
+                
+                if (Object.keys(otherData).length === 0) {
+                    otherDataViewer.textContent = 'No other data found';
+                } else {
+                    otherDataViewer.textContent = JSON.stringify(otherData, null, 2);
+                }
+                
+                // Update last updated time
+                updateLastUpdated();
+                
+            } catch (error) {
+                console.error('Error refreshing data:', error);
+                updateErrorLog({ message: `Error refreshing data: ${error.message}`, timestamp: new Date().toISOString() });
+            }
+        }
+
+        // Update last updated time
+        function updateLastUpdated() {
+            const lastUpdatedElement = document.getElementById('last-updated');
+            const now = new Date();
+            lastUpdatedElement.textContent = `Last updated: ${now.toLocaleTimeString()}`;
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Refresh button
+            document.getElementById('refresh-btn').addEventListener('click', function() {
+                refreshData();
+            });
+            
+            // Clear localStorage button
+            document.getElementById('clear-storage-btn').addEventListener('click', function() {
+                if (confirm('Are you sure you want to clear all localStorage data? This will reset the app.')) {
+                    localStorage.clear();
+                    console.log('localStorage cleared');
+                    refreshData();
+                }
+            });
+            
+            // Create mock data button
+            document.getElementById('create-mock-data-btn').addEventListener('click', function() {
+                console.log('Creating mock data');
+                createMockData();
+                refreshData();
+            });
+            
+            // Test modal button
+            document.getElementById('test-modals-btn').addEventListener('click', function() {
+                console.log('Testing Bootstrap modals');
+                const testModal = new bootstrap.Modal(document.getElementById('test-modal'));
+                testModal.show();
+            });
+            
+            // Test bank connection button
+            document.getElementById('test-connection-btn').addEventListener('click', function() {
+                console.log('Testing bank connection');
+                window.open('frontend/index.html?action=connect-bank', '_blank');
+            });
+            
+            // Test expenses button
+            document.getElementById('test-expenses-btn').addEventListener('click', function() {
+                console.log('Testing expense categories');
+                window.open('frontend/index.html?action=show-expenses', '_blank');
+            });
+
+            // Receipt Upload Functionality
+            const receiptFileInput = document.getElementById('receipt-file-input');
+            const uploadReceiptBtn = document.getElementById('upload-receipt-btn');
+            const receiptStatusDiv = document.getElementById('receipt-status');
+
+            let selectedFile = null;
+
+            receiptFileInput.addEventListener('change', (event) => {
+                selectedFile = event.target.files[0];
+                if (selectedFile) {
+                    uploadReceiptBtn.disabled = false;
+                    receiptStatusDiv.style.display = 'none'; // Hide previous status
+                    receiptStatusDiv.innerHTML = '';
+                    console.log('Receipt file selected:', selectedFile.name);
+                } else {
+                    uploadReceiptBtn.disabled = true;
+                }
+            });
+
+            uploadReceiptBtn.addEventListener('click', async () => {
+                if (!selectedFile) {
+                    alert('Please select a receipt image file first.');
+                    return;
+                }
+
+                uploadReceiptBtn.disabled = true;
+                uploadReceiptBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Uploading...';
+                receiptStatusDiv.style.display = 'block';
+                receiptStatusDiv.innerHTML = '<div class="alert alert-info">Uploading and processing receipt...</div>';
+
+                const formData = new FormData();
+                formData.append('receipt', selectedFile); // 'receipt' is the key the backend will look for
+
+                try {
+                    const response = await fetch('/api/receipts/upload/formx', {
+                        method: 'POST',
+                        body: formData,
+                        // Headers are not explicitly set for FormData with fetch;
+                        // the browser sets Content-Type to multipart/form-data automatically
+                    });
+
+                    const result = await response.json();
+
+                    if (!response.ok) {
+                        // Handle HTTP errors (like 4xx, 5xx)
+                        throw new Error(result.error || `HTTP error! status: ${response.status}`);
+                    }
+
+                    // Display success and extracted data
+                    receiptStatusDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <strong>Extraction Successful!</strong>
+                        </div>
+                        <div class="json-viewer" style="max-height: 400px;">${JSON.stringify(result, null, 2)}</div>
+                    `;
+                    console.log('Receipt data extracted:', result);
+
+                } catch (error) {
+                    // Display error message
+                    receiptStatusDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <strong>Extraction Failed:</strong> ${error.message}
+                        </div>
+                    `;
+                    console.error('Receipt upload/extraction failed:', error);
+                } finally {
+                    // Reset button state
+                    uploadReceiptBtn.disabled = false;
+                    uploadReceiptBtn.innerHTML = '<i class="fas fa-upload me-2"></i>Upload and Extract Data';
+                    receiptFileInput.value = ''; // Clear the file input
+                    selectedFile = null;
+                }
+            });
+        }
+
+        // Create mock data
+        function createMockData() {
+            console.log('Creating mock transaction data');
+            
+            const today = new Date();
+            const transactions = [];
+            
+            // Add income transactions
+            transactions.push({
+                id: 'tx-' + Math.random().toString(36).substring(2, 9),
+                date: new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1).toISOString(),
+                description: 'Monthly Salary',
+                amount: '5850.00',
+                category: 'Income',
+                merchant: 'Employer Inc',
+                accountName: 'Checking Account'
+            });
+            
+            transactions.push({
+                id: 'tx-' + Math.random().toString(36).substring(2, 9),
+                date: new Date(today.getFullYear(), today.getMonth(), today.getDate() - 5).toISOString(),
+                description: 'Dividend Payment',
+                amount: '1275.50',
+                category: 'Investment',
+                merchant: 'Vanguard',
+                accountName: 'Investment Account'
+            });
+            
+            transactions.push({
+                id: 'tx-' + Math.random().toString(36).substring(2, 9),
+                date: new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7).toISOString(),
+                description: 'Rental Income',
+                amount: '2450.00',
+                category: 'Real Estate',
+                merchant: 'Property Management',
+                accountName: 'Checking Account'
+            });
+            
+            // Add expense transactions
+            const categories = [
+                'Groceries', 'Dining', 'Entertainment', 'Utilities',
+                'Shopping', 'Transportation', 'Housing', 'Healthcare'
+            ];
+            
+            const merchants = {
+                'Groceries': ['Whole Foods', 'Kroger', 'Safeway', 'Trader Joe\'s'],
+                'Dining': ['Chipotle', 'Starbucks', 'The Cheesecake Factory', 'Local Coffee'],
+                'Entertainment': ['Netflix', 'Spotify', 'AMC Theaters', 'Apple Music'],
+                'Utilities': ['Electric Company', 'Water Services', 'Internet Provider', 'Phone Company'],
+                'Shopping': ['Amazon', 'Target', 'Walmart', 'Best Buy'],
+                'Transportation': ['Uber', 'Shell Gas', 'Chevron', 'Public Transit'],
+                'Housing': ['Apartment Rental', 'Home Depot', 'IKEA', 'Property Management'],
+                'Healthcare': ['Pharmacy', 'Doctor Visit', 'Dental Clinic', 'Health Insurance']
+            };
+            
+            // Create expenses for the past 30 days
+            for (let i = 0; i < 30; i++) {
+                const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+                
+                // Create 1-3 transactions per day
+                const txCount = Math.floor(Math.random() * 3) + 1;
+                
+                for (let j = 0; j < txCount; j++) {
+                    const category = categories[Math.floor(Math.random() * categories.length)];
+                    const merchantList = merchants[category];
+                    const merchant = merchantList[Math.floor(Math.random() * merchantList.length)];
+                    
+                    // Random amount between $5 and $200
+                    const amount = -1 * (Math.floor(Math.random() * 19500) / 100 + 5).toFixed(2);
+                    
+                    transactions.push({
+                        id: 'tx-' + Math.random().toString(36).substring(2, 9),
+                        date: date.toISOString(),
+                        description: category + ' - ' + merchant,
+                        amount: amount.toString(),
+                        category: category,
+                        merchant: merchant,
+                        accountName: Math.random() > 0.3 ? 'Checking Account' : 'Credit Card'
+                    });
+                }
+            }
+            
+            // Save to localStorage
+            localStorage.setItem('bankTransactions', JSON.stringify(transactions));
+            localStorage.setItem('lastActiveTime', new Date().getTime().toString());
+            
+            alert('Mock data created successfully!');
+        }
+
+        // Initialize the app - this will log to the console
+        console.log('TAAXDOG Progress Monitor loading...');
+    </script>
+</body>
+</html> 

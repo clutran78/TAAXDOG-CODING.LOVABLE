@@ -1,482 +1,572 @@
-// Script to handle the receipt upload in development mode
+// Receipt Upload and Processing System (Step 5.2)
+// This script handles receipt uploading, processing through OCR API, and storage
+
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('========= RECEIPT HANDLER DEBUGGING =========');
-    console.log('Setting up development mode receipt upload handler');
+    console.log('Initializing receipt processing system');
     
-    // Check if we're in development mode
+    // Debug flag - we'll try real API first in all cases
     const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    console.log('Development mode detected:', isDevelopment);
-    if (!isDevelopment) {
-        console.log('Not in development mode, exiting handler setup');
-        return;
-    }
     
-    // Debug element existence
-    debugElementExistence();
+    // Tabscanner API configuration
+    const TABSCANNER_API_KEY = 'nUyYEmtzI1eoLtWRnqauWAC2W3n6p9V5GjuOmoKGBIeDgEpvLlnsWUUhVg0IfyA3';
+    const TABSCANNER_API_URL = 'https://api.tabscanner.com/2';
+    // Our proxy server URL - updated to port 3000
+    const PROXY_URL = 'http://localhost:3000/proxy';
     
-    // Setup manual entry form
-    setupManualEntryForm();
-    
-    // Setup upload form
-    setupUploadForm();
-    
-    // Setup camera capture
+    // Initialize receipt components
+    setupReceiptUploader();
     setupCameraCapture();
+    setupReceiptsList();
     
-    // Setup the Create Mock Receipt button
-    setupMockReceiptButton();
-    
-    console.log('Development mode receipt handler set up successfully');
-    console.log('========= END RECEIPT HANDLER DEBUGGING =========');
-    
-    // Function to debug element existence
-    function debugElementExistence() {
-        console.log('---------- ELEMENT DEBUGGING ----------');
+    // Function to set up the receipt uploader
+    function setupReceiptUploader() {
+        console.log('Setting up receipt uploader');
         
-        // Manual entry elements
-        const manualForm = document.getElementById('manual-receipt-form');
-        const manualSubmit = document.getElementById('manual-submit');
-        const addItemBtn = document.getElementById('add-item-btn');
-        console.log('Manual form found:', !!manualForm);
-        console.log('Manual submit button found:', !!manualSubmit);
-        console.log('Add item button found:', !!addItemBtn);
-        
-        // Upload elements
         const uploadForm = document.getElementById('receipt-upload-form');
-        const uploadSubmit = document.getElementById('receipt-upload-submit');
-        console.log('Upload form found:', !!uploadForm);
-        console.log('Upload submit button found:', !!uploadSubmit);
-        
-        // Camera elements
-        const cameraStartBtn = document.getElementById('camera-start-btn');
-        const cameraCaptureBtn = document.getElementById('camera-capture-btn');
-        console.log('Camera start button found:', !!cameraStartBtn);
-        console.log('Camera capture button found:', !!cameraCaptureBtn);
-        
-        // Modal elements
-        const receiptModal = document.getElementById('receipt-upload-modal');
-        const modalTabs = document.getElementById('receipt-method-tabs');
-        console.log('Receipt modal found:', !!receiptModal);
-        console.log('Modal tabs found:', !!modalTabs);
-        
-        console.log('-----------------------------------');
-    }
-    
-    // Generate a unique ID for receipts
-    function generateReceiptId() {
-        return 'receipt-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
-    }
-    
-    // Function to set up the manual entry form
-    function setupManualEntryForm() {
-        console.log('Setting up manual entry form');
-        const manualForm = document.getElementById('manual-receipt-form');
-        const manualSubmit = document.getElementById('manual-submit');
-        const addItemBtn = document.getElementById('add-item-btn');
-        const itemsContainer = document.getElementById('manual-items-container');
-        
-        if (!manualForm || !manualSubmit) {
-            console.error('Could not find manual form elements');
-            return;
-        }
-        
-        // Add event listener to add item button
-        if (addItemBtn && itemsContainer) {
-            console.log('Adding event listener to add item button');
-            addItemBtn.addEventListener('click', function(e) {
-                console.log('Add item button clicked');
-                const itemRow = document.createElement('div');
-                itemRow.className = 'row receipt-item mb-2';
-                itemRow.innerHTML = `
-                    <div class="col-5">
-                        <input type="text" class="form-control form-control-sm item-name" placeholder="Item name">
-                    </div>
-                    <div class="col-2">
-                        <input type="number" class="form-control form-control-sm item-quantity" placeholder="Qty" min="1" value="1">
-                    </div>
-                    <div class="col-3">
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text">$</span>
-                            <input type="number" step="0.01" min="0" class="form-control form-control-sm item-price" placeholder="Price">
-                        </div>
-                    </div>
-                    <div class="col-2">
-                        <button type="button" class="btn btn-sm btn-outline-danger remove-item">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                `;
-                
-                itemsContainer.appendChild(itemRow);
-                
-                // Add event listener to the remove button
-                const removeBtn = itemRow.querySelector('.remove-item');
-                if (removeBtn) {
-                    removeBtn.addEventListener('click', function() {
-                        itemRow.remove();
-                    });
-                }
-            });
-        }
-        
-        // Handle form submission
-        if (manualSubmit) {
-            console.log('Adding event listener to manual submit button');
-            // First remove any existing handlers
-            const newManualSubmit = manualSubmit.cloneNode(true);
-            manualSubmit.parentNode.replaceChild(newManualSubmit, manualSubmit);
-            
-            newManualSubmit.addEventListener('click', function(e) {
-                console.log('Manual submit button clicked');
-                // Get form values
-                const merchant = document.getElementById('manual-merchant').value;
-                const date = document.getElementById('manual-date').value;
-                const total = document.getElementById('manual-total').value;
-                const tax = document.getElementById('manual-tax').value || '0';
-                const category = document.getElementById('manual-category').value;
-                const notes = document.getElementById('manual-notes').value;
-                
-                console.log('Manual form values:', {
-                    merchant: merchant,
-                    date: date,
-                    total: total,
-                    tax: tax,
-                    category: category
-                });
-                
-                // Validate required fields
-                if (!merchant || !date || !total) {
-                    alert('Please fill in all required fields (Merchant, Date, Total Amount)');
-                    return;
-                }
-                
-                // Collect items if any
-                const items = [];
-                const itemRows = itemsContainer ? itemsContainer.querySelectorAll('.receipt-item') : [];
-                
-                itemRows.forEach(row => {
-                    const name = row.querySelector('.item-name').value;
-                    const quantity = row.querySelector('.item-quantity').value;
-                    const unitPrice = row.querySelector('.item-price').value;
-                    
-                    if (name && quantity && unitPrice) {
-                        const total = (parseFloat(quantity) * parseFloat(unitPrice)).toFixed(2);
-                        items.push({
-                            name: name,
-                            quantity: parseInt(quantity),
-                            unit_price: parseFloat(unitPrice).toFixed(2),
-                            total: total
-                        });
-                    }
-                });
-                
-                // Add tax as a separate item if provided
-                if (tax && parseFloat(tax) > 0) {
-                    items.push({
-                        name: 'Tax',
-                        quantity: 1,
-                        unit_price: parseFloat(tax).toFixed(2),
-                        total: parseFloat(tax).toFixed(2)
-                    });
-                }
-                
-                // Create receipt object
-                const receipt = {
-                    receipt_id: generateReceiptId(),
-                    merchant: merchant,
-                    date: date,
-                    total_amount: parseFloat(total).toFixed(2),
-                    tax_amount: tax ? parseFloat(tax).toFixed(2) : '0.00',
-                    category: category || 'Uncategorized',
-                    notes: notes || '',
-                    items: items,
-                    status: 'processed',
-                    created_at: new Date().toISOString()
-                };
-                
-                console.log('Created receipt:', receipt);
-                
-                // Save receipt to localStorage
-                saveReceiptAndUpdateStats(receipt);
-                
-                // Show success message
-                showSuccessMessage(receipt);
-                
-                // Reset form
-                manualForm.reset();
-                if (itemsContainer) {
-                    itemsContainer.innerHTML = '';
-                }
-                
-                // Close modal after a delay
-                setTimeout(() => {
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('receipt-upload-modal'));
-                    if (modal) {
-                        modal.hide();
-                    }
-                }, 2000);
-            });
-        }
-        console.log('Manual entry form setup complete');
-    }
-    
-    // Function to set up image upload form
-    function setupUploadForm() {
-        console.log('Setting up upload form');
-        const uploadForm = document.getElementById('receipt-upload-form');
-        const uploadSubmit = document.getElementById('receipt-upload-submit');
+        const uploadButton = document.getElementById('receipt-upload-submit');
         const fileInput = document.getElementById('receipt-image');
         const previewContainer = document.getElementById('receipt-preview-container');
-        const receiptPreview = document.getElementById('receipt-preview');
+        const previewImage = document.getElementById('receipt-preview');
+        const uploadProgress = document.getElementById('receipt-upload-progress');
+        const uploadResult = document.getElementById('receipt-upload-result');
+        const uploadAnother = document.getElementById('upload-another');
         
-        if (!uploadForm || !uploadSubmit) {
-            console.error('Could not find upload form elements');
+        if (!uploadForm || !uploadButton || !fileInput) {
+            console.error('Required receipt upload elements not found');
             return;
         }
         
-        // Override the default submit handler
-        uploadForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            console.log('Form submit intercepted in development mode');
+        // Show preview when an image is selected
+        fileInput.addEventListener('change', function(e) {
+            if (this.files && this.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewImage.src = e.target.result;
+                    previewContainer.style.display = 'block';
+                };
+                reader.readAsDataURL(this.files[0]);
+            }
         });
         
-        // Preview image when selected
-        if (fileInput && previewContainer && receiptPreview) {
-            console.log('Adding event listener to file input');
-            fileInput.addEventListener('change', function() {
-                console.log('File input changed');
-                if (this.files && this.files[0]) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        receiptPreview.src = e.target.result;
-                        previewContainer.style.display = 'block';
-                    };
-                    reader.readAsDataURL(this.files[0]);
-                }
-            });
-        }
-        
-        // Handle upload button click
-        console.log('Adding event listener to upload button');
-        // First remove any existing handlers
-        const newUploadSubmit = uploadSubmit.cloneNode(true);
-        uploadSubmit.parentNode.replaceChild(newUploadSubmit, uploadSubmit);
-        
-        newUploadSubmit.addEventListener('click', function(e) {
+        // Handle upload form submission
+        uploadForm.addEventListener('submit', function(e) {
             e.preventDefault();
+            console.log('Form submitted');
             
-            console.log('Upload button clicked - using dev mode handler');
-            
-            // Get the form elements
-            const fileInput = document.getElementById('receipt-image');
-            const category = document.getElementById('receipt-category').value;
-            const notes = document.getElementById('receipt-notes').value;
-            const ocrProvider = document.getElementById('receipt-ocr-provider').value;
-            const uploadProgress = document.getElementById('receipt-upload-progress');
-            const uploadResult = document.getElementById('receipt-upload-result');
-            const uploadAnother = document.getElementById('upload-another-receipt');
-            
-            if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+            // Validate form
+            if (!fileInput.files || !fileInput.files[0]) {
                 alert('Please select a receipt image to upload');
                 return;
             }
             
+            // Get form data
+            const receiptImage = fileInput.files[0];
+            const category = document.getElementById('receipt-category').value;
+            const notes = document.getElementById('receipt-notes').value;
+            
+            console.log('Starting receipt processing with image:', receiptImage.name);
+            
             // Show progress
-            if (uploadProgress) {
-                uploadProgress.style.display = 'block';
-                
-                const progressBar = uploadProgress.querySelector('.progress-bar');
-                if (progressBar) {
-                    progressBar.style.width = '0%';
-                    
-                    // Simulate progress
-                    let progress = 0;
-                    const progressInterval = setInterval(() => {
-                        progress += 5;
-                        progressBar.style.width = `${progress}%`;
+            uploadProgress.style.display = 'block';
+            uploadResult.style.display = 'none';
+            uploadButton.disabled = true;
+            
+            // Process the receipt with real API (no fallback first)
+            processReceiptWithTabscanner(receiptImage, category, notes)
+                .then(receipt => {
+                    console.log('Receipt processed successfully:', receipt);
+                    // Save receipt to storage and show success message
+                    if (saveReceiptToStorage(receipt)) {
+                        showSuccessMessage(receipt);
                         
-                        if (progress >= 100) {
-                            clearInterval(progressInterval);
+                        // Show the "upload another" button
+                        uploadButton.style.display = 'none';
+                        uploadAnother.style.display = 'inline-block';
+                        
+                        // Set up the "upload another" button click handler
+                        uploadAnother.onclick = function() {
+                            resetUploadForm();
+                        };
+                    } else {
+                        showErrorMessage('Failed to save receipt to storage');
+                        uploadButton.disabled = false;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error processing receipt:', error);
+                    showErrorMessage(error.message || 'Failed to process receipt');
+                    uploadButton.disabled = false;
+                })
+                .finally(() => {
+                    if (uploadProgress) uploadProgress.style.display = 'none';
+                });
+        });
+    }
+    
+    // Function to process receipt with TabScanner API
+    async function processReceiptWithTabscanner(imageFile, category, notes) {
+        console.log('Processing receipt with TabScanner API');
+        try {
+            // Create form data for API request
+            const formData = new FormData();
+            formData.append('file', imageFile);
+            
+            // Step 1: Send the image to TabScanner for processing via proxy
+            console.log('Uploading receipt image to TabScanner via proxy');
+            
+            // Use our Node.js proxy server with updated port
+            const apiUrl = `${PROXY_URL}?endpoint=process`;
+            console.log('Sending request to proxy:', apiUrl);
+            
+            // Add a timeout for the fetch request
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+            
+            // Properly handle potential network errors
+            try {
+                const uploadResponse = await fetch(apiUrl, {
+                    method: 'POST',
+                    body: formData,
+                    signal: controller.signal
+                });
+                
+                // Clear the timeout
+                clearTimeout(timeoutId);
+                
+                if (!uploadResponse.ok) {
+                    let errorMessage = `HTTP error: ${uploadResponse.status}`;
+                    try {
+                        const errorData = await uploadResponse.json();
+                        console.error('TabScanner upload error:', errorData);
+                        errorMessage = `TabScanner API error: ${errorData.message || errorData.error || uploadResponse.statusText}`;
+                    } catch (e) {
+                        console.error('Could not parse error response:', e);
+                    }
+                    throw new Error(errorMessage);
+                }
+                
+                // Parse the JSON response and log it
+                let uploadData;
+                try {
+                    uploadData = await uploadResponse.json();
+                    console.log('TabScanner upload response:', uploadData);
+                } catch (jsonError) {
+                    console.error('Error parsing upload response as JSON:', jsonError);
+                    const responseText = await uploadResponse.text();
+                    console.log('Raw response:', responseText);
+                    throw new Error('Invalid response from server (not JSON)');
+                }
+                
+                if (!uploadData.success || !uploadData.token) {
+                    throw new Error('Failed to get processing token from TabScanner: ' + 
+                        (uploadData.message || 'Unknown error'));
+                }
+                
+                const token = uploadData.token;
+                
+                // Step 2: Poll for results (OCR processing takes time)
+                console.log('Polling for TabScanner results with token:', token);
+                let result = null;
+                let attempts = 0;
+                const maxAttempts = 30; // Increased for reliability
+                
+                while (!result && attempts < maxAttempts) {
+                    attempts++;
+                    console.log(`Polling attempt ${attempts}/${maxAttempts}`);
+                    
+                    // Wait 2 seconds between polling attempts
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    
+                    // Using the proxy for polling requests
+                    const resultUrl = `${PROXY_URL}?endpoint=result/${token}`;
+                    console.log('Polling URL:', resultUrl);
+                    
+                    try {
+                        const resultResponse = await fetch(resultUrl, {
+                            method: 'GET'
+                        });
+                        
+                        if (!resultResponse.ok) {
+                            console.warn(`Polling error on attempt ${attempts}, status: ${resultResponse.status}`);
+                            continue;
                         }
-                    }, 100);
+                        
+                        // Parse the JSON response
+                        let resultData;
+                        try {
+                            resultData = await resultResponse.json();
+                        } catch (jsonError) {
+                            console.error('Error parsing result response as JSON:', jsonError);
+                            const responseText = await resultResponse.text();
+                            console.log('Raw result response:', responseText);
+                            continue; // Skip this polling attempt
+                        }
+                        
+                        console.log(`Polling result attempt ${attempts}:`, resultData);
+                        
+                        if (resultData.success && resultData.status === 'done') {
+                            result = resultData.result;
+                            break;
+                        } else if (resultData.status === 'error') {
+                            throw new Error(`TabScanner processing error: ${resultData.message || 'Unknown error'}`);
+                        }
+                        // If status is 'processing', continue polling
+                    } catch (pollError) {
+                        console.warn(`Error during polling attempt ${attempts}:`, pollError);
+                        // Continue trying despite errors in individual polling attempts
+                    }
+                }
+                
+                if (!result) {
+                    // If we reached the max attempts but don't have an error yet, use simulated data
+                    if (isDevelopment) {
+                        console.warn('TabScanner processing timed out, using simulated data as fallback');
+                        return generateSimulatedReceiptData(category, notes);
+                    } else {
+                        throw new Error('TabScanner processing timed out or failed');
+                    }
+                }
+                
+                // Step 3: Convert TabScanner result to our receipt format
+                console.log('Converting TabScanner results to receipt format');
+                return convertTabscannerToReceipt(result, category, notes);
+                
+            } catch (networkError) {
+                console.error('Network error with TabScanner API:', networkError);
+                
+                // If it's an abort error (timeout), provide a clearer message
+                if (networkError.name === 'AbortError') {
+                    throw new Error('Request timed out. Please try again.');
+                }
+                
+                // For development environment, use simulated data as fallback for network errors
+                if (isDevelopment) {
+                    console.warn('Using simulated data as fallback due to network error');
+                    return generateSimulatedReceiptData(category, notes);
+                }
+                
+                throw new Error(`Network error: ${networkError.message}`);
+            }
+            
+        } catch (error) {
+            console.error('Error in processReceiptWithTabscanner:', error);
+            throw error; // Propagate error up for handling
+        }
+    }
+    
+    // Function to convert TabScanner result to our receipt format
+    function convertTabscannerToReceipt(tabscannerResult, category, notes) {
+        try {
+            console.log('Converting TabScanner result to receipt format:', tabscannerResult);
+            
+            const receiptId = 'receipt-' + Date.now();
+            const now = new Date();
+            
+            // Extract merchant - improved parsing with fallbacks
+            let merchant = 'Unknown';
+            if (tabscannerResult.establishment) {
+                merchant = tabscannerResult.establishment;
+            } else if (tabscannerResult.merchantName) {
+                merchant = tabscannerResult.merchantName;
+            } else if (tabscannerResult.vendor && tabscannerResult.vendor.name) {
+                merchant = tabscannerResult.vendor.name;
+            } else if (tabscannerResult.merchant) {
+                merchant = tabscannerResult.merchant;
+            }
+            
+            // Extract date with better fallback handling
+            let date = now.toISOString().split('T')[0]; // Default to today
+            if (tabscannerResult.date) {
+                if (typeof tabscannerResult.date === 'string') {
+                    // Try to parse string date
+                    try {
+                        const parsedDate = new Date(tabscannerResult.date);
+                        if (!isNaN(parsedDate.getTime())) {
+                            date = parsedDate.toISOString().split('T')[0];
+                        }
+                    } catch (e) {
+                        console.warn('Failed to parse date string:', e);
+                    }
+                } else if (tabscannerResult.date.text) {
+                    // Try to parse date from text field
+                    try {
+                        const parsedDate = new Date(tabscannerResult.date.text);
+                        if (!isNaN(parsedDate.getTime())) {
+                            date = parsedDate.toISOString().split('T')[0];
+                        }
+                    } catch (e) {
+                        console.warn('Failed to parse date from text field:', e);
+                    }
                 }
             }
             
-            if (uploadResult) uploadResult.style.display = 'none';
-            newUploadSubmit.disabled = true;
+            // Extract total amount with more robust parsing
+            let totalAmount = 0;
+            if (tabscannerResult.totalAmount && !isNaN(parseFloat(tabscannerResult.totalAmount))) {
+                totalAmount = parseFloat(tabscannerResult.totalAmount);
+            } else if (tabscannerResult.total && !isNaN(parseFloat(tabscannerResult.total))) {
+                totalAmount = parseFloat(tabscannerResult.total);
+            } else if (tabscannerResult.amounts && tabscannerResult.amounts.total) {
+                totalAmount = parseFloat(tabscannerResult.amounts.total);
+            } else if (tabscannerResult.amount && !isNaN(parseFloat(tabscannerResult.amount))) {
+                totalAmount = parseFloat(tabscannerResult.amount);
+            }
             
-            // Process the receipt image
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                // Simulate OCR processing time (1-2 seconds)
-                setTimeout(() => {
-                    // Generate simulated OCR data based on the date
-                    const today = new Date();
-                    const randomAmount = (Math.random() * 145 + 5).toFixed(2);
-                    const taxAmount = (randomAmount * 0.0825).toFixed(2); // Approx 8.25% tax
-                    
-                    // Use current date for the receipt
-                    const date = today.toISOString().split('T')[0];
-                    
-                    // Get a random merchant
-                    const merchants = [
-                        'Grocery Mart', 'Coffee Shop', 'Office Supplies', 
-                        'Restaurant', 'Gas Station', 'Hardware Store',
-                        'Electronics Store', 'Clothing Store', 'Pharmacy'
-                    ];
-                    const merchant = merchants[Math.floor(Math.random() * merchants.length)];
-                    
-                    // Create 1-3 random items
-                    const itemCount = Math.floor(Math.random() * 3) + 1;
-                    const items = [];
-                    
-                    for (let i = 0; i < itemCount; i++) {
-                        const itemName = `Item ${i+1}`;
-                        const quantity = Math.floor(Math.random() * 3) + 1;
-                        const unitPrice = (Math.random() * 20 + 5).toFixed(2);
-                        const total = (quantity * unitPrice).toFixed(2);
+            // Clean up any currency symbols from the total amount
+            if (typeof totalAmount === 'string') {
+                totalAmount = totalAmount.replace(/[$€£¥]/g, '').trim();
+                totalAmount = parseFloat(totalAmount);
+            }
+            
+            // Default to 0 if we couldn't parse a valid number
+            if (isNaN(totalAmount)) {
+                console.warn('Invalid total amount, defaulting to 0');
+                totalAmount = 0;
+            }
+            
+            // Extract tax amount with more robust parsing
+            let taxAmount = 0;
+            if (tabscannerResult.taxAmount && !isNaN(parseFloat(tabscannerResult.taxAmount))) {
+                taxAmount = parseFloat(tabscannerResult.taxAmount);
+            } else if (tabscannerResult.amounts && tabscannerResult.amounts.tax) {
+                taxAmount = parseFloat(tabscannerResult.amounts.tax);
+            } else if (tabscannerResult.tax && !isNaN(parseFloat(tabscannerResult.tax))) {
+                taxAmount = parseFloat(tabscannerResult.tax);
+            }
+            
+            // Clean up any currency symbols from the tax amount
+            if (typeof taxAmount === 'string') {
+                taxAmount = taxAmount.replace(/[$€£¥]/g, '').trim();
+                taxAmount = parseFloat(taxAmount);
+            }
+            
+            // Default to 0 if we couldn't parse a valid number
+            if (isNaN(taxAmount)) {
+                console.warn('Invalid tax amount, defaulting to 0');
+                taxAmount = 0;
+            }
+            
+            // Extract line items with better error handling
+            const items = [];
+            if (Array.isArray(tabscannerResult.lineItems)) {
+                tabscannerResult.lineItems.forEach(item => {
+                    try {
+                        // For each line item, extract available information
+                        const lineItem = {
+                            name: item.descClean || item.description || 'Unknown Item',
+                            quantity: parseFloat(item.qty) || 1,
+                            unit_price: parseFloat(item.price) || (parseFloat(item.totalPrice) / (parseFloat(item.qty) || 1)),
+                            total: parseFloat(item.totalPrice) || parseFloat(item.price) || 0
+                        };
                         
-                        items.push({
-                            name: itemName,
-                            quantity: quantity,
-                            unit_price: unitPrice,
-                            total: total
-                        });
-                    }
-                    
-                    // Add tax as a separate item
-                    items.push({
-                        name: 'Tax',
-                        quantity: 1,
-                        unit_price: taxAmount,
-                        total: taxAmount
-                    });
-                    
-                    // Create the receipt object
-                    const receipt = {
-                        receipt_id: generateReceiptId(),
-                        merchant: merchant,
-                        date: date,
-                        total_amount: randomAmount,
-                        tax_amount: taxAmount,
-                        category: category || 'Uncategorized',
-                        notes: notes || '',
-                        image: e.target.result,
-                        items: items,
-                        status: 'processed',
-                        created_at: new Date().toISOString()
-                    };
-                    
-                    console.log('Created receipt from upload:', receipt);
-                    
-                    // First show the extracted data and ask for confirmation
-                    if (uploadProgress) uploadProgress.style.display = 'none';
-                    if (uploadResult) {
-                        uploadResult.innerHTML = `
-                            <div class="card mb-3">
-                                <div class="card-header bg-light">
-                                    <h6 class="mb-0">Extracted Receipt Data</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row mb-3">
-                                        <div class="col-md-6">
-                                            <label class="form-label">Merchant</label>
-                                            <input type="text" class="form-control" id="extracted-merchant" value="${receipt.merchant}">
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">Date</label>
-                                            <input type="date" class="form-control" id="extracted-date" value="${receipt.date}">
-                                        </div>
-                                    </div>
-                                    <div class="row mb-3">
-                                        <div class="col-md-6">
-                                            <label class="form-label">Total Amount</label>
-                                            <div class="input-group">
-                                                <span class="input-group-text">$</span>
-                                                <input type="number" step="0.01" min="0" class="form-control" id="extracted-total" value="${receipt.total_amount}">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">Tax Amount</label>
-                                            <div class="input-group">
-                                                <span class="input-group-text">$</span>
-                                                <input type="number" step="0.01" min="0" class="form-control" id="extracted-tax" value="${receipt.tax_amount}">
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="alert alert-info">
-                                        <i class="fas fa-info-circle me-2"></i>You can edit any incorrect values before saving.
-                                    </div>
-                                </div>
-                                <div class="card-footer text-end">
-                                    <button type="button" class="btn btn-primary" id="confirm-extracted-data">
-                                        <i class="fas fa-check me-2"></i>Save Receipt
-                                    </button>
-                                </div>
-                            </div>
-                        `;
-                        uploadResult.style.display = 'block';
+                        // Ensure numeric values are valid
+                        if (isNaN(lineItem.quantity)) lineItem.quantity = 1;
+                        if (isNaN(lineItem.unit_price)) lineItem.unit_price = 0;
+                        if (isNaN(lineItem.total)) lineItem.total = 0;
                         
-                        // Add event listener to the confirm button
-                        const confirmBtn = document.getElementById('confirm-extracted-data');
-                        if (confirmBtn) {
-                            console.log('Adding event listener to confirm extracted data button');
-                            confirmBtn.addEventListener('click', function() {
-                                console.log('Confirm extracted data button clicked');
-                                // Get the edited values
-                                const editedMerchant = document.getElementById('extracted-merchant').value;
-                                const editedDate = document.getElementById('extracted-date').value;
-                                const editedTotal = document.getElementById('extracted-total').value;
-                                const editedTax = document.getElementById('extracted-tax').value;
-                                
-                                // Update the receipt object
-                                receipt.merchant = editedMerchant;
-                                receipt.date = editedDate;
-                                receipt.total_amount = parseFloat(editedTotal).toFixed(2);
-                                receipt.tax_amount = parseFloat(editedTax).toFixed(2);
-                                
-                                // Save the receipt and update stats
-                                saveReceiptAndUpdateStats(receipt);
-                                
-                                // Show success message
-                                showSuccessMessage(receipt);
-                                
-                                // Enable the Upload Another button
-                                if (uploadAnother) {
-                                    uploadAnother.style.display = 'inline-block';
-                                    uploadAnother.onclick = function() {
-                                        // Reset the form
-                                        uploadForm.reset();
-                                        if (previewContainer) previewContainer.style.display = 'none';
-                                        if (uploadResult) uploadResult.style.display = 'none';
-                                        uploadAnother.style.display = 'none';
-                                        newUploadSubmit.disabled = false;
-                                    };
-                                }
-                                
-                                // Close modal after a delay
-                                setTimeout(() => {
-                                    const modal = bootstrap.Modal.getInstance(document.getElementById('receipt-upload-modal'));
-                                    if (modal) {
-                                        modal.hide();
-                                    }
-                                }, 2000);
-                            });
-                        }
+                        items.push(lineItem);
+                    } catch (itemError) {
+                        console.warn('Error processing line item:', itemError);
                     }
-                    
-                    newUploadSubmit.disabled = false;
-                }, 1500); // Simulated OCR processing time
+                });
+            }
+            
+            // Build the receipt object
+            const receipt = {
+                receipt_id: receiptId,
+                merchant: merchant,
+                date: date,
+                total_amount: totalAmount.toFixed(2),
+                tax_amount: taxAmount.toFixed(2),
+                category: category || 'Uncategorized',
+                notes: notes || '',
+                items: items,
+                status: 'processed',
+                created_at: now.toISOString(),
+                ocr_provider: 'tabscanner',
+                raw_ocr_data: tabscannerResult // Store the raw data for debugging
             };
             
-            reader.readAsDataURL(fileInput.files[0]);
-        });
-        console.log('Upload form setup complete');
+            console.log('Converted receipt:', receipt);
+            return receipt;
+            
+        } catch (error) {
+            console.error('Error converting TabScanner result:', error);
+            throw new Error('Failed to convert OCR data to receipt format: ' + error.message);
+        }
     }
     
-    // Function to set up camera capture
+    // Function to generate simulated receipt data (only used as fallback)
+    function generateSimulatedReceiptData(category, notes) {
+        console.log('Generating simulated receipt data');
+        const receiptId = 'receipt-' + Date.now();
+        const now = new Date();
+        const date = now.toISOString().split('T')[0];
+        const amount = (Math.random() * 100 + 10).toFixed(2);
+        const taxAmount = (parseFloat(amount) * 0.08).toFixed(2);
+        
+        const merchants = [
+            'Supermarket', 'Restaurant', 'Coffee Shop', 
+            'Gas Station', 'Hardware Store', 'Pharmacy'
+        ];
+        const merchant = merchants[Math.floor(Math.random() * merchants.length)];
+        
+        // Generate random items
+        const items = [];
+        const itemCount = Math.floor(Math.random() * 5) + 1;
+        const products = [
+            'Milk', 'Bread', 'Eggs', 'Coffee', 'Apples',
+            'Chicken', 'Rice', 'Pasta', 'Chips', 'Soda'
+        ];
+        
+        for (let i = 0; i < itemCount; i++) {
+            const name = products[Math.floor(Math.random() * products.length)];
+            const quantity = Math.floor(Math.random() * 3) + 1;
+            const price = (Math.random() * 10 + 1).toFixed(2);
+            const total = (quantity * parseFloat(price)).toFixed(2);
+            
+            items.push({
+                name: name,
+                quantity: quantity,
+                unit_price: price,
+                total: total
+            });
+        }
+        
+        return {
+            receipt_id: receiptId,
+            merchant: merchant,
+            date: date,
+            total_amount: amount,
+            tax_amount: taxAmount,
+            category: category || 'Uncategorized',
+            notes: notes || '',
+            items: items,
+            status: 'processed',
+            created_at: now.toISOString(),
+            ocr_provider: 'tabscanner-simulated'
+        };
+    }
+    
+    // Function to save receipt to storage system
+    function saveReceiptToStorage(receipt) {
+        try {
+            console.log('Saving receipt to storage:', receipt);
+            
+            // Validate receipt
+            if (!receipt || typeof receipt !== 'object') {
+                console.error('Invalid receipt object');
+                return false;
+            }
+            
+            if (typeof receipt.total_amount === 'undefined') {
+                console.error('Receipt missing total_amount');
+                return false;
+            }
+            
+            // Get existing receipts from storage
+            let receipts = [];
+            try {
+                const stored = localStorage.getItem('simulatedReceipts');
+                if (stored) {
+                    receipts = JSON.parse(stored);
+                    if (!Array.isArray(receipts)) {
+                        console.warn('Stored receipts is not an array, resetting');
+                        receipts = [];
+                    }
+                }
+            } catch (error) {
+                console.error('Error reading existing receipts:', error);
+                receipts = [];
+            }
+            
+            // Add new receipt
+            receipts.push(receipt);
+            
+            // Save back to storage
+            try {
+                localStorage.setItem('simulatedReceipts', JSON.stringify(receipts));
+                console.log('Receipt saved successfully, total count:', receipts.length);
+            } catch (storageError) {
+                console.error('Error saving to localStorage:', storageError);
+                return false;
+            }
+            
+            // Update financial statistics
+            updateFinancialStats(receipt.total_amount);
+            
+            // Reload receipts list if available
+            if (typeof loadReceipts === 'function') {
+                console.log('Reloading receipts list');
+                setTimeout(() => loadReceipts(), 500);
+            } else {
+                console.warn('loadReceipts function not available');
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('Error in saveReceiptToStorage:', error);
+            return false;
+        }
+    }
+    
+    // Function to update financial statistics
+    function updateFinancialStats(amount) {
+        try {
+            // Find the global stats object
+            const stats = typeof window.globalStats !== 'undefined' ? window.globalStats : 
+                         (typeof globalStats !== 'undefined' ? globalStats : null);
+            
+            if (!stats) {
+                console.warn('Global stats object not found');
+                return;
+            }
+            
+            // Parse amount
+            const parsedAmount = parseFloat(amount);
+            if (isNaN(parsedAmount)) {
+                console.error('Invalid amount:', amount);
+                return;
+            }
+            
+            // Update statistics
+            stats.receiptsTotal = (parseFloat(stats.receiptsTotal) || 0) + parsedAmount;
+            stats.receiptsCount = (parseInt(stats.receiptsCount) || 0) + 1;
+            stats.totalExpenses = (parseFloat(stats.totalExpenses) || 0) + parsedAmount;
+            stats.netBalance = (parseFloat(stats.netIncome) || 0) - stats.totalExpenses;
+            
+            console.log('Financial stats updated:', {
+                receiptsTotal: stats.receiptsTotal,
+                totalExpenses: stats.totalExpenses,
+                receiptsCount: stats.receiptsCount,
+                netBalance: stats.netBalance
+            });
+            
+            // Save updated stats
+            if (typeof saveFinancialStats === 'function') {
+                saveFinancialStats();
+            } else if (typeof window.saveFinancialStats === 'function') {
+                window.saveFinancialStats();
+            } else {
+                localStorage.setItem('taaxdogFinancialStats', JSON.stringify(stats));
+            }
+            
+            // Update UI if function available
+            if (typeof updateDashboardStats === 'function') {
+                updateDashboardStats();
+            } else if (typeof window.updateDashboardStats === 'function') {
+                window.updateDashboardStats();
+            }
+        } catch (error) {
+            console.error('Error updating financial stats:', error);
+        }
+    }
+    
+    // Function to set up camera capture for receipts
     function setupCameraCapture() {
         console.log('Setting up camera capture');
+        
+        const cameraTab = document.getElementById('camera-tab');
         const cameraStartBtn = document.getElementById('camera-start-btn');
         const cameraCaptureBtn = document.getElementById('camera-capture-btn');
         const cameraRetakeBtn = document.getElementById('camera-retake-btn');
@@ -486,302 +576,183 @@ document.addEventListener('DOMContentLoaded', function() {
         const cameraPreview = document.getElementById('camera-preview');
         const cameraPlaceholder = document.getElementById('camera-placeholder');
         
-        if (!cameraStartBtn || !cameraCaptureBtn || !cameraVideo || !cameraCanvas || !cameraPreview) {
-            console.error('Could not find camera elements');
+        if (!cameraStartBtn || !cameraCaptureBtn || !cameraVideo) {
+            console.error('Required camera elements not found');
             return;
         }
         
         let stream = null;
         
-        // Start camera when button is clicked
-        console.log('Adding event listener to camera start button');
-        // Remove any existing handlers
-        const newCameraStartBtn = cameraStartBtn.cloneNode(true);
-        cameraStartBtn.parentNode.replaceChild(newCameraStartBtn, cameraStartBtn);
-        
-        newCameraStartBtn.addEventListener('click', function() {
-            console.log('Camera start button clicked');
-            // Request camera access
+        // Start camera button click handler
+        cameraStartBtn.addEventListener('click', function() {
             navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
                 .then(function(mediaStream) {
-                    console.log('Camera access granted');
                     stream = mediaStream;
                     cameraVideo.srcObject = mediaStream;
+                    cameraVideo.play();
+                    
                     cameraVideo.style.display = 'block';
                     cameraPlaceholder.style.display = 'none';
                     cameraCaptureBtn.style.display = 'block';
-                    newCameraStartBtn.style.display = 'none';
+                    cameraStartBtn.style.display = 'none';
                 })
-                .catch(function(err) {
-                    console.error('Error accessing camera:', err);
-                    alert('Could not access camera. Please make sure you have granted permission or try using a different browser.');
+                .catch(function(error) {
+                    console.error('Error accessing camera:', error);
+                    alert('Could not access camera. Please ensure you have granted camera permissions.');
                 });
         });
         
-        // Capture photo when button is clicked
-        console.log('Adding event listener to camera capture button');
-        // Remove any existing handlers
-        const newCameraCaptureBtn = cameraCaptureBtn.cloneNode(true);
-        cameraCaptureBtn.parentNode.replaceChild(newCameraCaptureBtn, cameraCaptureBtn);
-        
-        newCameraCaptureBtn.addEventListener('click', function() {
-            console.log('Camera capture button clicked');
-            // Draw video frame to canvas
-            const context = cameraCanvas.getContext('2d');
-            cameraCanvas.width = cameraVideo.videoWidth;
-            cameraCanvas.height = cameraVideo.videoHeight;
-            context.drawImage(cameraVideo, 0, 0, cameraCanvas.width, cameraCanvas.height);
+        // Capture photo button click handler
+        cameraCaptureBtn.addEventListener('click', function() {
+            if (!stream) return;
             
-            // Get image data
-            const imageData = cameraCanvas.toDataURL('image/png');
-            
-            // Display captured image
-            cameraPreview.src = imageData;
-            cameraPreview.style.display = 'block';
-            cameraVideo.style.display = 'none';
-            
-            // Show retake and submit buttons
-            cameraRetakeBtn.style.display = 'block';
-            cameraSubmitBtn.style.display = 'block';
-            newCameraCaptureBtn.style.display = 'none';
+            try {
+                // Draw video frame to canvas
+                const context = cameraCanvas.getContext('2d');
+                cameraCanvas.width = cameraVideo.videoWidth;
+                cameraCanvas.height = cameraVideo.videoHeight;
+                context.drawImage(cameraVideo, 0, 0, cameraCanvas.width, cameraCanvas.height);
+                
+                // Convert to image data URL
+                const imageData = cameraCanvas.toDataURL('image/png');
+                
+                // Show preview
+                cameraPreview.src = imageData;
+                cameraPreview.style.display = 'block';
+                cameraVideo.style.display = 'none';
+                
+                // Show retake and submit buttons
+                cameraCaptureBtn.style.display = 'none';
+                cameraRetakeBtn.style.display = 'inline-block';
+                cameraSubmitBtn.style.display = 'inline-block';
+            } catch (error) {
+                console.error('Error capturing photo:', error);
+                alert('Failed to capture photo. Please try again.');
+            }
         });
         
-        // Retake photo when button is clicked
-        console.log('Adding event listener to camera retake button');
-        // Remove any existing handlers
-        const newCameraRetakeBtn = cameraRetakeBtn.cloneNode(true);
-        cameraRetakeBtn.parentNode.replaceChild(newCameraRetakeBtn, cameraRetakeBtn);
-        
-        newCameraRetakeBtn.addEventListener('click', function() {
-            console.log('Camera retake button clicked');
+        // Retake photo button click handler
+        cameraRetakeBtn.addEventListener('click', function() {
             cameraVideo.style.display = 'block';
             cameraPreview.style.display = 'none';
-            newCameraCaptureBtn.style.display = 'block';
-            newCameraRetakeBtn.style.display = 'none';
+            
+            cameraCaptureBtn.style.display = 'block';
+            cameraRetakeBtn.style.display = 'none';
             cameraSubmitBtn.style.display = 'none';
         });
         
-        // Submit photo when button is clicked
-        console.log('Adding event listener to camera submit button');
-        // Remove any existing handlers
-        const newCameraSubmitBtn = cameraSubmitBtn.cloneNode(true);
-        cameraSubmitBtn.parentNode.replaceChild(newCameraSubmitBtn, cameraSubmitBtn);
-        
-        newCameraSubmitBtn.addEventListener('click', function() {
-            console.log('Camera submit button clicked');
+        // Submit photo button click handler
+        cameraSubmitBtn.addEventListener('click', function() {
             // Get the image data
             const imageData = cameraPreview.src;
+            if (!imageData) {
+                alert('No photo captured');
+                return;
+            }
+            
+            // Get category and notes if available
+            const category = document.getElementById('camera-category')?.value || 'Uncategorized';
+            const notes = document.getElementById('camera-notes')?.value || '';
             
             // Show progress
             const uploadProgress = document.getElementById('receipt-upload-progress');
-            const uploadResult = document.getElementById('receipt-upload-result');
+            if (uploadProgress) uploadProgress.style.display = 'block';
             
-            if (uploadProgress) {
-                uploadProgress.style.display = 'block';
-                
-                const progressBar = uploadProgress.querySelector('.progress-bar');
-                if (progressBar) {
-                    progressBar.style.width = '0%';
+            // Disable submit button during processing
+            cameraSubmitBtn.disabled = true;
+            
+            // Convert base64 image to blob for API
+            fetch(imageData)
+                .then(res => res.blob())
+                .then(blob => {
+                    // Create a File object from the blob for TabScanner
+                    const imageFile = new File([blob], 'camera_receipt.png', { type: 'image/png' });
                     
-                    // Simulate progress
-                    let progress = 0;
-                    const progressInterval = setInterval(() => {
-                        progress += 5;
-                        progressBar.style.width = `${progress}%`;
-                        
-                        if (progress >= 100) {
-                            clearInterval(progressInterval);
-                        }
-                    }, 100);
-                }
-            }
-            
-            if (uploadResult) uploadResult.style.display = 'none';
-            newCameraSubmitBtn.disabled = true;
-            
-            // Process the receipt (simulate OCR)
-            setTimeout(() => {
-                // Generate simulated OCR data
-                const today = new Date();
-                const randomAmount = (Math.random() * 145 + 5).toFixed(2);
-                const taxAmount = (randomAmount * 0.0825).toFixed(2); // Approx 8.25% tax
-                
-                // Use current date for the receipt
-                const date = today.toISOString().split('T')[0];
-                
-                // Get a random merchant
-                const merchants = [
-                    'Grocery Mart', 'Coffee Shop', 'Office Supplies', 
-                    'Restaurant', 'Gas Station', 'Hardware Store',
-                    'Electronics Store', 'Clothing Store', 'Pharmacy'
-                ];
-                const merchant = merchants[Math.floor(Math.random() * merchants.length)];
-                
-                // Create 1-3 random items
-                const itemCount = Math.floor(Math.random() * 3) + 1;
-                const items = [];
-                
-                for (let i = 0; i < itemCount; i++) {
-                    const itemName = `Item ${i+1}`;
-                    const quantity = Math.floor(Math.random() * 3) + 1;
-                    const unitPrice = (Math.random() * 20 + 5).toFixed(2);
-                    const total = (quantity * unitPrice).toFixed(2);
+                    // Process with TabScanner API
+                    return processReceiptWithTabscanner(imageFile, category, notes);
+                })
+                .then(receipt => {
+                    console.log('Camera receipt processed successfully:', receipt);
                     
-                    items.push({
-                        name: itemName,
-                        quantity: quantity,
-                        unit_price: unitPrice,
-                        total: total
-                    });
+                    // Save and show success
+                    if (saveReceiptToStorage(receipt)) {
+                        showSuccessMessage(receipt);
+                    } else {
+                        showErrorMessage('Failed to save receipt to storage');
+                    }
+                
+                // Stop camera stream
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                    stream = null;
                 }
                 
-                // Add tax as a separate item
-                items.push({
-                    name: 'Tax',
-                    quantity: 1,
-                    unit_price: taxAmount,
-                    total: taxAmount
-                });
-                
-                // Create the receipt object
-                const receipt = {
-                    receipt_id: generateReceiptId(),
-                    merchant: merchant,
-                    date: date,
-                    total_amount: randomAmount,
-                    tax_amount: taxAmount,
-                    category: 'Uncategorized',
-                    notes: '',
-                    image: imageData,
-                    items: items,
-                    status: 'processed',
-                    created_at: new Date().toISOString()
-                };
-                
-                console.log('Created receipt from camera capture:', receipt);
-                
-                // Show extracted data for confirmation
-                if (uploadProgress) uploadProgress.style.display = 'none';
-                if (uploadResult) {
-                    uploadResult.innerHTML = `
-                        <div class="card mb-3">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0">Extracted Receipt Data</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row mb-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label">Merchant</label>
-                                        <input type="text" class="form-control" id="camera-merchant" value="${receipt.merchant}">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Date</label>
-                                        <input type="date" class="form-control" id="camera-date" value="${receipt.date}">
-                                    </div>
-                                </div>
-                                <div class="row mb-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label">Total Amount</label>
-                                        <div class="input-group">
-                                            <span class="input-group-text">$</span>
-                                            <input type="number" step="0.01" min="0" class="form-control" id="camera-total" value="${receipt.total_amount}">
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Tax Amount</label>
-                                        <div class="input-group">
-                                            <span class="input-group-text">$</span>
-                                            <input type="number" step="0.01" min="0" class="form-control" id="camera-tax" value="${receipt.tax_amount}">
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="row mb-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label">Category</label>
-                                        <select class="form-select" id="camera-category">
-                                            <option value="Food and Dining">Food and Dining</option>
-                                            <option value="Shopping">Shopping</option>
-                                            <option value="Travel">Travel</option>
-                                            <option value="Entertainment">Entertainment</option>
-                                            <option value="Office">Office</option>
-                                            <option value="Groceries">Groceries</option>
-                                            <option value="Automotive">Automotive</option>
-                                            <option value="Utilities">Utilities</option>
-                                            <option value="Healthcare">Healthcare</option>
-                                            <option value="Other">Other</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Notes (Optional)</label>
-                                        <textarea class="form-control" id="camera-notes" rows="1"></textarea>
-                                    </div>
-                                </div>
-                                <div class="alert alert-info">
-                                    <i class="fas fa-info-circle me-2"></i>You can edit any incorrect values before saving.
-                                </div>
-                            </div>
-                            <div class="card-footer text-end">
-                                <button type="button" class="btn btn-primary" id="confirm-camera-data">
-                                    <i class="fas fa-check me-2"></i>Save Receipt
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                    uploadResult.style.display = 'block';
+                // Reset camera UI after a delay
+                setTimeout(() => {
+                    cameraVideo.style.display = 'none';
+                    cameraPreview.style.display = 'none';
+                    cameraPlaceholder.style.display = 'block';
+                    cameraStartBtn.style.display = 'block';
+                    cameraCaptureBtn.style.display = 'none';
+                    cameraRetakeBtn.style.display = 'none';
+                    cameraSubmitBtn.style.display = 'none';
+                    cameraSubmitBtn.disabled = false;
                     
-                    // Add event listener to the confirm button
-                    const confirmBtn = document.getElementById('confirm-camera-data');
-                    if (confirmBtn) {
-                        console.log('Adding event listener to confirm camera data button');
-                        confirmBtn.addEventListener('click', function() {
-                            console.log('Confirm camera data button clicked');
-                            // Get the edited values
-                            const editedMerchant = document.getElementById('camera-merchant').value;
-                            const editedDate = document.getElementById('camera-date').value;
-                            const editedTotal = document.getElementById('camera-total').value;
-                            const editedTax = document.getElementById('camera-tax').value;
-                            const editedCategory = document.getElementById('camera-category').value;
-                            const editedNotes = document.getElementById('camera-notes').value;
+                    // Close modal after success
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('receipt-upload-modal'));
+                    if (modal) {
+                        modal.hide();
+                    }
+                }, 2000);
+                })
+                .catch(error => {
+                    console.error('Error processing camera receipt:', error);
+                    showErrorMessage(error.message || 'Failed to process receipt');
+                    cameraSubmitBtn.disabled = false;
+                    
+                    // Only in development, offer fallback
+                    if (isDevelopment && confirm('API error occurred. Generate simulated data instead?')) {
+                        const simulatedReceipt = generateSimulatedReceiptData(category, notes);
+                        if (saveReceiptToStorage(simulatedReceipt)) {
+                            showSuccessMessage(simulatedReceipt);
                             
-                            // Update the receipt object
-                            receipt.merchant = editedMerchant;
-                            receipt.date = editedDate;
-                            receipt.total_amount = parseFloat(editedTotal).toFixed(2);
-                            receipt.tax_amount = parseFloat(editedTax).toFixed(2);
-                            receipt.category = editedCategory;
-                            receipt.notes = editedNotes;
-                            
-                            // Save the receipt and update stats
-                            saveReceiptAndUpdateStats(receipt);
-                            
-                            // Show success message
-                            showSuccessMessage(receipt);
-                            
-                            // Stop camera stream
-                            if (stream) {
-                                stream.getTracks().forEach(track => track.stop());
-                                stream = null;
-                            }
-                            
-                            // Close modal after a delay
+                            // Reset UI
                             setTimeout(() => {
+                                cameraVideo.style.display = 'none';
+                                cameraPreview.style.display = 'none';
+                                cameraPlaceholder.style.display = 'block';
+                                cameraStartBtn.style.display = 'block';
+                                cameraCaptureBtn.style.display = 'none';
+                                cameraRetakeBtn.style.display = 'none';
+                                cameraSubmitBtn.style.display = 'none';
+                                
+                                // Close modal after success
                                 const modal = bootstrap.Modal.getInstance(document.getElementById('receipt-upload-modal'));
                                 if (modal) {
                                     modal.hide();
                                 }
                             }, 2000);
-                        });
+                        }
                     }
-                }
-                
-                newCameraSubmitBtn.disabled = false;
-            }, 1500); // Simulated OCR processing time
+                })
+                .finally(() => {
+                    if (uploadProgress) uploadProgress.style.display = 'none';
+                });
         });
         
-        // Clean up when tab switched or modal closed
+        // Clean up camera when tab changes or modal closes
         document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(button => {
             button.addEventListener('click', function() {
-                console.log('Tab switched, cleaning up camera resources');
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                    stream = null;
+                }
+            });
+        });
+        
+        const receiptModal = document.getElementById('receipt-upload-modal');
+        if (receiptModal) {
+            receiptModal.addEventListener('hidden.bs.modal', function() {
                 if (stream) {
                     stream.getTracks().forEach(track => track.stop());
                     stream = null;
@@ -791,125 +762,290 @@ document.addEventListener('DOMContentLoaded', function() {
                 cameraVideo.style.display = 'none';
                 cameraPreview.style.display = 'none';
                 cameraPlaceholder.style.display = 'block';
-                newCameraStartBtn.style.display = 'block';
-                newCameraCaptureBtn.style.display = 'none';
-                newCameraRetakeBtn.style.display = 'none';
-                newCameraSubmitBtn.style.display = 'none';
-            });
-        });
-        
-        // Clean up when modal is closed
-        document.getElementById('receipt-upload-modal').addEventListener('hidden.bs.modal', function() {
-            console.log('Modal closed, cleaning up camera resources');
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-                stream = null;
-            }
-        });
-        
-        console.log('Camera capture setup complete');
-    }
-    
-    // Function to set up the Create Mock Receipt button
-    function setupMockReceiptButton() {
-        console.log('Setting up mock receipt button');
-        const createMockBtn = document.getElementById('create-mock-receipt');
-        if (createMockBtn) {
-            console.log('Adding event listener to create mock receipt button');
-            // Remove any existing handlers
-            const newCreateMockBtn = createMockBtn.cloneNode(true);
-            createMockBtn.parentNode.replaceChild(newCreateMockBtn, createMockBtn);
-            
-            newCreateMockBtn.addEventListener('click', function() {
-                console.log('Create mock receipt button clicked');
-                if (typeof createMockReceipt === 'function') {
-                    createMockReceipt();
-                    
-                    // Close the modal after creating the mock receipt
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('receipt-upload-modal'));
-                    if (modal) {
-                        modal.hide();
-                    }
-                } else {
-                    console.error('createMockReceipt function not found');
-                    alert('Error: Mock receipt function not available');
-                }
+                cameraStartBtn.style.display = 'block';
+                cameraCaptureBtn.style.display = 'none';
+                cameraRetakeBtn.style.display = 'none';
+                cameraSubmitBtn.style.display = 'none';
+                
+                // Reset the upload form
+                resetUploadForm();
             });
         }
-        console.log('Mock receipt button setup complete');
     }
     
-    // Helper function to save receipt and update financial stats
-    function saveReceiptAndUpdateStats(receipt) {
-        console.log('Saving receipt and updating stats');
+    // Function to set up the receipts list
+    function setupReceiptsList() {
+        console.log('Setting up receipts list');
         
-        // Store in localStorage
-        let simulatedReceipts = JSON.parse(localStorage.getItem('simulatedReceipts') || '[]');
-        simulatedReceipts.push(receipt);
-        localStorage.setItem('simulatedReceipts', JSON.stringify(simulatedReceipts));
+        // Load initial receipts data
+        if (typeof loadReceipts === 'function') {
+            loadReceipts();
+        }
         
-        console.log('Receipt saved to localStorage');
-        
-        // Update financial stats
+        // Add delete receipt functionality with event delegation
+        document.addEventListener('click', function(e) {
+            // Find closest button or the target itself
+            const button = e.target.closest('.delete-receipt') || (e.target.classList.contains('delete-receipt') ? e.target : null);
+            
+            if (button) {
+                const receiptId = button.getAttribute('data-id');
+                if (receiptId) {
+                    console.log('Delete button clicked for receipt:', receiptId);
+                    if (confirm('Are you sure you want to delete this receipt?')) {
+                        deleteReceipt(receiptId);
+                    }
+                }
+            }
+        });
+    }
+    
+    // Function to delete a receipt
+    function deleteReceipt(receiptId) {
         try {
-            // Update global stats with the new receipt amount
-            if (typeof globalStats !== 'undefined') {
-                console.log('Updating global stats with receipt amount:', receipt.total_amount);
-                const amount = parseFloat(receipt.total_amount);
+            console.log('Deleting receipt:', receiptId);
+            
+            if (!receiptId) {
+                console.error('No receipt ID provided for deletion');
+                return false;
+            }
+            
+            // Get receipts from storage
+            let receipts = [];
+            try {
+                const stored = localStorage.getItem('simulatedReceipts');
+                if (stored) {
+                    receipts = JSON.parse(stored);
+                }
+            } catch (error) {
+                console.error('Error reading receipts for deletion:', error);
+                receipts = [];
+            }
+            
+            if (!Array.isArray(receipts)) {
+                console.error('Stored receipts is not an array');
+                return false;
+            }
+            
+            // Find the receipt to delete
+            const index = receipts.findIndex(r => r.receipt_id === receiptId);
+            if (index === -1) {
+                console.error('Receipt not found for deletion:', receiptId);
+                return false;
+            }
+            
+            // Get receipt for financial stats update
+            const receipt = receipts[index];
+            const amount = parseFloat(receipt.total_amount) || 0;
+            
+            // Remove the receipt
+            receipts.splice(index, 1);
+            
+            // Save back to storage
+            localStorage.setItem('simulatedReceipts', JSON.stringify(receipts));
+            console.log('Receipt deleted, remaining count:', receipts.length);
+            
+            // Update financial stats
+            const stats = typeof window.globalStats !== 'undefined' ? window.globalStats : 
+                         (typeof globalStats !== 'undefined' ? globalStats : null);
+            
+            if (stats) {
+                stats.receiptsTotal = Math.max(0, (parseFloat(stats.receiptsTotal) || 0) - amount);
+                stats.receiptsCount = Math.max(0, (parseInt(stats.receiptsCount) || 0) - 1);
+                stats.totalExpenses = Math.max(0, (parseFloat(stats.totalExpenses) || 0) - amount);
+                stats.netBalance = (parseFloat(stats.netIncome) || 0) - stats.totalExpenses;
                 
-                // Update receipt totals
-                globalStats.receiptsTotal = (parseFloat(globalStats.receiptsTotal) || 0) + amount;
-                
-                // Update expenses
-                globalStats.totalExpenses = (parseFloat(globalStats.totalExpenses) || 0) + amount;
-                
-                // Update balance
-                globalStats.netBalance = globalStats.netIncome - globalStats.totalExpenses;
-                
-                // Save the updated stats
+                // Save updated stats
                 if (typeof saveFinancialStats === 'function') {
                     saveFinancialStats();
+                } else if (typeof window.saveFinancialStats === 'function') {
+                    window.saveFinancialStats();
+                } else {
+                    localStorage.setItem('taaxdogFinancialStats', JSON.stringify(stats));
                 }
                 
-                // Update the dashboard
+                // Update UI if function available
                 if (typeof updateDashboardStats === 'function') {
                     updateDashboardStats();
+                } else if (typeof window.updateDashboardStats === 'function') {
+                    window.updateDashboardStats();
                 }
-                
-                console.log('Global stats updated successfully');
-            } else {
-                console.warn('globalStats is undefined, could not update stats');
             }
-        } catch (error) {
-            console.error('Error updating financial stats:', error);
-        }
-        
-        // Reload receipts list if we're on that page
-        if (document.getElementById('receipts-section') && 
-            document.getElementById('receipts-section').style.display !== 'none') {
-            console.log('Reloading receipts list');
+            
+            // Reload receipts list if available
             if (typeof loadReceipts === 'function') {
                 loadReceipts();
-            } else {
-                console.warn('loadReceipts function not found');
             }
+            
+            return true;
+        } catch (error) {
+            console.error('Error deleting receipt:', error);
+            return false;
         }
     }
     
-    // Helper function to show success message
+    // Function to show success message
     function showSuccessMessage(receipt) {
-        console.log('Showing success message for receipt');
+        console.log('Showing success message for receipt:', receipt);
+        
         const uploadResult = document.getElementById('receipt-upload-result');
+        const uploadProgress = document.getElementById('receipt-upload-progress');
+        
+        if (uploadProgress) uploadProgress.style.display = 'none';
+        
         if (uploadResult) {
             uploadResult.innerHTML = `
                 <div class="alert alert-success">
-                    <h5><i class="fas fa-check-circle me-2"></i>Receipt saved successfully!</h5>
-                    <p class="mb-1">Merchant: ${receipt.merchant}</p>
-                    <p class="mb-1">Date: ${receipt.date}</p>
-                    <p class="mb-1">Total: $${parseFloat(receipt.total_amount).toFixed(2)}</p>
-                    <p class="mb-0">Category: ${receipt.category}</p>
+                    <h5><i class="bi bi-check-circle me-2"></i>Receipt saved successfully!</h5>
+                    <p class="mb-1"><strong>Merchant:</strong> ${receipt.merchant || 'Unknown'}</p>
+                    <p class="mb-1"><strong>Date:</strong> ${receipt.date || 'Unknown'}</p>
+                    <p class="mb-1"><strong>Total:</strong> $${parseFloat(receipt.total_amount).toFixed(2)}</p>
+                    <p class="mb-0"><strong>Category:</strong> ${receipt.category || 'Uncategorized'}</p>
+                </div>`;
+            uploadResult.style.display = 'block';
+            
+            // Hide form after successful upload
+            setTimeout(() => {
+                const modal = bootstrap.Modal.getInstance(document.getElementById('receipt-upload-modal'));
+                if (modal) {
+                    modal.hide();
+                }
+            }, 2000);
+        }
+    }
+    
+    // Function to show error message
+    function showErrorMessage(message) {
+        console.error('Showing error message:', message);
+        
+        const uploadResult = document.getElementById('receipt-upload-result');
+        const uploadProgress = document.getElementById('receipt-upload-progress');
+        
+        if (uploadProgress) uploadProgress.style.display = 'none';
+        
+        if (uploadResult) {
+            uploadResult.innerHTML = `
+                <div class="alert alert-danger">
+                    <h5><i class="bi bi-exclamation-triangle me-2"></i>Error</h5>
+                    <p>${message}</p>
                 </div>`;
             uploadResult.style.display = 'block';
         }
     }
+    
+    // Function to reset the upload form and restore the UI state
+    function resetUploadForm() {
+        const uploadForm = document.getElementById('receipt-upload-form');
+        const previewContainer = document.getElementById('receipt-preview-container');
+        const uploadResult = document.getElementById('receipt-upload-result');
+        const uploadSubmit = document.getElementById('receipt-upload-submit');
+        const uploadAnother = document.getElementById('upload-another-receipt');
+        
+        // Reset all form elements
+        if (uploadForm) uploadForm.reset();
+        if (previewContainer) previewContainer.style.display = 'none';
+        if (uploadResult) uploadResult.style.display = 'none';
+        
+        // Show submit button, hide "upload another" button
+        if (uploadSubmit) {
+            uploadSubmit.style.display = 'block';
+            uploadSubmit.disabled = false;
+        }
+        if (uploadAnother) uploadAnother.style.display = 'none';
+        
+        // Ensure the floating upload button is visible again
+        const uploadReceiptBtn = document.getElementById('upload-receipt-btn');
+        if (uploadReceiptBtn) {
+            uploadReceiptBtn.style.display = 'block';
+        }
+        
+        // Ensure the page remains responsive
+        document.body.classList.remove('modal-open');
+        const modalBackdrops = document.querySelectorAll('.modal-backdrop');
+        modalBackdrops.forEach(backdrop => backdrop.remove());
+    }
+
+    // Make sure the upload button is always visible after modal close
+    document.addEventListener('hidden.bs.modal', function(event) {
+        if (event.target.id === 'receipt-upload-modal') {
+            const uploadReceiptBtn = document.getElementById('upload-receipt-btn');
+            if (uploadReceiptBtn) {
+                uploadReceiptBtn.style.display = 'block';
+            }
+            
+            // Ensure page responsiveness
+            document.body.classList.remove('modal-open');
+            const modalBackdrops = document.querySelectorAll('.modal-backdrop');
+            modalBackdrops.forEach(backdrop => backdrop.remove());
+        }
+    });
+
+    // Fix the camera capture mode to properly clean up resources
+    function fixCameraCapture() {
+        const cameraSubmitBtn = document.getElementById('camera-submit-btn');
+        
+        if (cameraSubmitBtn) {
+            // Replace the existing click handler with a more reliable one
+            cameraSubmitBtn.addEventListener('click', function() {
+                // Existing camera capture code...
+                
+                // Ensure we properly clean up and restore UI state
+                const handleCompletion = () => {
+                    // Stop camera stream
+                    if (window.cameraStream) {
+                        window.cameraStream.getTracks().forEach(track => track.stop());
+                        window.cameraStream = null;
+                    }
+                    
+                    // Reset camera UI
+                    const cameraVideo = document.getElementById('camera-video');
+                    const cameraPreview = document.getElementById('camera-preview');
+                    const cameraPlaceholder = document.getElementById('camera-placeholder');
+                    const cameraStartBtn = document.getElementById('camera-start-btn');
+                    const cameraCaptureBtn = document.getElementById('camera-capture-btn');
+                    const cameraRetakeBtn = document.getElementById('camera-retake-btn');
+                    
+                    if (cameraVideo) cameraVideo.style.display = 'none';
+                    if (cameraPreview) cameraPreview.style.display = 'none';
+                    if (cameraPlaceholder) cameraPlaceholder.style.display = 'block';
+                    if (cameraStartBtn) cameraStartBtn.style.display = 'block';
+                    if (cameraCaptureBtn) cameraCaptureBtn.style.display = 'none';
+                    if (cameraRetakeBtn) cameraRetakeBtn.style.display = 'none';
+                    if (cameraSubmitBtn) {
+                        cameraSubmitBtn.style.display = 'none';
+                        cameraSubmitBtn.disabled = false;
+                    }
+                    
+                    // Make sure floating upload button is visible
+                    const uploadReceiptBtn = document.getElementById('upload-receipt-btn');
+                    if (uploadReceiptBtn) {
+                        uploadReceiptBtn.style.display = 'block';
+                    }
+                };
+                
+                // Call this function regardless of success or failure
+                setTimeout(handleCompletion, 2000);
+            }, { once: true }); // Use once: true to prevent multiple handlers
+        }
+    }
+
+    // Call the fix functions on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Call the existing initialization code
+        
+        // Additional fixes
+        fixCameraCapture();
+        
+        // Add a backup mechanism to restore UI state
+        window.addEventListener('error', function(event) {
+            console.error('Global error caught:', event.error);
+            resetUploadForm();
+            
+            // Ensure the page remains responsive
+            document.body.classList.remove('modal-open');
+            const modalBackdrops = document.querySelectorAll('.modal-backdrop');
+            modalBackdrops.forEach(backdrop => backdrop.remove());
+            
+            return false; // Allow default error handling to continue
+        });
+    });
 }); 

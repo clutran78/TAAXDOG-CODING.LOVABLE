@@ -132,27 +132,52 @@
                 };
                 
                 // Save to localStorage
-                let receipts = JSON.parse(localStorage.getItem('simpleReceipts') || '[]');
-                receipts.push(receipt);
-                localStorage.setItem('simpleReceipts', JSON.stringify(receipts));
-                
-                // Also save to the main app's localStorage for integration
-                let simulatedReceipts = JSON.parse(localStorage.getItem('simulatedReceipts') || '[]');
-                simulatedReceipts.push(receipt);
-                localStorage.setItem('simulatedReceipts', JSON.stringify(simulatedReceipts));
-                
-                // Show success message
-                alert('Receipt saved successfully!');
-                
-                // Reset form
-                document.getElementById('merchant').value = '';
-                document.getElementById('date').value = '';
-                document.getElementById('total').value = '';
-                document.getElementById('tax').value = '';
-                document.getElementById('notes').value = '';
-                
-                // Reload receipts
-                loadReceipts();
+                try {
+                    let receipts = JSON.parse(localStorage.getItem('simpleReceipts') || '[]');
+                    receipts.push(receipt);
+                    localStorage.setItem('simpleReceipts', JSON.stringify(receipts));
+                    
+                    // Also save to the main app's localStorage for integration
+                    try {
+                        let simulatedReceipts = [];
+                        try {
+                            const stored = localStorage.getItem('simulatedReceipts');
+                            if (stored) {
+                                simulatedReceipts = JSON.parse(stored);
+                            }
+                        } catch (parseError) {
+                            console.error('Error parsing existing receipts, resetting:', parseError);
+                            simulatedReceipts = [];
+                        }
+
+                        if (Array.isArray(simulatedReceipts)) {
+                            simulatedReceipts.push(receipt);
+                        } else {
+                            simulatedReceipts = [receipt];
+                        }
+
+                        localStorage.setItem('simulatedReceipts', JSON.stringify(simulatedReceipts));
+                        console.log('Receipt saved successfully, total receipts:', simulatedReceipts.length);
+                    } catch (storageError) {
+                        console.error('Error saving to main app localStorage:', storageError);
+                    }
+                    
+                    // Show success message
+                    alert('Receipt saved successfully!');
+                    
+                    // Reset form
+                    document.getElementById('merchant').value = '';
+                    document.getElementById('date').value = '';
+                    document.getElementById('total').value = '';
+                    document.getElementById('tax').value = '';
+                    document.getElementById('notes').value = '';
+                    
+                    // Reload receipts
+                    loadReceipts();
+                } catch (error) {
+                    console.error('Error saving receipt:', error);
+                    alert('There was a problem saving your receipt. Please try again.');
+                }
             });
         });
         

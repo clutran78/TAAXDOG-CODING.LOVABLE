@@ -6,6 +6,7 @@ import base64
 from dotenv import load_dotenv
 from datetime import datetime
 import time
+import math
 
 # Load environment variables
 load_dotenv()
@@ -115,25 +116,182 @@ def get_processing_result(token):
         # Extract the receipt data
         receipt_data = result.get("result", {})
         
+        # Extract merchant with fallbacks
+        merchant_name = "Unknown Merchant"
+        if receipt_data.get("establishment"):
+            if isinstance(receipt_data["establishment"], dict) and receipt_data["establishment"].get("name"):
+                merchant_name = receipt_data["establishment"]["name"]
+            elif isinstance(receipt_data["establishment"], str):
+                merchant_name = receipt_data["establishment"]
+        elif receipt_data.get("merchantName"):
+            merchant_name = receipt_data["merchantName"]
+        elif receipt_data.get("vendor", {}).get("name"):
+            merchant_name = receipt_data["vendor"]["name"]
+        
+        # Extract total amount with fallbacks
+        total_amount = 0.0
+        if receipt_data.get("totalAmount") and isinstance(receipt_data["totalAmount"], (int, float, str)):
+            try:
+                # Clean up any currency symbols
+                if isinstance(receipt_data["totalAmount"], str):
+                    cleaned_amount = receipt_data["totalAmount"].replace('$', '').replace('€', '').replace('£', '').strip()
+                    total_amount = float(cleaned_amount)
+                else:
+                    total_amount = float(receipt_data["totalAmount"])
+            except ValueError:
+                total_amount = 0.0
+        elif receipt_data.get("total") and isinstance(receipt_data["total"], (int, float, str)):
+            try:
+                # Clean up any currency symbols
+                if isinstance(receipt_data["total"], str):
+                    cleaned_amount = receipt_data["total"].replace('$', '').replace('€', '').replace('£', '').strip()
+                    total_amount = float(cleaned_amount)
+                else:
+                    total_amount = float(receipt_data["total"])
+            except ValueError:
+                total_amount = 0.0
+        elif receipt_data.get("amounts", {}).get("total"):
+            try:
+                total_amount = float(receipt_data["amounts"]["total"])
+            except (ValueError, TypeError):
+                total_amount = 0.0
+                
+        # Extract date with fallbacks
+        receipt_date = datetime.now().strftime("%Y-%m-%d")
+        if receipt_data.get("date"):
+            if isinstance(receipt_data["date"], dict) and receipt_data["date"].get("text"):
+                try:
+                    date_text = receipt_data["date"]["text"]
+                    # Try different date formats
+                    for fmt in ["%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%B %d, %Y", "%d-%m-%Y"]:
+                        try:
+                            parsed_date = datetime.strptime(date_text, fmt)
+                            receipt_date = parsed_date.strftime("%Y-%m-%d")
+                            break
+                        except ValueError:
+                            continue
+                except Exception:
+                    pass
+            elif isinstance(receipt_data["date"], str):
+                try:
+                    # Try to parse direct date string
+                    parsed_date = datetime.fromisoformat(receipt_data["date"].replace('Z', '+00:00'))
+                    receipt_date = parsed_date.strftime("%Y-%m-%d")
+                except ValueError:
+                    # Try different date formats
+                    for fmt in ["%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%B %d, %Y", "%d-%m-%Y"]:
+                        try:
+                            parsed_date = datetime.strptime(receipt_data["date"], fmt)
+                            receipt_date = parsed_date.strftime("%Y-%m-%d")
+                            break
+                        except ValueError:
+                            continue
+        
+        # Extract line items with careful error handling
+        line_items = []
+        if receipt_data.get("lineItems") and isinstance(receipt_data["lineItems"], list):
+            for item in receipt_data["lineItems"]:
+                try:
+                    # Get item name with fallbacks
+                    item_name = "Unknown Item"
+                    if item.get("descClean"):
+                        item_name = item["descClean"]
+                    elif item.get("description"):
+                        item_name = item["description"]
+                    
+                    # Get quantity with fallbacks and validation
+                    item_qty = 1
+                    if item.get("qty"):
+                        try:
+                            item_qty = float(item["qty"])
+                            if item_qty <= 0 or math.isnan(item_qty):
+                                item_qty = 1
+                        except (ValueError, TypeError):
+                            item_qty = 1
+                    
+                    # Get price with fallbacks and validation
+                    item_price = 0.0
+                    if item.get("price"):
+                        try:
+                            item_price = float(item["price"])
+                        except (ValueError, TypeError):
+                            item_price = 0.0
+                    
+                    # Get total with fallbacks and validation
+                    item_total = 0.0
+                    if item.get("totalPrice"):
+                        try:
+                            item_total = float(item["totalPrice"])
+                        except (ValueError, TypeError):
+                            # Calculate from price * quantity as fallback
+                            item_total = item_price * item_qty
+                    elif item.get("amount"):
+                        try:
+                            item_total = float(item["amount"])
+                        except (ValueError, TypeError):
+                            # Calculate from price * quantity as fallback
+                            item_total = item_price * item_qty
+                    else:
+                        # Calculate from price * quantity as fallback
+                        item_total = item_price * item_qty
+                    
+                    # Add item with rounded values
+                    line_items.append({
+                        "name": item_name,
+                        "quantity": round(item_qty, 2),
+                        "unit_price": round(item_price, 2),
+                        "total": round(item_total, 2)
+                    })
+                except Exception as e:
+                    # Log error but continue with other items
+                    print(f"Error processing line item: {e}")
+                    continue
+        
+        # Extract tax amount with fallbacks
+        tax_amount = 0.0
+        if receipt_data.get("taxAmount") and isinstance(receipt_data["taxAmount"], (int, float, str)):
+            try:
+                if isinstance(receipt_data["taxAmount"], str):
+                    cleaned_tax = receipt_data["taxAmount"].replace('$', '').replace('€', '').replace('£', '').strip()
+                    tax_amount = float(cleaned_tax)
+                else:
+                    tax_amount = float(receipt_data["taxAmount"])
+            except ValueError:
+                tax_amount = 0.0
+        elif receipt_data.get("tax") and isinstance(receipt_data["tax"], (int, float, str)):
+            try:
+                if isinstance(receipt_data["tax"], str):
+                    cleaned_tax = receipt_data["tax"].replace('$', '').replace('€', '').replace('£', '').strip()
+                    tax_amount = float(cleaned_tax)
+                else:
+                    tax_amount = float(receipt_data["tax"])
+            except ValueError:
+                tax_amount = 0.0
+        elif receipt_data.get("amounts", {}).get("tax"):
+            try:
+                tax_amount = float(receipt_data["amounts"]["tax"])
+            except (ValueError, TypeError):
+                tax_amount = 0.0
+        
         # Process and return the receipt data
+        receipt_id = str(uuid.uuid4())
+        
+        # Ensure all numeric values are positive and rounded
+        total_amount = max(0, round(total_amount, 2))
+        tax_amount = max(0, round(tax_amount, 2))
+        
+        # Construct the final result
         return {
             "success": True,
             "completed": True,
-            "receipt_id": str(uuid.uuid4()),
-            "merchant": receipt_data.get("establishment", {}).get("name", "Unknown Merchant"),
-            "total_amount": receipt_data.get("total", 0.0),
-            "date": receipt_data.get("date", {}).get("text", datetime.now().strftime("%Y-%m-%d")),
-            "items": [
-                {
-                    "name": item.get("description", "Unknown Item"),
-                    "quantity": item.get("qty", 1),
-                    "unit_price": item.get("price", 0.0),
-                    "total": item.get("amount", 0.0)
-                }
-                for item in receipt_data.get("lineItems", [])
-            ],
-            "tax_amount": receipt_data.get("tax", 0.0),
-            "confidence": receipt_data.get("confidence", 0.0)
+            "receipt_id": receipt_id,
+            "merchant": merchant_name,
+            "total_amount": total_amount,
+            "date": receipt_date,
+            "items": line_items,
+            "tax_amount": tax_amount,
+            "ocr_confidence": receipt_data.get("confidence", 0.0),
+            "raw_data": receipt_data  # Include raw data for debugging
         }
         
     except Exception as e:
@@ -294,4 +452,44 @@ def match_receipt_with_transaction(receipt_data, transactions):
             }
     
     # No match found
-    return None 
+    return None
+
+def tabscanner_process_receipt(image_base64, user_id=None):
+    """
+    Process a receipt image using Tabscanner API and extract data.
+    This is a facade function that handles the entire process flow.
+    
+    Args:
+        image_base64 (str): Base64-encoded image data
+        user_id (str, optional): User ID for tracking and logging
+        
+    Returns:
+        dict: Extracted receipt data or error information
+    """
+    # This function is a wrapper around process_receipt_with_polling
+    # It ensures consistent interface for the application
+    
+    try:
+        # Process receipt and get data
+        result = process_receipt_with_polling(image_base64, user_id)
+        
+        # If processing succeeded, add any additional fields needed
+        if result.get("success", False):
+            # Add subtotal if not present (total - tax)
+            if "subtotal" not in result and "total_amount" in result and "tax_amount" in result:
+                total = float(result.get("total_amount", 0))
+                tax = float(result.get("tax_amount", 0))
+                result["subtotal"] = round(total - tax, 2)
+            
+            # Ensure receipt_id is present
+            if "receipt_id" not in result:
+                result["receipt_id"] = str(uuid.uuid4())
+                
+        return result
+        
+    except Exception as e:
+        # Ensure consistent error response
+        return {
+            "success": False,
+            "error": f"Receipt processing failed: {str(e)}"
+        } 

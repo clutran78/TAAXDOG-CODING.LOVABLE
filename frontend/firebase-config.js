@@ -2,12 +2,13 @@
 // This is a development/demo configuration
 // In production, this would be replaced with your actual Firebase project settings
 const firebaseConfig = {
-    apiKey: "demo-key-for-development",
-    authDomain: "taaxdog-demo.firebaseapp.com",
-    projectId: "taaxdog-demo",
-    storageBucket: "taaxdog-demo.appspot.com",
-    messagingSenderId: "123456789012",
-    appId: "1:123456789012:web:abcdef1234567890abcdef"
+    apiKey: "AIzaSyD8kO6FyYRPcqbbRKRzuv9MRXROcjf8LdU",
+    authDomain: "taax-dog.firebaseapp.com",
+    projectId: "taax-dog",
+    storageBucket: "taax-dog.firebasestorage.app",
+    messagingSenderId: "51790399651",
+    appId: "1:51790399651:web:d18ca1b3597306cc34d716",
+    measurementId: "G-HR04MW6RTE"
 };
 
 // Export the config for use in other files

@@ -25,6 +25,10 @@ from ai.financial_insights import (
     generate_financial_report,
     suggest_financial_goals
 )
+# Import secure_filename for safe file handling
+from werkzeug.utils import secure_filename
+# Import the FormX client
+from src.integrations.formx_client import extract_data_from_image
 
 # Load environment variables
 load_dotenv()
@@ -34,6 +38,19 @@ app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')
 
 # Enable CORS for all routes
 CORS(app)
+
+# Define the upload folder and ensure it exists
+UPLOAD_FOLDER = 'uploads'
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Allowed file extensions (optional, but good practice)
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # Authentication middleware
 def login_required(f):
@@ -1291,6 +1308,71 @@ def serve_static(filename):
     Serve static files from the frontend directory
     """
     return send_from_directory(app.static_folder, filename)
+
+# --- New FormX.AI Receipt Upload Route --- #
+@app.route('/api/receipts/upload/formx', methods=['POST'])
+# @login_required # Uncomment this line later if authentication is needed for this endpoint
+def upload_receipt_formx():
+    """
+    Upload a receipt image and extract data using FormX.AI.
+    Receives the file via a multipart/form-data request.
+    """
+    # Check if the post request has the file part
+    if 'receipt' not in request.files:
+        return jsonify({'success': False, 'error': 'No receipt file part in the request'}), 400
+    
+    file = request.files['receipt']
+    
+    # If the user does not select a file, the browser submits an empty file without a filename
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No selected file'}), 400
+    
+    # Check if the file type is allowed (optional)
+    # if not allowed_file(file.filename):
+    #     return jsonify({'success': False, 'error': 'File type not allowed'}), 400
+
+    if file:
+        # Make the filename safe
+        filename = secure_filename(file.filename)
+        # Create a unique temporary file path
+        temp_file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        
+        try:
+            # Save the file temporarily
+            file.save(temp_file_path)
+            print(f"Temporary file saved to: {temp_file_path}")
+
+            # Call the FormX.AI extraction function
+            extracted_data = extract_data_from_image(temp_file_path)
+            
+            # Return the successful extraction data
+            return jsonify({'success': True, 'data': extracted_data})
+        
+        except FileNotFoundError as e:
+            print(f"Error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 404
+        except ValueError as e:
+            # Catches errors from formx_client (e.g., missing env vars, bad API response)
+            print(f"Error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 400
+        except requests.exceptions.RequestException as e:
+            # Catches network errors during API call
+            print(f"Error: {e}")
+            return jsonify({'success': False, 'error': f'API request failed: {e}'}), 500
+        except Exception as e:
+            # Catch any other unexpected errors
+            print(f"Unexpected error: {e}")
+            return jsonify({'success': False, 'error': f'An unexpected error occurred: {e}'}), 500
+        finally:
+            # Clean up: Delete the temporary file
+            if os.path.exists(temp_file_path):
+                try:
+                    os.remove(temp_file_path)
+                    print(f"Temporary file deleted: {temp_file_path}")
+                except Exception as e:
+                    print(f"Error deleting temporary file {temp_file_path}: {e}")
+    
+    return jsonify({'success': False, 'error': 'File processing failed'}), 500
 
 if __name__ == "__main__":
     # Run on a different port than the standard 5000 (which might be taken by AirPlay on macOS)
