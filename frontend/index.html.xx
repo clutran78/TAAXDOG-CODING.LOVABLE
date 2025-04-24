@@ -787,7 +787,7 @@
                         <div class="card shadow-sm mb-4">
                             <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
                                 <h5 class="mb-0"><i class="fas fa-receipt text-primary me-2"></i>Receipts</h5>
-                                <button class="btn btn-primary" id="receipt-upload-section-btn">
+                                <button class="btn btn-primary" id="upload-receipt-btn">
                                     <i class="fas fa-plus me-1"></i> Upload New Receipt
                                 </button>
                             </div>
@@ -923,7 +923,10 @@
                         </div>
                     </div>
                 </div>
-                <input type="file" id="receipt-file-input" accept="image/*,.pdf" style="display: none;" />
+
+                <!-- Hidden file input for receipt uploads -->
+                <input type="file" id="receipt-file-input" style="display: none;" accept="image/jpeg, image/png, image/gif">
+
             </main>
         </div>
     </div>
@@ -1313,77 +1316,6 @@
             </div>
         </div>
     </div>
-  <!--- file upload start -->
-<div class="modal fade" id="receipt-upload-section" tabindex="-1" aria-labelledby="receipt-upload-section-label" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="card mt-3">
-                    <div class="card-header bg-light">
-                        <h5 class="mb-0"><i class="fas fa-file-upload text-primary me-2"></i>Upload Receipt</h5>
-                    </div>
-                    <div class="card-body">
-                        <!-- Tab Navigation -->
-                        <ul class="nav nav-tabs" id="uploadTab" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="local-tab" data-bs-toggle="tab" data-bs-target="#local" type="button" role="tab">From Device</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="url-tab" data-bs-toggle="tab" data-bs-target="#url" type="button" role="tab">From URL</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="camera-tab" data-bs-toggle="tab" data-bs-target="#camera" type="button" role="tab">Take Photo</button>
-                            </li>
-                        </ul>
-
-                        <!-- Tab Content -->
-                        <div class="tab-content mt-3" id="uploadTabContent">
-                            <!-- Local Upload -->
-                            <div class="tab-pane fade show active" id="local" role="tabpanel">
-                                <div class="mb-3">
-                                    <label for="receipt-file" class="form-label">Upload from your device</label>
-                                    <input class="form-control" type="file" id="receipt-file" accept="image/*,application/pdf">
-                                </div>
-                            </div>
-
-                            <!-- URL Upload -->
-                            <div class="tab-pane fade" id="url" role="tabpanel">
-                                <div class="mb-3">
-                                    <label for="receipt-url" class="form-label">Paste a receipt URL</label>
-                                    <input class="form-control" type="url" id="receipt-url" placeholder="https://example.com/receipt.jpg">
-                                </div>
-                            </div>
-
-                            <!-- Camera Upload -->
-                            <div class="tab-pane fade" id="camera" role="tabpanel">
-                                <div class="mb-3">
-                                    <label class="form-label">Take a photo of your receipt</label>
-                                    <div class="d-flex flex-column">
-                                        <video id="camera-stream" width="100%" height="240" autoplay playsinline class="mb-2" style="border: 1px solid #ccc;"></video>
-                                        <button type="button" class="btn btn-outline-primary btn-sm mb-2" id="capture-photo-btn">Capture Photo</button>
-                                        <canvas id="photo-canvas" width="640" height="480" style="display: none;"></canvas>
-                                        <img id="photo-preview" class="img-thumbnail mt-2" style="display: none;" />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="text-end">
-                            <button type="submit" class="btn btn-success">Submit Receipt</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
-<!--- file upload end -->
 
     <!-- Data Dashboard Section -->
     <div id="data-dashboard-section" style="display: none; margin-left: 240px; padding: 72px 20px 20px 20px;">
@@ -6109,198 +6041,86 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', function () {
-        const receiptsNavLink = document.getElementById('receipts-nav-link');
-        const receiptsSection = document.getElementById('receipts-section');
-        const storedStats = JSON.parse(localStorage.getItem('receiptStats'));
-if (storedStats) {
-    updateReceiptDashboard(storedStats);
-}
-        receiptsNavLink.addEventListener('click', function (e) {
-            e.preventDefault();
+        document.addEventListener('DOMContentLoaded', async () => {
+            // --- Initialize Firebase --- 
+            initializeApp(); // Ensure Firebase is initialized
 
-            // Hide all sections if you have multiple
-            document.querySelectorAll('.main-content > .row').forEach(row => {
-                row.style.display = 'none';
-            });
+            // Check user authentication status
+            await checkAuthState();
 
-            // Show the receipts section
-            receiptsSection.style.display = 'block';
-        });
-    });
-    document.addEventListener('DOMContentLoaded', async () => {
-    // Firebase + Auth
-    initializeApp(); 
-    await checkAuthState();
+            // --- Initialize Chart.js --- 
+            initializeCharts(); // Ensure charts are initialized
 
-    // Charts
-    initializeCharts(); 
+            // --- Receipt Upload Logic --- 
+            const receiptsNavLink = document.getElementById('receipts-nav-link');
+            const receiptFileInput = document.getElementById('receipt-file-input'); // Assuming this ID exists from the previous (partially applied) edit
 
-    const uploadReceiptBtn = document.getElementById('upload-receipt-btn');
-    const receiptFileInput = document.getElementById('receipt-file-input');
+            if (receiptsNavLink && receiptFileInput) {
+                receiptsNavLink.addEventListener('click', (event) => {
+                    event.preventDefault(); // Prevent default link behavior
+                    console.log('Receipts link clicked, triggering file input.');
+                    receiptFileInput.click(); // Trigger the hidden file input
+                });
 
-    if (uploadReceiptBtn && receiptFileInput) {
-        uploadReceiptBtn.addEventListener('click', () => {
-            receiptFileInput.click(); // Trigger hidden file input on button click
-        });
-
-        receiptFileInput.addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (file) {
-                console.log('Receipt file selected:', file.name);
-                handleReceiptUpload(file);
-                receiptFileInput.value = ''; // Reset so re-upload works
-            }
-        });
-    } else {
-        console.error('Could not find #upload-receipt-btn or #receipt-file-input');
-    }
-    let receiptmodalElement = document.getElementById('receipt-upload-section-btn');
-    receiptmodalElement.addEventListener('click', () => {
-        let receiptmodalMainElement = document.getElementById('receipt-upload-section');
-            // Show the modal
-            const modal = new bootstrap.Modal(receiptmodalMainElement);
-            modal.show();
-        });
-    // Fetch data if logged in
-    // if (window.currentUser) {
-    //     fetchDashboardData();
-    //     fetchBankConnections();
-    // }
-
-    // setupEventListeners();
-});
-
-
-document.addEventListener('DOMContentLoaded', function () { debugger
-    const submitReceiptBtn = document.querySelector('#receipt-upload-section button[type="submit"]');
-    const receiptFileInput = document.getElementById('receipt-file');
-    const receiptUrlInput = document.getElementById('receipt-url');
-    const photoCanvas = document.getElementById('photo-canvas');
-
-    if (submitReceiptBtn) { debugger
-        submitReceiptBtn.addEventListener('click', async function (e) {
-            e.preventDefault();
-
-            const activeTab = document.querySelector('#uploadTab .nav-link.active').id;
-
-            if (activeTab === 'local-tab') {
-                const file = receiptFileInput.files[0];
-                if (!file) {
-                    alert('Please select a file to upload.');
-                    return;
-                }
-                await handleReceiptUpload(file);
-
-            } else if (activeTab === 'url-tab') {
-                const url = receiptUrlInput.value;
-                if (!url) {
-                    alert('Please paste a receipt URL.');
-                    return;
-                }
-
-                // For URL-based upload
-                try {
-                    const response = await fetch('/api/receipts/upload/url', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ url })
-                    });
-
-                    const result = await response.json();
-
-                    if (!response.ok || !result.success) {
-                        throw new Error(result.error || `HTTP error! status: ${response.status}`);
+                receiptFileInput.addEventListener('change', (event) => {
+                    const file = event.target.files[0];
+                    if (file) {
+                        console.log('Receipt file selected:', file.name);
+                        handleReceiptUpload(file);
+                        // Reset the input value so the change event fires again for the same file
+                        receiptFileInput.value = ''; 
                     }
-
-                    alert(`URL Upload Successful!\nData: ${JSON.stringify(result.data, null, 2)}`);
-                    console.log('Receipt data from URL:', result.data);
-                } catch (error) {
-                    alert(`URL Upload Failed: ${error.message}`);
-                    console.error('URL upload failed:', error);
-                }
-
-            } else if (activeTab === 'camera-tab') {
-                photoCanvas.toBlob(async function (blob) {
-    if (!blob) {
-        alert('No photo captured.');
-        return;
-    }
-
-    const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
-    await handleReceiptUpload(file);
-}, 'image/jpeg');
-
+                });
+            } else {
+                console.error('Could not find receipt navigation link (#receipts-nav-link) or file input element (#receipt-file-input). Ensure both exist in the HTML.');
             }
+            // --- End Receipt Upload Logic ---
+
+            // Fetch initial data
+            if (window.currentUser) { 
+                fetchDashboardData();
+                fetchBankConnections();
+            } else {
+                console.log('No user logged in, skipping initial data fetch.');
+            }
+
+            // Add event listeners for UI elements
+            setupEventListeners();
         });
-    }
-});
 
-const video = document.getElementById('camera-stream');
-
-const startCamera = async () => {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        video.srcObject = stream;
-    } catch (err) {
-        console.error('Camera access error:', err);
-        alert('Could not access camera.');
-    }
-};
-
-const captureBtn = document.getElementById('capture-photo-btn');
-const canvas = document.getElementById('photo-canvas');
-const photoPreview = document.getElementById('photo-preview');
-
-captureBtn.addEventListener('click', () => {
-    const context = canvas.getContext('2d');
-    canvas.style.display = 'block';
-    photoPreview.style.display = 'block';
-
-    // Draw video frame to canvas
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    // Convert to image preview
-    photoPreview.src = canvas.toDataURL('image/jpeg');
-});
-
-
-
-
-// Start camera when modal is shown
-const receiptModalEl = document.getElementById('receipt-upload-section');
-receiptModalEl.addEventListener('shown.bs.modal', () => {
-    startCamera();
-});
-
-
-
-
-async function checkAuthState() {
-            console.log("Checking Auth State (placeholder)...");
-            // Add your auth state checking logic here
-            // Set window.currentUser if logged in
-            window.currentUser = { uid: "mock-user-123" }; // Example mock user
-        }
-        function initializeCharts() {
-             console.log("Initializing Charts (placeholder)...");
-             // Add your chart initialization logic here
-        }
+        // Function to handle receipt upload
         async function handleReceiptUpload(file) {
+    debugger;
+
     if (!file) {
         alert("No file selected!");
         return;
     }
 
+    // Show some basic UI feedback
     alert('Uploading receipt...');
+
+    // Create form data
     const formData = new FormData();
-    formData.append('receipt', file);
+    formData.append('receipt', file);  // "receipt" must match Flask's request.files['receipt']
+
+    // Log formData contents (important for debugging)
+    console.log('FormData contents:');
+    for (let [key, value] of formData.entries()) {
+        console.log(`${key}:`, value);
+    }
 
     try {
+        // Optional: Get auth token if needed
+        // const idToken = await getIdToken();
+
+        // Make the API call
         const response = await fetch('/api/receipts/upload/formx', {
             method: 'POST',
+            // headers will be set automatically for FormData, do NOT manually set 'Content-Type'
+            headers: {
+                // 'Authorization': `Bearer ${idToken}` // Uncomment if using auth
+            },
             body: formData
         });
 
@@ -6310,490 +6130,73 @@ async function checkAuthState() {
             throw new Error(result.error || `HTTP error! status: ${response.status}`);
         }
 
-        alert('Extraction Successful!');
+        // If successful
+        alert(`Extraction Successful!\nData: ${JSON.stringify(result.data, null, 2)}`);
+        console.log('Receipt data extracted:', result.data);
 
-        // === NEW ===
-        const data = result.data;
-        updateLocalStorageAndUI(data);
-
-        // Close the modal
-        const modalEl = document.getElementById('receipt-upload-section');
-        const modalInstance = bootstrap.Modal.getInstance(modalEl);
-        modalInstance.hide();
-
+        // TODO: You could update the UI here to reflect the uploaded receipt
     } catch (error) {
         alert(`Extraction Failed: ${error.message}`);
         console.error('Receipt upload/extraction failed:', error);
+    } finally {
+        // TODO: Hide loader if you show one
     }
 }
 
-function updateLocalStorageAndUI(newData) { debugger
-    const currentStats = JSON.parse(localStorage.getItem('receiptStats')) || {
-        totalReceipts: 0,
-        totalSpent: 0,
-        matchedReceipts: 0
-    };
+        // --- Other Existing Functions --- // 
+        // (Make sure functions like initializeApp, checkAuthState, initializeCharts, 
+        // fetchDashboardData, fetchBankConnections, setupEventListeners, getIdToken exist)
+        
+        // Mock or real function to get Firebase ID token (if needed)
+        async function getIdToken() {
+            // Replace with your actual Firebase auth token retrieval logic
+            // Example:
+            // if (firebase.auth().currentUser) { 
+            //     return await firebase.auth().currentUser.getIdToken();
+            // }
+            return null; // Return null if not needed or user not logged in
+        }
+        
+        // Placeholder for initializing Firebase (if not already done)
+        function initializeApp() {
+            console.log("Initializing Firebase (placeholder)...");
+            // Add your Firebase initialization code here if it's not elsewhere
+        }
 
-    // Increment values
-    currentStats.totalReceipts += 1;
-    currentStats.totalSpent += parseFloat(newData.documents[0].data.total_amount || 0);
-    if (newData.matched) {
-        currentStats.matchedReceipts += 1;
-    }
+        // Placeholder for checking auth state (if not already done)
+        async function checkAuthState() {
+            console.log("Checking Auth State (placeholder)...");
+            // Add your auth state checking logic here
+            // Set window.currentUser if logged in
+            window.currentUser = { uid: "mock-user-123" }; // Example mock user
+        }
+        
+        // Placeholder for initializing charts (if not already done)
+        function initializeCharts() {
+             console.log("Initializing Charts (placeholder)...");
+             // Add your chart initialization logic here
+        }
+        
+        // Placeholder for fetching dashboard data (if not already done)
+        function fetchDashboardData() {
+             console.log("Fetching Dashboard Data (placeholder)...");
+             // Add your data fetching logic here
+        }
+        
+        // Placeholder for fetching bank connections (if not already done)
+        function fetchBankConnections() {
+             console.log("Fetching Bank Connections (placeholder)...");
+             // Add your bank connection fetching logic here
+        }
+        
+        // Placeholder for setting up event listeners (if not already done)
+        function setupEventListeners() {
+             console.log("Setting up Event Listeners (placeholder)...");
+             // Add your main event listener setup logic here (excluding receipt listeners added above)
+        }
+        
+        // ... (keep all other existing functions) ...
 
-    // Store in localStorage
-    localStorage.setItem('receiptStats', JSON.stringify(currentStats));
-
-    // Update HTML
-    updateReceiptDashboard(currentStats);
-}
-function updateReceiptDashboard(stats) {
-    document.getElementById('total-receipts-count').textContent = stats.totalReceipts;
-    document.getElementById('total-receipts-amount').textContent = `$${stats.totalSpent.toFixed(2)}`;
-    document.getElementById('matched-receipts-count').textContent = stats.matchedReceipts;
-
-    const average = stats.totalReceipts > 0 ? stats.totalSpent / stats.totalReceipts : 0;
-    document.getElementById('average-receipt-amount').textContent = `$${average.toFixed(2)}`;
-}
     </script>
-    
-    <!-- Tax Profile Modal -->
-    <div class="modal fade" id="tax-profile-modal" tabindex="-1" aria-labelledby="tax-profile-modal-label" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title" id="tax-profile-modal-label">
-                        <i class="fas fa-file-invoice-dollar me-2"></i> Your Tax Profile
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i> Complete your tax profile to help our AI identify potential tax deductions and optimize your financial planning.
-                    </div>
-                    
-                    <!-- Tax Profile Form -->
-                    <form id="tax-profile-form" class="needs-validation" novalidate>
-                        <!-- Nav tabs for sections -->
-                        <ul class="nav nav-tabs mb-4" id="taxProfileTabs" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal-content" type="button" role="tab">Personal Information</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="income-tab" data-bs-toggle="tab" data-bs-target="#income-content" type="button" role="tab">Income</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="deductions-tab" data-bs-toggle="tab" data-bs-target="#deductions-content" type="button" role="tab">Deductions</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="offsets-tab" data-bs-toggle="tab" data-bs-target="#offsets-content" type="button" role="tab">Tax Offsets</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="medicare-tab" data-bs-toggle="tab" data-bs-target="#medicare-content" type="button" role="tab">Medicare</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="hecs-tab" data-bs-toggle="tab" data-bs-target="#hecs-content" type="button" role="tab">HELP/HECS</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="additional-tab" data-bs-toggle="tab" data-bs-target="#additional-content" type="button" role="tab">Additional Info</button>
-                            </li>
-                        </ul>
-                        
-                        <!-- Tab content -->
-                        <div class="tab-content" id="taxProfileTabsContent">
-                            <!-- Personal Information Tab -->
-                            <div class="tab-pane fade show active" id="personal-content" role="tabpanel">
-                                <h4 class="mb-3">Basic Identification</h4>
-                                <div class="row g-3">
-                                    <div class="col-md-2">
-                                        <label for="title" class="form-label">Title</label>
-                                        <select class="form-select" id="title" required>
-                                            <option value="">Choose...</option>
-                                            <option value="Mr">Mr</option>
-                                            <option value="Mrs">Mrs</option>
-                                            <option value="Miss">Miss</option>
-                                            <option value="Ms">Ms</option>
-                                            <option value="Dr">Dr</option>
-                                        </select>
-                                        <div class="invalid-feedback">Please select a title.</div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label for="family-name" class="form-label">Family Name/Surname</label>
-                                        <input type="text" class="form-control" id="family-name" maxlength="40" required>
-                                        <div class="invalid-feedback">Please enter your family name.</div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label for="first-given-name" class="form-label">First Given Name</label>
-                                        <input type="text" class="form-control" id="first-given-name" maxlength="40" required>
-                                        <div class="invalid-feedback">Please enter your first name.</div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label for="other-given-names" class="form-label">Other Given Names</label>
-                                        <input type="text" class="form-control" id="other-given-names" maxlength="40">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label for="previous-names" class="form-label">Previous Names (if applicable)</label>
-                                        <input type="text" class="form-control" id="previous-names">
-                                        <small class="text-muted">Maiden, former married names, etc.</small>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label for="date-of-birth" class="form-label">Date of Birth</label>
-                                        <input type="date" class="form-control" id="date-of-birth" required>
-                                        <div class="invalid-feedback">Please enter your date of birth.</div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label for="tfn" class="form-label">Tax File Number (TFN)</label>
-                                        <input type="text" class="form-control" id="tfn" pattern="[0-9]{9}" required>
-                                        <div class="invalid-feedback">Please enter a valid 9-digit TFN.</div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label for="abn" class="form-label">ABN (if applicable)</label>
-                                        <input type="text" class="form-control" id="abn" pattern="[0-9]{11}">
-                                    </div>
-                                </div>
-                                
-                                <h4 class="mb-3 mt-4">Contact Details</h4>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label for="residential-address" class="form-label">Residential Address</label>
-                                        <input type="text" class="form-control" id="residential-address" required>
-                                        <div class="invalid-feedback">Please enter your residential address.</div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label for="postal-address" class="form-label">Postal Address</label>
-                                        <input type="text" class="form-control" id="postal-address">
-                                        <small class="text-muted">If different from residential address</small>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label for="email" class="form-label">Email Address</label>
-                                        <input type="email" class="form-control" id="email" required>
-                                        <div class="invalid-feedback">Please enter a valid email address.</div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label for="mobile" class="form-label">Mobile Phone Number</label>
-                                        <input type="tel" class="form-control" id="mobile" pattern="[0-9]{10}" required>
-                                        <div class="invalid-feedback">Please enter a valid 10-digit mobile number.</div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label for="alternative-phone" class="form-label">Alternative Phone Number</label>
-                                        <input type="tel" class="form-control" id="alternative-phone">
-                                    </div>
-                                </div>
-                                
-                                <h4 class="mb-3 mt-4">Filing Status</h4>
-                                <div class="row g-3">
-                                    <div class="col-md-4">
-                                        <label class="form-label">Australian Resident for Tax Purposes?</label>
-                                        <div>
-                                            <div class="form-check form-check-inline">
-                                                <input class="form-check-input" type="radio" name="residency-status" id="resident-yes" value="yes" required>
-                                                <label class="form-check-label" for="resident-yes">Yes</label>
-                                            </div>
-                                            <div class="form-check form-check-inline">
-                                                <input class="form-check-input" type="radio" name="residency-status" id="resident-no" value="no">
-                                                <label class="form-check-label" for="resident-no">No</label>
-                                            </div>
-                                            <div class="invalid-feedback">Please select your residency status.</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">Claiming Tax-Free Threshold?</label>
-                                        <div>
-                                            <div class="form-check form-check-inline">
-                                                <input class="form-check-input" type="radio" name="tax-free-threshold" id="threshold-yes" value="yes" required>
-                                                <label class="form-check-label" for="threshold-yes">Yes</label>
-                                            </div>
-                                            <div class="form-check form-check-inline">
-                                                <input class="form-check-input" type="radio" name="tax-free-threshold" id="threshold-no" value="no">
-                                                <label class="form-check-label" for="threshold-no">No</label>
-                                            </div>
-                                            <div class="invalid-feedback">Please select your tax-free threshold status.</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="row g-3 mt-2">
-                                    <div class="col-md-6">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="has-spouse">
-                                            <label class="form-check-label" for="has-spouse">
-                                                I have a spouse during this tax year
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div id="spouse-details" class="row g-3 mt-2" style="display: none;">
-                                    <div class="col-md-4">
-                                        <label for="spouse-name" class="form-label">Spouse's Full Name</label>
-                                        <input type="text" class="form-control" id="spouse-name">
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label for="spouse-tfn" class="form-label">Spouse's TFN</label>
-                                        <input type="text" class="form-control" id="spouse-tfn" pattern="[0-9]{9}">
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label for="spouse-income" class="form-label">Spouse's Taxable Income</label>
-                                        <input type="number" class="form-control" id="spouse-income" min="0" step="0.01">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Spouse for Full or Partial Year?</label>
-                                        <div>
-                                            <div class="form-check form-check-inline">
-                                                <input class="form-check-input" type="radio" name="spouse-period" id="spouse-full" value="full">
-                                                <label class="form-check-label" for="spouse-full">Full Year</label>
-                                            </div>
-                                            <div class="form-check form-check-inline">
-                                                <input class="form-check-input" type="radio" name="spouse-period" id="spouse-partial" value="partial">
-                                                <label class="form-check-label" for="spouse-partial">Partial Year</label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="row g-3 mt-2">
-                                    <div class="col-md-6">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="has-dependents">
-                                            <label class="form-check-label" for="has-dependents">
-                                                I have dependent children
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div id="dependent-details" class="row g-3 mt-2" style="display: none;">
-                                    <div class="col-md-12">
-                                        <button type="button" class="btn btn-sm btn-outline-primary" id="add-dependent">
-                                            <i class="fas fa-plus"></i> Add Dependent
-                                        </button>
-                                    </div>
-                                    <div class="col-md-12" id="dependents-container">
-                                        <!-- Dependent children will be added here -->
-                                    </div>
-                                </div>
-                                
-                                <h4 class="mb-3 mt-4">Bank Account for Refunds</h4>
-                                <div class="row g-3">
-                                    <div class="col-md-3">
-                                        <label for="bank-bsb" class="form-label">BSB</label>
-                                        <input type="text" class="form-control" id="bank-bsb" pattern="[0-9]{6}" required>
-                                        <div class="invalid-feedback">Please enter a valid BSB (6 digits).</div>
-                                    </div>
-                                    <div class="col-md-5">
-                                        <label for="bank-account" class="form-label">Account Number</label>
-                                        <input type="text" class="form-control" id="bank-account" pattern="[0-9]+" required>
-                                        <div class="invalid-feedback">Please enter a valid account number.</div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label for="bank-name" class="form-label">Account Name</label>
-                                        <input type="text" class="form-control" id="bank-name" required>
-                                        <div class="invalid-feedback">Please enter the account name.</div>
-                                    </div>
-                                </div>
-                                
-                                <div class="d-flex justify-content-between mt-4">
-                                    <div></div>
-                                    <button type="button" class="btn btn-primary" onclick="goToNextTab('personal-tab', 'income-tab')">Next: Income <i class="fas fa-arrow-right ms-2"></i></button>
-                                </div>
-                            </div>
-                            
-                            <!-- Income Tab -->
-                            <div class="tab-pane fade" id="income-content" role="tabpanel">
-                                <h4 class="mb-3">Employment Income</h4>
-                                <div class="row g-3 mb-3">
-                                    <div class="col-md-12">
-                                        <button type="button" class="btn btn-sm btn-outline-primary" id="add-employer">
-                                            <i class="fas fa-plus"></i> Add Employer
-                                        </button>
-                                    </div>
-                                    <div class="col-md-12" id="employers-container">
-                                        <!-- Employer details will be added here -->
-                                    </div>
-                                </div>
-                                
-                                <h4 class="mb-3 mt-4">Investment Income</h4>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label for="interest-income" class="form-label">Interest from Bank Accounts</label>
-                                        <input type="number" class="form-control" id="interest-income" min="0" step="0.01">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label for="dividend-income" class="form-label">Dividends from Investments</label>
-                                        <input type="number" class="form-control" id="dividend-income" min="0" step="0.01">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label for="trust-income" class="form-label">Trust Distributions</label>
-                                        <input type="number" class="form-control" id="trust-income" min="0" step="0.01">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label for="rental-income" class="form-label">Rental Property Income</label>
-                                        <input type="number" class="form-control" id="rental-income" min="0" step="0.01">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label for="capital-gains" class="form-label">Capital Gains</label>
-                                        <input type="number" class="form-control" id="capital-gains" min="0" step="0.01">
-                                        <small class="text-muted">Including cryptocurrency</small>
-                                    </div>
-                                </div>
-                                
-                                <h4 class="mb-3 mt-4">Government Payments</h4>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label for="govt-payment-type" class="form-label">Types of Pensions or Benefits</label>
-                                        <input type="text" class="form-control" id="govt-payment-type">
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label for="govt-payment-amount" class="form-label">Amount Received</label>
-                                        <input type="number" class="form-control" id="govt-payment-amount" min="0" step="0.01">
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label for="govt-payment-tax" class="form-label">Tax Withheld</label>
-                                        <input type="number" class="form-control" id="govt-payment-tax" min="0" step="0.01">
-                                    </div>
-                                </div>
-                                
-                                <h4 class="mb-3 mt-4">Other Income</h4>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label for="foreign-income" class="form-label">Foreign Income</label>
-                                        <input type="number" class="form-control" id="foreign-income" min="0" step="0.01">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label for="business-income" class="form-label">Business Income</label>
-                                        <input type="number" class="form-control" id="business-income" min="0" step="0.01">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label for="super-income" class="form-label">Superannuation Income</label>
-                                        <input type="number" class="form-control" id="super-income" min="0" step="0.01">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label for="partnership-income" class="form-label">Income from Partnerships and Trusts</label>
-                                        <input type="number" class="form-control" id="partnership-income" min="0" step="0.01">
-                                    </div>
-                                </div>
-                                
-                                <div class="d-flex justify-content-between mt-4">
-                                    <button type="button" class="btn btn-outline-secondary" onclick="goToNextTab('income-tab', 'personal-tab')"><i class="fas fa-arrow-left me-2"></i> Previous: Personal</button>
-                                    <button type="button" class="btn btn-primary" onclick="goToNextTab('income-tab', 'deductions-tab')">Next: Deductions <i class="fas fa-arrow-right ms-2"></i></button>
-                                </div>
-                            </div>
-                            
-                            <!-- Deductions Tab -->
-                            <div class="tab-pane fade" id="deductions-content" role="tabpanel">
-                                <h4 class="mb-3">Work-Related Expenses</h4>
-                                
-                                <!-- Car Expenses -->
-                                <div class="card mb-3">
-                                    <div class="card-header bg-light">
-                                        <h5 class="mb-0">Car Expenses (D1)</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="row g-3">
-                                            <div class="col-md-12">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="use-car-for-work">
-                                                    <label class="form-check-label" for="use-car-for-work">
-                                                        I use my car for work purposes
-                                                    </label>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <div id="car-expense-details" class="row g-3 mt-2" style="display: none;">
-                                            <div class="col-md-4">
-                                                <label for="car-make" class="form-label">Car Make and Model</label>
-                                                <input type="text" class="form-control" id="car-make">
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label for="car-registration" class="form-label">Registration Number</label>
-                                                <input type="text" class="form-control" id="car-registration">
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label for="car-method" class="form-label">Calculation Method</label>
-                                                <select class="form-select" id="car-method">
-                                                    <option value="cents">Cents per Kilometer</option>
-                                                    <option value="logbook">Logbook Method</option>
-                                                </select>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label for="business-km" class="form-label">Business Kilometers</label>
-                                                <input type="number" class="form-control" id="business-km" min="0">
-                                            </div>
-                                            <div class="col-md-8">
-                                                <label for="car-expenses" class="form-label">Total Car Expenses Claimed</label>
-                                                <input type="number" class="form-control" id="car-expenses" min="0" step="0.01">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Other key deduction sections would go here -->
-                                <div class="alert alert-info">
-                                    <i class="fas fa-info-circle me-2"></i> Additional deduction sections will include travel expenses, clothing expenses, self-education, and other work-related expenses.
-                                </div>
-                                
-                                <div class="d-flex justify-content-between mt-4">
-                                    <button type="button" class="btn btn-outline-secondary" onclick="goToNextTab('deductions-tab', 'income-tab')"><i class="fas fa-arrow-left me-2"></i> Previous: Income</button>
-                                    <button type="button" class="btn btn-primary" onclick="goToNextTab('deductions-tab', 'offsets-tab')">Next: Tax Offsets <i class="fas fa-arrow-right ms-2"></i></button>
-                                </div>
-                            </div>
-                            
-                            <!-- Placeholder for remaining tabs -->
-                            <div class="tab-pane fade" id="offsets-content" role="tabpanel">
-                                <div class="alert alert-info">
-                                    <i class="fas fa-info-circle me-2"></i> This section will contain tax offset fields including private health insurance details, spouse details for offsets, and other tax offset information.
-                                </div>
-                                
-                                <div class="d-flex justify-content-between mt-4">
-                                    <button type="button" class="btn btn-outline-secondary" onclick="goToNextTab('offsets-tab', 'deductions-tab')"><i class="fas fa-arrow-left me-2"></i> Previous: Deductions</button>
-                                    <button type="button" class="btn btn-primary" onclick="goToNextTab('offsets-tab', 'medicare-tab')">Next: Medicare <i class="fas fa-arrow-right ms-2"></i></button>
-                                </div>
-                            </div>
-                            
-                            <div class="tab-pane fade" id="medicare-content" role="tabpanel">
-                                <div class="alert alert-info">
-                                    <i class="fas fa-info-circle me-2"></i> This section will contain Medicare levy information and private health insurance details.
-                                </div>
-                                
-                                <div class="d-flex justify-content-between mt-4">
-                                    <button type="button" class="btn btn-outline-secondary" onclick="goToNextTab('medicare-tab', 'offsets-tab')"><i class="fas fa-arrow-left me-2"></i> Previous: Tax Offsets</button>
-                                    <button type="button" class="btn btn-primary" onclick="goToNextTab('medicare-tab', 'hecs-tab')">Next: HELP/HECS <i class="fas fa-arrow-right ms-2"></i></button>
-                                </div>
-                            </div>
-                            
-                            <div class="tab-pane fade" id="hecs-content" role="tabpanel">
-                                <div class="alert alert-info">
-                                    <i class="fas fa-info-circle me-2"></i> This section will contain HELP/HECS debt information and student loan details.
-                                </div>
-                                
-                                <div class="d-flex justify-content-between mt-4">
-                                    <button type="button" class="btn btn-outline-secondary" onclick="goToNextTab('hecs-tab', 'medicare-tab')"><i class="fas fa-arrow-left me-2"></i> Previous: Medicare</button>
-                                    <button type="button" class="btn btn-primary" onclick="goToNextTab('hecs-tab', 'additional-tab')">Next: Additional Info <i class="fas fa-arrow-right ms-2"></i></button>
-                                </div>
-                            </div>
-                            
-                            <div class="tab-pane fade" id="additional-content" role="tabpanel">
-                                <div class="alert alert-info">
-                                    <i class="fas fa-info-circle me-2"></i> This section will contain additional tax information such as foreign entities, family trust details, and other special circumstances.
-                                </div>
-                                
-                                <div class="d-flex justify-content-between mt-4">
-                                    <button type="button" class="btn btn-outline-secondary" onclick="goToNextTab('additional-tab', 'hecs-tab')"><i class="fas fa-arrow-left me-2"></i> Previous: HELP/HECS</button>
-                                    <button type="button" class="btn btn-primary" id="save-tax-profile">
-                                        <i class="fas fa-save me-2"></i> Save Tax Profile
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
 </body>
 </html> 

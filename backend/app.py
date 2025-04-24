@@ -1,3 +1,10 @@
+import pdb
+import sys
+import os
+import tempfile
+import mimetypes
+import requests
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from flask import Flask, request, render_template, redirect, url_for, flash, jsonify, session, send_from_directory
 from flask_cors import CORS
 import re
@@ -16,7 +23,7 @@ from basiq_api import (
     refresh_connection,
     delete_connection
 )
-from tabscanner_api import process_receipt_with_polling as tabscanner_process_receipt
+from tabscanner_api import match_receipt_with_transaction, process_receipt_with_polling as tabscanner_process_receipt
 from datetime import datetime, timedelta
 # Import financial insights module
 from ai.financial_insights import (
@@ -1311,69 +1318,60 @@ def serve_static(filename):
 
 # --- New FormX.AI Receipt Upload Route --- #
 @app.route('/api/receipts/upload/formx', methods=['POST'])
-# @login_required # Uncomment this line later if authentication is needed for this endpoint
 def upload_receipt_formx():
-    """
-    Upload a receipt image and extract data using FormX.AI.
-    Receives the file via a multipart/form-data request.
-    """
-    # Check if the post request has the file part
-    if 'receipt' not in request.files:
-        return jsonify({'success': False, 'error': 'No receipt file part in the request'}), 400
-    
-    file = request.files['receipt']
-    
-    # If the user does not select a file, the browser submits an empty file without a filename
-    if file.filename == '':
-        return jsonify({'success': False, 'error': 'No selected file'}), 400
-    
-    # Check if the file type is allowed (optional)
-    # if not allowed_file(file.filename):
-    #     return jsonify({'success': False, 'error': 'File type not allowed'}), 400
+    temp_file_path = None
 
-    if file:
-        # Make the filename safe
-        filename = secure_filename(file.filename)
-        # Create a unique temporary file path
-        temp_file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        
-        try:
-            # Save the file temporarily
+    try:
+        # Check for uploaded file
+        if 'receipt' in request.files:
+            file = request.files['receipt']
+            if file.filename == '':
+                return jsonify({'success': False, 'error': 'No selected file'}), 400
+
+            filename = secure_filename(file.filename)
+            temp_file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(temp_file_path)
-            print(f"Temporary file saved to: {temp_file_path}")
+            print(f"File uploaded: {temp_file_path}")
 
-            # Call the FormX.AI extraction function
-            extracted_data = extract_data_from_image(temp_file_path)
-            
-            # Return the successful extraction data
-            return jsonify({'success': True, 'data': extracted_data})
-        
-        except FileNotFoundError as e:
-            print(f"Error: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 404
-        except ValueError as e:
-            # Catches errors from formx_client (e.g., missing env vars, bad API response)
-            print(f"Error: {e}")
-            return jsonify({'success': False, 'error': str(e)}), 400
-        except requests.exceptions.RequestException as e:
-            # Catches network errors during API call
-            print(f"Error: {e}")
-            return jsonify({'success': False, 'error': f'API request failed: {e}'}), 500
-        except Exception as e:
-            # Catch any other unexpected errors
-            print(f"Unexpected error: {e}")
-            return jsonify({'success': False, 'error': f'An unexpected error occurred: {e}'}), 500
-        finally:
-            # Clean up: Delete the temporary file
-            if os.path.exists(temp_file_path):
-                try:
-                    os.remove(temp_file_path)
-                    print(f"Temporary file deleted: {temp_file_path}")
-                except Exception as e:
-                    print(f"Error deleting temporary file {temp_file_path}: {e}")
-    
-    return jsonify({'success': False, 'error': 'File processing failed'}), 500
+        # Check for URL if file is not present
+        elif 'url' in request.form:
+            url = request.form['url']
+            if not url:
+                return jsonify({'success': False, 'error': 'Empty URL provided'}), 400
 
+            response = requests.get(url, stream=True)
+            if response.status_code != 200:
+                return jsonify({'success': False, 'error': 'Failed to fetch image from URL'}), 400
+
+            content_type = response.headers.get('Content-Type', 'image/jpeg')
+            extension = mimetypes.guess_extension(content_type) or '.jpg'
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix=extension, dir=app.config['UPLOAD_FOLDER']) as tmp:
+                for chunk in response.iter_content(chunk_size=1024):
+                    if chunk:
+                        tmp.write(chunk)
+                temp_file_path = tmp.name
+                print(f"Downloaded file from URL: {temp_file_path}")
+
+        else:
+            return jsonify({'success': False, 'error': 'No receipt file or URL provided'}), 400
+
+        # Process the file
+        extracted_data = extract_data_from_image(temp_file_path)
+        return jsonify({'success': True, 'data': extracted_data})
+
+    except Exception as e:
+        print(f"Error during receipt processing: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+    finally:
+        # Clean up temporary file
+        if temp_file_path and os.path.exists(temp_file_path):
+            try:
+                os.remove(temp_file_path)
+                print(f"Temporary file deleted: {temp_file_path}")
+            except Exception as e:
+                print(f"Error deleting temporary file: {e}")
 if __name__ == "__main__":
     # Run on a different port than the standard 5000 (which might be taken by AirPlay on macOS)
     port = int(os.environ.get('FLASK_RUN_PORT', 8080))

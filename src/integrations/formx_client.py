@@ -3,88 +3,70 @@ import os
 import mimetypes
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
 load_dotenv()
 
-# Retrieve sensitive information from environment variables
-FORMFAI_ACCESS_TOKEN = os.getenv("FORMFAI_ACCESS_TOKEN")
-FORMFAI_EXTRACTOR_ID = os.getenv("FORMFAI_EXTRACTOR_ID")
 FORMFAI_API_ENDPOINT = "https://worker.formextractorai.com/v2/extract"
 
-def extract_data_from_image(image_path: str) -> dict:
-    """
-    Sends an image to the FormX.AI API for data extraction.
+def get_env_variable(name, required=True):
+    value = os.getenv(name)
+    if required and not value:
+        raise ValueError(f"Environment variable '{name}' is not set.")
+    return value
 
-    Args:
-        image_path: The local path to the image file.
+def build_headers(token: str, extractor_id: str, extra_headers: dict = None) -> dict:
+    headers = {
+        "accept": "application/json",
+        "X-WORKER-TOKEN": token,
+        "X-WORKER-EXTRACTOR-ID": extractor_id,
+        "X-WORKER-ENCODING": "raw",
+        "X-WORKER-PDF-DPI": "150",
+        "X-WORKER-ASYNC": "false",
+        "X-WORKER-AUTO-ADJUST-IMAGE-SIZE": "true",
+        "X-WORKER-OUTPUT-OCR": "false",
+        "X-WORKER-PROCESSING-MODE": "per-page",
+    }
+    if extra_headers:
+        headers.update(extra_headers)
+    return headers
 
-    Returns:
-        A dictionary containing the extracted data from the API response.
-
-    Raises:
-        FileNotFoundError: If the image_path does not exist.
-        ValueError: If environment variables are not set or the API response is invalid.
-        requests.exceptions.RequestException: For issues during the API request.
-    """
-    # Validate environment variables
-    if not FORMFAI_ACCESS_TOKEN:
-        raise ValueError("FORMFAI_ACCESS_TOKEN environment variable not set.")
-    if not FORMFAI_EXTRACTOR_ID:
-        raise ValueError("FORMFAI_EXTRACTOR_ID environment variable not set.")
-
-    # Check if the image file exists
+def extract_data_from_image(image_path: str, token=None, extractor_id=None, extra_headers=None) -> dict:
     if not os.path.exists(image_path):
         raise FileNotFoundError(f"Image file not found at: {image_path}")
 
-    # Determine the content type based on the file extension
-    content_type, _ = mimetypes.guess_type(image_path)
-    if not content_type:
-        # Default to jpeg if type cannot be guessed
-        content_type = 'image/jpeg'
-        print(f"Warning: Could not determine content type for {image_path}. Defaulting to {content_type}.")
+    token = token or get_env_variable("FORMFAI_ACCESS_TOKEN")
+    extractor_id = extractor_id or get_env_variable("FORMFAI_EXTRACTOR_ID")
 
-    # Prepare headers and payload
-    headers = {
-        'X-WORKER-TOKEN': FORMFAI_ACCESS_TOKEN,
-        'X-WORKER-EXTRACTOR-ID': FORMFAI_EXTRACTOR_ID,
-        'Content-Type': content_type,
-    }
+    content_type, _ = mimetypes.guess_type(image_path)
+    content_type = content_type or 'image/jpeg'
+
+    headers = build_headers(token, extractor_id, extra_headers)
 
     try:
-        # Open the image file in binary read mode
-        with open(image_path, 'rb') as payload:
-            # Send the POST request to the FormX.AI API
-            response = requests.post(FORMFAI_API_ENDPOINT, headers=headers, data=payload)
-
-            # Raise an exception for bad status codes (4xx or 5xx)
+        with open(image_path, 'rb') as image_file:
+            response = requests.post(
+                FORMFAI_API_ENDPOINT,
+                headers=headers,
+                data=image_file
+            )
             response.raise_for_status()
-
-            # Parse and return the JSON response
             return response.json()
 
     except requests.exceptions.RequestException as e:
-        # Handle potential request errors (network issues, timeout, etc.)
-        print(f"API Request failed: {e}")
-        raise  # Re-raise the exception after logging
+        print(f"[ERROR] API Request failed: {e}")
+        raise
     except ValueError as e:
-        # Handle JSON decoding errors
-        print(f"Failed to decode API response: {e}")
-        raise ValueError(f"Invalid JSON received from API: {response.text}") from e
+        print(f"[ERROR] Failed to parse API response: {e}")
+        raise ValueError(f"Invalid JSON received: {response.text}") from e
     except Exception as e:
-        # Catch any other unexpected errors during file handling or processing
-        print(f"An unexpected error occurred: {e}")
+        print(f"[ERROR] Unexpected error: {e}")
         raise
 
-# Example usage (for testing purposes):
-# if __name__ == "__main__":
-#     try:
-#         # Make sure to create a dummy .env file with your credentials
-#         # and place a test image (e.g., test_receipt.jpg) in the same directory
-#         # or provide the full path.
-#         image_file = 'path/to/your/test_receipt.jpg' # CHANGE THIS PATH
-#         extracted_data = extract_data_from_image(image_file)
-#         print("Extraction Successful:")
-#         import json
-#         print(json.dumps(extracted_data, indent=2))
-#     except (FileNotFoundError, ValueError, requests.exceptions.RequestException) as error:
-#         print(f"Extraction Failed: {error}") 
+# Example usage
+if __name__ == "__main__":
+    try:
+        image_path = 'path/to/your/test_receipt.jpg'  # Update with your path
+        result = extract_data_from_image(image_path)
+        import json
+        print(json.dumps(result, indent=2))
+    except Exception as e:
+        print(f"Extraction failed: {e}")
