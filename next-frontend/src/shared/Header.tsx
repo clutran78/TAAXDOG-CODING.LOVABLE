@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import ConnectBankModal from "./ConnectBankModal";
+import ConnectBankModal from "./modals/ConnectBankModal";
 
 const Header = () => {
   const [showBankModal, setShowBankModal] = useState(false);
