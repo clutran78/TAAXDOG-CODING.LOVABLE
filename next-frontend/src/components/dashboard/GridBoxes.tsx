@@ -1,15 +1,42 @@
 "use client";
 import NetIncomeModal from "@/shared/NetIncomeModal";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { displayTransactionSummary, formatCurrency, initializeMockData, updateElementText } from '@/services/helperFunction';
+import AlertMessage from "@/shared/alerts";
 
 const GridBoxes = () => {
   const [showNetIncomeModal, setShowNetIncomeModal] = useState(false);
 
+  const [alert, setAlert] = useState<{ message: string; type: string } | null>(null);
   const handleShowNetIncomeModal = () => setShowNetIncomeModal(true);
   const handleCloseNetIncomeModal = () => setShowNetIncomeModal(false);
 
+  useEffect(() => {
+    const initializeApp = () => {
+      const dataCreated = initializeMockData();
+      if (dataCreated) {
+        setAlert({
+          message: 'Demo data has been initialized. You can now explore the app features.',
+          type: 'success',
+        });
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => setAlert(null), 3000);
+      }
+    };
+
+    initializeApp();
+
+    let transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+    if (transactions) {
+      displayTransactionSummary()
+    }
+
+  }, [])
+
+
   return (
     <>
+      {alert && <AlertMessage message={alert.message} type={alert.type as any} />}
       <div className="col-md-3 mb-4">
         <div
           className="card stats-card h-100"
