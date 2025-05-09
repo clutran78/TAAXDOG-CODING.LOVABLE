@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { displayTransactionSummary, formatCurrency, initializeMockData, updateElementText } from '@/services/helperFunction';
+import { displayTransactionSummary, formatCurrency, initializeMockData, loadDetailedExpenses, loadIncomeDetails, openExpenseCategoriesModal, setupExpenseSearch, setupFinancialFeatureHandlers, updateElementText } from '@/services/helperFunction';
 import AlertMessage from "@/shared/alerts";
 import ExpenseCategoriesModal from "@/shared/modals/ExpenseCategoriesModal";
 import NetBalanceDetails from "@/shared/modals/NetBalanceDetails";
@@ -11,16 +11,37 @@ const GridBoxes = () => {
   const [showNetIncomeModal, setShowNetIncomeModal] = useState(false);
 
   const [alert, setAlert] = useState<{ message: string; type: string } | null>(null);
-  const handleShowNetIncomeModal = () => setShowNetIncomeModal(true);
-  const handleCloseNetIncomeModal = () => setShowNetIncomeModal(false);
-  const [showNetBalanceDetailsModal, setShowNetBalanceDetailsModal] =  useState(false)
+
+  const [showNetBalanceDetailsModal, setShowNetBalanceDetailsModal] = useState(false)
   const [showExpenseCategoriesModal, setShowExpenseCategoriesModal] = useState(false)
 
+  useEffect(() => {
+    if (showNetIncomeModal) {
+      // Give React time to render the modal content
+      setTimeout(() => {
+        loadIncomeDetails();
+      }, 0);
+    }
+  }, [showNetIncomeModal]);
 
-  const handleShowExpenseCategoriesModal = () =>
-    setShowExpenseCategoriesModal(true);
-  const handleCloseExpenseCategoriesModal = () =>
-    setShowExpenseCategoriesModal(false);
+  useEffect(() => {
+    // Give React time to render the modal content
+    setTimeout(() => {
+      setupFinancialFeatureHandlers()
+    }, 0);
+  
+}, []);
+
+
+  const handleShowNetIncomeModal = () => setShowNetIncomeModal(true)
+
+  const handleCloseNetIncomeModal = () => setShowNetIncomeModal(false);
+
+
+  const handleShowExpenseCategoriesModal = () => setShowExpenseCategoriesModal(true)
+
+  const handleCloseExpenseCategoriesModal = () => setShowExpenseCategoriesModal(false)
+
 
   const [showManageSubscriptionsModal, setShowManageSubscriptionsModal] =
     useState(false);
@@ -34,10 +55,10 @@ const GridBoxes = () => {
     setShowManageSubscriptionsModal(false);
 
   useState(false);
-const handleShowNetBalanceDetails = () => setShowNetBalanceDetailsModal(true);
+  const handleShowNetBalanceDetails = () => setShowNetBalanceDetailsModal(true);
 
-const handleCloseNetBalanceDetails = () =>
-  setShowNetBalanceDetailsModal(false);
+  const handleCloseNetBalanceDetails = () =>
+    setShowNetBalanceDetailsModal(false);
 
 
   useEffect(() => {
@@ -104,6 +125,7 @@ const handleCloseNetBalanceDetails = () =>
               $0.00
             </div>
             <div
+              id="view-expense-categories-btn"
               className="stat-change negative-change cursor-pointer"
               onClick={handleShowExpenseCategoriesModal}
             >
@@ -164,10 +186,10 @@ const handleCloseNetBalanceDetails = () =>
         handleClose={handleCloseNetIncomeModal}
       />
 
-      <ExpenseCategoriesModal
+      {/* <ExpenseCategoriesModal
         show={showExpenseCategoriesModal}
         handleClose={handleCloseExpenseCategoriesModal}
-      />
+      /> */}
 
       <NetBalanceDetails
         show={showNetBalanceDetailsModal}
