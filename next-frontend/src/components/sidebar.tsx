@@ -116,7 +116,7 @@ export default function Sidebar() {
               </Link>
             </li>
             <li className="nav-item">
-              <Link href="/receipt-module" className="nav-link" id="receipt-module-nav-link">
+              <Link href="/receipt" className="nav-link" id="receipt-module-nav-link">
                 <i className="fas fa-file-invoice text-primary"></i> Receipt Module
               </Link>
             </li>

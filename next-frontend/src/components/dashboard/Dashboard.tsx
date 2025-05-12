@@ -1,7 +1,7 @@
 import React from "react";
 import GridBoxes from "./GridBoxes";
 
-const Dashboard = () => {
+const DashboardComponent = () => {
   return (
     <div className="row mt-5">
       <GridBoxes />
@@ -9,4 +9,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard;
+export default DashboardComponent;

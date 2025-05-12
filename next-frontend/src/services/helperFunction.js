@@ -1,3 +1,4 @@
+import Chart from '@/components/utils/chartSetup';
 
 // Generate mock transactions
 function generateMockTransactions(days = 30) {
@@ -335,7 +336,7 @@ function loadIncomeDetails() {
                         </div>
                     `;
             });
-debugger
+            debugger
             sourcesContainer.innerHTML = sourcesHTML;
         }
 
@@ -379,18 +380,18 @@ export async function openExpenseCategoriesModal() {
     debugger
 
     if (typeof document === 'undefined') return; // Guard against SSR
-  
+
     // Dynamically import Modal only on the client
     const { default: Modal } = await import('bootstrap/js/dist/modal');
-  
+
     let modalElement = document.getElementById('expense-categories-modal');
-  
+
     if (!modalElement) {
-      modalElement = document.createElement('div');
-      modalElement.id = 'expense-categories-modal';
-      modalElement.className = 'modal fade';
-      modalElement.setAttribute('tabindex', '-1');
-      modalElement.innerHTML = `
+        modalElement = document.createElement('div');
+        modalElement.id = 'expense-categories-modal';
+        modalElement.className = 'modal fade';
+        modalElement.setAttribute('tabindex', '-1');
+        modalElement.innerHTML = `
         <div class="modal-dialog modal-lg">
           <div class="modal-content">
             <div class="modal-header">
@@ -414,23 +415,23 @@ export async function openExpenseCategoriesModal() {
           </div>
         </div>
       `;
-      document.body.appendChild(modalElement);
+        document.body.appendChild(modalElement);
     }
-  
+
     const modal = new Modal(modalElement);
     modal.show();
-  
+
     modalElement.addEventListener(
-      'shown.bs.modal',
-      () => loadExpenseCategoriesContent(modalElement),
-      { once: true }
+        'shown.bs.modal',
+        () => loadExpenseCategoriesContent(modalElement),
+        { once: true }
     );
-  }
-  
+}
+
 
 // Load detailed expenses
 function loadDetailedExpenses() {
-debugger
+    debugger
     try {
         // Get transactions from localStorage
         const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
@@ -440,7 +441,7 @@ debugger
         const totalExpenses = expenses.reduce((sum, tx) => sum + Math.abs(parseFloat(tx.amount)), 0);
 
         const expensesValueElement = document.getElementById('modal-detailed-expenses-value');
-        
+
         if (expensesValueElement) {
             expensesValueElement.textContent = formatCurrency(totalExpenses);
         }
@@ -602,7 +603,7 @@ async function openNetBalanceModal() {
         loadNetBalanceDetails();
 
     } catch (error) {
-        alert('An error occurred while opening the net balance details. Please refresh the page.', 'danger');
+        showToast('An error occurred while opening the net balance details. Please refresh the page.', 'danger');
     }
 }
 
@@ -710,30 +711,30 @@ export async function openNetIncomeModal() {
     debugger
 
     try {
-      if (typeof document === 'undefined') return; // SSR guard
-  
-      // Dynamically import Bootstrap Modal only on client
-      const { default: Modal } = await import('bootstrap/js/dist/modal');
-  
-      const modalElement = document.getElementById('net-income-modal');
-      if (!modalElement) throw new Error('Modal element not found');
-  
-      const modal = new Modal(modalElement);
-      modal.show();
-  
-      loadIncomeDetails();
-      console.log('Net income modal opened successfully');
+        if (typeof document === 'undefined') return; // SSR guard
+
+        // Dynamically import Bootstrap Modal only on client
+        const { default: Modal } = await import('bootstrap/js/dist/modal');
+
+        const modalElement = document.getElementById('net-income-modal');
+        if (!modalElement) throw new Error('Modal element not found');
+
+        const modal = Modal(modalElement);
+        modal.show();
+
+        loadIncomeDetails();
+        console.log('Net income modal opened successfully');
     } catch (error) {
         debugger
-      console.error(`Error opening net income modal: ${error.message}`);
-      alert(
-        'An error occurred while opening the net income details. Please refresh the page.',
-        'danger'
-      );
+        console.error(`Error opening net income modal: ${error.message}`);
+        showToast(
+            'An error occurred while opening the net income details. Please refresh the page.',
+            'danger'
+        );
     }
-  }
+}
 
-  // Show add goal form
+// Show add goal form
 function showAddGoalForm() {
 
     try {
@@ -823,7 +824,7 @@ function showAddGoalForm() {
             });
         }
     } catch (error) {
-        alert('An error occurred while showing the add goal form. Please try again.', 'danger');
+        showToast('An error occurred while showing the add goal form. Please try again.', 'danger');
     }
 }
 
@@ -999,12 +1000,12 @@ function loadGoalsContent(modalElement) {
 }
 
 
-  // Open goals modal
+// Open goals modal
 async function openGoalsModal() {
 
     try {
-   // Dynamically import Bootstrap Modal only on client
-   const { default: Modal } = await import('bootstrap/js/dist/modal');
+        // Dynamically import Bootstrap Modal only on client
+        const { default: Modal } = await import('bootstrap/js/dist/modal');
 
         // Get or create modal element
         let modalElement = document.getElementById('goals-modal');
@@ -1073,9 +1074,304 @@ async function openGoalsModal() {
 
 
 
+
+
+// Create expense category chart
+function createExpenseCategoryChart(transactions) {
+    // log('Creating expense category chart');
+
+    try {
+        const expensesByCategory = {};
+        const expenses = transactions.filter(tx => parseFloat(tx.amount) < 0);
+
+        // Group expenses by category
+        expenses.forEach(tx => {
+            const category = tx.category || 'Uncategorized';
+            if (!expensesByCategory[category]) {
+                expensesByCategory[category] = 0;
+            }
+            expensesByCategory[category] += Math.abs(parseFloat(tx.amount));
+        });
+
+        // Convert to arrays for chart
+        const categories = Object.keys(expensesByCategory);
+        const values = Object.values(expensesByCategory);
+
+        // Generate colors
+        const colors = categories.map((_, i) => {
+            const hue = (i * 137) % 360; // Golden angle approximation for good distribution
+            return `hsl(${hue}, 70%, 60%)`;
+        });
+
+        // Get chart canvas
+        const ctx = document.getElementById('categoryChart');
+        if (!ctx) {
+            console.log('Category chart canvas not found', 'warn');
+            return;
+        }
+
+        // Destroy existing chart if any
+        if (window.categoryPieChart) {
+            window.categoryPieChart.destroy();
+        }
+
+        // Create new chart
+        window.categoryPieChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: categories,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            boxWidth: 15,
+                            padding: 15
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                const value = context.raw;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `$${value.toFixed(2)} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // console.log('Expense category chart created successfully');
+    } catch (error) {
+        console.log(`Error creating expense category chart: ${error.message}`, 'error');
+    }
+}
+
+// Create expense time chart
+function createExpenseTimeChart(transactions) {
+
+    try {
+        // Group expenses by date
+        const expensesByDate = {};
+        const incomeByDate = {};
+
+        // Process transactions
+        transactions.forEach(tx => {
+            const amount = parseFloat(tx.amount);
+            const date = new Date(tx.date);
+            const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+            if (amount < 0) { // Expense
+                if (!expensesByDate[dateKey]) {
+                    expensesByDate[dateKey] = 0;
+                }
+                expensesByDate[dateKey] += Math.abs(amount);
+            } else { // Income
+                if (!incomeByDate[dateKey]) {
+                    incomeByDate[dateKey] = 0;
+                }
+                incomeByDate[dateKey] += amount;
+            }
+        });
+
+        // Get all unique dates and sort them
+        const allDates = [...new Set([...Object.keys(expensesByDate), ...Object.keys(incomeByDate)])].sort();
+
+        // Prepare data for chart
+        const expenseData = [];
+        const incomeData = [];
+
+        allDates.forEach(date => {
+            expenseData.push({
+                x: date,
+                y: expensesByDate[date] || 0
+            });
+
+            incomeData.push({
+                x: date,
+                y: incomeByDate[date] || 0
+            });
+        });
+
+        // Get chart canvas
+        const ctx = document.getElementById('timeChart');
+        if (!ctx) {
+            console.log('Time chart canvas not found', 'warn');
+            return;
+        }
+
+        // Destroy existing chart if any
+        if (window.timeLineChart) {
+            window.timeLineChart.destroy();
+        }
+
+        // Create new chart
+        window.timeLineChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: [
+                    {
+                        label: 'Expenses',
+                        data: expenseData,
+                        borderColor: '#dc3545',
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Income',
+                        data: incomeData,
+                        borderColor: '#198754',
+                        backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'day',
+                            tooltipFormat: 'MMM d, yyyy'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Amount ($)'
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                return `${context.dataset.label}: $${context.raw.y.toFixed(2)}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // log('Expense time chart created successfully');
+    } catch (error) {
+        console.log(`Error creating expense time chart: ${error.message}`, 'error');
+    }
+}
+
+
+// Load transactions table
+function loadTransactionsTable(transactions) {
+    // log('Loading transactions table');
+    debugger
+
+    try {
+        const tableBody = document.getElementById('transactionsTableBody');
+    debugger
+
+        if (!tableBody) {
+            console.log('Transactions table body element not found', 'warn');
+            return;
+        }
+
+        if (transactions.length === 0) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center py-4">
+                        <p>No transactions found</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        // Sort transactions by date (newest first)
+        transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        let tableRows = '';
+        transactions.forEach(tx => {
+            const amount = parseFloat(tx.amount);
+            const date = new Date(tx.date).toLocaleDateString();
+            const type = amount >= 0 ? 'Income' : 'Expense';
+            const amountClass = amount >= 0 ? 'text-success' : 'text-danger';
+
+            tableRows += `
+                <tr>
+                    <td>${date}</td>
+                    <td>${tx.merchant || 'Unknown'}</td>
+                    <td>${tx.category || 'Uncategorized'}</td>
+                    <td class="${amountClass}">$${Math.abs(amount).toFixed(2)}</td>
+                    <td>${type}</td>
+                </tr>
+            `;
+        });
+
+        tableBody.innerHTML = tableRows;
+
+        // log('Transactions table loaded successfully');
+    } catch (error) {
+    debugger
+
+        console.groupEndlog(`Error loading transactions table: ${error.message}`, 'error');
+    }
+}
+
+
+// Load data dashboard
+function loadDataDashboard() {
+debugger
+    try {
+        const dashboardSection = document.getElementById('data-dashboard-section');
+        if (!dashboardSection) {
+            console.log('Data dashboard section element not found', 'error');
+            return;
+        }
+
+        // Show dashboard section
+        dashboardSection.style.display = 'block';
+
+        // Load transactions
+        const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+
+        // Load chart data if Chart.js is available
+        if (typeof Chart !== 'undefined') {
+            createExpenseCategoryChart(transactions);
+            createExpenseTimeChart(transactions);
+        }
+
+        // Load transactions table
+        loadTransactionsTable(transactions);
+
+        // log('Data dashboard loaded successfully');
+    } catch (error) {
+        console.log(`Error loading data dashboard: ${error.message}`, 'error');
+    }
+}
+
+
 // Open detailed expenses modal
 async function openDetailedExpensesModal() {
-debugger
+    debugger
     try {
         // Get modal element
         let modalElement = document.getElementById('detailed-expenses-modal');
@@ -1092,7 +1388,7 @@ debugger
         setupExpenseSearch();
 
     } catch (error) {
-        alert('An error occurred while opening the detailed expenses. Please refresh the page.', 'danger');
+        showToast('An error occurred while opening the detailed expenses. Please refresh the page.', 'danger');
     }
 }
 
@@ -1104,7 +1400,7 @@ function setupFinancialFeatureHandlers() {
         // const incomeCard = document.getElementById('net-income-card');
         // if (incomeCard && !incomeCard._hasIncomeClickHandler) {
         //     incomeCard.addEventListener('click', function () {
- 
+
         //         openNetIncomeModal();
         //     });
         //     incomeCard._hasIncomeClickHandler = true;
@@ -1126,7 +1422,7 @@ function setupFinancialFeatureHandlers() {
         // const goalsCard = document.getElementById('goals-card');
         // if (goalsCard && !goalsCard._hasGoalsClickHandler) {
         //     goalsCard.addEventListener('click', function () {
-    
+
         //         openGoalsModal();
         //     });
         //     goalsCard._hasGoalsClickHandler = true;
@@ -1213,12 +1509,12 @@ function setupFinancialFeatureHandlers() {
 
                     const detailedModal = Modal.getInstance(document.getElementById('detailed-expenses-modal'));
                     if (detailedModal) detailedModal.hide();
-    
+
                     // Open the categories modal
                     setTimeout(() => openExpenseCategoriesModal(), 400);
                 } catch (error) {
-                        console.error('Failed to open modal:', error);
-              viewExpenseCategoriesBtn.disabled = false;
+                    console.error('Failed to open modal:', error);
+                    viewExpenseCategoriesBtn.disabled = false;
                 }
             });
         }
@@ -1231,20 +1527,20 @@ function setupFinancialFeatureHandlers() {
         //   viewExpenseCategoriesBtn.addEventListener('click', async function () {
         //     // Prevent multiple rapid clicks
         //     viewExpenseCategoriesBtn.disabled = true;
-        
+
         //     try {
         //       const { default: Modal } = await import('bootstrap/js/dist/modal');
-        
+
         //       const modalElement = document.getElementById('detailed-expenses-modal');
         //       if (modalElement) {
         //         const detailedModal = Modal.getInstance(modalElement);
         //         if (detailedModal) detailedModal.hide();
         //       }
-        
+
         //       // Open the categories modal after a short delay
         //       setTimeout(() => {
         //         openExpenseCategoriesModal();
-        
+
         //         // Re-enable the button after modal is fully rendered
         //         setTimeout(() => {
         //           viewExpenseCategoriesBtn.disabled = false;
@@ -1259,7 +1555,7 @@ function setupFinancialFeatureHandlers() {
 
 
 
-        
+
         const viewAllExpensesFromBalanceBtn = document.getElementById('view-all-expenses-from-balance-btn');
         if (viewAllExpensesFromBalanceBtn) {
             viewAllExpensesFromBalanceBtn.addEventListener('click', async function () {
@@ -1290,20 +1586,6 @@ function setupFinancialFeatureHandlers() {
             });
         }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         // // Data dashboard link
         // const dataDashboardLink = document.getElementById('data-dashboard-nav-link');
         // if (dataDashboardLink && !dataDashboardLink._hasClickHandler) {
@@ -1330,6 +1612,75 @@ function setupFinancialFeatureHandlers() {
     }
 }
 
+export const showToast = (message, type = 'primary') => {
+    if (typeof window === 'undefined') return; // Guard for SSR
+
+    const toastEl = document.getElementById('main-toast');
+    const toastBody = document.getElementById('toast-body');
+
+    if (!toastEl || !toastBody) {
+        console.error('Toast elements not found in DOM.');
+        return;
+    }
+
+    // Update message and style
+    toastBody.textContent = message;
+    toastEl.className = `toast align-items-center text-white bg-${type} border-0`;
+
+    // Dynamically import Bootstrap Toast if not globally available
+    import('bootstrap/js/dist/toast').then(({ default: Toast }) => {
+        const bsToast = Toast.getOrCreateInstance(toastEl);
+        bsToast.show();
+    }).catch((err) => {
+        console.error('Failed to load Bootstrap toast module:', err);
+    });
+};
+
+
+function populateFormWithReceiptData(data) {
+    debugger
+    const doc = data.documents[0].data;
+    document.getElementById('vendor_name').value = doc.merchant_name || '';
+    document.getElementById('total_amount').value = doc.total_amount || '';
+    document.getElementById('date').value = doc.date || '';
+
+    // Save original data temporarily for later reference
+    window.currentReceiptData = data;
+}
+
+
+function updateLocalStorageAndUI(newData) {
+    debugger
+    const currentStats = JSON.parse(localStorage.getItem('receiptStats')) || {
+        totalReceipts: 0,
+        totalSpent: 0,
+        matchedReceipts: 0
+    };
+
+    // Increment values
+    currentStats.totalReceipts += 1;
+    currentStats.totalSpent += parseFloat(newData.documents[0].data.total_amount || 0);
+    if (newData.matched) {
+        currentStats.matchedReceipts += 1;
+    }
+
+    // Store in localStorage
+    localStorage.setItem('receiptStats', JSON.stringify(currentStats));
+
+    // Update HTML
+    updateReceiptDashboard(currentStats);
+}
+
+function updateReceiptDashboard(stats) {
+    document.getElementById('total-receipts-count').textContent = stats.totalReceipts;
+    document.getElementById('total-receipts-amount').textContent = `$${stats.totalSpent.toFixed(2)}`;
+    document.getElementById('matched-receipts-count').textContent = stats.matchedReceipts;
+
+    const average = stats.totalReceipts > 0 ? stats.totalSpent / stats.totalReceipts : 0;
+    document.getElementById('average-receipt-amount').textContent = `$${average.toFixed(2)}`;
+}
+
+
 
 export {
     generateMockTransactions,
@@ -1338,9 +1689,13 @@ export {
     updateElementText,
     displayTransactionSummary,
     loadIncomeDetails,
-    loadDetailedExpenses,setupExpenseSearch,
+    loadDetailedExpenses, setupExpenseSearch,
     openExpenseCategoriesModal,
     setupFinancialFeatureHandlers,
     openNetBalanceModal,
-    openDetailedExpensesModal
+    openDetailedExpensesModal,
+    populateFormWithReceiptData,
+    updateReceiptDashboard,
+    updateLocalStorageAndUI,
+    loadDataDashboard
 }
