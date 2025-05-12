@@ -33,7 +33,9 @@ const GridBoxes = () => {
 }, []);
 
 
-  const handleShowNetIncomeModal = () => setShowNetIncomeModal(true)
+  const handleShowNetIncomeModal = () => {
+    setShowNetIncomeModal(true)
+  }
 
   const handleCloseNetIncomeModal = () => setShowNetIncomeModal(false);
 
@@ -87,6 +89,7 @@ const GridBoxes = () => {
   return (
     <>
       {alert && <AlertMessage message={alert.message} type={alert.type as any} />}
+      
       <div className="col-md-3 mb-4">
         <div
           className="card stats-card h-100"
@@ -180,11 +183,13 @@ const GridBoxes = () => {
           </div>
         </div>
       </div>
+
       {/* NetIncomeModal component */}
       <NetIncomeModal
         show={showNetIncomeModal}
         handleClose={handleCloseNetIncomeModal}
       />
+
 
       {/* <ExpenseCategoriesModal
         show={showExpenseCategoriesModal}

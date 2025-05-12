@@ -1,8 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Modal, Button } from "react-bootstrap";
 import NetIncomeModal from "./NetIncomeModal";
 import ExpenseCategoriesModal from "./ExpenseCategoriesModal";
+import { loadIncomeDetails } from "@/services/helperFunction";
 
 interface NetBalanceDetailsProps {
   show: boolean;
@@ -15,9 +16,17 @@ const NetBalanceDetails: React.FC<NetBalanceDetailsProps> = ({
 }) => {
   const [showNetIncomeModal, setShowNetIncomeModal] = useState(false);
   const [showNetCatModal, setShowNetCatModal] = useState(false);
-
  
-  const handleCloseNetIncomeModal = () => setShowNetIncomeModal(false);
+  useEffect(()=>{
+    setTimeout(() => {
+        loadIncomeDetails();
+    }, 10);
+  },[showNetIncomeModal])
+
+
+  const handleCloseNetIncomeModal = () => {
+    setShowNetIncomeModal(!showNetIncomeModal)
+  }
 
 
 
@@ -25,6 +34,9 @@ const NetBalanceDetails: React.FC<NetBalanceDetailsProps> = ({
 
   return (
     <>
+
+
+
     <div className="modal fade" id="net-balance-modal"  aria-labelledby="net-balance-modal-label"
         aria-hidden="true">
         <div className="modal-dialog modal-lg">
@@ -67,7 +79,9 @@ const NetBalanceDetails: React.FC<NetBalanceDetailsProps> = ({
                                         </div>
                                         <div className="mt-3">
                                             <button className="btn btn-outline-success btn-sm"
-                                                id="view-all-income-from-balance-btn">
+                                                // id="view-all-income-from-balance-btn" 
+                                                onClick={handleCloseNetIncomeModal}
+                                                >
                                                 <i className="fas fa-list me-1"></i> View All Income
                                             </button>
                                         </div>
@@ -128,6 +142,74 @@ const NetBalanceDetails: React.FC<NetBalanceDetailsProps> = ({
             </div>
         </div>
     </div>
+
+     {/* <!-- Detailed Expenses Modal --> */}
+     <div className="modal fade" id="detailed-expenses-modal"  aria-labelledby="detailed-expenses-modal-label"
+        aria-hidden="true">
+        <div className="modal-dialog modal-xl">
+            <div className="modal-content">
+                <div className="modal-header">
+                    <h5 className="modal-title" id="detailed-expenses-modal-label">
+                        <i className="fas fa-receipt text-danger me-2"></i>Detailed Expenses
+                    </h5>
+                    <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div className="modal-body">
+                    <div className="row mb-4">
+                        <div className="col-md-6">
+                            <div className="card bg-light">
+                                <div className="card-body">
+                                    <div className="d-flex justify-content-between align-items-center">
+                                        <h4 className="mb-0">Total Expenses</h4>
+                                        <h3 className="text-danger mb-0" id="modal-detailed-expenses-value">$0.00</h3>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="col-md-6">
+                            <div className="input-group">
+                                <input type="text" className="form-control" id="expense-search"
+                                    placeholder="Search expenses..." />
+                                <button className="btn btn-primary" type="button" id="expense-search-btn">
+                                    <i className="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="no-expenses-message" className="alert alert-info d-none">
+                        <i className="fas fa-info-circle me-2"></i>No expenses found. Connect your bank account to see your
+                        expenses.
+                    </div>
+
+                    <div className="table-responsive">
+                        <table className="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Merchant</th>
+                                    <th>Category</th>
+                                    <th>Account</th>
+                                    <th className="text-end">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody id="expenses-table-body">
+                                {/* <!-- Expense rows will be loaded here dynamically --> */}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div className="modal-footer">
+                    <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" className="btn btn-primary" id="view-expense-categories-btn">
+                        <i className="fas fa-chart-pie me-2"></i>View Expense Categories
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
       {/* NetIncomeModal */}
       <NetIncomeModal

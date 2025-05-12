@@ -830,6 +830,7 @@ function showAddGoalForm() {
 
 // Load goals content
 function loadGoalsContent(modalElement) {
+    debugger
 
     try {
         const goalsContainer = modalElement.querySelector('#goals-container');
@@ -1074,7 +1075,7 @@ async function openGoalsModal() {
 
 // Open detailed expenses modal
 async function openDetailedExpensesModal() {
-
+debugger
     try {
         // Get modal element
         let modalElement = document.getElementById('detailed-expenses-modal');
@@ -1189,6 +1190,7 @@ function setupFinancialFeatureHandlers() {
 
         // Set up modal navigation buttons
         const viewAllExpensesBtn = document.getElementById('view-all-expenses-btn');
+        debugger
         if (viewAllExpensesBtn) {
             viewAllExpensesBtn.addEventListener('click', async function () {
                 const { default: Modal } = await import('bootstrap/js/dist/modal');
@@ -1201,36 +1203,75 @@ function setupFinancialFeatureHandlers() {
             });
         }
 
-        const viewExpenseCategoriesBtn = document.getElementById('view-expense-categories-btn');
 
+        const viewExpenseCategoriesBtn = document.getElementById('view-expense-categories-btn');
         if (viewExpenseCategoriesBtn) {
-          viewExpenseCategoriesBtn.addEventListener('click', async function () {
-            // Prevent multiple rapid clicks
-            viewExpenseCategoriesBtn.disabled = true;
-        
-            try {
-              const { default: Modal } = await import('bootstrap/js/dist/modal');
-        
-              const modalElement = document.getElementById('detailed-expenses-modal');
-              if (modalElement) {
-                const detailedModal = Modal.getInstance(modalElement);
-                if (detailedModal) detailedModal.hide();
-              }
-        
-              // Open the categories modal after a short delay
-              setTimeout(() => {
-                openExpenseCategoriesModal();
-        
-                // Re-enable the button after modal is fully rendered
-                setTimeout(() => {
-                  viewExpenseCategoriesBtn.disabled = false;
-                }, 600); // adjust to match Bootstrap modal animation duration
-              }, 400);
-            } catch (error) {
-              console.error('Failed to open modal:', error);
+            viewExpenseCategoriesBtn.addEventListener('click', async function () {
+                // Close the detailed modal
+                try {
+                    const { default: Modal } = await import('bootstrap/js/dist/modal');
+
+                    const detailedModal = Modal.getInstance(document.getElementById('detailed-expenses-modal'));
+                    if (detailedModal) detailedModal.hide();
+    
+                    // Open the categories modal
+                    setTimeout(() => openExpenseCategoriesModal(), 400);
+                } catch (error) {
+                        console.error('Failed to open modal:', error);
               viewExpenseCategoriesBtn.disabled = false;
-            }
-          });
+                }
+            });
+        }
+
+
+        // const viewExpenseCategoriesBtn = document.getElementById('view-expense-categories-btn');
+        // debugger
+
+        // if (viewExpenseCategoriesBtn) {
+        //   viewExpenseCategoriesBtn.addEventListener('click', async function () {
+        //     // Prevent multiple rapid clicks
+        //     viewExpenseCategoriesBtn.disabled = true;
+        
+        //     try {
+        //       const { default: Modal } = await import('bootstrap/js/dist/modal');
+        
+        //       const modalElement = document.getElementById('detailed-expenses-modal');
+        //       if (modalElement) {
+        //         const detailedModal = Modal.getInstance(modalElement);
+        //         if (detailedModal) detailedModal.hide();
+        //       }
+        
+        //       // Open the categories modal after a short delay
+        //       setTimeout(() => {
+        //         openExpenseCategoriesModal();
+        
+        //         // Re-enable the button after modal is fully rendered
+        //         setTimeout(() => {
+        //           viewExpenseCategoriesBtn.disabled = false;
+        //         }, 600); // adjust to match Bootstrap modal animation duration
+        //       }, 400);
+        //     } catch (error) {
+        //       console.error('Failed to open modal:', error);
+        //       viewExpenseCategoriesBtn.disabled = false;
+        //     }
+        //   });
+        // }
+
+
+
+        
+        const viewAllExpensesFromBalanceBtn = document.getElementById('view-all-expenses-from-balance-btn');
+        if (viewAllExpensesFromBalanceBtn) {
+            viewAllExpensesFromBalanceBtn.addEventListener('click', async function () {
+                const { default: Modal } = await import('bootstrap/js/dist/modal');
+
+                // Close the balance modal
+                const balanceModal = Modal.getInstance(document.getElementById('net-balance-modal'));
+                if (balanceModal) balanceModal.hide();
+
+                // Open the detailed expenses modal
+                setTimeout(() => openDetailedExpensesModal(), 400);
+            });
         }
 
         // // Set up balance modal navigation buttons
@@ -1249,19 +1290,19 @@ function setupFinancialFeatureHandlers() {
             });
         }
 
-        const viewAllExpensesFromBalanceBtn = document.getElementById('view-all-expenses-from-balance-btn');
-        if (viewAllExpensesFromBalanceBtn) {
-            viewAllExpensesFromBalanceBtn.addEventListener('click', async function () {
-                const { default: Modal } = await import('bootstrap/js/dist/modal');
 
-                // Close the balance modal
-                const balanceModal = Modal.getInstance(document.getElementById('net-balance-modal'));
-                if (balanceModal) balanceModal.hide();
 
-                // Open the detailed expenses modal
-                setTimeout(() => openDetailedExpensesModal(), 400);
-            });
-        }
+
+
+
+
+
+
+
+
+
+
+
 
         // // Data dashboard link
         // const dataDashboardLink = document.getElementById('data-dashboard-nav-link');
@@ -1300,5 +1341,6 @@ export {
     loadDetailedExpenses,setupExpenseSearch,
     openExpenseCategoriesModal,
     setupFinancialFeatureHandlers,
-    openNetBalanceModal
+    openNetBalanceModal,
+    openDetailedExpensesModal
 }

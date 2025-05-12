@@ -12,43 +12,7 @@ const NetIncomeModal: React.FC<NetIncomeModalProps> = ({
 }) => {
   return (
     <>
-    {/* <div className="modal fade" id="net-income-modal"aria-labelledby="net-income-modal-label"
-        aria-hidden="true">
-        <div className="modal-dialog modal-lg">
-            <div className="modal-content">
-                <div className="modal-header">
-                    <h5 className="modal-title" id="net-income-modal-label">
-                        <i className="fas fa-money-bill-wave text-success me-2"></i>Net Income Details
-                    </h5>
-                    <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div className="modal-body">
-                    <div className="row mb-4">
-                        <div className="col-12">
-                            <div className="card bg-light">
-                                <div className="card-body">
-                                    <div className="d-flex justify-content-between align-items-center">
-                                        <h4 className="mb-0">Total Income</h4>
-                                        <h3 className="text-success mb-0" id="modal-net-income-value">$0.00</h3>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <h5 className="mb-3">Income Sources</h5>
-                    <div id="no-income-sources-message" className="alert alert-info" style={{display: "none"}}>
-                        <i className="fas fa-info-circle me-2"></i>No income sources found. Connect your bank account to see
-                        your income details.
-                    </div>
-                    <div id="income-sources-container">
-                    </div>
-                </div>
-                <div className="modal-footer">
-                    <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div> */}
+
     <Modal show={show} onHide={handleClose} className="modal-lg">
       <div className="modal-header">
         <h5 className="modal-title" id="net-income-modal-label">
@@ -118,6 +82,7 @@ const NetIncomeModal: React.FC<NetIncomeModalProps> = ({
           Close
         </button>
       </div>
+      
     </Modal>
     </>
   );
