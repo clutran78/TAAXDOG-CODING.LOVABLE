@@ -1,5 +1,5 @@
 'use client';
-import {  populateFormWithReceiptData, showToast, updateLocalStorageAndUI, updateReceiptDashboard } from '@/services/helperFunction';
+import { populateFormWithReceiptData, showToast, updateLocalStorageAndUI, updateReceiptDashboard } from '@/services/helperFunction';
 import React, { useEffect } from 'react';
 // import 'bootstrap/dist/js/bootstrap.bundle.min';
 
@@ -69,6 +69,34 @@ const ReceiptsComponent = () => {
         //     }
         //   };
 
+        const startCamera = async () => {
+            if (!video) return;
+
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const hasCamera = devices.some((device) => device.kind === 'videoinput');
+
+                if (!hasCamera) {
+                    console.warn('No camera device found.');
+                    // showToast('No camera found on this device.', 'warning');
+                    return;
+                }
+
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
+
+                video.srcObject = stream;
+                video.play(); // Start the stream
+            } catch (err) {
+                console.error('Camera access error:', err);
+                showToast('Could not access camera.', 'danger');
+            }
+        };
+        startCamera()
         const handleUploadFromActiveTab = async () => {
             const activeTab = document.querySelector('#uploadTab .nav-link.active')?.id;
 
@@ -100,19 +128,19 @@ const ReceiptsComponent = () => {
                     await handleReceiptUpload(file);
 
                 }
-                // else if (activeTab === 'camera-tab') {
-                //     if (!photoCanvas) return;
+                else if (activeTab === 'camera-tab') {
+                    if (!photoCanvas) return;
 
-                //     photoCanvas.toBlob(async (blob) => {
-                //         if (!blob) {
-                //             showToast('No photo captured.', 'primary');
-                //             return;
-                //         }
+                    photoCanvas.toBlob(async (blob) => {
+                        if (!blob) {
+                            showToast('No photo captured.', 'primary');
+                            return;
+                        }
 
-                //         const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
-                //         await handleReceiptUpload(file);
-                //     }, 'image/jpeg');
-                // }
+                        const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
+                        await handleReceiptUpload(file);
+                    }, 'image/jpeg');
+                }
             } catch (error: any) {
                 showToast(`Upload failed: ${error.message}`, 'danger');
                 console.error('Error during upload:', error);
@@ -120,55 +148,54 @@ const ReceiptsComponent = () => {
         };
 
 
-   const handleReceiptUpload = async (file: File | null) => {
-    if (!file) {
-        showToast("No file selected!", 'primary');
-        return;
-    }
+        const handleReceiptUpload = async (file: File | null) => {
+            if (!file) {
+                showToast("No file selected!", 'primary');
+                return;
+            }
 
-    showToast('Uploading receipt...', 'primary');
+            showToast('Uploading receipt...', 'primary');
 
-    const formData = new FormData();
-    formData.append('receipt', file);
+            const formData = new FormData();
+            formData.append('receipt', file);
 
-    try {
-        const response = await fetch('http://127.0.0.1:8080/api/receipts/upload/formx', {
-            method: 'POST',
-            body: formData,
-        });
+            try {
+                const response = await fetch('http://127.0.0.1:8080/api/receipts/upload/formx', {
+                    method: 'POST',
+                    body: formData,
+                });
 
-        const result = await response.json();
+                const result = await response.json();
 
-        if (!response.ok || !result.success) {
-            throw new Error(result.error || `HTTP error! status: ${response.status}`);
-        }
+                if (!response.ok || !result.success) {
+                    throw new Error(result.error || `HTTP error! status: ${response.status}`);
+                }
 
-        showToast('Extraction Successful!', 'success');
+                showToast('Extraction Successful!', 'success');
 
-        const data = result.data;
-        populateFormWithReceiptData(data); // Ensure this function is typed properly
+                const data = result.data;
+                populateFormWithReceiptData(data); // Ensure this function is typed properly
 
-        const formElement = document.getElementById('receipt-review-form');
-        if (formElement) {
-            formElement.style.display = 'block';
-        }
+                const formElement = document.getElementById('receipt-review-form');
+                if (formElement) {
+                    formElement.style.display = 'block';
+                }
 
-        // Dynamically import Bootstrap Modal and close the modal
-        const { default: Modal } = await import('bootstrap/js/dist/modal');
-        const modalEl = document.getElementById('receipt-upload-section');
+                // Dynamically import Bootstrap Modal and close the modal
+                const { default: Modal } = await import('bootstrap/js/dist/modal');
+                const modalEl = document.getElementById('receipt-upload-section');
 
-        if (modalEl) {
-            const modalInstance = Modal.getInstance(modalEl) || Modal.getOrCreateInstance(modalEl);
-            modalInstance.hide();
-        }
+                if (modalEl) {
+                    const modalInstance = Modal.getInstance(modalEl) || Modal.getOrCreateInstance(modalEl);
+                    modalInstance.hide();
+                }
 
-    } catch (error: any) {
-        showToast(`Extraction Failed: ${error.message}`, 'danger');
-        console.error('Receipt upload/extraction failed:', error);
-    }
-};
+            } catch (error: any) {
+                showToast(`Extraction Failed: ${error.message}`, 'danger');
+                console.error('Receipt upload/extraction failed:', error);
+            }
+        };
 
-        
 
 
         const capturePhoto = () => {
@@ -463,10 +490,10 @@ const ReceiptsComponent = () => {
                                             <button className="nav-link" id="url-tab" data-bs-toggle="tab" data-bs-target="#url"
                                                 type="button" role="tab">From URL</button>
                                         </li>
-                                        {/* <li className="nav-item" role="presentation">
+                                        <li className="nav-item" role="presentation">
                                             <button className="nav-link" id="camera-tab" data-bs-toggle="tab"
                                                 data-bs-target="#camera" type="button" role="tab">Take Photo</button>
-                                        </li> */}
+                                        </li>
                                     </ul>
 
                                     {/* <!-- Tab Content --> */}
@@ -490,7 +517,7 @@ const ReceiptsComponent = () => {
                                         </div>
 
                                         {/* <!-- Camera Upload --> */}
-                                        {/* <div className="tab-pane fade" id="camera" role="tabpanel">
+                                        <div className="tab-pane fade" id="camera" role="tabpanel">
                                             <div className="mb-3">
                                                 <label className="form-label">Take a photo of your receipt</label>
                                                 <div className="d-flex flex-column">
@@ -510,7 +537,7 @@ const ReceiptsComponent = () => {
                                                     <img id="photo-preview" className="img-thumbnail mt-2" style={{ display: "none" }} />
                                                 </div>
                                             </div>
-                                        </div> */}
+                                        </div>
                                     </div>
 
                                     <div className="text-end">
