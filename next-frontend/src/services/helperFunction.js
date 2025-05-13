@@ -442,7 +442,7 @@ function setupExpenseSearch() {
 
 
 // Open expense categories modal
-export async function openExpenseCategoriesModal() {
+async function openExpenseCategoriesModal() {
     debugger
 
     if (typeof document === 'undefined') return; // Guard against SSR
@@ -1967,7 +1967,6 @@ function createBankConnectionModal() {
 // Handle adding a custom bank account
 async function handleCustomAccountAddition() {
     debugger
-    const { default: Modal } = await import('bootstrap/js/dist/modal');
 
     try {
         // Get form values

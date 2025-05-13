@@ -8,7 +8,7 @@ const page: React.FC = () => {
           <i className="fas fa-tools fa-3x text-warning"></i>
         </div>
         <h2 className="mb-3">Page Under Development</h2>
-        <p className="text-muted">We're working hard to bring this page to life. Please check back soon!</p>
+        <p className="text-muted">We&apos;re working hard to bring this page to life. Please check back soon!</p>
         {/* <button className="btn btn-outline-primary mt-3" onClick={() => window.history.back()}>
           <i className="fas fa-arrow-left me-2"></i>Go Back
         </button> */}

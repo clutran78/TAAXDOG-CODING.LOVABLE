@@ -199,7 +199,7 @@ const SubscriptionPage = () => {
                             </label>
                         </div>
                         <p className="text-muted small">
-                            We'll analyze your transactions and detect recurring payments.
+                            We&apos;ll analyze your transactions and detect recurring payments.
                         </p>
                         <div className="alert alert-light border d-flex">
                             <div className="me-3">
@@ -231,7 +231,7 @@ const SubscriptionPage = () => {
                                 {/* <!-- Bank connections will be loaded here --> */}
                                 <div className="text-center py-4" id="no-connections-message">
                                     <i className="fas fa-university fa-3x mb-3 text-muted"></i>
-                                    <p>No bank accounts connected yet. Click the "Connect Bank" button in the
+                                    <p>No bank accounts connected yet. Click the &apos;Connect Bank&apos; button in the
                                         top-right corner to get started.</p>
                                 </div>
                                 <div id="dashboard-connections-list" style={{display: "none"}}>

@@ -158,7 +158,7 @@ const GoalPage: React.FC = () => {
                             {sortedGoals.length === 0 ? (
                                 <div className="text-center py-4">
                                     <i className="fas fa-bullseye fa-3x text-muted mb-3"></i>
-                                    <p>No financial goals set yet. Click "Add New Goal" to get started!</p>
+                                    <p>No financial goals set yet. Click &quot;Add New Goal&quot; to get started!</p>
                                 </div>
                             ) : (
                                 sortedGoals.map((goal, index) => {

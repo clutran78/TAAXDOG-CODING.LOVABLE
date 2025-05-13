@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { displayTransactionSummary, formatCurrency, initializeMockData, loadBankAccountsContent, loadDetailedExpenses, loadIncomeDetails, openExpenseCategoriesModal, setupExpenseSearch, setupFinancialFeatureHandlers, updateBankConnectionsDisplay, updateElementText } from '@/services/helperFunction';
+import { displayTransactionSummary, formatCurrency, initializeMockData, loadBankAccountsContent, loadDetailedExpenses, loadIncomeDetails, setupExpenseSearch, setupFinancialFeatureHandlers, updateBankConnectionsDisplay, updateElementText } from '@/services/helperFunction';
 import AlertMessage from "@/shared/alerts";
 import ExpenseCategoriesModal from "@/shared/modals/ExpenseCategoriesModal";
 import ManageSubscriptionsModal from "@/shared/modals/ManageSubscriptionsModal";
@@ -297,7 +297,7 @@ const GridBoxes = () => {
                   {/* <!-- Bank connections will be loaded here --> */}
                   <div className="text-center py-4" id="no-connections-message">
                     <i className="fas fa-university fa-3x mb-3 text-muted"></i>
-                    <p>No bank accounts connected yet. Click the "Connect Bank" button in the top-right corner to get started.</p>
+                    <p>No bank accounts connected yet. Click the &quot;Connect Bank&quot; button in the top-right corner to get started.</p>
                   </div>
                   <div id="dashboard-connections-list" style={{ display: "none" }}>
                     {/* <!-- Bank connections will be loaded here --> */}
