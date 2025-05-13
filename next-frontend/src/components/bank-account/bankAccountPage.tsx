@@ -17,7 +17,7 @@ const BankAccountsPage = () => {
     }
 
     setTimeout(() => {
-      loadBankAccountsContent({ querySelector: (sel:any) => document.querySelector(sel) });
+      loadBankAccountsContent({ querySelector: (sel:any) => document.querySelector(sel) })
     }, 200);
   }, []);
 

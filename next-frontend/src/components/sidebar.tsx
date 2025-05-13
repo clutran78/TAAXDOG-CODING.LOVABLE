@@ -55,11 +55,11 @@ export default function Sidebar() {
                 <i className="fas fa-file-invoice-dollar me-2"></i> Your Tax Profile
               </Link>
             </li>
-            <li className="nav-item">
+            {/* <li className="nav-item">
               <Link href="/security" className="nav-link">
                 <i className="fas fa-shield-alt me-2"></i> Security
               </Link>
-            </li>
+            </li> */}
             <li className="nav-item">
               <Link href="/receipt" className="nav-link" id="receipt-module-nav-link">
                 <i className="fas fa-file-invoice text-primary"></i> Receipt Module

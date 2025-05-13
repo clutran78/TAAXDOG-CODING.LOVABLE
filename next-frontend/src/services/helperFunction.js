@@ -877,7 +877,7 @@ function showAddGoalForm() {
         if (addGoalForm) {
             addGoalForm.addEventListener('submit', function (e) {
                 e.preventDefault();
-                // saveGoal();
+                saveGoal();
             });
         }
 
@@ -886,13 +886,360 @@ function showAddGoalForm() {
         if (cancelGoalBtn) {
             cancelGoalBtn.addEventListener('click', function () {
                 // Reload goals content
-                // loadGoalsContent(goalsModal);
+                loadGoalsContent(goalsModal);
             });
         }
     } catch (error) {
         showToast('An error occurred while showing the add goal form. Please try again.', 'danger');
     }
 }
+
+
+
+// Save goal
+function saveGoal(editIndex = null) {
+  
+
+    try {
+        // Get form values
+        const name = document.getElementById('goal-name').value;
+        const description = document.getElementById('goal-description').value;
+        const currentAmount = parseFloat(document.getElementById('goal-current-amount').value) || 0;
+        const targetAmount = parseFloat(document.getElementById('goal-target-amount').value) || 0;
+        const dueDate = document.getElementById('goal-due-date').value;
+        const category = document.getElementById('goal-category').value;
+
+        // Validate inputs
+        if (!name || !targetAmount || !dueDate || !category) {
+            // log('Invalid goal form inputs', 'warn');
+            showToast('Please fill all required fields.', 'warning');
+            return;
+        }
+
+        // Create goal object
+        const goal = {
+            id: editIndex !== null ? getGoals()[editIndex].id : Date.now(),
+            name,
+            description,
+            currentAmount,
+            targetAmount,
+            dueDate,
+            category,
+            createdAt: editIndex !== null ? getGoals()[editIndex].createdAt : new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+
+        // Get existing goals
+        const goals = getGoals();
+
+        // Update or add goal
+        if (editIndex !== null) {
+            goals[editIndex] = goal;
+        } else {
+            goals.push(goal);
+        }
+
+        // Save to localStorage
+        localStorage.setItem('financialGoals', JSON.stringify(goals));
+
+        // Show success message
+        showToast(`Goal "${name}" ${editIndex !== null ? 'updated' : 'added'} successfully!`, 'success');
+
+        // Reload goals content
+        const goalsModal = document.getElementById('goals-modal');
+        if (goalsModal) {
+            loadGoalsContent(goalsModal);
+        }
+
+        // Update dashboard if needed
+        updateGoalsDisplay();
+
+        // log('Goal saved successfully');
+    } catch (error) {
+        // log(`Error saving goal: ${error.message}`, 'error');
+        showToast('An error occurred while saving the goal. Please try again.', 'danger');
+    }
+}
+
+// Edit goal
+export function editGoal(index) {
+    debugger
+    // log('Editing goal');
+
+    try {
+        const goals = getGoals();
+        const goal = goals[index];
+
+        if (!goal) {
+            console.log('Goal not found for editing', 'warn');
+            return;
+        }
+
+        showAddGoalForm();
+
+        // Populate form with goal data
+        document.getElementById('goal-name').value = goal.name || '';
+        document.getElementById('goal-description').value = goal.description || '';
+        document.getElementById('goal-current-amount').value = goal.currentAmount || 0;
+        document.getElementById('goal-target-amount').value = goal.targetAmount || 0;
+        document.getElementById('goal-due-date').value = goal.dueDate || '';
+        document.getElementById('goal-category').value = goal.category || '';
+
+        // Update form title and submit button
+        const formTitle = document.querySelector('#goals-modal h5');
+        if (formTitle) formTitle.textContent = 'Edit Financial Goal';
+
+        const submitButton = document.querySelector('#add-goal-form button[type="submit"]');
+        if (submitButton) submitButton.textContent = 'Update Goal';
+
+        // Update form submission to save as edit
+        const addGoalForm = document.getElementById('add-goal-form');
+        if (addGoalForm) {
+            // Remove existing listeners
+            const newForm = addGoalForm.cloneNode(true);
+            addGoalForm.parentNode.replaceChild(newForm, addGoalForm);
+
+            // Add new listener for editing
+            newForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                saveGoal(index);
+            });
+        }
+
+        // Update cancel button
+        const cancelGoalBtn = document.getElementById('cancel-goal-btn');
+        if (cancelGoalBtn) {
+            cancelGoalBtn.addEventListener('click', function () {
+                loadGoalsContent(document.getElementById('goals-modal'));
+            });
+        }
+
+        // log('Goal edit form populated successfully');
+    } catch (error) {
+        // log(`Error editing goal: ${error.message}`, 'error');
+        showToast('An error occurred while editing the goal. Please try again.', 'danger');
+    }
+}
+
+// Delete goal
+function deleteGoal(index) {
+    // log('Deleting goal');
+
+    try {
+        const goals = getGoals();
+        const goal = goals[index];
+
+        if (!goal) {
+            console.log('Goal not found for deletion', 'warn');
+            return;
+        }
+
+        // Confirm deletion
+        if (!confirm(`Are you sure you want to delete the goal "${goal.name}"?`)) {
+            return;
+        }
+
+        // Remove goal from array
+        goals.splice(index, 1);
+
+        // Save to localStorage
+        localStorage.setItem('financialGoals', JSON.stringify(goals));
+
+        // Show success message
+        showToast(`Goal "${goal.name}" deleted successfully!`, 'success');
+
+        // Reload goals content
+        const goalsModal = document.getElementById('goals-modal');
+        if (goalsModal) {
+            loadGoalsContent(goalsModal);
+        }
+
+        // Update dashboard if needed
+        updateGoalsDisplay();
+
+        // log('Goal deleted successfully');
+    } catch (error) {
+        // log(`Error deleting goal: ${error.message}`, 'error');
+        showToast('An error occurred while deleting the goal. Please try again.', 'danger');
+    }
+}
+
+// Update goal progress
+function updateGoalProgress(index) {
+    // log('Updating goal progress');
+
+    try {
+        const goals = getGoals();
+        const goal = goals[index];
+
+        if (!goal) {
+            console.log('Goal not found for progress update', 'warn');
+            return;
+        }
+
+        // Ask for new contribution amount
+        const amount = prompt(`Enter additional amount to add to "${goal.name}" (current: ${formatCurrency(goal.currentAmount)}):`, "0");
+
+        if (amount === null) {
+            return; // User cancelled
+        }
+
+        const additionalAmount = parseFloat(amount);
+
+        if (isNaN(additionalAmount) || additionalAmount < 0) {
+            showToast('Please enter a valid positive number.', 'warning');
+            return;
+        }
+
+        // Update goal
+        goal.currentAmount = (parseFloat(goal.currentAmount) || 0) + additionalAmount;
+        goal.updatedAt = new Date().toISOString();
+
+        // Cap at target amount
+        if (goal.currentAmount > goal.targetAmount) {
+            if (confirm(`You've exceeded your target! Would you like to cap at the target amount (${formatCurrency(goal.targetAmount)})?`)) {
+                goal.currentAmount = goal.targetAmount;
+            }
+        }
+
+        // Save to localStorage
+        localStorage.setItem('financialGoals', JSON.stringify(goals));
+
+        // Show success message
+        showToast(`Added ${formatCurrency(additionalAmount)} to "${goal.name}" successfully!`, 'success');
+
+        // Reload goals content
+        const goalsModal = document.getElementById('goals-modal');
+        if (goalsModal) {
+            loadGoalsContent(goalsModal);
+        }
+
+        // Update dashboard if needed
+        updateGoalsDisplay();
+
+        // log('Goal progress updated successfully');
+    } catch (error) {
+        // log(`Error updating goal progress: ${error.message}`, 'error');
+        showToast('An error occurred while updating the goal progress. Please try again.', 'danger');
+    }
+}
+
+// Get goals helper
+function getGoals() {
+    return JSON.parse(localStorage.getItem('financialGoals') || '[]');
+}
+
+// Update goals display on dashboard
+function updateGoalsDisplay() {
+    // log('Updating goals display on dashboard');
+
+    try {
+        const goals = getGoals();
+
+        // Get dashboard goals card content
+        const goalsCard = document.querySelector('[data-tile-type="goals"] .scrollable-content');
+        if (!goalsCard) {
+            console.log('Goals card not found for updating', 'warn');
+            return;
+        }
+
+        if (goals.length === 0) {
+            goalsCard.innerHTML = `
+                        <h3>No Active Goals</h3>
+                        <div class="text-center py-4">
+                            <i class="fas fa-bullseye fa-3x text-muted mb-3"></i>
+                            <p>You haven't set any financial goals yet.</p>
+                            <button class="btn btn-sm btn-primary mt-2" id="add-first-goal-btn">
+                                <i class="fas fa-plus me-1"></i>Add Your First Goal
+                            </button>
+                        </div>
+                    `;
+
+            // Add event listener for add first goal button
+            const addFirstGoalBtn = document.getElementById('add-first-goal-btn');
+            if (addFirstGoalBtn) {
+                addFirstGoalBtn.addEventListener('click', function () {
+                    openGoalsModal();
+                });
+            }
+
+            return;
+        }
+
+        // Sort goals by progress (ascending)
+        goals.sort((a, b) => {
+            const aProgress = a.targetAmount > 0 ? (a.currentAmount / a.targetAmount) * 100 : 0;
+            const bProgress = b.targetAmount > 0 ? (b.currentAmount / b.targetAmount) * 100 : 0;
+            return aProgress - bProgress;
+        });
+
+        // Take the top 3 goals for display
+        const topGoals = goals.slice(0, 3);
+
+        // Calculate overall progress
+        const totalSaved = goals.reduce((sum, goal) => sum + parseFloat(goal.currentAmount || 0), 0);
+        const totalTarget = goals.reduce((sum, goal) => sum + parseFloat(goal.targetAmount || 0), 0);
+        const overallProgress = totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0;
+
+        // Generate HTML
+        let goalsHTML = `
+                    <h3>${goals.length} Active Goal${goals.length !== 1 ? 's' : ''}</h3>
+                    <div class="stat-change positive-change mb-4">
+                        <i class="fas fa-check-circle"></i> ${overallProgress.toFixed(1)}% Overall Progress
+                    </div>
+                `;
+
+        // Add goal items
+        topGoals.forEach(goal => {
+            const progress = goal.targetAmount > 0 ? (goal.currentAmount / goal.targetAmount) * 100 : 0;
+            const dueDate = new Date(goal.dueDate).toLocaleDateString();
+
+            goalsHTML += `
+                        <div class="goal-item">
+                            <div class="goal-details">
+                                <span>${goal.name}</span>
+                                <span class="text-success">${formatCurrency(goal.currentAmount)}</span>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: ${progress}%" 
+                                    aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <small>${formatCurrency(goal.currentAmount)} of ${formatCurrency(goal.targetAmount)}</small>
+                                <small>Due: ${dueDate}</small>
+                            </div>
+                        </div>
+                    `;
+        });
+
+        // Add "View All" if there are more than 3 goals
+        if (goals.length > 3) {
+            goalsHTML += `
+                        <div class="text-center mt-3">
+                            <button class="btn btn-sm btn-outline-primary" id="view-all-goals-btn">
+                                View All ${goals.length} Goals
+                            </button>
+                        </div>
+                    `;
+        }
+
+        // Update the card
+        goalsCard.innerHTML = goalsHTML;
+
+        // Add event listener for view all button
+        const viewAllGoalsBtn = document.getElementById('view-all-goals-btn');
+        if (viewAllGoalsBtn) {
+            viewAllGoalsBtn.addEventListener('click', function () {
+                openGoalsModal();
+            });
+        }
+
+        // log('Goals display updated successfully');
+    } catch (error) {
+        console.log(`Error updating goals display: ${error.message}`, 'error');
+    }
+}
+
 
 
 // Load goals content
@@ -1035,21 +1382,21 @@ function loadGoalsContent(modalElement) {
         goalsContainer.querySelectorAll('.edit-goal-btn').forEach(btn => {
             btn.addEventListener('click', function () {
                 const index = this.dataset.index;
-                // editGoal(index);
+                editGoal(index);
             });
         });
 
         goalsContainer.querySelectorAll('.delete-goal-btn').forEach(btn => {
             btn.addEventListener('click', function () {
                 const index = this.dataset.index;
-                // deleteGoal(index);
+                deleteGoal(index);
             });
         });
 
         goalsContainer.querySelectorAll('.update-goal-btn').forEach(btn => {
             btn.addEventListener('click', function () {
                 const index = this.dataset.index;
-                // updateGoalProgress(index);
+                updateGoalProgress(index);
             });
         });
 
@@ -1514,7 +1861,7 @@ async function openBankConnectionModal() {
 
 // Create bank connection modal
 function createBankConnectionModal() {
-debugger
+    debugger
     try {
         // Create modal HTML
         const modalHTML = `
@@ -1619,7 +1966,7 @@ debugger
 
 // Handle adding a custom bank account
 async function handleCustomAccountAddition() {
-debugger
+    debugger
     const { default: Modal } = await import('bootstrap/js/dist/modal');
 
     try {
@@ -1706,8 +2053,8 @@ async function handleMockConnection() {
 }
 
 // Update bank connections display
-function updateBankConnectionsDisplay() {
-debugger
+export function updateBankConnectionsDisplay() {
+    debugger
     try {
         const noConnectionsMsg = document.getElementById('no-connections-message');
         const connectionsList = document.getElementById('dashboard-connections-list');
@@ -1823,7 +2170,7 @@ function getAccountTypeName(accountType) {
 
 
 
-async function openBankAccountsModal() {
+export async function openBankAccountsModal() {
     debugger
     try {
         // Get or create modal element
@@ -1870,9 +2217,9 @@ async function openBankAccountsModal() {
             const addNewBankBtn = document.getElementById('add-new-bank-btn');
             if (addNewBankBtn) {
                 addNewBankBtn.addEventListener('click', function () {
-debugger
+                    debugger
                     // Close this modal and open the bank connection modal
-                    const currentModal =  Modal.getInstance(modalElement);
+                    const currentModal = Modal.getInstance(modalElement);
                     if (currentModal) currentModal.hide();
                     setTimeout(() => openBankConnectionModal(), 400);
                 });
@@ -1895,7 +2242,7 @@ debugger
 
 // Load bank accounts content
 function loadBankAccountsContent(modalElement) {
-debugger
+    debugger
     try {
         const accountsContainer = modalElement.querySelector('#bank-accounts-container');
         const loadingIndicator = modalElement.querySelector('#bank-accounts-loading');
@@ -1910,7 +2257,7 @@ debugger
 
         // Check if we have transactions, even without explicit accounts
         const hasTransactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]').length > 0;
-
+debugger
         // Hide loading indicator
         if (loadingIndicator) loadingIndicator.style.display = 'none';
 
@@ -2053,15 +2400,15 @@ function setupFinancialFeatureHandlers() {
         // }
 
         // // For Goals card - using direct ID
-        // const goalsCard = document.getElementById('goals-card');
-        // if (goalsCard && !goalsCard._hasGoalsClickHandler) {
-        //     goalsCard.addEventListener('click', function () {
+        const goalsCard = document.getElementById('goals-card');
+        if (goalsCard && !goalsCard._hasGoalsClickHandler) {
+            goalsCard.addEventListener('click', function () {
 
-        //         openGoalsModal();
-        //     });
-        //     goalsCard._hasGoalsClickHandler = true;
-        // } else {
-        // }
+                openGoalsModal();
+            });
+            goalsCard._hasGoalsClickHandler = true;
+        } else {
+        }
 
         // // Goals nav link
         // const goalsNavLink = document.getElementById('goals-nav-link');
@@ -2265,11 +2612,11 @@ export const showToast = (message, type = 'primary') => {
     // Dynamically import Bootstrap Toast
     import('bootstrap/js/dist/toast').then(({ default: Toast }) => {
         const toast = Toast.getOrCreateInstance(toastEl);
-      toast.show();
+        toast.show();
     })
-    .catch((err) => {
-      console.error('Failed to load Bootstrap Toast module:', err);
-    });
+        .catch((err) => {
+            console.error('Failed to load Bootstrap Toast module:', err);
+        });
 };
 
 
