@@ -1697,5 +1697,6 @@ export {
     populateFormWithReceiptData,
     updateReceiptDashboard,
     updateLocalStorageAndUI,
-    loadDataDashboard
+    loadDataDashboard,
+    loadNetBalanceDetails
 }

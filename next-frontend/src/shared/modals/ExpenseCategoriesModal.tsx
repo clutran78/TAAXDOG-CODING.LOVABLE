@@ -1,35 +1,23 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Modal, Button, Spinner } from "react-bootstrap";
-import NetIncomeModal from "./NetIncomeModal";
 
-interface ExpenseCategoriesProps {
+interface DetailedExpensesModalProps {
   show: boolean;
   handleClose: () => void;
+  openExpenseCategories: () => void;
 }
 
-const ExpenseCategoriesModal: React.FC<ExpenseCategoriesProps> = ({
+const ExpenseCategoriesModal: React.FC<DetailedExpensesModalProps> = ({
   show,
   handleClose,
 }) => {
-  const [showNetIncomeModal, setShowNetIncomeModal] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [showAllExpenses, setShowAllExpenses] = useState(false); // ✅ added state
 
-  const handleCloseNetIncomeModal = () => setShowNetIncomeModal(false);
+  // const handleCloseNetIncomeModal = () => setShowNetIncomeModal(false);
 
-  useEffect(() => {
-    if (show) {
-      setIsLoading(true);
-      setShowAllExpenses(false); // ✅ reset view-all state when modal opens
-      const timer = setTimeout(() => setIsLoading(false), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [show]);
 
   return (
     <>
-    <div className="modal fade" id="expense-categories-modal" aria-labelledby="expense-categories-modal-label"
+    {/* <div className="modal fade" id="expense-categories-modal" aria-labelledby="expense-categories-modal-label"
         aria-hidden="true">
         <div className="modal-dialog modal-lg">
             <div className="modal-content">
@@ -55,9 +43,9 @@ const ExpenseCategoriesModal: React.FC<ExpenseCategoriesProps> = ({
                 </div>
             </div>
         </div>
-    </div>
+    </div> */}
 
-      <Modal show={show} onHide={handleClose} size="xl" centered>
+      {/* <Modal show={show} onHide={handleClose} size="xl" centered>
         <Modal.Header closeButton>
           <Modal.Title id="expense-categories-modal-label">
             <i className="fas fa-chart-pie text-danger me-2"></i>
@@ -138,12 +126,12 @@ const ExpenseCategoriesModal: React.FC<ExpenseCategoriesProps> = ({
             </button>
           </div>
         </Modal.Footer>
-      </Modal>
+      </Modal> */}
 
-      <NetIncomeModal
+      {/* <NetIncomeModal
         show={showNetIncomeModal}
         handleClose={handleCloseNetIncomeModal}
-      />
+      /> */}
     </>
   );
 };

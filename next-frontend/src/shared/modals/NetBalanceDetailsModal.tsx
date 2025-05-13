@@ -195,7 +195,6 @@ const NetBalanceDetails: React.FC<NetBalanceDetailsProps> = ({
                                 </tr>
                             </thead>
                             <tbody id="expenses-table-body">
-                                {/* <!-- Expense rows will be loaded here dynamically --> */}
                             </tbody>
                         </table>
                     </div>
@@ -218,10 +217,10 @@ const NetBalanceDetails: React.FC<NetBalanceDetailsProps> = ({
       />
 
       {/* ExpenseCategoriesModal */}
-      <ExpenseCategoriesModal
+      {/* <ExpenseCategoriesModal
         show={showNetCatModal}
         handleClose={handleCloseCatModal}
-      />
+      /> */}
     </>
   );
 };

@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { loadIncomeDetails, openDetailedExpensesModal } from '@/services/helperFunction';
 import NetIncomeModal from '@/shared/modals/NetIncomeModal';
 import ExpenseCategoriesModal from '@/shared/modals/ExpenseCategoriesModal';
-import NetBalanceDetails from '@/shared/modals/NetBalanceDetails';
+import NetBalanceDetails from '@/shared/modals/NetBalanceDetailsModal';
 
 const TotalExpensesComponent = () => {
   const [showNetIncomeModal, setShowNetIncomeModal] = useState(false);

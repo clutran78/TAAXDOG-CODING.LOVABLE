@@ -1,10 +1,10 @@
-import NetBalanceComponent from '@/components/dashboard/net-balance-details'
+import NetBalanceDetailsComponent from '@/components/NetBalance/netBalance'
 import React from 'react'
 
 const page = () => {
   return (
     <div>
-      <NetBalanceComponent/>
+      <NetBalanceDetailsComponent/>
     </div>
   )
 }

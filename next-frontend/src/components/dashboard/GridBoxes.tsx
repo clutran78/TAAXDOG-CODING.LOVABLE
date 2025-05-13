@@ -3,9 +3,9 @@ import React, { useEffect, useState } from "react";
 import { displayTransactionSummary, formatCurrency, initializeMockData, loadDetailedExpenses, loadIncomeDetails, openExpenseCategoriesModal, setupExpenseSearch, setupFinancialFeatureHandlers, updateElementText } from '@/services/helperFunction';
 import AlertMessage from "@/shared/alerts";
 import ExpenseCategoriesModal from "@/shared/modals/ExpenseCategoriesModal";
-import NetBalanceDetails from "@/shared/modals/NetBalanceDetails";
 import ManageSubscriptionsModal from "@/shared/modals/ManageSubscriptionsModal";
 import NetIncomeModal from "@/shared/modals/NetIncomeModal";
+import NetBalanceDetails from "@/shared/modals/NetBalanceDetailsModal";
 
 const GridBoxes = () => {
   const [showNetIncomeModal, setShowNetIncomeModal] = useState(false);

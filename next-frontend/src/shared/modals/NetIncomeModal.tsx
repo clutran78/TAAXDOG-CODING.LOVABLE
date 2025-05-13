@@ -1,5 +1,5 @@
 // components/NetIncomeModal.tsx
-import { Modal, ProgressBar } from "react-bootstrap";
+import { Modal } from "react-bootstrap";
 
 interface NetIncomeModalProps {
   show: boolean;
