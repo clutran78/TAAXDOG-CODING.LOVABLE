@@ -1,12 +1,18 @@
 "use client";
-import React, { useState } from "react";
-import ConnectBankModal from "./modals/ConnectBankModal";
+import { setupBankConnectionHandlers } from "@/services/helperFunction";
+import React, { useEffect } from "react";
 
 const Header = () => {
-  const [showBankModal, setShowBankModal] = useState(false);
+  useEffect(() => {
+    setupBankConnectionHandlers()
 
-  const handleShowBankModal = () => setShowBankModal(true);
-  const handleCloseBankModal = () => setShowBankModal(false);
+    // @ts-ignore
+    import('bootstrap/dist/js/bootstrap.bundle.min')
+      .then(() => {
+        console.log('Bootstrap loaded');
+      })
+      .catch((err) => console.error('Bootstrap failed to load', err));
+  }, []);
   return (
     <>
       <nav className="navbar navbar-expand-lg navbar-light sticky-top">
@@ -18,7 +24,7 @@ const Header = () => {
             <button
               className="connect-bank-btn"
               id="connect-bank-button"
-              onClick={handleShowBankModal}
+            // onClick={handleShowBankModal}
             >
               Connect Bank
             </button>
@@ -26,10 +32,10 @@ const Header = () => {
         </div>
       </nav>
       {/* NetIncomeModal component */}
-      <ConnectBankModal
+      {/* <ConnectBankModal
         show={showBankModal}
         handleClose={handleCloseBankModal}
-      />
+      /> */}
     </>
   );
 };

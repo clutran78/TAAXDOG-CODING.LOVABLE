@@ -36,6 +36,20 @@ export default function RootLayout({
         <div className="container-fluid">
           <div className="row">
             <Sidebar />
+
+            {/* Global Toast Element */}
+            <div
+              id="main-toast"
+              className="toast position-fixed bottom-0 end-0 p-3"
+              role="alert"
+              aria-live="assertive"
+              aria-atomic="true"
+              style={{ zIndex: 9999 }}
+            >
+              <div id="toast-body" className="toast-body text-white bg-primary"></div>
+            </div>
+
+
             {/* <!-- Main Content --> */}
             <main className="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
               {children}

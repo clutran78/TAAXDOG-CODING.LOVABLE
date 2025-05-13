@@ -409,35 +409,35 @@ export function performExpenseSearch(term) {
 
 // set up search
 function setupExpenseSearch() {
-  try {
-    const searchInput = document.getElementById('expense-search');
+    try {
+        const searchInput = document.getElementById('expense-search');
 
-    if (!searchInput) return;
+        if (!searchInput) return;
 
-    // Prevent duplicate listener setup
-    if ((searchInput)._hasSearchHandler) return;
+        // Prevent duplicate listener setup
+        if ((searchInput)._hasSearchHandler) return;
 
-    let debounceTimeout
+        let debounceTimeout
 
-    const onSearchChange = () => {
-      const value = searchInput.value.trim();
+        const onSearchChange = () => {
+            const value = searchInput.value.trim();
 
-      if (debounceTimeout) clearTimeout(debounceTimeout);
+            if (debounceTimeout) clearTimeout(debounceTimeout);
 
-      debounceTimeout = setTimeout(() => {
-        if (value === '') {
-          loadDetailedExpenses();
-        } else {
-          performExpenseSearch();
-        }
-      }, 400); // debounce delay
-    };
+            debounceTimeout = setTimeout(() => {
+                if (value === '') {
+                    loadDetailedExpenses();
+                } else {
+                    performExpenseSearch();
+                }
+            }, 400); // debounce delay
+        };
 
-    searchInput.addEventListener('input', onSearchChange);
-    (searchInput)._hasSearchHandler = true; // mark as initialized
-  } catch (error) {
-    console.error('Error setting up expense search:', error);
-  }
+        searchInput.addEventListener('input', onSearchChange);
+        (searchInput)._hasSearchHandler = true; // mark as initialized
+    } catch (error) {
+        console.error('Error setting up expense search:', error);
+    }
 }
 
 
@@ -1130,10 +1130,9 @@ async function openGoalsModal() {
             loadGoalsContent(modalElement);
         }, { once: true });
 
-        log('Goals modal opened successfully');
+
     } catch (error) {
-        log(`Error opening goals modal: ${error.message}`, 'error');
-        showAlert('An error occurred while opening the goals. Please refresh the page.', 'danger');
+        showToast('An error occurred while opening the goals. Please refresh the page.', 'danger');
     }
 }
 
@@ -1353,7 +1352,7 @@ function loadTransactionsTable(transactions) {
 
     try {
         const tableBody = document.getElementById('transactionsTableBody');
-    debugger
+        debugger
 
         if (!tableBody) {
             console.log('Transactions table body element not found', 'warn');
@@ -1396,7 +1395,7 @@ function loadTransactionsTable(transactions) {
 
         // log('Transactions table loaded successfully');
     } catch (error) {
-    debugger
+        debugger
 
         console.groupEndlog(`Error loading transactions table: ${error.message}`, 'error');
     }
@@ -1405,7 +1404,7 @@ function loadTransactionsTable(transactions) {
 
 // Load data dashboard
 function loadDataDashboard() {
-debugger
+    debugger
     try {
         const dashboardSection = document.getElementById('data-dashboard-section');
         if (!dashboardSection) {
@@ -1458,6 +1457,575 @@ async function openDetailedExpensesModal() {
     }
 }
 
+
+async function setupBankConnectionHandlers() {
+
+    try {
+        // Find Connect Bank button
+        const connectBankBtn = document.getElementById('connect-bank-button');
+        if (!connectBankBtn) {
+            console.log('Connect Bank button not found', 'warn');
+            return;
+        }
+
+        // Clear any existing onclick attributes to avoid conflicts
+        connectBankBtn.removeAttribute('onclick');
+
+        // Add click event listener - add a strong direct connection
+        connectBankBtn.onclick = function () {
+            console.log('Connect Bank button clicked');
+            openBankConnectionModal();
+        };
+
+        // Mark as having event listener
+        connectBankBtn._hasClickHandler = true;
+
+    } catch (error) {
+        console.log(`Error setting up bank connection handlers: ${error.message}`, 'error');
+    }
+}
+
+
+// Open bank connection modal
+async function openBankConnectionModal() {
+    debugger
+    const { default: Modal } = await import('bootstrap/js/dist/modal');
+
+    try {
+
+        // Check if modal exists
+        let modalElement = document.getElementById('bank-connection-modal');
+
+        // If modal doesn't exist, create it
+        if (!modalElement) {
+            console.log('Bank connection modal not found, creating it');
+            modalElement = createBankConnectionModal();
+        }
+
+        // Show the modal
+        const modal = new Modal(modalElement);
+        modal.show();
+
+    } catch (error) {
+        console.log(`Error opening bank connection modal: ${error.message}`, 'error');
+        showToast('An error occurred while opening the bank connection dialog. Please refresh the page.', 'danger');
+    }
+}
+
+// Create bank connection modal
+function createBankConnectionModal() {
+debugger
+    try {
+        // Create modal HTML
+        const modalHTML = `
+            <div class="modal fade" id="bank-connection-modal" tabindex="-1" aria-labelledby="bank-connection-modal-label" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="bank-connection-modal-label">Connect Your Bank</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                You're in development mode. You can create mock data or add a custom bank account.
+                            </div>
+                            
+                            <ul class="nav nav-tabs mb-3" id="bankConnectionTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="mock-tab" data-bs-toggle="tab" data-bs-target="#mock-content" type="button" role="tab" aria-controls="mock-content" aria-selected="true">Mock Connection</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="custom-tab" data-bs-toggle="tab" data-bs-target="#custom-content" type="button" role="tab" aria-controls="custom-content" aria-selected="false">Add Custom Account</button>
+                                </li>
+                            </ul>
+                            
+                            <div class="tab-content" id="bankConnectionTabsContent">
+                                <div class="tab-pane fade show active" id="mock-content" role="tabpanel" aria-labelledby="mock-tab">
+                                    <p>Would you like to connect to your bank account and import mock transactions?</p>
+                                    <button type="button" class="btn btn-primary w-100" id="complete-mock-connection">
+                                        <i class="fas fa-check me-2"></i>Complete Mock Connection
+                                    </button>
+                                </div>
+                                <div class="tab-pane fade" id="custom-content" role="tabpanel" aria-labelledby="custom-tab">
+                                    <form id="custom-bank-form">
+                                        <div class="mb-3">
+                                            <label for="bank-name" class="form-label">Bank Name</label>
+                                            <input type="text" class="form-control" id="bank-name" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="account-type" class="form-label">Account Type</label>
+                                            <select class="form-select" id="account-type" required>
+                                                <option value="">Select account type</option>
+                                                <option value="checking">Checking Account</option>
+                                                <option value="savings">Savings Account</option>
+                                                <option value="credit">Credit Card</option>
+                                                <option value="investment">Investment Account</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="account-number" class="form-label">Account Number (last 4 digits)</label>
+                                            <input type="text" class="form-control" id="account-number" maxlength="4" pattern="[0-9]{4}" required>
+                                            <div class="form-text">For demo purposes only, enter any 4 digits</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="initial-balance" class="form-label">Initial Balance</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">$</span>
+                                                <input type="number" class="form-control" id="initial-balance" min="0" step="0.01" required>
+                                            </div>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary w-100" id="add-custom-account-btn">
+                                            <i class="fas fa-plus me-2"></i>Add Custom Account
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Add modal to document
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+        // Get reference to the newly created modal
+        const modalElement = document.getElementById('bank-connection-modal');
+
+        // Add event listener to the complete button
+        const completeButton = modalElement.querySelector('#complete-mock-connection');
+        if (completeButton) {
+            completeButton.addEventListener('click', handleMockConnection);
+        }
+
+        // Add event listener to the custom account form
+        const customAccountForm = modalElement.querySelector('#custom-bank-form');
+        if (customAccountForm) {
+            customAccountForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                handleCustomAccountAddition();
+            });
+        }
+
+        return modalElement;
+    } catch (error) {
+        return null;
+    }
+}
+
+// Handle adding a custom bank account
+async function handleCustomAccountAddition() {
+debugger
+    const { default: Modal } = await import('bootstrap/js/dist/modal');
+
+    try {
+        // Get form values
+        const bankName = document.getElementById('bank-name').value;
+        const accountType = document.getElementById('account-type').value;
+        const accountNumber = document.getElementById('account-number').value;
+        const initialBalance = parseFloat(document.getElementById('initial-balance').value);
+
+        // Create new bank account object
+        const newAccount = {
+            id: 'acc-' + Math.random().toString(36).substring(2, 9),
+            bankName: bankName,
+            accountType: accountType,
+            accountNumber: `xxxx-xxxx-xxxx-${accountNumber}`,
+            balance: initialBalance,
+            addedOn: new Date().toISOString()
+        };
+
+        // Get existing accounts (or initialize empty array)
+        const accounts = JSON.parse(localStorage.getItem('bankAccounts') || '[]');
+        accounts.push(newAccount);
+
+        // Save to localStorage
+        localStorage.setItem('bankAccounts', JSON.stringify(accounts));
+
+        // Create an initial deposit transaction
+        const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+
+        // Add initial balance as a transaction
+        transactions.push({
+            id: 'tx-' + Math.random().toString(36).substring(2, 9),
+            date: new Date().toISOString(),
+            description: 'Initial Balance',
+            amount: initialBalance.toString(),
+            category: 'Deposit',
+            merchant: bankName,
+            accountName: getAccountTypeName(accountType) + ` (${accountNumber})`,
+            accountId: newAccount.id
+        });
+
+        // Save transactions
+        localStorage.setItem('bankTransactions', JSON.stringify(transactions));
+
+        // Close the modal
+        // const modal = Modal.getInstance(document.getElementById('bank-connection-modal'));
+
+        // if (modal) modal.hide();
+
+        // Show success message
+        showToast(`${bankName} account ending in ${accountNumber} has been added successfully!`, 'success');
+
+        // Update the UI
+        displayTransactionSummary();
+        updateBankConnectionsDisplay();
+
+    } catch (error) {
+        showToast('An error occurred while adding your bank account. Please try again.', 'danger');
+    }
+}
+
+// Handle mock bank connection
+async function handleMockConnection() {
+    debugger
+    const { default: Modal } = await import('bootstrap/js/dist/modal');
+
+    try {
+        // Reset mock data
+        initializeMockData(true);
+
+        // Close the modal
+        const modal = Modal.getInstance(document.getElementById('bank-connection-modal'));
+        if (modal) modal.hide();
+
+        // Show success message
+        showToast('Bank connected successfully! Transaction data has been imported.', 'success');
+
+        // Update the UI
+        displayTransactionSummary();
+        updateBankConnectionsDisplay();
+    } catch (error) {
+        showToast('An error occurred while connecting to your bank. Please try again.', 'danger');
+    }
+}
+
+// Update bank connections display
+function updateBankConnectionsDisplay() {
+debugger
+    try {
+        const noConnectionsMsg = document.getElementById('no-connections-message');
+        const connectionsList = document.getElementById('dashboard-connections-list');
+
+        if (!noConnectionsMsg || !connectionsList) {
+            console.log('Bank connection display elements not found', 'warn');
+            return;
+        }
+
+        // Get all bank accounts
+        const accounts = JSON.parse(localStorage.getItem('bankAccounts') || '[]');
+
+        // Check if we have transactions, even without explicit accounts
+        const hasTransactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]').length > 0;
+
+        if (accounts.length === 0 && !hasTransactions) {
+            // No accounts or transactions, show no connections message
+            noConnectionsMsg.style.display = 'block';
+            connectionsList.style.display = 'none';
+            connectionsList.innerHTML = '';
+            return;
+        }
+
+        // Show connections list, hide no connections message
+        noConnectionsMsg.style.display = 'none';
+        connectionsList.style.display = 'block';
+
+        let connectionsHTML = '';
+
+        // Add default mock connection if we have transactions but no accounts
+        if (hasTransactions && accounts.length === 0) {
+            connectionsHTML += `
+                <div class="bank-connection-item">
+                    <div class="d-flex align-items-center">
+                        <img src="https://cdn.jsdelivr.net/gh/transferwise/currency-flags/master/src/flags/au.png" class="bank-logo" alt="Bank Logo">
+                        <div class="bank-info">
+                            <div class="bank-name">Commonwealth Bank</div>
+                            <div class="bank-status success">Connected</div>
+                        </div>
+                    </div>
+                    <div class="bank-actions">
+                        <button type="button" title="Refresh" onclick="alert('Refreshing data is disabled in this demo')">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <button type="button" title="Disconnect" onclick="alert('Disconnecting is disabled in this demo')">
+                            <i class="fas fa-unlink"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Add custom accounts
+        accounts.forEach(account => {
+            // Determine flag icon based on bank name (simplified demo approach)
+            let flagCode = 'us'; // Default flag
+            if (account.bankName.toLowerCase().includes('commonwealth')) flagCode = 'au';
+            else if (account.bankName.toLowerCase().includes('royal')) flagCode = 'ca';
+            else if (account.bankName.toLowerCase().includes('barclays')) flagCode = 'gb';
+
+            // Get account type display name
+            const accountTypeName = getAccountTypeName(account.accountType);
+
+            // Get last 4 digits
+            const lastFourDigits = account.accountNumber.slice(-4);
+
+            connectionsHTML += `
+                <div class="bank-connection-item" data-account-id="${account.id}">
+                    <div class="d-flex align-items-center">
+                        <img src="https://cdn.jsdelivr.net/gh/transferwise/currency-flags/master/src/flags/${flagCode}.png" class="bank-logo" alt="Bank Logo">
+                        <div class="bank-info">
+                            <div class="bank-name">${account.bankName}</div>
+                            <div class="account-details text-muted small">${accountTypeName} ending in ${lastFourDigits}</div>
+                            <div class="bank-status success">Connected</div>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <div class="account-balance me-3">
+                            <div class="text-muted small">Balance</div>
+                            <div class="fw-bold">${formatCurrency(account.balance)}</div>
+                        </div>
+                        <div class="bank-actions">
+                            <button type="button" title="Refresh" onclick="alert('Refreshing data is disabled in this demo')">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                            <button type="button" title="Disconnect" onclick="alert('Disconnecting is disabled in this demo')">
+                                <i class="fas fa-unlink"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        // Update the list
+        connectionsList.innerHTML = connectionsHTML;
+
+    } catch (error) {
+    }
+}
+
+// Helper to get account type display name
+function getAccountTypeName(accountType) {
+    const types = {
+        checking: 'Checking Account',
+        savings: 'Savings Account',
+        credit: 'Credit Card',
+        investment: 'Investment Account'
+    };
+    return types[accountType] || 'Account';
+}
+
+
+
+
+async function openBankAccountsModal() {
+    debugger
+    try {
+        // Get or create modal element
+        let modalElement = document.getElementById('bank-accounts-modal');
+        const { default: Modal } = await import('bootstrap/js/dist/modal');
+
+        // If modal doesn't exist, create it
+        if (!modalElement) {
+            modalElement = document.createElement('div');
+            modalElement.id = 'bank-accounts-modal';
+            modalElement.className = 'modal fade';
+            modalElement.setAttribute('tabindex', '-1');
+            modalElement.innerHTML = `
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="fas fa-university text-success me-2"></i>Your Bank Accounts
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div id="bank-accounts-container">
+                                <div class="text-center p-5" id="bank-accounts-loading">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="mt-3">Loading bank accounts...</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            <button type="button" class="btn btn-primary" id="add-new-bank-btn">
+                                <i class="fas fa-plus me-1"></i>Add Bank Account
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modalElement);
+
+            // Add event listener for the add new bank button
+            const addNewBankBtn = document.getElementById('add-new-bank-btn');
+            if (addNewBankBtn) {
+                addNewBankBtn.addEventListener('click', function () {
+debugger
+                    // Close this modal and open the bank connection modal
+                    const currentModal =  Modal.getInstance(modalElement);
+                    if (currentModal) currentModal.hide();
+                    setTimeout(() => openBankConnectionModal(), 400);
+                });
+            }
+        }
+
+        // Show the modal
+        const modal = new Modal(modalElement);
+        modal.show();
+
+        // Load bank accounts data after modal is shown
+        modalElement.addEventListener('shown.bs.modal', function () {
+            loadBankAccountsContent(modalElement);
+        }, { once: true });
+
+    } catch (error) {
+        showToast('An error occurred while opening the bank accounts. Please refresh the page.', 'danger');
+    }
+}
+
+// Load bank accounts content
+function loadBankAccountsContent(modalElement) {
+debugger
+    try {
+        const accountsContainer = modalElement.querySelector('#bank-accounts-container');
+        const loadingIndicator = modalElement.querySelector('#bank-accounts-loading');
+
+        if (!accountsContainer) {
+            console.log('Bank accounts container not found', 'error');
+            return;
+        }
+
+        // Get accounts from localStorage
+        const accounts = JSON.parse(localStorage.getItem('bankAccounts') || '[]');
+
+        // Check if we have transactions, even without explicit accounts
+        const hasTransactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]').length > 0;
+
+        // Hide loading indicator
+        if (loadingIndicator) loadingIndicator.style.display = 'none';
+
+        if (accounts.length === 0 && !hasTransactions) {
+            // No accounts or transactions
+            accountsContainer.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="fas fa-university fa-3x text-muted mb-3"></i>
+                    <p>No bank accounts connected yet. Click "Add Bank Account" to get started.</p>
+                </div>
+            `;
+            return;
+        }
+
+        let accountsHTML = `
+            <div class="mb-4">
+                <h6 class="mb-3">Connected Accounts</h6>
+            </div>
+        `;
+
+        // Add default mock connection if we have transactions but no accounts
+        if (hasTransactions && accounts.length === 0) {
+            accountsHTML += `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                <div class="me-3">
+                                    <img src="https://cdn.jsdelivr.net/gh/transferwise/currency-flags/master/src/flags/au.png" width="32" alt="Bank Logo" class="rounded">
+                                </div>
+                                <div>
+                                    <h6 class="mb-0">Commonwealth Bank</h6>
+                                    <span class="text-muted small">Checking Account ending in 1234</span>
+                                    <div><span class="badge bg-success">Connected</span></div>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <div class="fw-bold">$2,548.32</div>
+                                <div class="small text-muted">Current Balance</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Add custom accounts
+        accounts.forEach(account => {
+            // Determine flag icon based on bank name (simplified demo approach)
+            let flagCode = 'us'; // Default flag
+            if (account.bankName.toLowerCase().includes('commonwealth')) flagCode = 'au';
+            else if (account.bankName.toLowerCase().includes('royal')) flagCode = 'ca';
+            else if (account.bankName.toLowerCase().includes('barclays')) flagCode = 'gb';
+
+            // Get account type display name
+            const accountTypeName = getAccountTypeName(account.accountType);
+
+            // Get last 4 digits
+            const lastFourDigits = account.accountNumber.slice(-4);
+
+            accountsHTML += `
+                <div class="card mb-3" data-account-id="${account.id}">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                <div class="me-3">
+                                    <img src="https://cdn.jsdelivr.net/gh/transferwise/currency-flags/master/src/flags/${flagCode}.png" width="32" alt="Bank Logo" class="rounded">
+                                </div>
+                                <div>
+                                    <h6 class="mb-0">${account.bankName}</h6>
+                                    <span class="text-muted small">${accountTypeName} ending in ${lastFourDigits}</span>
+                                    <div><span class="badge bg-success">Connected</span></div>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <div class="fw-bold">${formatCurrency(account.balance)}</div>
+                                <div class="small text-muted">Current Balance</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        // Add tip for more accounts
+        accountsHTML += `
+            <div class="alert alert-light border mt-3">
+                <div class="d-flex">
+                    <div class="me-3">
+                        <i class="fas fa-lightbulb text-warning"></i>
+                    </div>
+                    <div>
+                        <span class="small">
+                            Connect multiple accounts to get a comprehensive view of your finances.
+                            Click "Add Bank Account" to connect more accounts.
+                        </span>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Update container with accounts
+        accountsContainer.innerHTML = accountsHTML;
+
+    } catch (error) {
+        if (modalElement) {
+            modalElement.querySelector('#bank-accounts-container').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    An error occurred while loading bank accounts. Please try again.
+                </div>
+            `;
+        }
+    }
+}
 
 function setupFinancialFeatureHandlers() {
 
@@ -1663,23 +2231,24 @@ function setupFinancialFeatureHandlers() {
         // }
 
         // // Bank Accounts nav link
-        // const bankAccountsNavLink = document.getElementById('bank-accounts-nav-link');
-        // if (bankAccountsNavLink && !bankAccountsNavLink._hasBankAccountsClickHandler) {
-        //     bankAccountsNavLink.addEventListener('click', function (e) {
-        //         e.preventDefault();
-        //         log('Bank Accounts nav link clicked');
-        //         // openBankAccountsModal();
-        //     });
-        //     bankAccountsNavLink._hasBankAccountsClickHandler = true;
-        // } else {
-        // }
+        const bankAccountsNavLink = document.getElementById('bank-accounts-nav-link');
+        if (bankAccountsNavLink && !bankAccountsNavLink._hasBankAccountsClickHandler) {
+            bankAccountsNavLink.addEventListener('click', function (e) {
+                e.preventDefault();
+                // log('Bank Accounts nav link clicked');
+                openBankAccountsModal();
+            });
+            bankAccountsNavLink._hasBankAccountsClickHandler = true;
+        } else {
+        }
 
     } catch (error) {
     }
 }
 
+// utils/showToast.ts (TypeScript-safe)
 export const showToast = (message, type = 'primary') => {
-    if (typeof window === 'undefined') return; // Guard for SSR
+    if (typeof window === 'undefined') return; // SSR guard
 
     const toastEl = document.getElementById('main-toast');
     const toastBody = document.getElementById('toast-body');
@@ -1689,16 +2258,17 @@ export const showToast = (message, type = 'primary') => {
         return;
     }
 
-    // Update message and style
+    // Set message and style
     toastBody.textContent = message;
-    toastEl.className = `toast align-items-center text-white bg-${type} border-0`;
+    toastEl.className = `toast align-items-center text-white bg-${type} border-0 position-fixed bottom-0 end-0 p-3`;
 
-    // Dynamically import Bootstrap Toast if not globally available
+    // Dynamically import Bootstrap Toast
     import('bootstrap/js/dist/toast').then(({ default: Toast }) => {
-        const bsToast = Toast.getOrCreateInstance(toastEl);
-        bsToast.show();
-    }).catch((err) => {
-        console.error('Failed to load Bootstrap toast module:', err);
+        const toast = Toast.getOrCreateInstance(toastEl);
+      toast.show();
+    })
+    .catch((err) => {
+      console.error('Failed to load Bootstrap Toast module:', err);
     });
 };
 
@@ -1764,5 +2334,9 @@ export {
     updateReceiptDashboard,
     updateLocalStorageAndUI,
     loadDataDashboard,
-    loadNetBalanceDetails
+    loadNetBalanceDetails,
+    loadBankAccountsContent,
+    handleCustomAccountAddition,
+    handleMockConnection,
+    setupBankConnectionHandlers
 }
