@@ -345,33 +345,99 @@ function loadIncomeDetails() {
     }
 }
 
-function setupExpenseSearch() {
-    try {
-        const searchInput = document.getElementById('expense-search');
-        const searchButton = document.getElementById('expense-search-btn');
 
-        if (!searchInput || !searchButton) {
-            return;
-        }
+// Perform expense search
+export function performExpenseSearch(term) {
+  try {
+    const searchTerm = term.toLowerCase().trim();
 
-        // Clear any existing event listeners
-        const newSearchInput = searchInput.cloneNode(true);
-        const newSearchButton = searchButton.cloneNode(true);
+    const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+    const expenses = transactions.filter(tx => parseFloat(tx.amount) < 0);
 
-        searchInput.parentNode.replaceChild(newSearchInput, searchInput);
-        searchButton.parentNode.replaceChild(newSearchButton, searchButton);
+    const filteredExpenses = expenses.filter(expense => {
+      return (
+        (expense.description && expense.description.toLowerCase().includes(searchTerm)) ||
+        (expense.merchant && expense.merchant.toLowerCase().includes(searchTerm)) ||
+        (expense.category && expense.category.toLowerCase().includes(searchTerm)) ||
+        (expense.accountName && expense.accountName.toLowerCase().includes(searchTerm))
+      );
+    });
 
-        // Add search functionality
-        newSearchButton.addEventListener('click', performExpenseSearch);
-        newSearchInput.addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') {
-                performExpenseSearch();
-            }
-        });
+    const tableBody = document.getElementById('expenses-table-body');
+    const noExpensesMessage = document.getElementById('no-expenses-message');
 
-    } catch (error) {
-        console.log(`Error setting up expense search: ${error.message}`, 'error');
+    if (tableBody) {
+      if (filteredExpenses.length === 0) {
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="6" class="text-center py-4">
+              <p>No matching expenses found for "${searchTerm}"</p>
+            </td>
+          </tr>
+        `;
+        if (noExpensesMessage) noExpensesMessage.classList.remove('d-none');
+        return;
+      }
+
+      if (noExpensesMessage) noExpensesMessage.classList.add('d-none');
+
+      filteredExpenses.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      let tableRows = '';
+      filteredExpenses.forEach(expense => {
+        const amount = Math.abs(parseFloat(expense.amount)).toFixed(2);
+        const date = new Date(expense.date).toLocaleDateString();
+
+        tableRows += `
+          <tr>
+            <td>${date}</td>
+            <td>${expense.description || 'No description'}</td>
+            <td>${expense.merchant || 'Unknown'}</td>
+            <td><span class="badge bg-primary">${expense.category || 'Uncategorized'}</span></td>
+            <td>${expense.accountName || 'Unknown Account'}</td>
+            <td class="text-end text-danger">$${amount}</td>
+          </tr>
+        `;
+      });
+
+      tableBody.innerHTML = tableRows;
     }
+  } catch (error) {
+    console.log(`Error performing expense search: ${error.message}`);
+  }
+}
+
+// set up search
+function setupExpenseSearch() {
+  try {
+    const searchInput = document.getElementById('expense-search');
+
+    if (!searchInput) return;
+
+    // Prevent duplicate listener setup
+    if ((searchInput)._hasSearchHandler) return;
+
+    let debounceTimeout
+
+    const onSearchChange = () => {
+      const value = searchInput.value.trim();
+
+      if (debounceTimeout) clearTimeout(debounceTimeout);
+
+      debounceTimeout = setTimeout(() => {
+        if (value === '') {
+          loadDetailedExpenses();
+        } else {
+          performExpenseSearch();
+        }
+      }, 400); // debounce delay
+    };
+
+    searchInput.addEventListener('input', onSearchChange);
+    (searchInput)._hasSearchHandler = true; // mark as initialized
+  } catch (error) {
+    console.error('Error setting up expense search:', error);
+  }
 }
 
 

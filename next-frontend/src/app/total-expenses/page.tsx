@@ -1,11 +1,10 @@
-import NetComponent from '@/components/dashboard/net-income'
-import TotalExpensesComponent from '@/components/dashboard/total-expenses'
+import TotalExpensesPage from '@/components/totalExpenses/totalExpensesPage'
 import React from 'react'
 
 const page = () => {
   return (
     <div>
-      <TotalExpensesComponent/>
+      <TotalExpensesPage/>
     </div>
   )
 }
