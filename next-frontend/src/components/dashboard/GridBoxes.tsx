@@ -1,11 +1,10 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { displayTransactionSummary, formatCurrency, initializeMockData, loadBankAccountsContent, loadDetailedExpenses, loadIncomeDetails, setupExpenseSearch, setupFinancialFeatureHandlers, updateBankConnectionsDisplay, updateElementText } from '@/services/helperFunction';
+import { displayTransactionSummary, initializeMockData, loadIncomeDetails, setupFinancialFeatureHandlers, updateBankConnectionsDisplay, updateSubscriptionDisplays } from '@/services/helperFunction';
 import AlertMessage from "@/shared/alerts";
-import ExpenseCategoriesModal from "@/shared/modals/ExpenseCategoriesModal";
-import ManageSubscriptionsModal from "@/shared/modals/ManageSubscriptionsModal";
 import NetIncomeModal from "@/shared/modals/NetIncomeModal";
 import NetBalanceDetails from "@/shared/modals/NetBalanceDetailsModal";
+import SubscriptionsModal from "@/shared/modals/ManageSubscriptionsModal";
 
 const GridBoxes = () => {
   const [showNetIncomeModal, setShowNetIncomeModal] = useState(false);
@@ -13,7 +12,6 @@ const GridBoxes = () => {
   const [alert, setAlert] = useState<{ message: string; type: string } | null>(null);
 
   const [showNetBalanceDetailsModal, setShowNetBalanceDetailsModal] = useState(false)
-  const [showExpenseCategoriesModal, setShowExpenseCategoriesModal] = useState(false)
 
   useEffect(() => {
     if (showNetIncomeModal) {
@@ -25,42 +23,26 @@ const GridBoxes = () => {
   }, [showNetIncomeModal]);
 
   useEffect(() => {
+
+    // Save to localStorage
+   const subscriptions = JSON.parse(localStorage.getItem('subscriptions') || '[]');
+
     // Give React time to render the modal content
     setTimeout(() => {
       setupFinancialFeatureHandlers()
       updateBankConnectionsDisplay()
+      updateSubscriptionDisplays(subscriptions)
     }, 0)
   }, [])
 
 
-  const handleShowNetIncomeModal = () => {
-    setShowNetIncomeModal(true)
-  }
+  const handleShowNetIncomeModal = () => setShowNetIncomeModal(true)
 
   const handleCloseNetIncomeModal = () => setShowNetIncomeModal(false);
 
-
-  const handleShowExpenseCategoriesModal = () => setShowExpenseCategoriesModal(true)
-
-  const handleCloseExpenseCategoriesModal = () => setShowExpenseCategoriesModal(false)
-
-
-  const [showManageSubscriptionsModal, setShowManageSubscriptionsModal] =
-    useState(false);
-
-  // Function to open the modal
-  const handleOpenManageSubscriptionsModal = () =>
-    setShowManageSubscriptionsModal(true);
-
-  // Function to close the modal
-  const handleCloseManageSubscriptionsModal = () =>
-    setShowManageSubscriptionsModal(false);
-
-  useState(false);
   const handleShowNetBalanceDetails = () => setShowNetBalanceDetailsModal(true);
 
-  const handleCloseNetBalanceDetails = () =>
-    setShowNetBalanceDetailsModal(false);
+  const handleCloseNetBalanceDetails = () => setShowNetBalanceDetailsModal(false);
 
 
   useEffect(() => {
@@ -113,6 +95,7 @@ const GridBoxes = () => {
           </div>
         </div>
       </div>
+
       <div className="col-md-3 mb-4">
         <div
           className="card stats-card h-100"
@@ -130,13 +113,13 @@ const GridBoxes = () => {
             <div
               id="view-expense-categories-btn"
               className="stat-change negative-change cursor-pointer"
-              onClick={handleShowExpenseCategoriesModal}
             >
               <i className="fas fa-arrow-down"></i> -8.1% from last month
             </div>
           </div>
         </div>
       </div>
+
       <div className="col-md-3 mb-4">
         <div
           className="card stats-card h-100"
@@ -160,24 +143,18 @@ const GridBoxes = () => {
           </div>
         </div>
       </div>
+
+
+      {/* Subscription */}
       <div className="col-md-3 mb-4">
-        <div
-          className="card stats-card h-100"
-          id="subscriptions-card"
-          data-card="subscriptions"
-        >
+        <div className="card stats-card h-100 cursor-pointer" id="subscriptions-card" data-card="subscriptions" >
           <div className="card-header">
             Subscriptions
             <i className="fas fa-repeat subscription-icon"></i>
           </div>
           <div className="card-body">
-            <div className="stat-value">
-              $<span id="total-subscriptions-value">0.00</span>
-            </div>
-            <div
-              className="stat-change neutral-change"
-              onClick={handleOpenManageSubscriptionsModal}
-            >
+            <div className="stat-value">$<span id="total-subscriptions-value">0.00</span></div>
+            <div className="stat-change neutral-change">
               <span id="subscription-count">0</span> active subscriptions
             </div>
           </div>
@@ -190,23 +167,16 @@ const GridBoxes = () => {
         handleClose={handleCloseNetIncomeModal}
       />
 
-
-      {/* <ExpenseCategoriesModal
-        show={showExpenseCategoriesModal}
-        handleClose={handleCloseExpenseCategoriesModal}
-      /> */}
-
       <NetBalanceDetails
         show={showNetBalanceDetailsModal}
         handleClose={handleCloseNetBalanceDetails}
       />
 
-      <ManageSubscriptionsModal
-        show={showManageSubscriptionsModal}
-        handleClose={handleCloseManageSubscriptionsModal}
-      />
+      <SubscriptionsModal />
+
 
       {/* ////////////////////////////////////////////////////////////////////////////////////////////////  Goal Progress  */}
+
 
       {/* <!-- Second Row - Goals, Notifications, and Bank Accounts --> */}
       <div className="row mt-3">

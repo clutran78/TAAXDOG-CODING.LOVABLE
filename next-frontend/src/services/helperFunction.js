@@ -2423,6 +2423,560 @@ function loadBankAccountsContent(modalElement) {
     }
 }
 
+// subscription functions 
+
+// Open subscriptions modal
+async function openSubscriptionsModal() {
+    debugger
+    try {
+        const { default: Modal } = await import('bootstrap/js/dist/modal');
+        // Get modal element
+        let modalElement = document.getElementById('subscriptions-modal');
+
+        // Show the modal
+        const modal = new Modal(modalElement);
+        modal.show();
+
+        // Load subscriptions data
+        loadSubscriptionsData();
+
+        // Set up add subscription form handlers
+        setupSubscriptionFormHandlers();
+
+
+    } catch (error) {
+        showToast('An error occurred while opening the subscriptions. Please refresh the page.', 'danger');
+    }
+}
+
+// Set up subscription form handlers
+function setupSubscriptionFormHandlers() {
+    debugger
+    try {
+        // Add subscription button
+        const addButton = document.getElementById('add-subscription-btn');
+        if (addButton) {
+            addButton.addEventListener('click', function () {
+                document.getElementById('add-subscription-form').style.display = 'block';
+                this.style.display = 'none';
+
+                // Set today's date in the date fields
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('subscription-start-date').value = today;
+                document.getElementById('subscription-next-payment').value = today;
+            });
+        }
+
+        // Close form button
+        const closeButton = document.getElementById('close-subscription-form');
+        if (closeButton) {
+            closeButton.addEventListener('click', function () {
+                document.getElementById('add-subscription-form').style.display = 'none';
+                document.getElementById('add-subscription-btn').style.display = 'block';
+            });
+        }
+
+        // Cancel button
+        const cancelButton = document.getElementById('cancel-subscription-btn');
+        if (cancelButton) {
+            cancelButton.addEventListener('click', function () {
+                document.getElementById('add-subscription-form').style.display = 'none';
+                document.getElementById('add-subscription-btn').style.display = 'block';
+                document.getElementById('subscription-form').reset();
+            });
+        }
+
+        // Form submission
+        const form = document.getElementById('subscription-form');
+        if (form) {
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                saveSubscription();
+            });
+        }
+
+        // Scan for subscriptions button
+        const scanButton = document.getElementById('scan-for-subscriptions-btn');
+        if (scanButton) {
+            scanButton.addEventListener('click', function () {
+                // Pass true to forceScan to override auto-scan settings
+                scanForSubscriptions(true);
+            });
+        }
+
+    } catch (error) {
+        console.log(`Error setting up subscription form handlers: ${error.message}`, 'error');
+    }
+}
+
+// Check if automatic subscription scanning is enabled
+function shouldAutoScanSubscriptions() {
+    // By default, auto-scanning is disabled to prevent unexpected subscription creation
+    const autoScanEnabled = localStorage.getItem('autoScanSubscriptionsEnabled');
+    return autoScanEnabled === 'true';
+}
+
+// Scan for potential subscriptions in transactions
+function scanForSubscriptions(forceScan = false) {
+
+    try {
+        // Skip automatic scanning unless explicitly forced by user action
+        if (!forceScan && !shouldAutoScanSubscriptions()) {
+            console.log('Automatic subscription scanning is disabled. Skipping scan.');
+            return;
+        }
+
+        // Get transactions from localStorage
+        const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+
+        // Get existing subscriptions
+        const subscriptions = JSON.parse(localStorage.getItem('subscriptions') || '[]');
+
+        // Find existing subscription merchant names to avoid duplicates
+        const existingMerchants = subscriptions.map(sub => {
+            // Convert to lowercase and trim for better matching
+            return sub.name.toLowerCase().trim();
+        });
+
+        // Map of merchants with negative transactions
+        const merchantTransactions = {};
+
+        // Only look at negative transactions (expenses)
+        transactions
+            .filter(tx => parseFloat(tx.amount) < 0)
+            .forEach(tx => {
+                const merchant = tx.merchant || 'Unknown';
+                const amount = Math.abs(parseFloat(tx.amount)).toFixed(2);
+                const key = `${merchant.toLowerCase()}_${amount}`;
+
+                if (!merchantTransactions[key]) {
+                    merchantTransactions[key] = [];
+                }
+
+                merchantTransactions[key].push({
+                    date: new Date(tx.date),
+                    amount,
+                    category: tx.category,
+                    description: tx.description
+                });
+            });
+
+        // Find recurring transactions with the same merchant and amount
+        const potentialSubscriptions = [];
+
+        for (const [key, txs] of Object.entries(merchantTransactions)) {
+            // Check for at least 2 transactions with similar timing
+            if (txs.length >= 2) {
+                // Sort by date
+                txs.sort((a, b) => a.date - b.date);
+
+                // Calculate average days between transactions
+                let totalDays = 0;
+                let intervals = 0;
+
+                for (let i = 1; i < txs.length; i++) {
+                    const daysBetween = Math.round((txs[i].date - txs[i - 1].date) / (1000 * 60 * 60 * 24));
+                    if (daysBetween > 5) { // Ignore transactions too close together
+                        totalDays += daysBetween;
+                        intervals++;
+                    }
+                }
+
+                if (intervals > 0) {
+                    const avgDays = totalDays / intervals;
+
+                    // Determine if it's weekly, monthly, quarterly, or yearly
+                    let frequency = 'monthly';
+                    if (avgDays <= 10) {
+                        frequency = 'weekly';
+                    } else if (avgDays >= 75 && avgDays <= 105) {
+                        frequency = 'quarterly';
+                    } else if (avgDays >= 350) {
+                        frequency = 'yearly';
+                    }
+
+                    // Extract merchant name from key
+                    const [merchantName] = key.split('_');
+
+                    // More robust check for existing merchants to avoid duplicates
+                    // Skip if we already have this merchant in our subscriptions
+                    const normalizedMerchantName = merchantName.toLowerCase().trim();
+                    if (existingMerchants.some(name => name === normalizedMerchantName ||
+                        name.includes(normalizedMerchantName) ||
+                        normalizedMerchantName.includes(name))) {
+                        continue;
+                    }
+
+                    // Create potential subscription
+                    potentialSubscriptions.push({
+                        name: merchantName.charAt(0).toUpperCase() + merchantName.slice(1),
+                        amount: txs[0].amount,
+                        category: txs[0].category || 'Entertainment',
+                        frequency,
+                        startDate: txs[0].date.toISOString().split('T')[0],
+                        nextPaymentDate: calculateNextPaymentDate(txs[txs.length - 1].date, avgDays).toISOString().split('T')[0],
+                        notes: `Auto-detected from ${txs.length} transactions. Average interval: ${Math.round(avgDays)} days.`,
+                        autoDetected: true
+                    });
+                }
+            }
+        }
+
+        if (potentialSubscriptions.length === 0) {
+            showToast('No new potential subscriptions found in your transactions', 'info');
+            return;
+        }
+
+        // Add the detected subscriptions to the list
+        let added = 0;
+        potentialSubscriptions.forEach(sub => {
+            const newSubscription = {
+                ...sub,
+                id: 'sub-' + Math.random().toString(36).substring(2, 9)
+            };
+
+            subscriptions.push(newSubscription);
+            added++;
+        });
+
+        // Save to localStorage
+        localStorage.setItem('subscriptions', JSON.stringify(subscriptions));
+
+        // Update dashboard display
+        updateSubscriptionDisplays(subscriptions);
+
+        // Reload subscriptions data
+        loadSubscriptionsData();
+
+        // Show success message
+        showToast(`Found and added ${added} new subscription${added !== 1 ? 's' : ''} from your transactions`, 'success');
+
+    } catch (error) {
+        showToast('An error occurred while scanning for subscriptions', 'danger');
+    }
+}
+
+
+// Load subscriptions data
+function loadSubscriptionsData() {
+    debugger
+    try {
+        // Get subscriptions from localStorage
+        const subscriptions = JSON.parse(localStorage.getItem('subscriptions') || '[]');
+
+        // Update dashboard display
+        updateSubscriptionDisplays(subscriptions);
+
+        // Show/hide no subscriptions message
+        const noSubscriptionsMessage = document.getElementById('no-subscriptions-message');
+        const subscriptionsContainer = document.getElementById('subscriptions-container');
+
+        if (subscriptions.length === 0) {
+            noSubscriptionsMessage.style.display = 'block';
+            subscriptionsContainer.innerHTML = '';
+            return;
+        }
+
+        noSubscriptionsMessage.style.display = 'none';
+
+        // Generate HTML for subscriptions
+        let subscriptionsHTML = '';
+
+        subscriptions.forEach((subscription, index) => {
+            // Calculate monthly cost based on frequency
+            let monthlyCost = parseFloat(subscription.amount);
+            switch (subscription.frequency) {
+                case 'yearly':
+                    monthlyCost = monthlyCost / 12;
+                    break;
+                case 'quarterly':
+                    monthlyCost = monthlyCost / 3;
+                    break;
+                case 'weekly':
+                    monthlyCost = monthlyCost * 4.33; // Average weeks in a month
+                    break;
+            }
+
+            // Format dates
+            const startDate = new Date(subscription.startDate);
+            const nextPayment = new Date(subscription.nextPaymentDate);
+
+            // Calculate days until next payment
+            const today = new Date();
+            const daysUntilPayment = Math.ceil((nextPayment - today) / (1000 * 60 * 60 * 24));
+            let paymentStatus = '';
+
+            if (daysUntilPayment < 0) {
+                paymentStatus = '<span class="badge bg-danger">Overdue</span>';
+            } else if (daysUntilPayment <= 3) {
+                paymentStatus = '<span class="badge bg-warning text-dark">Due soon</span>';
+            } else {
+                paymentStatus = `<span class="badge bg-success">In ${daysUntilPayment} days</span>`;
+            }
+
+            // Create subscription card
+            subscriptionsHTML += `
+                <div class="card mb-3 subscription-card" data-subscription-id="${subscription.id}">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h5 class="mb-1">${subscription.name}</h5>
+                                <span class="badge bg-light text-dark">${subscription.category}</span>
+                                <span class="badge bg-light text-dark text-capitalize">${subscription.frequency}</span>
+                            </div>
+                            <h4 class="text-primary mb-0">${formatCurrency(subscription.amount)}</h4>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-4">
+                                <div class="text-muted small">Started on</div>
+                                <div>${startDate.toLocaleDateString()}</div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-muted small">Next payment</div>
+                                <div>${nextPayment.toLocaleDateString()}</div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-muted small">Status</div>
+                                <div>${paymentStatus}</div>
+                            </div>
+                        </div>
+                        <div class="mt-3 d-flex justify-content-between align-items-center">
+                            <div class="text-muted small">
+                                ${subscription.notes ? `Note: ${subscription.notes}` : ''}
+                            </div>
+                            <div>
+                                <button class="btn btn-sm btn-outline-danger delete-subscription-btn" data-subscription-index="${index}">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-primary edit-subscription-btn ms-1" data-subscription-index="${index}">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        // Update container
+        subscriptionsContainer.innerHTML = subscriptionsHTML;
+
+        // Add event listeners for edit and delete buttons
+        document.querySelectorAll('.edit-subscription-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const index = parseInt(this.getAttribute('data-subscription-index'));
+                editSubscription(index);
+            });
+        });
+
+        document.querySelectorAll('.delete-subscription-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const index = parseInt(this.getAttribute('data-subscription-index'));
+                deleteSubscription(index);
+            });
+        });
+
+    } catch (error) {
+        console.log(`Error loading subscriptions data: ${error.message}`, 'error');
+    }
+}
+
+// Delete subscription
+function deleteSubscription(index) {
+
+    try {
+        // Get existing subscriptions
+        const subscriptions = JSON.parse(localStorage.getItem('subscriptions') || '[]');
+
+        // Store the name for the success message
+        const subscriptionName = subscriptions[index].name;
+
+        // Remove subscription
+        subscriptions.splice(index, 1);
+
+        // Save to localStorage
+        localStorage.setItem('subscriptions', JSON.stringify(subscriptions));
+
+        // Update dashboard display
+        updateSubscriptionDisplays(subscriptions);
+
+        // Reload subscriptions data
+        loadSubscriptionsData();
+
+        // Show success message
+        showToast(`Subscription to ${subscriptionName} has been deleted`, 'success');
+
+    } catch (error) {
+        showToast('An error occurred while deleting the subscription', 'danger');
+    }
+}
+
+// Edit subscription
+function editSubscription(index) {
+    try {
+        const subscriptions = JSON.parse(localStorage.getItem('subscriptions') || '[]');
+        const subscription = subscriptions[index];
+
+        // Populate form
+        document.getElementById('subscription-name').value = subscription.name;
+        document.getElementById('subscription-amount').value = subscription.amount;
+        document.getElementById('subscription-category').value = subscription.category;
+        document.getElementById('subscription-frequency').value = subscription.frequency;
+        document.getElementById('subscription-start-date').value = subscription.startDate;
+        document.getElementById('subscription-next-payment').value = subscription.nextPaymentDate;
+        document.getElementById('subscription-notes').value = subscription.notes || '';
+
+        document.getElementById('add-subscription-form').style.display = 'block';
+        document.getElementById('add-subscription-btn').style.display = 'none';
+
+        const form = document.getElementById('subscription-form');
+
+        // Remove any previous submit listeners
+        const newForm = form.cloneNode(true);
+        form.parentNode.replaceChild(newForm, form);
+
+        newForm.addEventListener('submit', function handleUpdate(e) {
+            e.preventDefault();
+
+            // Get form values
+            const updatedSub = {
+                id: subscription.id,
+                autoDetected: subscription.autoDetected || false,
+                name: document.getElementById('subscription-name').value,
+                amount: document.getElementById('subscription-amount').value,
+                category: document.getElementById('subscription-category').value,
+                frequency: document.getElementById('subscription-frequency').value,
+                startDate: document.getElementById('subscription-start-date').value,
+                nextPaymentDate: document.getElementById('subscription-next-payment').value,
+                notes: document.getElementById('subscription-notes').value || ''
+            };
+
+            subscriptions[index] = updatedSub;
+
+            // Save and refresh
+            localStorage.setItem('subscriptions', JSON.stringify(subscriptions));
+            updateSubscriptionDisplays(subscriptions);
+            loadSubscriptionsData();
+
+            newForm.reset();
+            document.getElementById('add-subscription-form').style.display = 'none';
+            document.getElementById('add-subscription-btn').style.display = 'block';
+
+            showToast(`Subscription to ${updatedSub.name} has been updated`, 'success');
+        });
+
+    } catch (error) {
+        console.error('Edit error:', error);
+        showToast('An error occurred while editing the subscription.', 'danger');
+    }
+}
+
+
+// Save subscription data
+function saveSubscription() {
+
+    try {
+        // Get form values
+        const name = document.getElementById('subscription-name').value;
+        const amount = document.getElementById('subscription-amount').value;
+        const category = document.getElementById('subscription-category').value;
+        const frequency = document.getElementById('subscription-frequency').value;
+        const startDate = document.getElementById('subscription-start-date').value;
+        const nextPaymentDate = document.getElementById('subscription-next-payment').value;
+        const notes = document.getElementById('subscription-notes').value;
+
+        // Create subscription object
+        const subscription = {
+            id: 'sub-' + Math.random().toString(36).substring(2, 9),
+            name,
+            amount,
+            category,
+            frequency,
+            startDate,
+            nextPaymentDate,
+            notes,
+            autoDetected: false
+        };
+
+        // Get existing subscriptions
+        const subscriptions = JSON.parse(localStorage.getItem('subscriptions') || '[]');
+
+        // Add new subscription
+        subscriptions.push(subscription);
+
+        // Save to localStorage
+        localStorage.setItem('subscriptions', JSON.stringify(subscriptions));
+
+        // Update dashboard display
+        updateSubscriptionDisplays(subscriptions);
+
+        // Reset form and hide it
+        document.getElementById('subscription-form').reset();
+        document.getElementById('add-subscription-form').style.display = 'none';
+        document.getElementById('add-subscription-btn').style.display = 'block';
+
+        // Reload subscriptions data
+        loadSubscriptionsData();
+
+        // Show success message
+        showToast(`Subscription to ${name} has been added successfully`, 'success');
+
+    } catch (error) {
+        showToast('An error occurred while saving the subscription', 'danger');
+    }
+}
+
+// Update subscription displays across the app
+export function updateSubscriptionDisplays(subscriptions) {
+    debugger
+    try {
+        // Calculate total monthly cost
+        let totalMonthlyCost = 0;
+
+        subscriptions.forEach(subscription => {
+            let amount = parseFloat(subscription.amount || 0);
+            if (isNaN(amount)) amount = 0;
+
+            // Convert to monthly equivalent
+            switch (subscription.frequency) {
+                case 'yearly':
+                    amount = amount / 12;
+                    break;
+                case 'quarterly':
+                    amount = amount / 3;
+                    break;
+                case 'weekly':
+                    amount = amount * 4.33; // Average weeks in a month
+                    break;
+            }
+
+            totalMonthlyCost += amount;
+        });
+
+
+        // Update dashboard card - Direct update to prevent double $ signs
+        const totalSubscriptionsElement = document.getElementById('total-subscriptions-value');
+        if (totalSubscriptionsElement) {
+            totalSubscriptionsElement.textContent = parseFloat(totalMonthlyCost).toFixed(2);
+        } else {
+        }
+
+        // Also update the subscription count
+        const subscriptionCountElement = document.getElementById('subscription-count');
+        if (subscriptionCountElement) {
+            subscriptionCountElement.textContent = subscriptions.length;
+        }
+
+        // Update modal value
+        const modalTotalElement = document.getElementById('modal-total-subscriptions-value');
+        if (modalTotalElement) {
+            modalTotalElement.textContent = formatCurrency(totalMonthlyCost);
+        }
+
+    } catch (error) {
+    }
+}
+
 function setupFinancialFeatureHandlers() {
 
     try {
@@ -2493,15 +3047,15 @@ function setupFinancialFeatureHandlers() {
         // }
 
         // // For Subscriptions card - using direct ID
-        // const subscriptionsCard = document.getElementById('subscriptions-card');
-        // if (subscriptionsCard && !subscriptionsCard._hasSubscriptionsClickHandler) {
-        //     subscriptionsCard.addEventListener('click', function () {
+        const subscriptionsCard = document.getElementById('subscriptions-card');
+        if (subscriptionsCard && !subscriptionsCard._hasSubscriptionsClickHandler) {
+            subscriptionsCard.addEventListener('click', function () {
 
-        //         // openSubscriptionsModal();
-        //     });
-        //     subscriptionsCard._hasSubscriptionsClickHandler = true;
-        // } else {
-        // }
+                openSubscriptionsModal()
+            });
+            subscriptionsCard._hasSubscriptionsClickHandler = true;
+        } else {
+        }
 
         // // For Subscriptions nav link in sidebar - using direct ID
         // const subscriptionsNavLink = document.getElementById('subscriptions-nav-link');
