@@ -292,7 +292,7 @@ const TaxProfile: React.FC = () => {
                         </div>
 
                         <div className="d-flex justify-content-between mt-4">
-                            <button className="btn btn-primary" onClick={() => goToNextTab('personal-tab', 'income-tab')}>
+                            <button className="btn btn-primary" type='button' onClick={(e) => goToNextTab('personal-tab', 'income-tab')}>
                                 Next: Income <i className="fas fa-arrow-right ms-2"></i>
                             </button>
                         </div>
@@ -301,26 +301,8 @@ const TaxProfile: React.FC = () => {
 
                     </div>
 
-
-
                     {/* ======================================================================================================== */}
 
-
-
-                    {/* Income Tab */}
-                    {/* <div className="tab-pane fade" id="income-content" role="tabpanel">
-                    <h4>Income Section</h4>
-                    <p>This section includes employer, investment, and other income fields.</p>
-
-                    <div className="d-flex justify-content-between mt-4">
-                        <button className="btn btn-outline-secondary" onClick={() => goToNextTab('income-tab', 'personal-tab')}>
-                            <i className="fas fa-arrow-left me-2"></i> Previous: Personal
-                        </button>
-                        <button className="btn btn-primary" onClick={() => goToNextTab('income-tab', 'deductions-tab')}>
-                            Next: Deductions <i className="fas fa-arrow-right ms-2"></i>
-                        </button>
-                    </div>
-                </div> */}
                     <div className="tab-pane fade" id="income-content" role="tabpanel">
                         <h4 className="mb-3">Employment Income</h4>
                         <div className="row g-3 mb-3">
