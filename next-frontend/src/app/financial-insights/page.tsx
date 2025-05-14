@@ -18,7 +18,7 @@ const Page = () => {
       <i className="fas fa-tools fa-4x text-warning mb-4"></i>
       <h1 className="display-5 fw-bold text-secondary">Page Under Development</h1>
       <p className="lead text-muted">
-        We're working hard to bring you this feature. Please check back soon!
+        We&apos;re working hard to bring you this feature. Please check back soon!
       </p>
     </div>
   );
