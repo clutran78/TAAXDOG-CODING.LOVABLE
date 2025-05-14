@@ -2450,7 +2450,7 @@ async function openSubscriptionsModal() {
 }
 
 // Set up subscription form handlers
-function setupSubscriptionFormHandlers() {
+export function setupSubscriptionFormHandlers() {
     debugger
     try {
         // Add subscription button
@@ -2658,7 +2658,7 @@ function scanForSubscriptions(forceScan = false) {
 
 
 // Load subscriptions data
-function loadSubscriptionsData() {
+export function loadSubscriptionsData() {
     debugger
     try {
         // Get subscriptions from localStorage
