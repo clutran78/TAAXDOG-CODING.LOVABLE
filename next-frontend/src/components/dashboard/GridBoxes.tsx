@@ -60,7 +60,7 @@ const GridBoxes = () => {
 
     initializeApp();
 
-    let transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+    const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
     if (transactions) {
       displayTransactionSummary()
     }

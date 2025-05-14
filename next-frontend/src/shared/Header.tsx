@@ -6,7 +6,7 @@ const Header = () => {
   useEffect(() => {
     setupBankConnectionHandlers()
 
-    // @ts-ignore
+    // @ts-expect-error
     import('bootstrap/dist/js/bootstrap.bundle.min')
       .then(() => {
         console.log('Bootstrap loaded');

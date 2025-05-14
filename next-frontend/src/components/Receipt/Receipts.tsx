@@ -13,7 +13,7 @@ declare global {
 const ReceiptsComponent = () => {
 
     useEffect(() => {
-  // @ts-ignore
+  // @ts-expect-error
   import('bootstrap/dist/js/bootstrap.bundle.min')
     .then(() => {
       console.log('Bootstrap loaded');
@@ -534,7 +534,7 @@ const ReceiptsComponent = () => {
                                                         id="capture-photo-btn">Capture Photo</button>
                                                     <canvas id="photo-canvas" width="640" height="480"
                                                         style={{ display: "none" }}></canvas>
-                                                    <img id="photo-preview" className="img-thumbnail mt-2" style={{ display: "none" }} />
+                                                    <img id="photo-preview" alt='photo-preview' className="img-thumbnail mt-2" style={{ display: "none" }} />
                                                 </div>
                                             </div>
                                         </div>

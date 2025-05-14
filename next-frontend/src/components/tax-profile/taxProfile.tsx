@@ -210,15 +210,15 @@ const TaxProfile: React.FC = () => {
 
                         <div id="spouse-details" className="row g-3 mt-2" style={{ display: 'none' }}>
                             <div className="col-md-4">
-                                <label htmlFor="spouse-name" className="form-label">Spouse's Full Name</label>
+                                <label htmlFor="spouse-name" className="form-label">Spouse&apos;s Full Name</label>
                                 <input type="text" className="form-control" id="spouse-name" />
                             </div>
                             <div className="col-md-4">
-                                <label htmlFor="spouse-tfn" className="form-label">Spouse's TFN</label>
+                                <label htmlFor="spouse-tfn" className="form-label">Spouse&apos;s TFN</label>
                                 <input type="text" className="form-control" id="spouse-tfn" pattern="[0-9]{9}" />
                             </div>
                             <div className="col-md-4">
-                                <label htmlFor="spouse-income" className="form-label">Spouse's Taxable Income</label>
+                                <label htmlFor="spouse-income" className="form-label">Spouse&apos;s Taxable Income</label>
                                 <input type="number" className="form-control" id="spouse-income" min="0" step="0.01" />
                             </div>
                             <div className="col-md-6">
