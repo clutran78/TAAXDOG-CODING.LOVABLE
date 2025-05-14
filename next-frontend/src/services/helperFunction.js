@@ -348,47 +348,47 @@ function loadIncomeDetails() {
 
 // Perform expense search
 export function performExpenseSearch(term) {
-  try {
-    const searchTerm = term.toLowerCase().trim();
+    try {
+        const searchTerm = term.toLowerCase().trim();
 
-    const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
-    const expenses = transactions.filter(tx => parseFloat(tx.amount) < 0);
+        const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+        const expenses = transactions.filter(tx => parseFloat(tx.amount) < 0);
 
-    const filteredExpenses = expenses.filter(expense => {
-      return (
-        (expense.description && expense.description.toLowerCase().includes(searchTerm)) ||
-        (expense.merchant && expense.merchant.toLowerCase().includes(searchTerm)) ||
-        (expense.category && expense.category.toLowerCase().includes(searchTerm)) ||
-        (expense.accountName && expense.accountName.toLowerCase().includes(searchTerm))
-      );
-    });
+        const filteredExpenses = expenses.filter(expense => {
+            return (
+                (expense.description && expense.description.toLowerCase().includes(searchTerm)) ||
+                (expense.merchant && expense.merchant.toLowerCase().includes(searchTerm)) ||
+                (expense.category && expense.category.toLowerCase().includes(searchTerm)) ||
+                (expense.accountName && expense.accountName.toLowerCase().includes(searchTerm))
+            );
+        });
 
-    const tableBody = document.getElementById('expenses-table-body');
-    const noExpensesMessage = document.getElementById('no-expenses-message');
+        const tableBody = document.getElementById('expenses-table-body');
+        const noExpensesMessage = document.getElementById('no-expenses-message');
 
-    if (tableBody) {
-      if (filteredExpenses.length === 0) {
-        tableBody.innerHTML = `
+        if (tableBody) {
+            if (filteredExpenses.length === 0) {
+                tableBody.innerHTML = `
           <tr>
             <td colspan="6" class="text-center py-4">
               <p>No matching expenses found for "${searchTerm}"</p>
             </td>
           </tr>
         `;
-        if (noExpensesMessage) noExpensesMessage.classList.remove('d-none');
-        return;
-      }
+                if (noExpensesMessage) noExpensesMessage.classList.remove('d-none');
+                return;
+            }
 
-      if (noExpensesMessage) noExpensesMessage.classList.add('d-none');
+            if (noExpensesMessage) noExpensesMessage.classList.add('d-none');
 
-      filteredExpenses.sort((a, b) => new Date(b.date) - new Date(a.date));
+            filteredExpenses.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-      let tableRows = '';
-      filteredExpenses.forEach(expense => {
-        const amount = Math.abs(parseFloat(expense.amount)).toFixed(2);
-        const date = new Date(expense.date).toLocaleDateString();
+            let tableRows = '';
+            filteredExpenses.forEach(expense => {
+                const amount = Math.abs(parseFloat(expense.amount)).toFixed(2);
+                const date = new Date(expense.date).toLocaleDateString();
 
-        tableRows += `
+                tableRows += `
           <tr>
             <td>${date}</td>
             <td>${expense.description || 'No description'}</td>
@@ -398,13 +398,13 @@ export function performExpenseSearch(term) {
             <td class="text-end text-danger">$${amount}</td>
           </tr>
         `;
-      });
+            });
 
-      tableBody.innerHTML = tableRows;
+            tableBody.innerHTML = tableRows;
+        }
+    } catch (error) {
+        console.log(`Error performing expense search: ${error.message}`);
     }
-  } catch (error) {
-    console.log(`Error performing expense search: ${error.message}`);
-  }
 }
 
 // set up search
@@ -443,11 +443,8 @@ function setupExpenseSearch() {
 
 // Open expense categories modal
 async function openExpenseCategoriesModal() {
-    debugger
+    if (typeof document === 'undefined') return;
 
-    if (typeof document === 'undefined') return; // Guard against SSR
-
-    // Dynamically import Modal only on the client
     const { default: Modal } = await import('bootstrap/js/dist/modal');
 
     let modalElement = document.getElementById('expense-categories-modal');
@@ -458,42 +455,59 @@ async function openExpenseCategoriesModal() {
         modalElement.className = 'modal fade';
         modalElement.setAttribute('tabindex', '-1');
         modalElement.innerHTML = `
-        <div class="modal-dialog modal-lg">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title">
-                <i class="fas fa-chart-pie text-danger me-2"></i>Expense Categories
-              </h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-              <div class="text-center p-5">
-                <div class="spinner-border text-primary" role="status">
-                  <span class="visually-hidden">Loading...</span>
-                </div>
-                <p class="mt-3">Loading expense data...</p>
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              <i class="fas fa-chart-pie text-danger me-2"></i>Expense Categories
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="text-center p-5">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
               </div>
+              <p class="mt-3">Loading expense data...</p>
             </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
           </div>
         </div>
-      `;
+      </div>
+    `;
         document.body.appendChild(modalElement);
     }
 
     const modal = new Modal(modalElement);
-    modal.show();
+
+    // Clean up after hiding modal first
+    modalElement.addEventListener(
+        'hidden.bs.modal',
+        () => {
+            // Delay removal slightly to allow Bootstrap to remove modal-open, backdrop, etc.
+            setTimeout(() => {
+                modal.dispose();           // clean up modal instance
+                modalElement.remove();     // remove modal DOM element
+
+                // ✅ Manually ensure body is scrollable again
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+            }, 100); // 100ms is safe buffer
+        },
+        { once: true }
+    );
+
 
     modalElement.addEventListener(
         'shown.bs.modal',
         () => loadExpenseCategoriesContent(modalElement),
         { once: true }
     );
-}
 
+    modal.show();
+}
 
 // Load detailed expenses
 function loadDetailedExpenses() {
@@ -898,7 +912,7 @@ function showAddGoalForm() {
 
 // Save goal
 function saveGoal(editIndex = null) {
-  
+
 
     try {
         // Get form values
@@ -1470,13 +1484,31 @@ async function openGoalsModal() {
 
         // Show the modal
         const modal = new Modal(modalElement);
-        modal.show();
+
+
+        modalElement.addEventListener(
+            'hidden.bs.modal',
+            () => {
+                // Delay removal slightly to allow Bootstrap to remove modal-open, backdrop, etc.
+                setTimeout(() => {
+                    modal.dispose();           // clean up modal instance
+                    modalElement.remove();     // remove modal DOM element
+
+                    // ✅ Manually ensure body is scrollable again
+                    document.body.classList.remove('modal-open');
+                    document.body.style.overflow = '';
+                }, 100); // 100ms is safe buffer
+            },
+            { once: true }
+        );
+
 
         // Load goals data after modal is shown
         modalElement.addEventListener('shown.bs.modal', function () {
             loadGoalsContent(modalElement);
         }, { once: true });
 
+        modal.show();
 
     } catch (error) {
         showToast('An error occurred while opening the goals. Please refresh the page.', 'danger');
@@ -2227,12 +2259,30 @@ export async function openBankAccountsModal() {
 
         // Show the modal
         const modal = new Modal(modalElement);
-        modal.show();
+
+        modalElement.addEventListener(
+            'hidden.bs.modal',
+            () => {
+                // Delay removal slightly to allow Bootstrap to remove modal-open, backdrop, etc.
+                setTimeout(() => {
+                    modal.dispose();           // clean up modal instance
+                    modalElement.remove();     // remove modal DOM element
+
+                    // ✅ Manually ensure body is scrollable again
+                    document.body.classList.remove('modal-open');
+                    document.body.style.overflow = '';
+                }, 100); // 100ms is safe buffer
+            },
+            { once: true }
+        );
+
 
         // Load bank accounts data after modal is shown
         modalElement.addEventListener('shown.bs.modal', function () {
             loadBankAccountsContent(modalElement);
         }, { once: true });
+
+        modal.show();
 
     } catch (error) {
         showToast('An error occurred while opening the bank accounts. Please refresh the page.', 'danger');
@@ -2256,7 +2306,7 @@ function loadBankAccountsContent(modalElement) {
 
         // Check if we have transactions, even without explicit accounts
         const hasTransactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]').length > 0;
-debugger
+        debugger
         // Hide loading indicator
         if (loadingIndicator) loadingIndicator.style.display = 'none';
 
