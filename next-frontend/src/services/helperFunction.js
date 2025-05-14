@@ -3198,28 +3198,33 @@ function setupFinancialFeatureHandlers() {
 
 // utils/showToast.ts (TypeScript-safe)
 export const showToast = (message, type = 'primary') => {
-    if (typeof window === 'undefined') return; // SSR guard
+  if (typeof window === 'undefined') return;
 
-    const toastEl = document.getElementById('main-toast');
-    const toastBody = document.getElementById('toast-body');
+  const toastEl = document.getElementById('main-toast');
+  const toastBody = document.getElementById('toast-body');
 
-    if (!toastEl || !toastBody) {
-        console.error('Toast elements not found in DOM.');
-        return;
-    }
+  if (!toastEl || !toastBody) {
+    console.error('Toast elements not found in DOM.');
+    return;
+  }
 
-    // Set message and style
-    toastBody.textContent = message;
-    toastEl.className = `toast align-items-center text-white bg-${type} border-0 position-fixed bottom-0 end-0 p-3`;
+  // Set toast body content
+  toastBody.textContent = message;
 
-    // Dynamically import Bootstrap Toast
-    import('bootstrap/js/dist/toast').then(({ default: Toast }) => {
-        const toast = Toast.getOrCreateInstance(toastEl);
-        toast.show();
+  // Update toast background class
+  toastEl.className = `toast align-items-center text-white bg-${type} border-0 position-fixed top-0 end-0 m-3`;
+
+  import('bootstrap/js/dist/toast')
+    .then(({ default: Toast }) => {
+      const toast = Toast.getOrCreateInstance(toastEl, {
+        autohide: true,
+        delay: 4000,
+      });
+      toast.show();
     })
-        .catch((err) => {
-            console.error('Failed to load Bootstrap Toast module:', err);
-        });
+    .catch((err) => {
+      console.error('Failed to load Bootstrap Toast module:', err);
+    });
 };
 
 
@@ -3267,6 +3272,673 @@ function updateReceiptDashboard(stats) {
 }
 
 
+// Function to update tax profile summary on the dashboard
+function updateTaxProfileSummary() {
+
+    try {
+        const taxProfileData = localStorage.getItem('taxProfileData');
+        const noProfileMessage = document.getElementById('no-tax-profile-message');
+        const summaryContent = document.getElementById('tax-profile-summary-content');
+
+        if (!taxProfileData) {
+            // No profile data exists
+            if (noProfileMessage) noProfileMessage.style.display = 'block';
+            if (summaryContent) summaryContent.style.display = 'none';
+            return;
+        }
+
+        // Profile data exists, parse it
+        const profile = JSON.parse(taxProfileData);
+
+        // Hide no profile message and show summary
+        if (noProfileMessage) noProfileMessage.style.display = 'none';
+        if (summaryContent) summaryContent.style.display = 'block';
+
+        // Update personal information
+        if (profile.personalInfo) {
+            const personalInfo = profile.personalInfo;
+
+            // Name
+            const fullName = `${personalInfo.firstName || ''} ${personalInfo.lastName || ''}`.trim();
+            document.getElementById('summary-full-name').textContent = fullName || '-';
+
+            // TFN (masked for privacy)
+            if (personalInfo.tfn) {
+                const maskedTfn = personalInfo.tfn.replace(/\d(?=\d{4})/g, '*');
+                document.getElementById('summary-tfn').textContent = maskedTfn;
+            } else {
+                document.getElementById('summary-tfn').textContent = '-';
+            }
+
+            // Filing Status
+            document.getElementById('summary-filing-status').textContent = personalInfo.filingStatus || '-';
+
+            // Dependents
+            const dependentsCount = personalInfo.hasDependents ?
+                (personalInfo.dependents ? personalInfo.dependents.length : 0) : 0;
+            document.getElementById('summary-dependents').textContent =
+                dependentsCount > 0 ? `${dependentsCount} dependent(s)` : 'None';
+        }
+
+        // Update financial summary
+
+        // Income sources
+        if (profile.income) {
+            const income = profile.income;
+            const employersCount = income.employers ? income.employers.length : 0;
+            const otherIncomeSources = [
+                income.interestIncome && 'Interest',
+                income.dividendIncome && 'Dividends',
+                income.trustIncome && 'Trust',
+                income.rentalIncome && 'Rental',
+                income.capitalGains && 'Capital Gains',
+                income.foreignIncome && 'Foreign',
+                income.businessIncome && 'Business',
+                income.superIncome && 'Super',
+                income.partnershipIncome && 'Partnership'
+            ].filter(Boolean);
+
+            const incomeSourcesText = employersCount > 0 ?
+                `${employersCount} employer(s)` : 'No employment income';
+
+            const additionalText = otherIncomeSources.length > 0 ?
+                `, plus ${otherIncomeSources.length} other source(s)` : '';
+
+            document.getElementById('summary-income-sources').textContent =
+                incomeSourcesText + additionalText;
+        }
+
+        // Deductions
+        if (profile.deductions) {
+            const deductions = profile.deductions;
+            const deductionTypes = [
+                deductions.useCarForWork && 'Car',
+                deductions.workClothing && 'Work clothing',
+                deductions.homeOffice && 'Home office',
+                deductions.selfEducation && 'Self-education',
+                deductions.tools && 'Tools',
+                deductions.donations && 'Donations',
+                deductions.taxAgentFees && 'Tax agent fees'
+            ].filter(Boolean);
+
+            document.getElementById('summary-deductions').textContent =
+                deductionTypes.length > 0 ?
+                    `${deductionTypes.length} type(s)` : 'None claimed';
+        }
+
+        // HECS/HELP
+        if (profile.hecs) {
+            document.getElementById('summary-hecs').textContent =
+                profile.hecs.hasHecs ? 'Yes' : 'No';
+        }
+
+    } catch (error) {
+        // In case of error, just show the no profile message
+        const noProfileMessage = document.getElementById('no-tax-profile-message');
+        const summaryContent = document.getElementById('tax-profile-summary-content');
+
+        if (noProfileMessage) noProfileMessage.style.display = 'block';
+        if (summaryContent) summaryContent.style.display = 'none';
+    }
+}
+
+// Initialize empty tax profile data
+function initializeEmptyTaxProfile() {
+    const emptyProfile = {
+        personalInfo: {},
+        income: {},
+        deductions: {},
+        taxOffsets: {},
+        medicare: {},
+        hecs: {},
+        additionalInfo: {},
+        lastUpdated: new Date().toISOString()
+    };
+
+    localStorage.setItem('taxProfileData', JSON.stringify(emptyProfile));
+}
+
+// Load existing tax profile data into the form
+function loadTaxProfileData() {
+    try {
+        const taxProfileData = JSON.parse(localStorage.getItem('taxProfileData'));
+        if (!taxProfileData) return;
+
+        // Populate form fields from the saved data
+        // Personal Information
+        if (taxProfileData.personalInfo) {
+            const personalInfo = taxProfileData.personalInfo;
+
+            // Basic Identification
+            if (personalInfo.title) document.getElementById('title').value = personalInfo.title;
+            if (personalInfo.familyName) document.getElementById('family-name').value = personalInfo.familyName;
+            if (personalInfo.firstName) document.getElementById('first-given-name').value = personalInfo.firstName;
+            if (personalInfo.otherNames) document.getElementById('other-given-names').value = personalInfo.otherNames;
+            if (personalInfo.previousNames) document.getElementById('previous-names').value = personalInfo.previousNames;
+            if (personalInfo.dateOfBirth) document.getElementById('date-of-birth').value = personalInfo.dateOfBirth;
+            if (personalInfo.tfn) document.getElementById('tfn').value = personalInfo.tfn;
+            if (personalInfo.abn) document.getElementById('abn').value = personalInfo.abn;
+
+            // Contact Details
+            if (personalInfo.residentialAddress) document.getElementById('residential-address').value = personalInfo.residentialAddress;
+            if (personalInfo.postalAddress) document.getElementById('postal-address').value = personalInfo.postalAddress;
+            if (personalInfo.email) document.getElementById('email').value = personalInfo.email;
+            if (personalInfo.mobile) document.getElementById('mobile').value = personalInfo.mobile;
+            if (personalInfo.alternativePhone) document.getElementById('alternative-phone').value = personalInfo.alternativePhone;
+
+            // Filing Status
+            if (personalInfo.residencyStatus) {
+                if (personalInfo.residencyStatus === 'yes') {
+                    document.getElementById('resident-yes').checked = true;
+                } else {
+                    document.getElementById('resident-no').checked = true;
+                }
+            }
+
+            if (personalInfo.taxFreeThreshold) {
+                if (personalInfo.taxFreeThreshold === 'yes') {
+                    document.getElementById('threshold-yes').checked = true;
+                } else {
+                    document.getElementById('threshold-no').checked = true;
+                }
+            }
+
+            // Spouse details
+            if (personalInfo.hasSpouse) {
+                document.getElementById('has-spouse').checked = true;
+                toggleSpouseDetails();
+
+                if (personalInfo.spouseName) document.getElementById('spouse-name').value = personalInfo.spouseName;
+                if (personalInfo.spouseTfn) document.getElementById('spouse-tfn').value = personalInfo.spouseTfn;
+                if (personalInfo.spouseIncome) document.getElementById('spouse-income').value = personalInfo.spouseIncome;
+
+                if (personalInfo.spousePeriod) {
+                    if (personalInfo.spousePeriod === 'full') {
+                        document.getElementById('spouse-full').checked = true;
+                    } else {
+                        document.getElementById('spouse-partial').checked = true;
+                    }
+                }
+            }
+
+            // Dependent details
+            if (personalInfo.hasDependents) {
+                document.getElementById('has-dependents').checked = true;
+                toggleDependentDetails();
+
+                if (personalInfo.dependents && personalInfo.dependents.length > 0) {
+                    personalInfo.dependents.forEach(dependent => addDependentToForm(dependent));
+                }
+            }
+
+            // Bank account
+            if (personalInfo.bankBsb) document.getElementById('bank-bsb').value = personalInfo.bankBsb;
+            if (personalInfo.bankAccount) document.getElementById('bank-account').value = personalInfo.bankAccount;
+            if (personalInfo.bankName) document.getElementById('bank-name').value = personalInfo.bankName;
+        }
+
+        // Income information
+        if (taxProfileData.income) {
+            const income = taxProfileData.income;
+
+            // Employment Income
+            if (income.employers && income.employers.length > 0) {
+                income.employers.forEach(employer => addEmployerToForm(employer));
+            }
+
+            // Investment Income
+            if (income.interestIncome) document.getElementById('interest-income').value = income.interestIncome;
+            if (income.dividendIncome) document.getElementById('dividend-income').value = income.dividendIncome;
+            if (income.trustIncome) document.getElementById('trust-income').value = income.trustIncome;
+            if (income.rentalIncome) document.getElementById('rental-income').value = income.rentalIncome;
+            if (income.capitalGains) document.getElementById('capital-gains').value = income.capitalGains;
+
+            // Government Payments
+            if (income.govtPaymentType) document.getElementById('govt-payment-type').value = income.govtPaymentType;
+            if (income.govtPaymentAmount) document.getElementById('govt-payment-amount').value = income.govtPaymentAmount;
+            if (income.govtPaymentTax) document.getElementById('govt-payment-tax').value = income.govtPaymentTax;
+
+            // Other Income
+            if (income.foreignIncome) document.getElementById('foreign-income').value = income.foreignIncome;
+            if (income.businessIncome) document.getElementById('business-income').value = income.businessIncome;
+            if (income.superIncome) document.getElementById('super-income').value = income.superIncome;
+            if (income.partnershipIncome) document.getElementById('partnership-income').value = income.partnershipIncome;
+        }
+
+        // Deductions
+        if (taxProfileData.deductions) {
+            const deductions = taxProfileData.deductions;
+
+            // Car Expenses
+            if (deductions.useCarForWork) {
+                document.getElementById('use-car-for-work').checked = true;
+                toggleCarExpenseDetails();
+
+                if (deductions.carMake) document.getElementById('car-make').value = deductions.carMake;
+                if (deductions.carRegistration) document.getElementById('car-registration').value = deductions.carRegistration;
+                if (deductions.carMethod) document.getElementById('car-method').value = deductions.carMethod;
+                if (deductions.businessKm) document.getElementById('business-km').value = deductions.businessKm;
+                if (deductions.carExpenses) document.getElementById('car-expenses').value = deductions.carExpenses;
+            }
+
+            // Other deduction sections would be populated here
+        }
+
+        // Other sections (tax offsets, medicare, hecs, additional info) would be populated here
+
+    } catch (error) {
+        showToast('Failed to load your tax profile data. Please try again.', 'danger');
+    }
+}
+
+
+
+// Toggle spouse details visibility
+function toggleSpouseDetails() {
+    const hasSpouse = document.getElementById('has-spouse').checked;
+    const spouseDetails = document.getElementById('spouse-details');
+
+    if (hasSpouse) {
+        spouseDetails.style.display = 'flex';
+    } else {
+        spouseDetails.style.display = 'none';
+    }
+}
+
+// Toggle dependent details visibility
+function toggleDependentDetails() {
+    const hasDependents = document.getElementById('has-dependents').checked;
+    const dependentDetails = document.getElementById('dependent-details');
+
+    if (hasDependents) {
+        dependentDetails.style.display = 'flex';
+    } else {
+        dependentDetails.style.display = 'none';
+    }
+}
+
+// Toggle car expense details visibility
+function toggleCarExpenseDetails() {
+    const useCarForWork = document.getElementById('use-car-for-work').checked;
+    const carExpenseDetails = document.getElementById('car-expense-details');
+
+    if (useCarForWork) {
+        carExpenseDetails.style.display = 'flex';
+    } else {
+        carExpenseDetails.style.display = 'none';
+    }
+}
+
+// Add dependent to form
+function addDependentToForm(dependent = null) {
+    const dependentsContainer = document.getElementById('dependents-container');
+    const dependentCount = dependentsContainer.querySelectorAll('.dependent-item').length + 1;
+
+    const dependentDiv = document.createElement('div');
+    dependentDiv.className = 'dependent-item card mb-3';
+    dependentDiv.innerHTML = `
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Dependent ${dependentCount}</h5>
+            <button type="button" class="btn btn-sm btn-outline-danger remove-dependent">
+                <i class="fas fa-times"></i> Remove
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" class="form-control dependent-name" value="${dependent?.name || ''}" required>
+                    <div class="invalid-feedback">Please enter dependent's name.</div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Date of Birth</label>
+                    <input type="date" class="form-control dependent-dob" value="${dependent?.dateOfBirth || ''}" required>
+                    <div class="invalid-feedback">Please enter date of birth.</div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Relationship</label>
+                    <select class="form-select dependent-relationship" required>
+                        <option value="" ${!dependent?.relationship ? 'selected' : ''}>Choose...</option>
+                        <option value="child" ${dependent?.relationship === 'child' ? 'selected' : ''}>Child</option>
+                        <option value="stepchild" ${dependent?.relationship === 'stepchild' ? 'selected' : ''}>Stepchild</option>
+                        <option value="foster" ${dependent?.relationship === 'foster' ? 'selected' : ''}>Foster child</option>
+                        <option value="other" ${dependent?.relationship === 'other' ? 'selected' : ''}>Other</option>
+                    </select>
+                    <div class="invalid-feedback">Please select relationship.</div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Add remove handler
+    const removeButton = dependentDiv.querySelector('.remove-dependent');
+    removeButton.addEventListener('click', function () {
+        dependentsContainer.removeChild(dependentDiv);
+    });
+
+    dependentsContainer.appendChild(dependentDiv);
+}
+
+// Add employer to form
+function addEmployerToForm(employer = null) {
+    const employersContainer = document.getElementById('employers-container');
+    const employerCount = employersContainer.querySelectorAll('.employer-item').length + 1;
+
+    const employerDiv = document.createElement('div');
+    employerDiv.className = 'employer-item card mb-3';
+    employerDiv.innerHTML = `
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Employer ${employerCount}</h5>
+            <button type="button" class="btn btn-sm btn-outline-danger remove-employer">
+                <i class="fas fa-times"></i> Remove
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Employer Name</label>
+                    <input type="text" class="form-control employer-name" value="${employer?.name || ''}" required>
+                    <div class="invalid-feedback">Please enter employer name.</div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">ABN</label>
+                    <input type="text" class="form-control employer-abn" value="${employer?.abn || ''}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Occupation</label>
+                    <input type="text" class="form-control employer-occupation" value="${employer?.occupation || ''}" required>
+                    <div class="invalid-feedback">Please enter your occupation.</div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Employment Type</label>
+                    <select class="form-select employer-type" required>
+                        <option value="" ${!employer?.employmentType ? 'selected' : ''}>Choose...</option>
+                        <option value="full-time" ${employer?.employmentType === 'full-time' ? 'selected' : ''}>Full-time</option>
+                        <option value="part-time" ${employer?.employmentType === 'part-time' ? 'selected' : ''}>Part-time</option>
+                        <option value="casual" ${employer?.employmentType === 'casual' ? 'selected' : ''}>Casual</option>
+                    </select>
+                    <div class="invalid-feedback">Please select employment type.</div>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Salary/Wages</label>
+                    <input type="number" class="form-control employer-salary" min="0" step="0.01" value="${employer?.salary || ''}" required>
+                    <div class="invalid-feedback">Please enter your salary.</div>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Tax Withheld</label>
+                    <input type="number" class="form-control employer-tax" min="0" step="0.01" value="${employer?.taxWithheld || ''}">
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Add remove handler
+    const removeButton = employerDiv.querySelector('.remove-employer');
+    removeButton.addEventListener('click', function () {
+        employersContainer.removeChild(employerDiv);
+    });
+
+    employersContainer.appendChild(employerDiv);
+}
+
+// Validate the tax profile form
+function validateTaxProfileForm() {
+
+    // Get the form
+    const form = document.getElementById('tax-profile-form');
+
+    // Add bootstrap validation classes
+    form.classList.add('was-validated');
+
+    // Check if the form is valid
+    if (!form.checkValidity()) {
+        // Focus on first invalid field
+        const firstInvalidField = form.querySelector(':invalid');
+        if (firstInvalidField) {
+            // Activate the tab containing the invalid field
+            const tabPane = firstInvalidField.closest('.tab-pane');
+            if (tabPane) {
+                const tabId = tabPane.id.replace('-content', '-tab');
+                const tab = document.getElementById(tabId);
+                if (tab) {
+                    tab.click();
+                }
+            }
+
+            firstInvalidField.focus();
+        }
+
+        showToast('Please fill in all required fields correctly.', 'warning');
+        return false;
+    }
+
+    return true;
+}
+
+// Collect data from dynamic employer fields
+function collectEmployersData() {
+    const employersData = [];
+    const employerElements = document.querySelectorAll('.employer-item');
+
+    employerElements.forEach(element => {
+        const employer = {
+            name: element.querySelector('.employer-name')?.value || '',
+            abn: element.querySelector('.employer-abn')?.value || '',
+            occupation: element.querySelector('.employer-occupation')?.value || '',
+            employmentType: element.querySelector('.employer-type')?.value || '',
+            salary: element.querySelector('.employer-salary')?.value || '',
+            taxWithheld: element.querySelector('.employer-tax')?.value || ''
+        };
+
+        employersData.push(employer);
+    });
+
+    return employersData;
+}
+
+// Update saveTaxProfileData to update the dashboard summary
+async function saveTaxProfileData() {
+    debugger
+    try {
+        const { default: Modal } = await import('bootstrap/js/dist/modal');
+
+
+        // First validate the form
+        if (!validateTaxProfileForm()) {
+            return false;
+        }
+
+        // Collect data from the form
+        const taxProfileData = {
+            personalInfo: {
+                // Basic Identification
+                title: document.getElementById('title').value,
+                familyName: document.getElementById('family-name').value,
+                firstName: document.getElementById('first-given-name').value,
+                otherNames: document.getElementById('other-given-names').value,
+                previousNames: document.getElementById('previous-names').value,
+                dateOfBirth: document.getElementById('date-of-birth').value,
+                tfn: document.getElementById('tfn').value,
+                abn: document.getElementById('abn').value,
+
+                // Contact Details
+                residentialAddress: document.getElementById('residential-address').value,
+                postalAddress: document.getElementById('postal-address').value,
+                email: document.getElementById('email').value,
+                mobile: document.getElementById('mobile').value,
+                alternativePhone: document.getElementById('alternative-phone').value,
+
+                // Filing Status
+                residencyStatus: document.querySelector('input[name="residency-status"]:checked')?.value,
+                taxFreeThreshold: document.querySelector('input[name="tax-free-threshold"]:checked')?.value,
+
+                // Spouse details
+                hasSpouse: document.getElementById('has-spouse').checked,
+                spouseName: document.getElementById('has-spouse').checked ? document.getElementById('spouse-name').value : '',
+                spouseTfn: document.getElementById('has-spouse').checked ? document.getElementById('spouse-tfn').value : '',
+                spouseIncome: document.getElementById('has-spouse').checked ? document.getElementById('spouse-income').value : '',
+                spousePeriod: document.getElementById('has-spouse').checked ? document.querySelector('input[name="spouse-period"]:checked')?.value : '',
+
+                // Dependent details
+                hasDependents: document.getElementById('has-dependents').checked,
+                dependents: document.getElementById('has-dependents').checked ? collectDependentsData() : [],
+
+                // Bank account
+                bankBsb: document.getElementById('bank-bsb').value,
+                bankAccount: document.getElementById('bank-account').value,
+                bankName: document.getElementById('bank-name').value
+            },
+            income: {
+                // Employment Income
+                employers: collectEmployersData(),
+
+                // Investment Income
+                interestIncome: document.getElementById('interest-income').value,
+                dividendIncome: document.getElementById('dividend-income').value,
+                trustIncome: document.getElementById('trust-income').value,
+                rentalIncome: document.getElementById('rental-income').value,
+                capitalGains: document.getElementById('capital-gains').value,
+
+                // Government Payments
+                govtPaymentType: document.getElementById('govt-payment-type').value,
+                govtPaymentAmount: document.getElementById('govt-payment-amount').value,
+                govtPaymentTax: document.getElementById('govt-payment-tax').value,
+
+                // Other Income
+                foreignIncome: document.getElementById('foreign-income').value,
+                businessIncome: document.getElementById('business-income').value,
+                superIncome: document.getElementById('super-income').value,
+                partnershipIncome: document.getElementById('partnership-income').value
+            },
+            deductions: {
+                // Car Expenses
+                useCarForWork: document.getElementById('use-car-for-work').checked,
+                carMake: document.getElementById('use-car-for-work').checked ? document.getElementById('car-make').value : '',
+                carRegistration: document.getElementById('use-car-for-work').checked ? document.getElementById('car-registration').value : '',
+                carMethod: document.getElementById('use-car-for-work').checked ? document.getElementById('car-method').value : '',
+                businessKm: document.getElementById('use-car-for-work').checked ? document.getElementById('business-km').value : '',
+                carExpenses: document.getElementById('use-car-for-work').checked ? document.getElementById('car-expenses').value : ''
+
+                // Other deduction sections would be collected here
+            },
+            taxOffsets: {
+                // Tax offset data would be collected here
+            },
+            medicare: {
+                // Medicare data would be collected here
+            },
+            hecs: {
+                // HECS/HELP data would be collected here
+            },
+            additionalInfo: {
+                // Additional information would be collected here
+            },
+            lastUpdated: new Date().toISOString()
+        };
+
+        // Save to local storage
+        localStorage.setItem('taxProfileData', JSON.stringify(taxProfileData));
+
+        // Update dashboard summary
+        updateTaxProfileSummary();
+
+        // Show success message
+        showToast('Your tax profile has been saved successfully!', 'success');
+
+        // // Close the modal
+        const modal =  Modal.getInstance(document.getElementById('tax-profile-modal'));
+        if (modal) {
+            modal.hide();
+        }
+
+        return true;
+
+    } catch (error) {
+        debugger
+        showToast('Failed to save your tax profile. Please try again.', 'danger');
+        return false;
+    }
+}
+
+// Setup event listeners for the tax profile form
+function setupTaxProfileForm() {
+
+    // Spouse checkbox change
+    const hasSpouseCheckbox = document.getElementById('has-spouse');
+    if (hasSpouseCheckbox) {
+        hasSpouseCheckbox.addEventListener('change', toggleSpouseDetails);
+    }
+
+    // Dependent checkbox change
+    const hasDependentsCheckbox = document.getElementById('has-dependents');
+    if (hasDependentsCheckbox) {
+        hasDependentsCheckbox.addEventListener('change', toggleDependentDetails);
+    }
+
+    // Car expense checkbox change
+    const useCarForWorkCheckbox = document.getElementById('use-car-for-work');
+    if (useCarForWorkCheckbox) {
+        useCarForWorkCheckbox.addEventListener('change', toggleCarExpenseDetails);
+    }
+
+    // Add employer button
+    const addEmployerButton = document.getElementById('add-employer');
+    if (addEmployerButton) {
+        addEmployerButton.addEventListener('click', function () {
+            addEmployerToForm();
+        });
+    }
+
+    // Add dependent button
+    const addDependentButton = document.getElementById('add-dependent');
+    if (addDependentButton) {
+        addDependentButton.addEventListener('click', function () {
+            addDependentToForm();
+        });
+    }
+
+    // Save tax profile button
+    const saveTaxProfileButton = document.getElementById('save-tax-profile');
+    if (saveTaxProfileButton) {
+        saveTaxProfileButton.addEventListener('click', saveTaxProfileData);
+    }
+}
+
+
+function setupDashboardTiles() {
+
+    // Tax Profile card
+    const taxProfileCard = document.getElementById('tax-profile-card');
+    if (taxProfileCard) {
+        taxProfileCard.addEventListener('click', function () {
+            const taxProfileModal = new bootstrap.Modal(document.getElementById('tax-profile-modal'));
+            taxProfileModal.show();
+
+            // If no tax profile data exists yet, initialize with empty data
+            if (!localStorage.getItem('taxProfileData')) {
+                initializeEmptyTaxProfile();
+            } else {
+                // Load existing tax profile data
+                loadTaxProfileData();
+            }
+        });
+    }
+
+    // Edit tax profile button
+    const editTaxProfileBtn = document.getElementById('edit-tax-profile-btn');
+    if (editTaxProfileBtn) {
+        editTaxProfileBtn.addEventListener('click', function (e) {
+            e.stopPropagation(); // Prevent the card click handler from firing
+
+            const taxProfileModal = new bootstrap.Modal(document.getElementById('tax-profile-modal'));
+            taxProfileModal.show();
+
+            // Load existing tax profile data
+            loadTaxProfileData();
+        });
+    }
+}
+
 
 export {
     generateMockTransactions,
@@ -3288,5 +3960,10 @@ export {
     loadBankAccountsContent,
     handleCustomAccountAddition,
     handleMockConnection,
-    setupBankConnectionHandlers
+    setupBankConnectionHandlers,
+    updateTaxProfileSummary,
+    initializeEmptyTaxProfile,
+    loadTaxProfileData,
+    setupTaxProfileForm,
+    setupDashboardTiles
 }
