@@ -1,139 +1,146 @@
-"use client";
-import { useState, useEffect } from "react";
+'use client';
 
-interface DetailedExpensesModalProps {
-  show: boolean;
-  handleClose: () => void;
-  openExpenseCategories: () => void;
-}
+import { useEffect, useRef, useState } from 'react';
+import {
+  loadDetailedExpenses,
+  openExpenseCategoriesModal,
+  performExpenseSearch,
+  setupFinancialFeatureHandlers,
+} from '@/services/helperFunction';
 
-const ExpenseCategoriesModal: React.FC<DetailedExpensesModalProps> = ({
-  show,
-  handleClose,
-}) => {
+const TotalExpensesModal = () => {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  // const handleCloseNetIncomeModal = () => setShowNetIncomeModal(false);
+  // Load data on mount
+  useEffect(() => {
+    loadDetailedExpenses();
+    setupFinancialFeatureHandlers();
+  }, []);
 
+  // Debounced search
+  useEffect(() => {
+    const debounce = setTimeout(() => {
+      if (searchTerm.trim() === '') {
+        loadDetailedExpenses();
+      } else {
+        performExpenseSearch(searchTerm.trim());
+      }
+    }, 400);
+    return () => clearTimeout(debounce);
+  }, [searchTerm]);
+
+  // Open modal method
+  const openModal = () => {
+    import('bootstrap/js/dist/modal').then(({ default: Modal }) => {
+      if (modalRef.current) {
+        const modal = Modal.getOrCreateInstance(modalRef.current);
+        modal.show();
+      }
+    });
+  };
+
+  // Close modal method
+  const closeModal = () => {
+    import('bootstrap/js/dist/modal').then(({ default: Modal }) => {
+      if (modalRef.current) {
+        const modal = Modal.getInstance(modalRef.current);
+        modal?.hide();
+      }
+    });
+  };
+
+  // Expose global open method
+  useEffect(() => {
+    (window as any).openExpensesModal = openModal;
+  }, []);
 
   return (
-    <>
-    {/* <div className="modal fade" id="expense-categories-modal" aria-labelledby="expense-categories-modal-label"
-        aria-hidden="true">
-        <div className="modal-dialog modal-lg">
-            <div className="modal-content">
-                <div className="modal-header">
-                    <h5 className="modal-title" id="expense-categories-modal-label">
-                        <i className="fas fa-chart-pie text-danger me-2"></i>Expense Categories
-                    </h5>
-                    <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div className="modal-body">
-                    <div className="text-center p-5">
-                        <div className="spinner-border text-primary" role="status">
-                            <span className="visually-hidden">Loading...</span>
-                        </div>
-                        <p className="mt-3">Loading expense data...</p>
-                    </div>
-                </div>
-                <div className="modal-footer">
-                    <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" className="btn btn-primary" id="view-all-expenses-btn">
-                        <i className="fas fa-list-ul me-2"></i>View All Expenses
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div> */}
+    <div
+      className="modal fade"
+      id="total-expenses-modal"
+      tabIndex={-1}
+      aria-labelledby="total-expenses-modal-label"
+      style={{zIndex:"9999"}}
+      aria-hidden="true"
+      ref={modalRef}
+    >
+      <div className="modal-dialog modal-xl modal-dialog-scrollable">
+        <div className="modal-content">
+          <div className="modal-header bg-danger text-white">
+            <h5 className="modal-title" id="total-expenses-modal-label">
+              <i className="fas fa-receipt me-2"></i> Detailed Expenses
+            </h5>
+            <button
+              type="button"
+              className="btn-close btn-close-white"
+              onClick={closeModal}
+              aria-label="Close"
+            ></button>
+          </div>
 
-      {/* <Modal show={show} onHide={handleClose} size="xl" centered>
-        <Modal.Header closeButton>
-          <Modal.Title id="expense-categories-modal-label">
-            <i className="fas fa-chart-pie text-danger me-2"></i>
-            Expense Categories
-          </Modal.Title>
-        </Modal.Header>
-
-        <Modal.Body className="position-relative">
-          {isLoading && (
-            <div className="position-absolute top-0 start-0 end-0 bottom-0 d-flex flex-column justify-content-center align-items-center spinner-overlay">
-              <Spinner animation="border" variant="primary" role="status" />
-              <p className="mt-3">Loading expense data...</p>
-            </div>
-          )}
-
-          <div className="row mb-4">
-            <div className="col-12">
-              <div className="card bg-light">
-                <div className="card-body">
-                  <div className="d-flex justify-content-between align-items-center">
+          <div className="modal-body">
+            {/* Totals and Search */}
+            <div className="row mb-4">
+              <div className="col-md-6">
+                <div className="card bg-light">
+                  <div className="card-body d-flex justify-content-between align-items-center">
                     <h4 className="mb-0">Total Expenses</h4>
                     <h3 className="text-danger mb-0" id="modal-detailed-expenses-value">$0.00</h3>
                   </div>
                 </div>
               </div>
-              {showAllExpenses && (
-                <div className="col-12">
-                  <div className="input-group">
-                    <input
-                      type="text"
-                      className="form-control"
-                      id="expense-search"
-                      placeholder="Search expenses..."
-                    />
-                    <button
-                      className="btn btn-primary"
-                      type="button"
-                      id="expense-search-btn"
-                    >
-                      <i className="fas fa-search"></i>
-                    </button>
-                  </div>
+              <div className="col-md-6">
+                <div className="input-group">
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Search expenses..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
                 </div>
-              )}
+              </div>
+            </div>
+
+            <div id="no-expenses-message" className="alert alert-info d-none">
+              <i className="fas fa-info-circle me-2"></i>No expenses found. Connect your bank account to see your expenses.
+            </div>
+
+            <div className="table-responsive">
+              <table className="table table-hover">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Merchant</th>
+                    <th>Category</th>
+                    <th>Account</th>
+                    <th className="text-end">Amount</th>
+                  </tr>
+                </thead>
+                <tbody id="expenses-table-body">
+                  {/* Injected by JS */}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="d-flex justify-content-end mt-3  cursor-pointer">
+              <button type="button" className="btn btn-primary" onClick={ ()=>setTimeout(() => openExpenseCategoriesModal(), 400)}>
+                <i className="fas fa-chart-pie me-2"></i>View Expense Categories
+              </button>
             </div>
           </div>
 
-          <div id="no-expenses-message" className="alert alert-info d-none">
-            <i className="fas fa-info-circle me-2"></i>No expenses found. Connect your bank account to see your
-            expenses.
-          </div>
-
-          <div className="table-responsive">
-            <table className="table table-hover">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Description</th>
-                  <th>Merchant</th>
-                  <th>Category</th>
-                  <th>Account</th>
-                  <th className="text-end">Amount</th>
-                </tr>
-              </thead>
-              <tbody id="expenses-table-body">
-
-              </tbody>
-            </table>
-          </div>
-
-        </Modal.Body>
-
-        <Modal.Footer>
           <div className="modal-footer">
-            <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            <button type="button" className="btn btn-primary" id="view-expense-categories-btn">
-              <i className="fas fa-chart-pie me-2"></i>View Expense Categories
+            <button type="button" className="btn btn-secondary" onClick={closeModal}>
+              Close
             </button>
           </div>
-        </Modal.Footer>
-      </Modal> */}
-
-      {/* <NetIncomeModal
-        show={showNetIncomeModal}
-        handleClose={handleCloseNetIncomeModal}
-      /> */}
-    </>
+        </div>
+      </div>
+    </div>
   );
 };
 
-export default ExpenseCategoriesModal;
+export default TotalExpensesModal;

@@ -443,19 +443,19 @@ function setupExpenseSearch() {
 
 // Open expense categories modal
 async function openExpenseCategoriesModal() {
-    if (typeof document === 'undefined') return;
+  if (typeof document === 'undefined') return;
 
-    const { default: Modal } = await import('bootstrap/js/dist/modal');
+  const { default: Modal } = await import('bootstrap/js/dist/modal');
 
-    let modalElement = document.getElementById('expense-categories-modal');
+  let modalElement = document.getElementById('expense-categories-modal');
 
-    if (!modalElement) {
-        modalElement = document.createElement('div');
-        modalElement.id = 'expense-categories-modal';
-        modalElement.className = 'modal fade';
-        modalElement.setAttribute('tabindex', '-1');
-        modalElement.innerHTML = `
-      <div class="modal-dialog modal-lg">
+  if (!modalElement) {
+    modalElement = document.createElement('div');
+    modalElement.id = 'expense-categories-modal';
+    modalElement.className = 'modal fade';
+    modalElement.setAttribute('tabindex', '-1');
+    modalElement.innerHTML = `
+      <div class="modal-dialog modal-lg" style="z-index: 99999;">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">
@@ -477,36 +477,35 @@ async function openExpenseCategoriesModal() {
         </div>
       </div>
     `;
-        document.body.appendChild(modalElement);
-    }
 
-    const modal = new Modal(modalElement);
+    // Apply z-index to the modal container directly as well
+    modalElement.style.zIndex = '99999';
 
-    // Clean up after hiding modal first
-    modalElement.addEventListener(
-        'hidden.bs.modal',
-        () => {
-            // Delay removal slightly to allow Bootstrap to remove modal-open, backdrop, etc.
-            setTimeout(() => {
-                modal.dispose();           // clean up modal instance
-                modalElement.remove();     // remove modal DOM element
+    document.body.appendChild(modalElement);
+  }
 
-                // ✅ Manually ensure body is scrollable again
-                document.body.classList.remove('modal-open');
-                document.body.style.overflow = '';
-            }, 100); // 100ms is safe buffer
-        },
-        { once: true }
-    );
+  const modal = new Modal(modalElement);
 
+  modalElement.addEventListener(
+    'hidden.bs.modal',
+    () => {
+      setTimeout(() => {
+        modal.dispose();
+        modalElement.remove();
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+      }, 100);
+    },
+    { once: true }
+  );
 
-    modalElement.addEventListener(
-        'shown.bs.modal',
-        () => loadExpenseCategoriesContent(modalElement),
-        { once: true }
-    );
+  modalElement.addEventListener(
+    'shown.bs.modal',
+    () => loadExpenseCategoriesContent(modalElement),
+    { once: true }
+  );
 
-    modal.show();
+  modal.show();
 }
 
 // Load detailed expenses
