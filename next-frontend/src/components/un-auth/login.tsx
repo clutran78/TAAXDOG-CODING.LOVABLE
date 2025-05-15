@@ -94,7 +94,7 @@ export default function LoginPage() {
         {/* Sign Up Redirect */}
         <div className="text-center">
           <p className="text-sm text-gray-700">
-            Don’t have an account?{' '}
+            Don't have an account?{' '}
             <Link
               href="/unauth/sign-up"
               className="text-blue-600 hover:underline font-semibold"
