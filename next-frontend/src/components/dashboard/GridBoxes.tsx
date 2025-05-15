@@ -5,6 +5,8 @@ import AlertMessage from "@/shared/alerts";
 import NetIncomeModal from "@/shared/modals/NetIncomeModal";
 import NetBalanceDetails from "@/shared/modals/NetBalanceDetailsModal";
 import SubscriptionsModal from "@/shared/modals/ManageSubscriptionsModal";
+import { auth } from '../../lib/firebase';
+
 
 const GridBoxes = () => {
   const [showNetIncomeModal, setShowNetIncomeModal] = useState(false);
@@ -12,6 +14,18 @@ const GridBoxes = () => {
   const [alert, setAlert] = useState<{ message: string; type: string } | null>(null);
 
   const [showNetBalanceDetailsModal, setShowNetBalanceDetailsModal] = useState(false)
+
+  // Example: useEffect for auth state
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(user => {
+      if (user) {
+        console.log('User logged in:', user);
+      } else {
+        console.log('No user logged in');
+      }
+    });
+    return () => unsubscribe();
+  }, [])
 
   useEffect(() => {
     if (showNetIncomeModal) {

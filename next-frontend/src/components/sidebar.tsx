@@ -1,5 +1,6 @@
 "use client";
 
+import { logout } from "@/shared/signOut";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -14,7 +15,7 @@ export default function Sidebar() {
         <ul className="nav flex-column">
           <li className="nav-item">
             <Link
-              href="/"
+              href="/dashboard"
               className={`nav-link ${isActive("/") ? "active fw-bold text-primary" : ""}`}
             >
               <i className="fas fa-tachometer-alt"></i> Dashboard
@@ -112,7 +113,7 @@ export default function Sidebar() {
           </li>
         </ul>
 
-        <div className="logout-button mt-auto">
+        <div onClick={logout} className="logout-button mt-auto">
           <ul className="nav flex-column">
             <li className="nav-item">
               <div className="nav-link d-flex align-items-center cursor-pointer" id="logout-button">
