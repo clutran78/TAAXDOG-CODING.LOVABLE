@@ -16,7 +16,7 @@ export default function Sidebar() {
           <li className="nav-item">
             <Link
               href="/dashboard"
-              className={`nav-link ${isActive("/") ? "active fw-bold text-primary" : ""}`}
+              className={`nav-link ${isActive("/dashboard") ? "active fw-bold text-primary" : ""}`}
             >
               <i className="fas fa-tachometer-alt"></i> Dashboard
             </Link>
