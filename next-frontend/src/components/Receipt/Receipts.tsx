@@ -52,101 +52,102 @@ const ReceiptsComponent = () => {
 
     useEffect(() => {
         const receiptFileInput = document.getElementById('receipt-file') as HTMLInputElement | null;
-        const receiptUrlInput = document.getElementById('receipt-url') as HTMLInputElement | null;
+        const receiptUrlInput = document.getElementById('receipt-url') as HTMLInputElement | any;
         const photoCanvas = document.getElementById('photo-canvas') as HTMLCanvasElement | null;
-        const submitReceiptBtn = document.querySelector('#receipt-upload-section button[type="submit"]') as HTMLButtonElement | null;
-        const video = document.getElementById('camera-stream') as HTMLVideoElement | null;
+        const photoPreview = document.getElementById('photo-preview') as HTMLImageElement | null;
         const captureBtn = document.getElementById('capture-photo-btn') as HTMLButtonElement | null;
+        const submitBtn = document.querySelector('#receipt-upload-section button[type="submit"]') as HTMLButtonElement | null;
+        const video = document.getElementById('camera-stream') as HTMLVideoElement | null;
+        const cameraWarning = document.getElementById('camera-warning') as HTMLDivElement | null;
+        const removeBtn = document.getElementById('remove-photo-btn') as HTMLButtonElement | null;
 
-        //   const startCamera = async () => {
-        //     if (!video) return;
-        //     try {
-        //       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        //       video.srcObject = stream;
-        //     } catch (err) {
-        //       console.error('Camera access error:', err);
-        //       showToast('Could not access camera.', 'danger');
-        //     }
-        //   };
+        let capturedPhoto = false;
+
+        const validateForm = () => {
+            const activeTab = document.querySelector('#uploadTab .nav-link.active')?.id;
+            if (!submitBtn) return;
+
+            if (activeTab === 'local-tab') {
+                submitBtn.disabled = !receiptFileInput?.files?.length;
+            } else if (activeTab === 'url-tab') {
+                submitBtn.disabled = !(receiptUrlInput?.value?.trim().length > 0);
+            } else if (activeTab === 'camera-tab') {
+                submitBtn.disabled = !capturedPhoto;
+            }
+        };
+
+        const showCameraUnavailable = () => {
+            captureBtn?.classList.add('d-none');
+            cameraWarning?.classList.remove('d-none');
+            video?.classList.add('d-none');
+        };
+
+        const showCameraAvailable = () => {
+            captureBtn?.classList.remove('d-none');
+            cameraWarning?.classList.add('d-none');
+            video?.classList.remove('d-none');
+        };
 
         const startCamera = async () => {
             if (!video) return;
-
             try {
                 const devices = await navigator.mediaDevices.enumerateDevices();
-                const hasCamera = devices.some((device) => device.kind === 'videoinput');
+                const hasCamera = devices.some(device => device.kind === 'videoinput');
 
                 if (!hasCamera) {
-                    console.warn('No camera device found.');
-                    // showToast('No camera found on this device.', 'warning');
+                    showCameraUnavailable();
                     return;
                 }
 
+                showCameraAvailable();
+                //   const stream = await navigator.mediaDevices.getUserMedia({
+                //     video: { width: { ideal: 1280 }, height: { ideal: 720 } }
+                //   });
+
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: {
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
+                        facingMode: { ideal: "environment" },  // More flexible: tries rear, falls back to front
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 },
+                        frameRate: { ideal: 30, max: 60 },
                     }
                 });
 
+
                 video.srcObject = stream;
-                video.play(); // Start the stream
+                await video.play();
             } catch (err) {
                 console.error('Camera access error:', err);
-                showToast('Could not access camera.', 'danger');
-            }
-        };
-        startCamera()
-        const handleUploadFromActiveTab = async () => {
-            const activeTab = document.querySelector('#uploadTab .nav-link.active')?.id;
-
-            try {
-                if (activeTab === 'local-tab') {
-                    if (!receiptFileInput || !receiptFileInput.files?.length) {
-                        showToast('Please select a file to upload.', 'primary');
-                        return;
-                    }
-                    const file = receiptFileInput.files[0];
-                    await handleReceiptUpload(file);
-
-                } else if (activeTab === 'url-tab') {
-                    const url = receiptUrlInput?.value.trim();
-                    if (!url) {
-                        showToast('Please paste a receipt URL.', 'primary');
-                        return;
-                    }
-
-                    showToast('Fetching image from URL...', 'primary');
-
-                    const response = await fetch(url);
-                    const blob = await response.blob();
-
-                    const contentType = blob.type || 'image/jpeg';
-                    const extension = contentType.split('/')[1] || 'jpg';
-                    const file = new File([blob], `url-upload.${extension}`, { type: contentType });
-
-                    await handleReceiptUpload(file);
-
-                }
-                else if (activeTab === 'camera-tab') {
-                    if (!photoCanvas) return;
-
-                    photoCanvas.toBlob(async (blob) => {
-                        if (!blob) {
-                            showToast('No photo captured.', 'primary');
-                            return;
-                        }
-
-                        const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
-                        await handleReceiptUpload(file);
-                    }, 'image/jpeg');
-                }
-            } catch (error: any) {
-                showToast(`Upload failed: ${error.message}`, 'danger');
-                console.error('Error during upload:', error);
+                showCameraUnavailable();
             }
         };
 
+        const capturePhoto = () => {
+            if (!photoCanvas || !video || !photoPreview) return;
+            const context = photoCanvas.getContext('2d');
+            if (!context) return;
+
+            context.drawImage(video, 0, 0, photoCanvas.width, photoCanvas.height);
+            const dataURL = photoCanvas.toDataURL('image/jpeg');
+
+            photoPreview.src = dataURL;
+            const previewWrapper = document.getElementById('photo-preview-wrapper');
+            if (previewWrapper) previewWrapper.classList.remove('d-none');
+
+            photoPreview.style.display = 'block';
+            capturedPhoto = true;
+            validateForm();
+        };
+
+        const removeCapturedPhoto = () => {
+            const previewWrapper = document.getElementById('photo-preview-wrapper');
+            if (photoPreview && previewWrapper) {
+                photoPreview.src = '';
+                previewWrapper.classList.add('d-none');
+                capturedPhoto = false;
+                validateForm();
+            }
+        };
 
         const handleReceiptUpload = async (file: File | null) => {
             if (!file) {
@@ -155,7 +156,6 @@ const ReceiptsComponent = () => {
             }
 
             showToast('Uploading receipt...', 'primary');
-
             const formData = new FormData();
             formData.append('receipt', file);
 
@@ -166,25 +166,20 @@ const ReceiptsComponent = () => {
                 });
 
                 const result = await response.json();
-
                 if (!response.ok || !result.success) {
                     throw new Error(result.error || `HTTP error! status: ${response.status}`);
                 }
 
                 showToast('Extraction Successful!', 'success');
-
-                const data = result.data;
-                populateFormWithReceiptData(data); // Ensure this function is typed properly
+                populateFormWithReceiptData(result.data);
 
                 const formElement = document.getElementById('receipt-review-form');
                 if (formElement) {
                     formElement.style.display = 'block';
                 }
 
-                // Dynamically import Bootstrap Modal and close the modal
                 const { default: Modal } = await import('bootstrap/js/dist/modal');
                 const modalEl = document.getElementById('receipt-upload-section');
-
                 if (modalEl) {
                     const modalInstance = Modal.getInstance(modalEl) || Modal.getOrCreateInstance(modalEl);
                     modalInstance.hide();
@@ -196,38 +191,78 @@ const ReceiptsComponent = () => {
             }
         };
 
+        const handleUploadFromActiveTab = async () => {
+            const activeTab = document.querySelector('#uploadTab .nav-link.active')?.id;
 
+            try {
+                if (activeTab === 'local-tab') {
+                    if (!receiptFileInput?.files?.length) {
+                        showToast('Please select a file to upload.', 'primary');
+                        return;
+                    }
+                    await handleReceiptUpload(receiptFileInput.files[0]);
+                } else if (activeTab === 'url-tab') {
+                    const url = receiptUrlInput?.value.trim();
+                    if (!url) {
+                        showToast('Please paste a receipt URL.', 'primary');
+                        return;
+                    }
 
-        const capturePhoto = () => {
-            if (!photoCanvas || !video) return;
+                    showToast('Fetching image from URL...', 'primary');
+                    const response = await fetch(url);
+                    const blob = await response.blob();
+                    const type = blob.type || 'image/jpeg';
+                    const ext = type.split('/')[1] || 'jpg';
+                    const file = new File([blob], `url-upload.${ext}`, { type });
+                    await handleReceiptUpload(file);
 
-            const context = photoCanvas.getContext('2d');
-            if (!context) return;
-
-            photoCanvas.style.display = 'block';
-            context.drawImage(video, 0, 0, photoCanvas.width, photoCanvas.height);
+                } else if (activeTab === 'camera-tab') {
+                    if (!photoCanvas) return;
+                    photoCanvas.toBlob(async (blob) => {
+                        if (!blob) {
+                            showToast('No photo captured.', 'primary');
+                            return;
+                        }
+                        const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
+                        await handleReceiptUpload(file);
+                    }, 'image/jpeg');
+                }
+            } catch (error: any) {
+                showToast(`Upload failed: ${error.message}`, 'danger');
+                console.error('Error during upload:', error);
+            }
         };
 
-        // Attach listeners
-        if (submitReceiptBtn) {
-            submitReceiptBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                handleUploadFromActiveTab();
-            });
-        }
+        const tabChangeHandler = () => validateForm();
 
-        if (captureBtn) {
-            captureBtn.addEventListener('click', capturePhoto);
-        }
+        document.querySelectorAll('#uploadTab .nav-link').forEach(tab =>
+            tab.addEventListener('click', tabChangeHandler)
+        );
 
-        //   startCamera();
+        receiptFileInput?.addEventListener('change', validateForm);
+        receiptUrlInput?.addEventListener('input', validateForm);
+        captureBtn?.addEventListener('click', capturePhoto);
+        removeBtn?.addEventListener('click', removeCapturedPhoto);
+        submitBtn?.addEventListener('click', (e) => {
+            e.preventDefault();
+            handleUploadFromActiveTab();
+        });
+
+        startCamera();
+        validateForm();
 
         return () => {
-            // Cleanup
-            submitReceiptBtn?.removeEventListener('click', handleUploadFromActiveTab);
+            receiptFileInput?.removeEventListener('change', validateForm);
+            receiptUrlInput?.removeEventListener('input', validateForm);
             captureBtn?.removeEventListener('click', capturePhoto);
+            removeBtn?.removeEventListener('click', removeCapturedPhoto);
+            submitBtn?.removeEventListener('click', handleUploadFromActiveTab);
+            document.querySelectorAll('#uploadTab .nav-link').forEach(tab =>
+                tab.removeEventListener('click', tabChangeHandler)
+            );
         };
     }, []);
+
 
     useEffect(() => {
         const formEl = document.getElementById('receiptForm') as HTMLFormElement | null;
@@ -477,50 +512,85 @@ const ReceiptsComponent = () => {
                         <div className="modal-body">
                             <div className="card mt-3">
                                 <div className="card-header bg-light">
-                                    <h5 className="mb-0"><i className="fas fa-file-upload text-primary me-2"></i>Upload Receipt</h5>
+                                    <h5 className="mb-0">
+                                        <i className="fas fa-file-upload text-primary me-2"></i>Upload Receipt
+                                    </h5>
                                 </div>
+
                                 <div className="card-body">
-                                    {/* <!-- Tab Navigation --> */}
+                                    {/* Tab Navigation */}
                                     <ul className="nav nav-tabs" id="uploadTab" role="tablist">
                                         <li className="nav-item" role="presentation">
-                                            <button className="nav-link active" id="local-tab" data-bs-toggle="tab"
-                                                data-bs-target="#local" type="button" role="tab">From Device</button>
+                                            <button
+                                                className="nav-link active"
+                                                id="local-tab"
+                                                data-bs-toggle="tab"
+                                                data-bs-target="#local"
+                                                type="button"
+                                                role="tab"
+                                            >
+                                                From Device
+                                            </button>
                                         </li>
                                         <li className="nav-item" role="presentation">
-                                            <button className="nav-link" id="url-tab" data-bs-toggle="tab" data-bs-target="#url"
-                                                type="button" role="tab">From URL</button>
+                                            <button
+                                                className="nav-link"
+                                                id="url-tab"
+                                                data-bs-toggle="tab"
+                                                data-bs-target="#url"
+                                                type="button"
+                                                role="tab"
+                                            >
+                                                From URL
+                                            </button>
                                         </li>
                                         <li className="nav-item" role="presentation">
-                                            <button className="nav-link" id="camera-tab" data-bs-toggle="tab"
-                                                data-bs-target="#camera" type="button" role="tab">Take Photo</button>
+                                            <button
+                                                className="nav-link"
+                                                id="camera-tab"
+                                                data-bs-toggle="tab"
+                                                data-bs-target="#camera"
+                                                type="button"
+                                                role="tab"
+                                            >
+                                                Take Photo
+                                            </button>
                                         </li>
                                     </ul>
 
-                                    {/* <!-- Tab Content --> */}
+                                    {/* Tab Content */}
                                     <div className="tab-content mt-3" id="uploadTabContent">
-                                        {/* <!-- Local Upload --> */}
+                                        {/* Local Upload */}
                                         <div className="tab-pane fade show active" id="local" role="tabpanel">
                                             <div className="mb-3">
                                                 <label htmlFor="receipt-file" className="form-label">Upload from your device</label>
-                                                <input className="form-control" type="file" id="receipt-file"
-                                                    accept="image/*,application/pdf" />
+                                                <input
+                                                    className="form-control"
+                                                    type="file"
+                                                    id="receipt-file"
+                                                    accept="image/*,application/pdf"
+                                                />
                                             </div>
                                         </div>
 
-                                        {/* <!-- URL Upload --> */}
+                                        {/* URL Upload */}
                                         <div className="tab-pane fade" id="url" role="tabpanel">
                                             <div className="mb-3">
                                                 <label htmlFor="receipt-url" className="form-label">Paste a receipt URL</label>
-                                                <input className="form-control" type="url" id="receipt-url"
-                                                    placeholder="https://example.com/receipt.jpg" />
+                                                <input
+                                                    className="form-control"
+                                                    type="url"
+                                                    id="receipt-url"
+                                                    placeholder="https://example.com/receipt.jpg"
+                                                />
                                             </div>
                                         </div>
 
-                                        {/* <!-- Camera Upload --> */}
+                                        {/* Camera Upload */}
                                         <div className="tab-pane fade" id="camera" role="tabpanel">
                                             <div className="mb-3">
                                                 <label className="form-label">Take a photo of your receipt</label>
-                                                <div className="d-flex flex-column">
+                                                <div className="d-flex flex-column align-items-center position-relative">
                                                     <video
                                                         id="camera-stream"
                                                         width="100%"
@@ -528,20 +598,58 @@ const ReceiptsComponent = () => {
                                                         autoPlay
                                                         playsInline
                                                         className="mb-2"
-                                                        style={{ border: '1px solid #ccc' }}
+                                                        style={{ border: "1px solid #ccc" }}
                                                     ></video>
-                                                    <button type="button" className="btn btn-outline-primary btn-sm mb-2"
-                                                        id="capture-photo-btn">Capture Photo</button>
-                                                    <canvas id="photo-canvas" width="640" height="480"
-                                                        style={{ display: "none" }}></canvas>
-                                                    <img id="photo-preview" alt='photo-preview' className="img-thumbnail mt-2" style={{ display: "none" }} />
+
+                                                    <div
+                                                        id="camera-warning"
+                                                        className="alert alert-warning text-center d-none"
+                                                    >
+                                                        📷 No camera detected. Please connect a webcam to use this feature.
+                                                    </div>
+
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-outline-primary btn-sm mb-2"
+                                                        id="capture-photo-btn"
+                                                    >
+                                                        Capture Photo
+                                                    </button>
+
+                                                    {/* <!-- Hidden Canvas (used for converting to dataURL) --> */}
+                                                    <canvas id="photo-canvas" width="640" height="480" style={{ display: 'none' }}></canvas>
+
+                                                    {/* <!-- Image Preview Area --> */}
+                                                    <div id="photo-preview-wrapper" className="position-relative d-none">
+                                                        <img
+                                                            id="photo-preview"
+                                                            alt="photo-preview"
+                                                            className="img-thumbnail mt-2"
+                                                            style={{ maxWidth: '100%' }}
+                                                        />
+                                                        <button
+                                                            id="remove-photo-btn"
+                                                            type="button"
+                                                            className="btn btn-sm btn-danger position-absolute top-0 end-0"
+                                                            style={{ transform: 'translate(50%, -50%)' }}
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
 
+                                    {/* Submit */}
                                     <div className="text-end">
-                                        <button type="submit" className="btn btn-success">Submit Receipt</button>
+                                        <button
+                                            type="submit"
+                                            className="btn btn-success"
+                                            disabled
+                                        >
+                                            Submit Receipt
+                                        </button>
                                     </div>
                                 </div>
                             </div>
