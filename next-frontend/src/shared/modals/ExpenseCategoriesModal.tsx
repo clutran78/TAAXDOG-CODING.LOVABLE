@@ -1,8 +1,5 @@
-'use client';
-
 import { useEffect, useRef, useState } from 'react';
 import {
-  loadDetailedExpenses,
   openExpenseCategoriesModal,
   performExpenseSearch,
   setupFinancialFeatureHandlers,
@@ -11,26 +8,47 @@ import {
 const TotalExpensesModal = () => {
   const modalRef = useRef<HTMLDivElement>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filteredExpenses, setFilteredExpenses] = useState<any[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [expensesPerPage] = useState(10);
 
   // Load data on mount
   useEffect(() => {
-    loadDetailedExpenses();
+    loadAndSetExpenses();
     setupFinancialFeatureHandlers();
   }, []);
+
+  const indexOfLastExpense = currentPage * expensesPerPage;
+  const indexOfFirstExpense = indexOfLastExpense - expensesPerPage;
+  const currentExpenses = filteredExpenses.slice(indexOfFirstExpense, indexOfLastExpense);
+  const totalPages = Math.ceil(filteredExpenses.length / expensesPerPage);
+
+  const loadAndSetExpenses = () => {
+    try {
+      const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+      const expenses = transactions.filter((tx: any) => parseFloat(tx.amount) < 0);
+      const total = expenses.reduce((sum: number, tx: any) => sum + Math.abs(parseFloat(tx.amount)), 0);
+      const display = document.getElementById('modal-detailed-expenses-value');
+      if (display) display.textContent = total.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+
+      setFilteredExpenses(expenses.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    } catch (e) {
+      console.error('Failed to load expenses');
+    }
+  };
 
   // Debounced search
   useEffect(() => {
     const debounce = setTimeout(() => {
       if (searchTerm.trim() === '') {
-        loadDetailedExpenses();
+        loadAndSetExpenses();
       } else {
-        performExpenseSearch(searchTerm.trim());
+        performExpenseSearch(searchTerm, setFilteredExpenses);
       }
     }, 400);
     return () => clearTimeout(debounce);
   }, [searchTerm]);
 
-  // Open modal method
   const openModal = () => {
     import('bootstrap/js/dist/modal').then(({ default: Modal }) => {
       if (modalRef.current) {
@@ -40,7 +58,6 @@ const TotalExpensesModal = () => {
     });
   };
 
-  // Close modal method
   const closeModal = () => {
     import('bootstrap/js/dist/modal').then(({ default: Modal }) => {
       if (modalRef.current) {
@@ -50,7 +67,6 @@ const TotalExpensesModal = () => {
     });
   };
 
-  // Expose global open method
   useEffect(() => {
     (window as any).openExpensesModal = openModal;
   }, []);
@@ -61,7 +77,7 @@ const TotalExpensesModal = () => {
       id="total-expenses-modal"
       tabIndex={-1}
       aria-labelledby="total-expenses-modal-label"
-      style={{zIndex:"9999"}}
+      style={{ zIndex: '9999' }}
       aria-hidden="true"
       ref={modalRef}
     >
@@ -103,9 +119,12 @@ const TotalExpensesModal = () => {
               </div>
             </div>
 
-            <div id="no-expenses-message" className="alert alert-info d-none">
-              <i className="fas fa-info-circle me-2"></i>No expenses found. Connect your bank account to see your expenses.
-            </div>
+            {/* No Results Message */}
+            {filteredExpenses.length === 0 && (
+              <div className="alert alert-info">
+                <i className="fas fa-info-circle me-2"></i>No expenses found. Connect your bank account to see your expenses.
+              </div>
+            )}
 
             <div className="table-responsive">
               <table className="table table-hover">
@@ -119,14 +138,60 @@ const TotalExpensesModal = () => {
                     <th className="text-end">Amount</th>
                   </tr>
                 </thead>
-                <tbody id="expenses-table-body">
-                  {/* Injected by JS */}
+                <tbody>
+                  {currentExpenses.length > 0 ? (
+                    currentExpenses.map((expense, index) => {
+                      const amount = Math.abs(parseFloat(expense.amount)).toFixed(2);
+                      const date = new Date(expense.date).toLocaleDateString();
+                      return (
+                        <tr key={index}>
+                          <td>{date}</td>
+                          <td>{expense.description || 'No description'}</td>
+                          <td>{expense.merchant || 'Unknown'}</td>
+                          <td>
+                            <span className="badge bg-primary">
+                              {expense.category || 'Uncategorized'}
+                            </span>
+                          </td>
+                          <td>{expense.accountName || 'Unknown Account'}</td>
+                          <td className="text-end text-danger">${amount}</td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="text-center">No expenses found.</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
+              <div className="d-flex justify-content-between align-items-center mt-3">
+                <button
+                  className="btn btn-outline-primary"
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </button>
+
+                <span className="mx-2">Page {currentPage} of {totalPages}</span>
+
+                <button
+                  className="btn btn-outline-primary"
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </button>
+              </div>
             </div>
 
-            <div className="d-flex justify-content-end mt-3  cursor-pointer">
-              <button type="button" className="btn btn-primary" onClick={ ()=>setTimeout(() => openExpenseCategoriesModal(), 400)}>
+            <div className="d-flex justify-content-end mt-3 cursor-pointer">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setTimeout(() => openExpenseCategoriesModal(), 400)}
+              >
                 <i className="fas fa-chart-pie me-2"></i>View Expense Categories
               </button>
             </div>

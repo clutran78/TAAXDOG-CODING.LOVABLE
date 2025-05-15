@@ -25,7 +25,7 @@ const GridBoxes = () => {
   useEffect(() => {
 
     // Save to localStorage
-   const subscriptions = JSON.parse(localStorage.getItem('subscriptions') || '[]');
+    const subscriptions = JSON.parse(localStorage.getItem('subscriptions') || '[]');
 
     // Give React time to render the modal content
     setTimeout(() => {

@@ -347,65 +347,32 @@ function loadIncomeDetails() {
 
 
 // Perform expense search
-export function performExpenseSearch(term) {
-    try {
-        const searchTerm = term.toLowerCase().trim();
+export function performExpenseSearch(term, setFilteredExpenses) {
+  try {
+    const searchTerm = term.toLowerCase().trim();
 
-        const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
-        const expenses = transactions.filter(tx => parseFloat(tx.amount) < 0);
+    const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+    const expenses = transactions.filter((tx) => parseFloat(tx.amount) < 0);
 
-        const filteredExpenses = expenses.filter(expense => {
-            return (
-                (expense.description && expense.description.toLowerCase().includes(searchTerm)) ||
-                (expense.merchant && expense.merchant.toLowerCase().includes(searchTerm)) ||
-                (expense.category && expense.category.toLowerCase().includes(searchTerm)) ||
-                (expense.accountName && expense.accountName.toLowerCase().includes(searchTerm))
-            );
-        });
+    const filteredExpenses = expenses.filter((expense) => {
+      return (
+        (expense.description && expense.description.toLowerCase().includes(searchTerm)) ||
+        (expense.merchant && expense.merchant.toLowerCase().includes(searchTerm)) ||
+        (expense.category && expense.category.toLowerCase().includes(searchTerm)) ||
+        (expense.accountName && expense.accountName.toLowerCase().includes(searchTerm))
+      );
+    });
 
-        const tableBody = document.getElementById('expenses-table-body');
-        const noExpensesMessage = document.getElementById('no-expenses-message');
+    // Sort filtered results
+    filteredExpenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-        if (tableBody) {
-            if (filteredExpenses.length === 0) {
-                tableBody.innerHTML = `
-          <tr>
-            <td colspan="6" class="text-center py-4">
-              <p>No matching expenses found for "${searchTerm}"</p>
-            </td>
-          </tr>
-        `;
-                if (noExpensesMessage) noExpensesMessage.classList.remove('d-none');
-                return;
-            }
-
-            if (noExpensesMessage) noExpensesMessage.classList.add('d-none');
-
-            filteredExpenses.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-            let tableRows = '';
-            filteredExpenses.forEach(expense => {
-                const amount = Math.abs(parseFloat(expense.amount)).toFixed(2);
-                const date = new Date(expense.date).toLocaleDateString();
-
-                tableRows += `
-          <tr>
-            <td>${date}</td>
-            <td>${expense.description || 'No description'}</td>
-            <td>${expense.merchant || 'Unknown'}</td>
-            <td><span class="badge bg-primary">${expense.category || 'Uncategorized'}</span></td>
-            <td>${expense.accountName || 'Unknown Account'}</td>
-            <td class="text-end text-danger">$${amount}</td>
-          </tr>
-        `;
-            });
-
-            tableBody.innerHTML = tableRows;
-        }
-    } catch (error) {
-        console.log(`Error performing expense search: ${error.message}`);
-    }
+    // Update state
+    setFilteredExpenses(filteredExpenses);
+  } catch (error) {
+    console.log(`Error performing expense search: ${error.message}`);
+  }
 }
+
 
 // set up search
 function setupExpenseSearch() {
@@ -3217,7 +3184,7 @@ export const showToast = (message, type = 'primary') => {
     .then(({ default: Toast }) => {
       const toast = Toast.getOrCreateInstance(toastEl, {
         autohide: true,
-        delay: 4000,
+        delay: 3000,
       });
       toast.show();
     })
