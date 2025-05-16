@@ -1,10 +1,10 @@
-import NetIncomePage from '@/components/NetIncome/netIncomePage'
+import ForgotPasswordPage from '@/components/un-auth/forgotPassword'
 import React from 'react'
 
 const page = () => {
   return (
     <div>
-      <NetIncomePage/>
+      <ForgotPasswordPage/>
     </div>
   )
 }

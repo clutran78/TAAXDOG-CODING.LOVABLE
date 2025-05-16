@@ -72,6 +72,13 @@ export default function LoginPage() {
                   </span>
                 </div>
                 <ErrorMessage name="password" component="div" className="text-red-500 text-sm mt-1" />
+
+                <div className="text-right">
+                  <Link href="/forgot-password" className="text-blue-600 text-sm hover:underline">
+                    Forgot Password?
+                  </Link>
+                </div>
+
               </div>
               {firebaseError && <div className="text-red-600 text-sm">{firebaseError}</div>}
 
