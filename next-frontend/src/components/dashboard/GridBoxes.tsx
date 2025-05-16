@@ -86,9 +86,9 @@ const GridBoxes = () => {
     <>
       {alert && <AlertMessage message={alert.message} type={alert.type as any} />}
 
-      <div className="col-md-3 mb-4">
+      <div className="col-md-3 mb-4 cursor-pointer" onClick={handleShowNetIncomeModal}>
         <div
-          className="card stats-card h-100"
+          className="card stats-card h-100 cursor-pointer"
           id="net-income-card"
           data-card="net-income"
         >
@@ -102,7 +102,6 @@ const GridBoxes = () => {
             </div>
             <div
               className="stat-change positive-change cursor-pointer"
-              onClick={handleShowNetIncomeModal}
             >
               <i className="fas fa-arrow-up"></i> +12.3% from last month
             </div>
@@ -110,7 +109,7 @@ const GridBoxes = () => {
         </div>
       </div>
 
-      <div className="col-md-3 mb-4">
+      <div className="col-md-3 mb-4 cursor-pointer"   id="view-expense-categories-btn">
         <div
           className="card stats-card h-100"
           id="total-expenses-card"
@@ -125,7 +124,6 @@ const GridBoxes = () => {
               $0.00
             </div>
             <div
-              id="view-expense-categories-btn"
               className="stat-change negative-change cursor-pointer"
             >
               <i className="fas fa-arrow-down"></i> -8.1% from last month

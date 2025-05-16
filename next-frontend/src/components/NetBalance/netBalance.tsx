@@ -14,7 +14,7 @@ const NetBalanceDetailsComponent = () => {
   useEffect(() => {
     setTimeout(() => {
       loadNetBalanceDetails();
-      loadIncomeDetails()
+      // loadIncomeDetails()
       setupFinancialFeatureHandlers()
     }, 10);
   }, [showExpensesPage ,showViewIncomePage]);
