@@ -49,8 +49,17 @@ export default function ForgotPasswordPage() {
                 <ErrorMessage name="email" component="div" className="text-red-500 text-sm mt-1" />
               </div>
 
-              {firebaseError && <div className="text-red-600 text-sm">{firebaseError}</div>}
-              {message && <div className="text-green-600 text-sm">{message}</div>}
+              {firebaseError && (
+                <div className="bg-red-100 text-red-700 p-2 text-sm rounded-md border border-red-300 mt-2">
+                  {firebaseError}
+                </div>
+              )}
+              {message && (
+                <div className="flex items-start gap-2 bg-green-50 border border-green-400 text-green-700 text-sm rounded-md p-3 mt-2 shadow-sm transition-all">
+                  <span className="text-xl">✅</span>
+                  <span>{message}</span>
+                </div>
+              )}
 
               <button
                 type="submit"
