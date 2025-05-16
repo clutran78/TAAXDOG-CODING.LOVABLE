@@ -10,7 +10,13 @@ import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
 const SignupSchema = Yup.object().shape({
   email: Yup.string().email('Invalid email address').required('Email is required'),
-  password: Yup.string().min(6, 'Password must be at least 6 characters').required('Password is required'),
+  password: Yup.string()
+    .required('Password is required')
+    .min(8, 'Password must be at least 8 characters')
+    .matches(/[a-z]/, 'Must contain at least one lowercase letter')
+    .matches(/[A-Z]/, 'Must contain at least one uppercase letter')
+    .matches(/\d/, 'Must contain at least one number')
+    .matches(/[@$!%*?&#]/, 'Must contain at least one special character'),
   confirmPassword: Yup.string()
     .oneOf([Yup.ref('password'), ''], 'Passwords must match')
     .required('Confirm your password'),
@@ -25,13 +31,18 @@ export default function SignupPage() {
   const router = useRouter();
 
   const handleSubmit = async (values: any) => {
-    debugger
     setFirebaseError('');
     try {
       await createUserWithEmailAndPassword(auth, values.email, values.password);
       router.push('/login')
     } catch (error: any) {
-      setFirebaseError(error.message || 'Signup failed');
+      if (error.code === 'auth/email-already-in-use') {
+        setFirebaseError('This email is already registered. Please log in or use a different email.');
+      } else if (error.code === 'auth/weak-password') {
+        setFirebaseError('The password is too weak. Please use a stronger password.');
+      } else {
+        setFirebaseError('Signup failed. Please try again.');
+      }
     }
   };
 
@@ -58,10 +69,11 @@ export default function SignupPage() {
               </div>
 
               <div>
-                <label  className="block text-sm font-medium text-gray-700">Password</label>
+                <label className="block text-sm font-medium text-gray-700">Password</label>
                 <div className="relative">
                   <Field
                     type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
                     name="password"
                     className="mt-1 w-full border px-3 py-2 rounded-md focus:outline-none focus:ring focus:ring-blue-400 pr-10"
                   />
@@ -77,11 +89,12 @@ export default function SignupPage() {
 
               {/* Confirm Password */}
               <div>
-                <label  className="block text-sm font-medium text-gray-700">Confirm Password</label>
+                <label className="block text-sm font-medium text-gray-700">Confirm Password</label>
                 <div className="relative">
                   <Field
                     type={showConfirmPassword ? 'text' : 'password'}
                     name="confirmPassword"
+                    autoComplete="current-password"
                     className="mt-1 w-full border px-3 py-2 rounded-md focus:outline-none focus:ring focus:ring-blue-400 pr-10"
                   />
                   <span
@@ -91,10 +104,17 @@ export default function SignupPage() {
                     {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
                   </span>
                 </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Must be at least 8 characters and include uppercase, lowercase, a number, and a special character.
+                </p>
                 <ErrorMessage name="confirmPassword" component="div" className="text-red-500 text-sm mt-1" />
               </div>
 
-              {firebaseError && <div className="text-red-600 text-sm">{firebaseError}</div>}
+              {firebaseError && (
+                <div className="bg-red-100 text-red-700 p-2 text-sm rounded-md border border-red-300">
+                  {firebaseError}
+                </div>
+              )}
 
               <button
                 type="submit"

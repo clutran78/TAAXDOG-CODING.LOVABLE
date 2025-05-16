@@ -22,7 +22,6 @@ export default function LoginPage() {
   const router = useRouter();
 
   const handleSubmit = async (values: any) => {
-    debugger
     setFirebaseError('');
     try {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
@@ -30,7 +29,17 @@ export default function LoginPage() {
       Cookies.set('auth-token', token, { expires: 7 }); // 7 days
       router.push('/dashboard')
     } catch (error: any) {
-      setFirebaseError(error.message || 'Login failed');
+      if (
+        error.code === 'auth/user-not-found' ||
+        error.code === 'auth/wrong-password' ||
+        error.code === 'auth/invalid-credential'
+      ) {
+        setFirebaseError('Email and/or password not recognized. Please try again.');
+      } else if (error.code === 'auth/too-many-requests') {
+        setFirebaseError('Too many login attempts. Please wait and try again later.');
+      } else {
+        setFirebaseError('Login failed. Please try again.');
+      }
     }
   };
 
@@ -62,6 +71,7 @@ export default function LoginPage() {
                   <Field
                     type={showPassword ? 'text' : 'password'}
                     name="password"
+                    autoComplete="current-password"
                     className="mt-1 w-full border px-3 py-2 rounded-md focus:outline-none focus:ring focus:ring-blue-400 pr-10"
                   />
                   <span
@@ -80,7 +90,11 @@ export default function LoginPage() {
                 </div>
 
               </div>
-              {firebaseError && <div className="text-red-600 text-sm">{firebaseError}</div>}
+              {firebaseError && (
+                <div className="bg-red-100 text-red-700 p-2 text-sm rounded-md border border-red-300 mt-2">
+                  {firebaseError}
+                </div>
+              )}
 
               <button
                 type="submit"
