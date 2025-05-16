@@ -1,9 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import IncomeDetailModal from './incomeDetailModal';
+import AddIncomeModal from './AddIncomeForm';
 
-interface Transaction {
+export interface Transaction {
+  id: string;
   amount: string;
+  date: string;
+  description: string;
+  merchant: string;
+  accountName: string;
   category?: string;
 }
 
@@ -11,6 +18,7 @@ interface IncomeSource {
   name: string;
   amount: number;
   percentage: number;
+  transactions?: Transaction[]
 }
 
 const formatCurrency = (value: number) => `$${value.toFixed(2)}`;
@@ -19,38 +27,35 @@ const NetIncomePage = () => {
   const [incomeSources, setIncomeSources] = useState<IncomeSource[]>([]);
   const [totalIncome, setTotalIncome] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
-
-  useEffect(() => {
-    loadIncomeDetails();
-  }, []);
+  const [show, setShow] = useState<boolean>(false);
+  const [data, setData] = useState<IncomeSource | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const loadIncomeDetails = () => {
     try {
-      const transactions: Transaction[] = JSON.parse(
-        localStorage.getItem('bankTransactions') || '[]'
-      );
+      const transactions: Transaction[] = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
 
-      const incomeTransactions = transactions.filter(
-        (tx) => parseFloat(tx.amount) > 0
-      );
+      const incomeTransactions = transactions.filter(tx => parseFloat(tx.amount) > 0);
 
-      const incomeTotal = incomeTransactions.reduce(
-        (sum, tx) => sum + parseFloat(tx.amount),
-        0
-      );
+      const incomeTotal = incomeTransactions.reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
 
-      const incomeByCategory: { [key: string]: number } = {};
-      incomeTransactions.forEach((tx) => {
+      const incomeByCategory: { [key: string]: { amount: number; transactions: Transaction[] } } = {};
+
+      incomeTransactions.forEach(tx => {
         const category = tx.category || 'Other Income';
-        incomeByCategory[category] =
-          (incomeByCategory[category] || 0) + parseFloat(tx.amount);
+        if (!incomeByCategory[category]) {
+          incomeByCategory[category] = { amount: 0, transactions: [] };
+        }
+        incomeByCategory[category].amount += parseFloat(tx.amount);
+        incomeByCategory[category].transactions.push(tx);
       });
 
       const sortedSources: IncomeSource[] = Object.entries(incomeByCategory)
-        .map(([name, amount]) => ({
+        .map(([name, data]) => ({
           name,
-          amount,
-          percentage: (amount / incomeTotal) * 100,
+          amount: data.amount,
+          percentage: (data.amount / incomeTotal) * 100,
+          transactions: data.transactions
         }))
         .sort((a, b) => b.amount - a.amount);
 
@@ -63,14 +68,34 @@ const NetIncomePage = () => {
     }
   };
 
+  useEffect(() => {
+    loadIncomeDetails();
+  }, []);
+
+  const handleData = (source: IncomeSource) => {
+    setData(source);
+    setShow(true);
+  }
+
+  const handleModal = () => setShow(false);
+
   return (
+    <>
+      <AddIncomeModal
+        show={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onAdd={loadIncomeDetails}
+      />
     <div className="container py-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h3>
-          <i className="fas fa-money-bill-wave text-success me-2"></i>Net Income
-          Details
+          <i className="fas fa-money-bill-wave text-success me-2"></i>Net Income Details
         </h3>
-        {/* You can optionally add a back button here */}
+          {/* Add Income Form */}
+          <button className="btn btn-outline-success" onClick={() => setShowAddModal(true)}>
+            + Add Income
+          </button>
+
       </div>
 
       {/* Total Income Card */}
@@ -90,13 +115,12 @@ const NetIncomePage = () => {
         </div>
       ) : incomeSources.length === 0 ? (
         <div className="alert alert-info" id="no-income-sources-message">
-          <i className="fas fa-info-circle me-2"></i>No income sources found.
-          Connect your bank account to see your income details.
+          <i className="fas fa-info-circle me-2"></i>No income sources found. Add or connect your bank account.
         </div>
       ) : (
         <div id="income-sources-container">
           {incomeSources.map((source, idx) => (
-            <div className="card mb-3" key={idx}>
+            <div onClick={() => handleData(source)} className="cursor-pointer card mb-3" key={idx}>
               <div className="card-body">
                 <div className="d-flex justify-content-between align-items-center">
                   <h5 className="mb-0">{source.name}</h5>
@@ -126,6 +150,8 @@ const NetIncomePage = () => {
         </div>
       )}
     </div>
+      {data && <IncomeDetailModal show={show} handleClose={handleModal} data={data} />}
+    </>
   );
 };
 

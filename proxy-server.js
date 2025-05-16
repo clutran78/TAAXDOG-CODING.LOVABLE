@@ -232,7 +232,7 @@ const server = http.createServer((req, res) => {
 });
 
 // Start the server on a different port (changed from 8888)
-const PORT = 3000;
+const PORT = 3001;
 server.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}/`);
   console.log('To use the proxy, send requests to:');
