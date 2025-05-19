@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import IncomeDetailModal from './incomeDetailModal';
 import AddIncomeModal from './AddIncomeForm';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export interface Transaction {
   id: string;
@@ -31,10 +33,13 @@ const NetIncomePage = () => {
   const [data, setData] = useState<IncomeSource | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
 
-  const loadIncomeDetails = () => {
+  const loadIncomeDetails =async () => {
     try {
-      const transactions: Transaction[] = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+      // const transactions: Transaction[] = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+      const snapshot = await getDocs(collection(db, 'bankTransactions'))
 
+      const transactions: Transaction[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Transaction[];
+  
       const incomeTransactions = transactions.filter(tx => parseFloat(tx.amount) > 0);
 
       const incomeTotal = incomeTransactions.reduce((sum, tx) => sum + parseFloat(tx.amount), 0);

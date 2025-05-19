@@ -4,6 +4,18 @@ import {
   performExpenseSearch,
   setupFinancialFeatureHandlers,
 } from '@/services/helperFunction';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+
+interface Expense {
+  date: string;
+  description?: string;
+  merchant?: string;
+  category?: string;
+  accountName?: string;
+  amount: string;
+}
+
 
 const TotalExpensesModal = () => {
   const modalRef = useRef<HTMLDivElement>(null);
@@ -23,9 +35,15 @@ const TotalExpensesModal = () => {
   const currentExpenses = filteredExpenses.slice(indexOfFirstExpense, indexOfLastExpense);
   const totalPages = Math.ceil(filteredExpenses.length / expensesPerPage);
 
-  const loadAndSetExpenses = () => {
+  const loadAndSetExpenses = async () => {
     try {
-      const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+
+      const snapshot = await getDocs(collection(db, 'bankTransactions'));
+
+      // Map Firestore docs to Expense[]
+      const transactions: Expense[] = snapshot.docs.map(doc => doc.data() as Expense);
+
+
       const expenses = transactions.filter((tx: any) => parseFloat(tx.amount) < 0);
       const total = expenses.reduce((sum: number, tx: any) => sum + Math.abs(parseFloat(tx.amount)), 0);
       const display = document.getElementById('modal-detailed-expenses-value');

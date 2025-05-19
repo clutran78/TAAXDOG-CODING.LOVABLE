@@ -5,6 +5,8 @@ import {
   performExpenseSearch,
   setupFinancialFeatureHandlers,
 } from '@/services/helperFunction';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 // Define the structure of an expense item
 interface Expense {
@@ -48,23 +50,29 @@ const TotalExpensesPage = () => {
 
 
 
-  function loadDetailedExpenses() {
-    try {
-      const transactions: Expense[] = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
-      const expenses = transactions.filter(tx => parseFloat(tx.amount) < 0);
+ async function loadDetailedExpenses() {
+  try {
+    const snapshot = await getDocs(collection(db, 'bankTransactions'));
 
-      const totalExpenses = expenses.reduce((sum, tx) => sum + Math.abs(parseFloat(tx.amount)), 0);
-      const expensesValueElement = document.getElementById('modal-detailed-expenses-value');
-      if (expensesValueElement) {
-        expensesValueElement.textContent = formatCurrency(totalExpenses);
-      }
+    // Map Firestore docs to Expense[]
+    const transactions: Expense[] = snapshot.docs.map(doc => doc.data() as Expense);
 
-      const sorted = expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      setFilteredExpenses(sorted);
-    } catch (error: any) {
-      console.log(`Error loading detailed expenses: ${error.message}`);
+    const expenses = transactions.filter(tx => parseFloat(tx.amount) < 0);
+
+    const totalExpenses = expenses.reduce((sum, tx) => sum + Math.abs(parseFloat(tx.amount)), 0);
+    const expensesValueElement = document.getElementById('modal-detailed-expenses-value');
+    if (expensesValueElement) {
+      expensesValueElement.textContent = formatCurrency(totalExpenses);
     }
+
+    const sorted = expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    // ✅ This needs to be defined somewhere in your component context or global state
+    setFilteredExpenses(sorted); 
+  } catch (error: any) {
+    console.log(`Error loading detailed expenses: ${error.message}`);
   }
+}
 
   function formatCurrency(amount: number): string {
     return amount.toLocaleString('en-US', {

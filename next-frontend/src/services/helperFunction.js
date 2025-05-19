@@ -1,4 +1,6 @@
 import Chart from '@/components/utils/chartSetup';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 // Generate mock transactions
 function generateMockTransactions(days = 30) {
@@ -235,10 +237,13 @@ function updateElementText(elementId, text) {
     return false;
 }
 
-function displayTransactionSummary() {
+async function displayTransactionSummary() {
     try {
         // Get transactions from localStorage
-        const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+        const snapshot = await getDocs(collection(db, 'bankTransactions'));
+
+        // Map Firestore docs to Expense[]
+        const transactions= snapshot.docs.map(doc => doc.data())
 
         if (transactions.length === 0) {
             return;
@@ -275,11 +280,14 @@ function displayTransactionSummary() {
 }
 
 // Load income details
-function loadIncomeDetails() {
+async function loadIncomeDetails() {
     debugger
     try {
         // Get transactions from localStorage
-        const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+        const snapshot = await getDocs(collection(db, 'bankTransactions'));
+
+        // Map Firestore docs to Expense[]
+        const transactions = snapshot.docs.map(doc => doc.data());
         const incomeTransactions = transactions.filter(tx => parseFloat(tx.amount) > 0);
 
         // Update total income value in modal
@@ -347,30 +355,33 @@ function loadIncomeDetails() {
 
 
 // Perform expense search
-export function performExpenseSearch(term, setFilteredExpenses) {
-  try {
-    const searchTerm = term.toLowerCase().trim();
+export async function performExpenseSearch(term, setFilteredExpenses) {
+    try {
+        const searchTerm = term.toLowerCase().trim();
 
-    const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
-    const expenses = transactions.filter((tx) => parseFloat(tx.amount) < 0);
+        const snapshot = await getDocs(collection(db, 'bankTransactions'));
 
-    const filteredExpenses = expenses.filter((expense) => {
-      return (
-        (expense.description && expense.description.toLowerCase().includes(searchTerm)) ||
-        (expense.merchant && expense.merchant.toLowerCase().includes(searchTerm)) ||
-        (expense.category && expense.category.toLowerCase().includes(searchTerm)) ||
-        (expense.accountName && expense.accountName.toLowerCase().includes(searchTerm))
-      );
-    });
+        // Map Firestore docs to Expense[]
+        const transactions = snapshot.docs.map(doc => doc.data())
+        const expenses = transactions.filter((tx) => parseFloat(tx.amount) < 0);
 
-    // Sort filtered results
-    filteredExpenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const filteredExpenses = expenses.filter((expense) => {
+            return (
+                (expense.description && expense.description.toLowerCase().includes(searchTerm)) ||
+                (expense.merchant && expense.merchant.toLowerCase().includes(searchTerm)) ||
+                (expense.category && expense.category.toLowerCase().includes(searchTerm)) ||
+                (expense.accountName && expense.accountName.toLowerCase().includes(searchTerm))
+            );
+        });
 
-    // Update state
-    setFilteredExpenses(filteredExpenses);
-  } catch (error) {
-    console.log(`Error performing expense search: ${error.message}`);
-  }
+        // Sort filtered results
+        filteredExpenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        // Update state
+        setFilteredExpenses(filteredExpenses);
+    } catch (error) {
+        console.log(`Error performing expense search: ${error.message}`);
+    }
 }
 
 
@@ -410,18 +421,18 @@ function setupExpenseSearch() {
 
 // Open expense categories modal
 async function openExpenseCategoriesModal() {
-  if (typeof document === 'undefined') return;
+    if (typeof document === 'undefined') return;
 
-  const { default: Modal } = await import('bootstrap/js/dist/modal');
+    const { default: Modal } = await import('bootstrap/js/dist/modal');
 
-  let modalElement = document.getElementById('expense-categories-modal');
+    let modalElement = document.getElementById('expense-categories-modal');
 
-  if (!modalElement) {
-    modalElement = document.createElement('div');
-    modalElement.id = 'expense-categories-modal';
-    modalElement.className = 'modal fade';
-    modalElement.setAttribute('tabindex', '-1');
-    modalElement.innerHTML = `
+    if (!modalElement) {
+        modalElement = document.createElement('div');
+        modalElement.id = 'expense-categories-modal';
+        modalElement.className = 'modal fade';
+        modalElement.setAttribute('tabindex', '-1');
+        modalElement.innerHTML = `
       <div class="modal-dialog modal-lg" style="z-index: 99999;">
         <div class="modal-content">
           <div class="modal-header">
@@ -445,42 +456,45 @@ async function openExpenseCategoriesModal() {
       </div>
     `;
 
-    // Apply z-index to the modal container directly as well
-    modalElement.style.zIndex = '99999';
+        // Apply z-index to the modal container directly as well
+        modalElement.style.zIndex = '99999';
 
-    document.body.appendChild(modalElement);
-  }
+        document.body.appendChild(modalElement);
+    }
 
-  const modal = new Modal(modalElement);
+    const modal = new Modal(modalElement);
 
-  modalElement.addEventListener(
-    'hidden.bs.modal',
-    () => {
-      setTimeout(() => {
-        modal.dispose();
-        modalElement.remove();
-        document.body.classList.remove('modal-open');
-        document.body.style.overflow = '';
-      }, 100);
-    },
-    { once: true }
-  );
+    modalElement.addEventListener(
+        'hidden.bs.modal',
+        () => {
+            setTimeout(() => {
+                modal.dispose();
+                modalElement.remove();
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+            }, 100);
+        },
+        { once: true }
+    );
 
-  modalElement.addEventListener(
-    'shown.bs.modal',
-    () => loadExpenseCategoriesContent(modalElement),
-    { once: true }
-  );
+    modalElement.addEventListener(
+        'shown.bs.modal',
+        () => loadExpenseCategoriesContent(modalElement),
+        { once: true }
+    );
 
-  modal.show();
+    modal.show();
 }
 
 // Load detailed expenses
-function loadDetailedExpenses() {
+async function loadDetailedExpenses() {
     debugger
     try {
         // Get transactions from localStorage
-        const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+        const snapshot = await getDocs(collection(db, 'bankTransactions'));
+
+        // Map Firestore docs to Expense[]
+        const transactions = snapshot.docs.map(doc => doc.data())
         const expenses = transactions.filter(tx => parseFloat(tx.amount) < 0);
 
         // Update total expenses value in modal
@@ -533,11 +547,14 @@ function loadDetailedExpenses() {
     }
 }
 
-function loadExpenseCategoriesContent(modalElement) {
+async function loadExpenseCategoriesContent(modalElement) {
 
     try {
         // Get transactions
-        const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+        const snapshot = await getDocs(collection(db, 'bankTransactions'));
+
+        // Map Firestore docs to Expense[]
+        const transactions = snapshot.docs.map(doc => doc.data());
         const expenses = transactions.filter(tx => parseFloat(tx.amount) < 0);
 
         if (expenses.length === 0) {
@@ -654,11 +671,14 @@ async function openNetBalanceModal() {
 }
 
 // Load net balance details
-function loadNetBalanceDetails() {
+async function loadNetBalanceDetails() {
 
     try {
         // Get transactions from localStorage
-        const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+        const snapshot = await getDocs(collection(db, 'bankTransactions'));
+
+        // Map Firestore docs to Expense[]
+        const transactions = snapshot.docs.map(doc => doc.data())
 
         // Calculate income (positive transactions)
         const incomeTransactions = transactions.filter(tx => parseFloat(tx.amount) > 0);
@@ -1748,7 +1768,7 @@ function loadTransactionsTable(transactions) {
 
 
 // Load data dashboard
-function loadDataDashboard() {
+async function loadDataDashboard() {
     debugger
     try {
         const dashboardSection = document.getElementById('data-dashboard-section');
@@ -1761,7 +1781,10 @@ function loadDataDashboard() {
         dashboardSection.style.display = 'block';
 
         // Load transactions
-        const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+        const snapshot = await getDocs(collection(db, 'bankTransactions'));
+
+        // Map Firestore docs to Expense[]
+        const transactions = snapshot.docs.map(doc => doc.data())
 
         // Load chart data if Chart.js is available
         if (typeof Chart !== 'undefined') {
@@ -1991,7 +2014,10 @@ async function handleCustomAccountAddition() {
         localStorage.setItem('bankAccounts', JSON.stringify(accounts));
 
         // Create an initial deposit transaction
-        const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+        const snapshot = await getDocs(collection(db, 'bankTransactions'));
+
+        // Map Firestore docs to Expense[]
+        const transactions = snapshot.docs.map(doc => doc.data());
 
         // Add initial balance as a transaction
         transactions.push({
@@ -2483,7 +2509,7 @@ function shouldAutoScanSubscriptions() {
 }
 
 // Scan for potential subscriptions in transactions
-function scanForSubscriptions(forceScan = false) {
+async function scanForSubscriptions(forceScan = false) {
 
     try {
         // Skip automatic scanning unless explicitly forced by user action
@@ -2493,7 +2519,10 @@ function scanForSubscriptions(forceScan = false) {
         }
 
         // Get transactions from localStorage
-        const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+        const snapshot = await getDocs(collection(db, 'bankTransactions'));
+
+        // Map Firestore docs to Expense[]
+        const transactions = snapshot.docs.map(doc => doc.data())
 
         // Get existing subscriptions
         const subscriptions = JSON.parse(localStorage.getItem('subscriptions') || '[]');
@@ -3164,33 +3193,33 @@ function setupFinancialFeatureHandlers() {
 
 // utils/showToast.ts (TypeScript-safe)
 export const showToast = (message, type = 'primary') => {
-  if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return;
 
-  const toastEl = document.getElementById('main-toast');
-  const toastBody = document.getElementById('toast-body');
+    const toastEl = document.getElementById('main-toast');
+    const toastBody = document.getElementById('toast-body');
 
-  if (!toastEl || !toastBody) {
-    console.error('Toast elements not found in DOM.');
-    return;
-  }
+    if (!toastEl || !toastBody) {
+        console.error('Toast elements not found in DOM.');
+        return;
+    }
 
-  // Set toast body content
-  toastBody.textContent = message;
+    // Set toast body content
+    toastBody.textContent = message;
 
-  // Update toast background class
-  toastEl.className = `toast align-items-center text-white bg-${type} border-0 position-fixed top-0 end-0 m-3`;
+    // Update toast background class
+    toastEl.className = `toast align-items-center text-white bg-${type} border-0 position-fixed top-0 end-0 m-3`;
 
-  import('bootstrap/js/dist/toast')
-    .then(({ default: Toast }) => {
-      const toast = Toast.getOrCreateInstance(toastEl, {
-        autohide: true,
-        delay: 3000,
-      });
-      toast.show();
-    })
-    .catch((err) => {
-      console.error('Failed to load Bootstrap Toast module:', err);
-    });
+    import('bootstrap/js/dist/toast')
+        .then(({ default: Toast }) => {
+            const toast = Toast.getOrCreateInstance(toastEl, {
+                autohide: true,
+                delay: 3000,
+            });
+            toast.show();
+        })
+        .catch((err) => {
+            console.error('Failed to load Bootstrap Toast module:', err);
+        });
 };
 
 
@@ -3812,7 +3841,7 @@ async function saveTaxProfileData() {
         showToast('Your tax profile has been saved successfully!', 'success');
 
         // // Close the modal
-        const modal =  Modal.getInstance(document.getElementById('tax-profile-modal'));
+        const modal = Modal.getInstance(document.getElementById('tax-profile-modal'));
         if (modal) {
             modal.hide();
         }

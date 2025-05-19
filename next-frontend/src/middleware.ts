@@ -8,7 +8,7 @@ export function middleware(request: NextRequest) {
   const publicPaths = ['/login', '/sign-up', '/forgot-password'];
 
   if (!isAuth && !publicPaths.includes(request.nextUrl.pathname)) {
-    return NextResponse.redirect(new URL('/sign-up', request.url));
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
   return NextResponse.next();

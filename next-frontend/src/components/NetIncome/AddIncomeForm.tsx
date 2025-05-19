@@ -1,3 +1,5 @@
+import { db } from "@/lib/firebase";
+import { addDoc, collection } from "firebase/firestore";
 import { useState } from "react";
 import { Modal, Button } from "react-bootstrap";
 
@@ -26,7 +28,7 @@ const AddIncomeModal = ({ show, onClose, onAdd }: Props) => {
 
   const commonSources = ['Salary', 'Business', 'Investments', 'Real Estate', 'Other'];
 
-  const handleAdd = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAdd = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -48,10 +50,13 @@ const AddIncomeModal = ({ show, onClose, onAdd }: Props) => {
       accountName: 'Manual Entry'
     };
 
-    const existing = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
-    existing.push(newTx);
-    localStorage.setItem('bankTransactions', JSON.stringify(existing));
-
+    // const existing = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+    // existing.push(newTx);
+    // localStorage.setItem('bankTransactions', JSON.stringify(existing));
+    try {
+      await addDoc(collection(db, 'bankTransactions'), newTx);
+    } catch (error) {
+    }
     onAdd();
     onClose();
     setSource('');

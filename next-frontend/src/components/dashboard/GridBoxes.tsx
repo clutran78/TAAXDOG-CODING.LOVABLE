@@ -5,7 +5,8 @@ import AlertMessage from "@/shared/alerts";
 import NetIncomeModal from "@/shared/modals/NetIncomeModal";
 import NetBalanceDetails from "@/shared/modals/NetBalanceDetailsModal";
 import SubscriptionsModal from "@/shared/modals/ManageSubscriptionsModal";
-import { auth } from '../../lib/firebase';
+import { auth, db } from '../../lib/firebase';
+import { collection, getDocs } from "firebase/firestore";
 
 
 const GridBoxes = () => {
@@ -71,16 +72,18 @@ const GridBoxes = () => {
         setTimeout(() => setAlert(null), 3000);
       }
     };
-
     initializeApp();
+    getBankTransactions();
+  }, [])
 
-    const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+  const getBankTransactions = async ()=>{
+     // const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+    const transactions = await getDocs(collection(db, 'bankTransactions') || '[]');
+    
     if (transactions) {
       displayTransactionSummary()
     }
-
-  }, [])
-
+  }
 
   return (
     <>
@@ -134,7 +137,7 @@ const GridBoxes = () => {
 
       <div className="col-md-3 mb-4">
         <div
-          className="card stats-card h-100"
+          className="card stats-card h-100 cursor-pointer"
           id="net-balance-card"
           data-card="net-balance"
         >

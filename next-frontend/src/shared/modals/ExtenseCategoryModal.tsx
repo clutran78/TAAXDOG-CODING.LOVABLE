@@ -2,6 +2,8 @@
 
 import { Modal } from 'react-bootstrap';
 import { useEffect, useState } from 'react';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 interface ExpenseCategory {
   name: string;
@@ -12,6 +14,14 @@ interface ExpenseCategory {
 interface ExpenseCategoriesModalProps {
   show: boolean;
   handleClose: () => void;
+}
+interface Expense {
+  date: string;
+  description?: string;
+  merchant?: string;
+  category?: string;
+  accountName?: string;
+  amount: string;
 }
 
 const formatCurrency = (amount: number) => `$${amount.toFixed(2)}`;
@@ -30,10 +40,14 @@ const ExpenseCategoriesModal: React.FC<ExpenseCategoriesModalProps> = ({
     }
   }, [show]);
 
-  const loadExpenseCategories = () => {
+  const loadExpenseCategories = async() => {
     try {
       setLoading(true);
-      const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+      // const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+       const snapshot = await getDocs(collection(db, 'bankTransactions'));
+ 
+       // Map Firestore docs to Expense[]
+       const transactions: Expense[] = snapshot.docs.map(doc => doc.data() as Expense);
       const expenseTransactions = transactions.filter((tx: any) => parseFloat(tx.amount) < 0);
 
       const total = expenseTransactions.reduce(
