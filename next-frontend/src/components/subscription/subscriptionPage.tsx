@@ -1,22 +1,28 @@
 "use client"
+import { db } from '@/lib/firebase';
 import { loadSubscriptionsData, setupFinancialFeatureHandlers, setupSubscriptionFormHandlers, updateSubscriptionDisplays } from '@/services/helperFunction';
+import { collection, getDocs } from 'firebase/firestore';
 import React, { useEffect } from 'react';
 
 const SubscriptionsPage: React.FC = () => {
 
     useEffect(() => {
-
-        // Save to localStorage
-        const subscriptions = JSON.parse(localStorage.getItem('subscriptions') || '[]');
-
-        // Give React time to render the modal content
-        setTimeout(() => {
-            setupFinancialFeatureHandlers()
-            loadSubscriptionsData()
-            updateSubscriptionDisplays(subscriptions)
-            setupSubscriptionFormHandlers()
-        }, 0)
-    }, [])
+        const fetchSubscriptions = async () => {
+            try {
+                const snapshot = await getDocs(collection(db, "subscriptions"));
+                const subscriptions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setTimeout(() => {
+                    setupFinancialFeatureHandlers();
+                    loadSubscriptionsData(); // If this internally fetches too, consider skipping it
+                    updateSubscriptionDisplays(subscriptions);
+                    setupSubscriptionFormHandlers();
+                }, 0);
+            } catch (error) {
+                console.error("Failed to fetch subscriptions:", error);
+            }
+        }
+        fetchSubscriptions()
+    }, []);
 
     return (
         <div className="container py-4">

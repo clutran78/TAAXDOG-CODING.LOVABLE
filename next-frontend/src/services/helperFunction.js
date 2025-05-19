@@ -1,5 +1,5 @@
 import Chart from '@/components/utils/chartSetup';
-import { collection, getDocs } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 // Generate mock transactions
@@ -281,7 +281,7 @@ async function displayTransactionSummary() {
 
 // Load income details
 async function loadIncomeDetails() {
-    debugger
+
     try {
         // Get transactions from localStorage
         const snapshot = await getDocs(collection(db, 'bankTransactions'));
@@ -317,7 +317,7 @@ async function loadIncomeDetails() {
                 sourcesContainer.innerHTML = '';
                 return;
             }
-            debugger
+
 
             if (noSourcesMessage) noSourcesMessage.style.display = 'none';
 
@@ -344,7 +344,7 @@ async function loadIncomeDetails() {
                         </div>
                     `;
             });
-            debugger
+
             sourcesContainer.innerHTML = sourcesHTML;
         }
 
@@ -488,7 +488,7 @@ async function openExpenseCategoriesModal() {
 
 // Load detailed expenses
 async function loadDetailedExpenses() {
-    debugger
+
     try {
         // Get transactions from localStorage
         const snapshot = await getDocs(collection(db, 'bankTransactions'));
@@ -636,7 +636,7 @@ async function loadExpenseCategoriesContent(modalElement) {
 
 // Open net balance modal
 async function openNetBalanceModal() {
-    debugger
+
     const { default: Modal } = await import('bootstrap/js/dist/modal');
 
     try {
@@ -759,7 +759,7 @@ async function loadNetBalanceDetails() {
 
 // Open net income modal
 export async function openNetIncomeModal() {
-    debugger
+
 
     try {
         if (typeof document === 'undefined') return; // SSR guard
@@ -776,7 +776,7 @@ export async function openNetIncomeModal() {
         loadIncomeDetails();
         console.log('Net income modal opened successfully');
     } catch (error) {
-        debugger
+
         console.error(`Error opening net income modal: ${error.message}`);
         showToast(
             'An error occurred while opening the net income details. Please refresh the page.',
@@ -948,7 +948,7 @@ function saveGoal(editIndex = null) {
 
 // Edit goal
 export function editGoal(index) {
-    debugger
+
     // log('Editing goal');
 
     try {
@@ -1229,7 +1229,7 @@ function updateGoalsDisplay() {
 
 // Load goals content
 function loadGoalsContent(modalElement) {
-    debugger
+
 
     try {
         const goalsContainer = modalElement.querySelector('#goals-container');
@@ -1698,11 +1698,11 @@ function createExpenseTimeChart(transactions) {
 // Load transactions table
 function loadTransactionsTable(transactions) {
     // log('Loading transactions table');
-    debugger
+
 
     try {
         const tableBody = document.getElementById('transactionsTableBody');
-        debugger
+
 
         if (!tableBody) {
             console.log('Transactions table body element not found', 'warn');
@@ -1745,7 +1745,7 @@ function loadTransactionsTable(transactions) {
 
         // log('Transactions table loaded successfully');
     } catch (error) {
-        debugger
+
 
         console.groupEndlog(`Error loading transactions table: ${error.message}`, 'error');
     }
@@ -1754,7 +1754,7 @@ function loadTransactionsTable(transactions) {
 
 // Load data dashboard
 async function loadDataDashboard() {
-    debugger
+
     try {
         const dashboardSection = document.getElementById('data-dashboard-section');
         if (!dashboardSection) {
@@ -1789,7 +1789,7 @@ async function loadDataDashboard() {
 
 // Open detailed expenses modal
 async function openDetailedExpensesModal() {
-    debugger
+
     try {
         // Get modal element
         let modalElement = document.getElementById('detailed-expenses-modal');
@@ -1841,7 +1841,7 @@ async function setupBankConnectionHandlers() {
 
 // Open bank connection modal
 async function openBankConnectionModal() {
-    debugger
+
     const { default: Modal } = await import('bootstrap/js/dist/modal');
 
     try {
@@ -1867,7 +1867,7 @@ async function openBankConnectionModal() {
 
 // Create bank connection modal
 function createBankConnectionModal() {
-    debugger
+
     try {
         // Create modal HTML
         const modalHTML = `
@@ -1972,7 +1972,7 @@ function createBankConnectionModal() {
 
 // Handle adding a custom bank account
 async function handleCustomAccountAddition() {
-    debugger
+
 
     try {
         // Get form values
@@ -2038,7 +2038,7 @@ async function handleCustomAccountAddition() {
 
 // Handle mock bank connection
 async function handleMockConnection() {
-    debugger
+
     const { default: Modal } = await import('bootstrap/js/dist/modal');
 
     try {
@@ -2062,7 +2062,7 @@ async function handleMockConnection() {
 
 // Update bank connections display
 export function updateBankConnectionsDisplay() {
-    debugger
+
     try {
         const noConnectionsMsg = document.getElementById('no-connections-message');
         const connectionsList = document.getElementById('dashboard-connections-list');
@@ -2179,7 +2179,7 @@ function getAccountTypeName(accountType) {
 
 
 export async function openBankAccountsModal() {
-    debugger
+
     try {
         // Get or create modal element
         let modalElement = document.getElementById('bank-accounts-modal');
@@ -2225,7 +2225,7 @@ export async function openBankAccountsModal() {
             const addNewBankBtn = document.getElementById('add-new-bank-btn');
             if (addNewBankBtn) {
                 addNewBankBtn.addEventListener('click', function () {
-                    debugger
+
                     // Close this modal and open the bank connection modal
                     const currentModal = Modal.getInstance(modalElement);
                     if (currentModal) currentModal.hide();
@@ -2268,7 +2268,7 @@ export async function openBankAccountsModal() {
 
 // Load bank accounts content
 function loadBankAccountsContent(modalElement) {
-    debugger
+
     try {
         const accountsContainer = modalElement.querySelector('#bank-accounts-container');
         const loadingIndicator = modalElement.querySelector('#bank-accounts-loading');
@@ -2283,7 +2283,7 @@ function loadBankAccountsContent(modalElement) {
 
         // Check if we have transactions, even without explicit accounts
         const hasTransactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]').length > 0;
-        debugger
+
         // Hide loading indicator
         if (loadingIndicator) loadingIndicator.style.display = 'none';
 
@@ -2404,7 +2404,7 @@ function loadBankAccountsContent(modalElement) {
 
 // Open subscriptions modal
 async function openSubscriptionsModal() {
-    debugger
+
     try {
         const { default: Modal } = await import('bootstrap/js/dist/modal');
         // Get modal element
@@ -2428,7 +2428,7 @@ async function openSubscriptionsModal() {
 
 // Set up subscription form handlers
 export function setupSubscriptionFormHandlers() {
-    debugger
+
     try {
         // Add subscription button
         const addButton = document.getElementById('add-subscription-btn');
@@ -2488,40 +2488,23 @@ export function setupSubscriptionFormHandlers() {
 
 // Check if automatic subscription scanning is enabled
 function shouldAutoScanSubscriptions() {
-    // By default, auto-scanning is disabled to prevent unexpected subscription creation
-    const autoScanEnabled = localStorage.getItem('autoScanSubscriptionsEnabled');
-    return autoScanEnabled === 'true';
+    const autoScanEnabled = localStorage.getItem('autoScanSubscriptionsEnabled')
+    return autoScanEnabled
 }
 
 // Scan for potential subscriptions in transactions
 async function scanForSubscriptions(forceScan = false) {
-
     try {
-        // Skip automatic scanning unless explicitly forced by user action
-        if (!forceScan && !shouldAutoScanSubscriptions()) {
-            console.log('Automatic subscription scanning is disabled. Skipping scan.');
-            return;
-        }
+        if (!forceScan && !shouldAutoScanSubscriptions()) return;
 
-        // Get transactions from localStorage
-        const snapshot = await getDocs(collection(db, 'bankTransactions'));
+        const txSnapshot = await getDocs(collection(db, 'bankTransactions'));
+        const transactions = txSnapshot.docs.map(doc => doc.data());
+        const subSnapshot = await getDocs(collection(db, 'subscriptions'));
+        const subscriptions = subSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const existingMerchants = subscriptions.map(sub => (sub.name || '').toLowerCase().trim());
 
-        // Map Firestore docs to Expense[]
-        const transactions = snapshot.docs.map(doc => doc.data())
-
-        // Get existing subscriptions
-        const subscriptions = JSON.parse(localStorage.getItem('subscriptions') || '[]');
-
-        // Find existing subscription merchant names to avoid duplicates
-        const existingMerchants = subscriptions.map(sub => {
-            // Convert to lowercase and trim for better matching
-            return sub.name.toLowerCase().trim();
-        });
-
-        // Map of merchants with negative transactions
         const merchantTransactions = {};
 
-        // Only look at negative transactions (expenses)
         transactions
             .filter(tx => parseFloat(tx.amount) < 0)
             .forEach(tx => {
@@ -2529,120 +2512,79 @@ async function scanForSubscriptions(forceScan = false) {
                 const amount = Math.abs(parseFloat(tx.amount)).toFixed(2);
                 const key = `${merchant.toLowerCase()}_${amount}`;
 
-                if (!merchantTransactions[key]) {
-                    merchantTransactions[key] = [];
-                }
-
-                merchantTransactions[key].push({
-                    date: new Date(tx.date),
-                    amount,
-                    category: tx.category,
-                    description: tx.description
-                });
+                if (!merchantTransactions[key]) merchantTransactions[key] = [];
+                merchantTransactions[key].push({ ...tx, date: new Date(tx.date) });
             });
 
-        // Find recurring transactions with the same merchant and amount
-        const potentialSubscriptions = [];
+        let added = 0;
 
         for (const [key, txs] of Object.entries(merchantTransactions)) {
-            // Check for at least 2 transactions with similar timing
-            if (txs.length >= 2) {
-                // Sort by date
-                txs.sort((a, b) => a.date - b.date);
+            if (txs.length < 2) continue;
 
-                // Calculate average days between transactions
-                let totalDays = 0;
-                let intervals = 0;
+            txs.sort((a, b) => a.date - b.date);
 
-                for (let i = 1; i < txs.length; i++) {
-                    const daysBetween = Math.round((txs[i].date - txs[i - 1].date) / (1000 * 60 * 60 * 24));
-                    if (daysBetween > 5) { // Ignore transactions too close together
-                        totalDays += daysBetween;
-                        intervals++;
-                    }
-                }
-
-                if (intervals > 0) {
-                    const avgDays = totalDays / intervals;
-
-                    // Determine if it's weekly, monthly, quarterly, or yearly
-                    let frequency = 'monthly';
-                    if (avgDays <= 10) {
-                        frequency = 'weekly';
-                    } else if (avgDays >= 75 && avgDays <= 105) {
-                        frequency = 'quarterly';
-                    } else if (avgDays >= 350) {
-                        frequency = 'yearly';
-                    }
-
-                    // Extract merchant name from key
-                    const [merchantName] = key.split('_');
-
-                    // More robust check for existing merchants to avoid duplicates
-                    // Skip if we already have this merchant in our subscriptions
-                    const normalizedMerchantName = merchantName.toLowerCase().trim();
-                    if (existingMerchants.some(name => name === normalizedMerchantName ||
-                        name.includes(normalizedMerchantName) ||
-                        normalizedMerchantName.includes(name))) {
-                        continue;
-                    }
-
-                    // Create potential subscription
-                    potentialSubscriptions.push({
-                        name: merchantName.charAt(0).toUpperCase() + merchantName.slice(1),
-                        amount: txs[0].amount,
-                        category: txs[0].category || 'Entertainment',
-                        frequency,
-                        startDate: txs[0].date.toISOString().split('T')[0],
-                        nextPaymentDate: calculateNextPaymentDate(txs[txs.length - 1].date, avgDays).toISOString().split('T')[0],
-                        notes: `Auto-detected from ${txs.length} transactions. Average interval: ${Math.round(avgDays)} days.`,
-                        autoDetected: true
-                    });
+            let totalDays = 0;
+            let intervals = 0;
+            for (let i = 1; i < txs.length; i++) {
+                const days = Math.round((txs[i].date - txs[i - 1].date) / (1000 * 60 * 60 * 24));
+                if (days > 5) {
+                    totalDays += days;
+                    intervals++;
                 }
             }
-        }
 
-        if (potentialSubscriptions.length === 0) {
-            showToast('No new potential subscriptions found in your transactions', 'info');
-            return;
-        }
+            if (intervals === 0) continue;
 
-        // Add the detected subscriptions to the list
-        let added = 0;
-        potentialSubscriptions.forEach(sub => {
-            const newSubscription = {
-                ...sub,
-                id: 'sub-' + Math.random().toString(36).substring(2, 9)
+            const avgDays = totalDays / intervals;
+            let frequency = 'monthly';
+            if (avgDays <= 10) frequency = 'weekly';
+            else if (avgDays >= 75 && avgDays <= 105) frequency = 'quarterly';
+            else if (avgDays >= 350) frequency = 'yearly';
+
+            const [merchantName] = key.split('_');
+            if (existingMerchants.includes(merchantName)) continue;
+
+            const subscription = {
+                id: 'sub-' + Math.random().toString(36).substring(2, 9),
+                name: merchantName.charAt(0).toUpperCase() + merchantName.slice(1),
+                amount: txs[0].amount,
+                category: txs[0].category || 'Entertainment',
+                frequency,
+                startDate: txs[0].date.toISOString().split('T')[0],
+                nextPaymentDate: calculateNextPaymentDate(txs[txs.length - 1].date, avgDays).toISOString().split('T')[0],
+                notes: `Auto-detected from ${txs.length} transactions. Avg interval: ${Math.round(avgDays)} days.`,
+                autoDetected: true,
+                createdAt: new Date().toISOString()
             };
 
-            subscriptions.push(newSubscription);
+            await addDoc(collection(db, 'subscriptions'), subscription);
             added++;
-        });
+        }
 
-        // Save to localStorage
-        localStorage.setItem('subscriptions', JSON.stringify(subscriptions));
-
-        // Update dashboard display
-        updateSubscriptionDisplays(subscriptions);
-
-        // Reload subscriptions data
-        loadSubscriptionsData();
-
-        // Show success message
-        showToast(`Found and added ${added} new subscription${added !== 1 ? 's' : ''} from your transactions`, 'success');
-
-    } catch (error) {
-        showToast('An error occurred while scanning for subscriptions', 'danger');
+        if (added > 0) {
+            showToast(`Added ${added} new subscription${added > 1 ? 's' : ''}`, 'success');
+            loadSubscriptionsData(); // Refresh view
+        } else {
+            showToast('No new subscriptions detected.', 'info');
+        }
+    } catch (err) {
+        console.error(err);
+        showToast('Error during subscription scan.', 'danger');
     }
 }
 
 
 // Load subscriptions data
-export function loadSubscriptionsData() {
-    debugger
+export async function loadSubscriptionsData() {
+
     try {
         // Get subscriptions from localStorage
-        const subscriptions = JSON.parse(localStorage.getItem('subscriptions') || '[]');
+        // const subscriptions = JSON.parse(localStorage.getItem('subscriptions') || '[]');
+        const snapshot = await getDocs(collection(db, "subscriptions"));
+        const subscriptions = snapshot.docs.map(doc => ({
+            docId: doc.id, // ✅ Actual Firestore doc ID
+            ...doc.data()
+        }));
 
         // Update dashboard display
         updateSubscriptionDisplays(subscriptions);
@@ -2725,10 +2667,10 @@ export function loadSubscriptionsData() {
                                 ${subscription.notes ? `Note: ${subscription.notes}` : ''}
                             </div>
                             <div>
-                                <button class="btn btn-sm btn-outline-danger delete-subscription-btn" data-subscription-index="${index}">
+                                <button class="btn btn-sm btn-outline-danger delete-subscription-btn" data-subscription-index="${subscription.docId}">
                                     <i class="fas fa-trash-alt"></i>
                                 </button>
-                                <button class="btn btn-sm btn-outline-primary edit-subscription-btn ms-1" data-subscription-index="${index}">
+                               <button class="btn btn-sm btn-outline-primary edit-subscription-btn ms-1" data-subscription-id="${subscription.docId}">
                                     <i class="fas fa-edit"></i>
                                 </button>
                             </div>
@@ -2744,15 +2686,15 @@ export function loadSubscriptionsData() {
         // Add event listeners for edit and delete buttons
         document.querySelectorAll('.edit-subscription-btn').forEach(button => {
             button.addEventListener('click', function () {
-                const index = parseInt(this.getAttribute('data-subscription-index'));
-                editSubscription(index);
+                const docId = this.getAttribute('data-subscription-id');
+                editSubscription(docId);
             });
         });
-
         document.querySelectorAll('.delete-subscription-btn').forEach(button => {
             button.addEventListener('click', function () {
-                const index = parseInt(this.getAttribute('data-subscription-index'));
-                deleteSubscription(index);
+                const docId = this.getAttribute('data-subscription-index')
+
+                deleteSubscription(docId);
             });
         });
 
@@ -2762,40 +2704,31 @@ export function loadSubscriptionsData() {
 }
 
 // Delete subscription
-function deleteSubscription(index) {
+async function deleteSubscription(docId) {
 
     try {
-        // Get existing subscriptions
-        const subscriptions = JSON.parse(localStorage.getItem('subscriptions') || '[]');
-
-        // Store the name for the success message
-        const subscriptionName = subscriptions[index].name;
-
-        // Remove subscription
-        subscriptions.splice(index, 1);
-
-        // Save to localStorage
-        localStorage.setItem('subscriptions', JSON.stringify(subscriptions));
-
-        // Update dashboard display
-        updateSubscriptionDisplays(subscriptions);
-
-        // Reload subscriptions data
+        await deleteDoc(doc(db, "subscriptions", docId));
+        showToast(`Subscription deleted`, 'success');
         loadSubscriptionsData();
-
-        // Show success message
-        showToast(`Subscription to ${subscriptionName} has been deleted`, 'success');
-
-    } catch (error) {
-        showToast('An error occurred while deleting the subscription', 'danger');
+    } catch (err) {
+        console.error(err);
+        showToast('Error deleting subscription', 'danger');
     }
 }
 
-// Edit subscription
-function editSubscription(index) {
+
+// Edit subscription by ID (Firestore version)
+async function editSubscription(docId) {
     try {
-        const subscriptions = JSON.parse(localStorage.getItem('subscriptions') || '[]');
-        const subscription = subscriptions[index];
+        const docRef = doc(db, 'subscriptions', docId); // ✅ Now using correct Firestore document ID
+        const docSnap = await getDoc(docRef);
+
+        if (!docSnap.exists()) {
+            showToast('Subscription not found', 'warning');
+            return;
+        }
+
+        const subscription = docSnap.data();
 
         // Populate form
         document.getElementById('subscription-name').value = subscription.name;
@@ -2810,39 +2743,30 @@ function editSubscription(index) {
         document.getElementById('add-subscription-btn').style.display = 'none';
 
         const form = document.getElementById('subscription-form');
-
-        // Remove any previous submit listeners
         const newForm = form.cloneNode(true);
         form.parentNode.replaceChild(newForm, form);
 
-        newForm.addEventListener('submit', function handleUpdate(e) {
+        newForm.addEventListener('submit', async function handleUpdate(e) {
             e.preventDefault();
 
-            // Get form values
-            const updatedSub = {
-                id: subscription.id,
-                autoDetected: subscription.autoDetected || false,
+            const updatedData = {
                 name: document.getElementById('subscription-name').value,
                 amount: document.getElementById('subscription-amount').value,
                 category: document.getElementById('subscription-category').value,
                 frequency: document.getElementById('subscription-frequency').value,
                 startDate: document.getElementById('subscription-start-date').value,
                 nextPaymentDate: document.getElementById('subscription-next-payment').value,
-                notes: document.getElementById('subscription-notes').value || ''
+                notes: document.getElementById('subscription-notes').value || '',
             };
 
-            subscriptions[index] = updatedSub;
-
-            // Save and refresh
-            localStorage.setItem('subscriptions', JSON.stringify(subscriptions));
-            updateSubscriptionDisplays(subscriptions);
-            loadSubscriptionsData();
+            await updateDoc(doc(db, 'subscriptions', docId), updatedData);
 
             newForm.reset();
             document.getElementById('add-subscription-form').style.display = 'none';
             document.getElementById('add-subscription-btn').style.display = 'block';
 
-            showToast(`Subscription to ${updatedSub.name} has been updated`, 'success');
+            loadSubscriptionsData();
+            showToast(`Subscription updated successfully`, 'success');
         });
 
     } catch (error) {
@@ -2853,10 +2777,8 @@ function editSubscription(index) {
 
 
 // Save subscription data
-function saveSubscription() {
-
+async function saveSubscription() {
     try {
-        // Get form values
         const name = document.getElementById('subscription-name').value;
         const amount = document.getElementById('subscription-amount').value;
         const category = document.getElementById('subscription-category').value;
@@ -2865,9 +2787,8 @@ function saveSubscription() {
         const nextPaymentDate = document.getElementById('subscription-next-payment').value;
         const notes = document.getElementById('subscription-notes').value;
 
-        // Create subscription object
         const subscription = {
-            id: 'sub-' + Math.random().toString(36).substring(2, 9),
+            id: 'sub-' + Math.random().toString(36).substring(2, 9), // Store the ID in the document
             name,
             amount,
             category,
@@ -2875,40 +2796,27 @@ function saveSubscription() {
             startDate,
             nextPaymentDate,
             notes,
-            autoDetected: false
+            autoDetected: false,
+            createdAt: new Date().toISOString(),
         };
 
-        // Get existing subscriptions
-        const subscriptions = JSON.parse(localStorage.getItem('subscriptions') || '[]');
+        await addDoc(collection(db, 'subscriptions'), subscription);
 
-        // Add new subscription
-        subscriptions.push(subscription);
+        showToast(`Subscription added successfully`, 'success');
 
-        // Save to localStorage
-        localStorage.setItem('subscriptions', JSON.stringify(subscriptions));
-
-        // Update dashboard display
-        updateSubscriptionDisplays(subscriptions);
-
-        // Reset form and hide it
+        loadSubscriptionsData();
         document.getElementById('subscription-form').reset();
         document.getElementById('add-subscription-form').style.display = 'none';
         document.getElementById('add-subscription-btn').style.display = 'block';
 
-        // Reload subscriptions data
-        loadSubscriptionsData();
-
-        // Show success message
-        showToast(`Subscription to ${name} has been added successfully`, 'success');
-
     } catch (error) {
+        console.error(error);
         showToast('An error occurred while saving the subscription', 'danger');
     }
 }
-
 // Update subscription displays across the app
 export function updateSubscriptionDisplays(subscriptions) {
-    debugger
+
     try {
         // Calculate total monthly cost
         let totalMonthlyCost = 0;
@@ -3006,7 +2914,7 @@ function setupFinancialFeatureHandlers() {
 
         // // For Net Balance card - using direct ID
         const balanceCard = document.getElementById('net-balance-card');
-        debugger
+
         if (balanceCard && !balanceCard._hasBalanceClickHandler) {
             balanceCard.addEventListener('click', function () {
                 openNetBalanceModal();
@@ -3050,7 +2958,7 @@ function setupFinancialFeatureHandlers() {
 
         // Set up modal navigation buttons
         const viewAllExpensesBtn = document.getElementById('view-all-expenses-btn');
-        debugger
+
         if (viewAllExpensesBtn) {
             viewAllExpensesBtn.addEventListener('click', async function () {
                 const { default: Modal } = await import('bootstrap/js/dist/modal');
@@ -3085,7 +2993,7 @@ function setupFinancialFeatureHandlers() {
 
 
         // const viewExpenseCategoriesBtn = document.getElementById('view-expense-categories-btn');
-        // debugger
+        
 
         // if (viewExpenseCategoriesBtn) {
         //   viewExpenseCategoriesBtn.addEventListener('click', async function () {
@@ -3118,6 +3026,11 @@ function setupFinancialFeatureHandlers() {
         // }
 
 
+        document.getElementById('auto-detect-subscriptions')?.addEventListener('change', (e) => {
+            const checked = e.target.checked;
+            localStorage.setItem('autoScanSubscriptionsEnabled', checked ? 'true' : 'false');
+        });
+
 
 
         const viewAllExpensesFromBalanceBtn = document.getElementById('view-all-expenses-from-balance-btn');
@@ -3137,7 +3050,7 @@ function setupFinancialFeatureHandlers() {
         // // Set up balance modal navigation buttons
         const viewAllIncomeFromBalanceBtn = document.getElementById('view-all-income-from-balance-btn');
         if (viewAllIncomeFromBalanceBtn) {
-            debugger
+
             viewAllIncomeFromBalanceBtn.addEventListener('click', async function () {
                 const { default: Modal } = await import('bootstrap/js/dist/modal');
 
@@ -3209,7 +3122,7 @@ export const showToast = (message, type = 'primary') => {
 
 
 function populateFormWithReceiptData(data) {
-    debugger
+
     const doc = data.documents[0].data;
     document.getElementById('vendor_name').value = doc.merchant_name || '';
     document.getElementById('total_amount').value = doc.total_amount || '';
@@ -3221,7 +3134,7 @@ function populateFormWithReceiptData(data) {
 
 
 function updateLocalStorageAndUI(newData) {
-    debugger
+
     const currentStats = JSON.parse(localStorage.getItem('receiptStats')) || {
         totalReceipts: 0,
         totalSpent: 0,
@@ -3718,7 +3631,7 @@ function collectEmployersData() {
 
 // Update saveTaxProfileData to update the dashboard summary
 async function saveTaxProfileData() {
-    debugger
+
     try {
         const { default: Modal } = await import('bootstrap/js/dist/modal');
 
@@ -3834,7 +3747,7 @@ async function saveTaxProfileData() {
         return true;
 
     } catch (error) {
-        debugger
+
         showToast('Failed to save your tax profile. Please try again.', 'danger');
         return false;
     }

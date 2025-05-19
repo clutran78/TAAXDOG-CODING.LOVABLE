@@ -37,18 +37,23 @@ const GridBoxes = () => {
     }
   }, [showNetIncomeModal]);
 
-  useEffect(() => {
+ useEffect(() => {
+  const loadSubscriptions = async () => {
+    try {
+      const snapshot = await getDocs(collection(db, "subscriptions"));
+      const subscriptions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-    // Save to localStorage
-    const subscriptions = JSON.parse(localStorage.getItem('subscriptions') || '[]');
-
-    // Give React time to render the modal content
     setTimeout(() => {
-      setupFinancialFeatureHandlers()
-      updateBankConnectionsDisplay()
-      updateSubscriptionDisplays(subscriptions)
-    }, 0)
-  }, [])
+      setupFinancialFeatureHandlers();
+      updateBankConnectionsDisplay();
+      updateSubscriptionDisplays(subscriptions);
+      }, 0);
+    } catch (error) {
+      console.error("Failed to load subscriptions:", error);
+    }
+  };
+  loadSubscriptions()
+}, []);
 
 
   const handleShowNetIncomeModal = () => setShowNetIncomeModal(true)
@@ -64,10 +69,10 @@ const GridBoxes = () => {
     const initializeApp = () => {
       const dataCreated = initializeMockData();
       if (dataCreated) {
-        setAlert({
-          message: 'All set! Your data is ready—start exploring your dashboard.',
-          type: 'success',
-        });
+        // setAlert({
+        //   message: 'All set! Your data is ready—start exploring your dashboard.',
+        //   type: 'success',
+        // });
         // Auto-dismiss after 5 seconds
         setTimeout(() => setAlert(null), 3000);
       }
