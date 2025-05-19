@@ -1,5 +1,6 @@
 import { auth, db } from "@/lib/firebase";
 import { showToast } from "@/services/helperFunction";
+import { onAuthStateChanged } from "firebase/auth";
 import { addDoc, collection } from "firebase/firestore";
 import { useState } from "react";
 import { Modal, Button } from "react-bootstrap";
@@ -27,6 +28,7 @@ const AddIncomeModal = ({ show, onClose, onAdd }: Props) => {
   const [amount, setAmount] = useState('');
   const [merchant, setMerchant] = useState('');
   const [validated, setValidated] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const commonSources = ['Salary', 'Business', 'Investments', 'Real Estate', 'Other'];
 
@@ -39,13 +41,18 @@ const AddIncomeModal = ({ show, onClose, onAdd }: Props) => {
 
     const category = source === 'Other' ? customSource : source;
     const isValid = form.checkValidity();
-    const user = auth.currentUser;
 
-    if (!isValid || !category || !amount || !user) {
-      showToast('You must be logged in to add a transaction.', 'warning');
-      return;
-    }
-
+    if (!isValid || !category || !amount) return;
+     setLoading(true);
+    // const existing = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+    // existing.push(newTx);
+    // localStorage.setItem('bankTransactions', JSON.stringify(existing));
+    try {
+      onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+          console.error('No authenticated user found. Cannot fetch user-specific data.');
+          return
+        }
     const newTx: Transaction = {
       id: 'tx-' + Math.random().toString(36).substring(2, 9),
       date: new Date().toISOString(),
@@ -57,11 +64,8 @@ const AddIncomeModal = ({ show, onClose, onAdd }: Props) => {
       userId: user.uid,
     };
 
-    // const existing = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
-    // existing.push(newTx);
-    // localStorage.setItem('bankTransactions', JSON.stringify(existing));
-    try {
       await addDoc(collection(db, 'bankTransactions'), newTx);
+      })
     } catch (error) {
     }
     onAdd();
@@ -146,7 +150,16 @@ const AddIncomeModal = ({ show, onClose, onAdd }: Props) => {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="success">Add Income</Button>
+          <Button type="submit" variant="success" disabled={loading}>
+            {loading ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Adding...
+              </>
+            ) : (
+              'Add Income'
+            )}
+          </Button>
         </Modal.Footer>
       </form>
     </Modal>

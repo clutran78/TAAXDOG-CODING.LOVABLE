@@ -2929,6 +2929,17 @@ async function editSubscription(docId) {
 
 // Save subscription data
 async function saveSubscription() {
+    let isSubmitting = false;
+    if (isSubmitting) return; // Prevent double submission
+    isSubmitting = true;
+    const saveBtn = document.querySelector('#subscription-form button[type="submit"]');
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = `
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            Saving...
+        `;
+    }
     try {
         const name = document.getElementById('subscription-name').value;
         const amount = document.getElementById('subscription-amount').value;

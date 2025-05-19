@@ -17,6 +17,7 @@ const AddExpenseModal = ({ show, onClose, onAdd }: Props) => {
   const [merchant, setMerchant] = useState('');
   const [description, setDescription] = useState('');
   const [validated, setValidated] = useState(false);
+  const [loading, setLoading] = useState(false)
 
   const handleAdd = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -26,7 +27,7 @@ const AddExpenseModal = ({ show, onClose, onAdd }: Props) => {
     const user = auth.currentUser;
     
     if (!category || !amount || !user) return;
-
+     setLoading(true);     
     const newExpense = {
       id: 'tx-' + Math.random().toString(36).substring(2, 9),
       date: new Date().toISOString(),
@@ -79,7 +80,17 @@ const AddExpenseModal = ({ show, onClose, onAdd }: Props) => {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button variant="danger" type="submit">Add Expense</Button>
+
+          <Button type="submit" variant="danger" disabled={loading}>
+            {loading ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Adding...
+              </>
+            ) : (
+              'Add Expense'
+            )}
+          </Button>
         </Modal.Footer>
       </form>
     </Modal>
