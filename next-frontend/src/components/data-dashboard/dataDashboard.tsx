@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { loadDataDashboard } from '@/services/helperFunction';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 const ITEMS_PER_PAGE = 10
 interface Transaction {
@@ -17,20 +19,28 @@ const DataDashboardComponent = () => {
     const [currentPage, setCurrentPage] = React.useState(1);
 
     useEffect(() => {
+    const fetchData = async () => {
         const dataDashboardSection = document.getElementById('data-dashboard-section') as HTMLElement | null;
         if (dataDashboardSection) {
             dataDashboardSection.style.display = 'block';
         }
 
-        // Load transactions from localStorage
-        const tx: Transaction[] = (JSON.parse(localStorage.getItem('bankTransactions') || '[]') as Transaction[]).map(t => ({
+    try {
+      const snapshot = await getDocs(collection(db, 'bankTransactions'));
+      const transactions = snapshot.docs.map(doc => doc.data());
+
+        const tx: Transaction[] = transactions.map((t: any) => ({
             ...t,
             amount: typeof t.amount === 'string' ? parseFloat(t.amount) : t.amount
         }));
         setTransactions(tx);
-        loadDataDashboard(); // Load charts
-    }, [])
-
+        loadDataDashboard(); // Load charts or metrics
+    } catch (error) {
+      console.error('Error loading bank transactions:', error);
+    }
+  };
+  fetchData()
+}, []);
     // Pagination logic
     const totalPages = Math.ceil(transactions.length / ITEMS_PER_PAGE)
 

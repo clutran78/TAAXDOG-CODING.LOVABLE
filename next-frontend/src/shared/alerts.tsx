@@ -7,7 +7,7 @@ type AlertProps = {
 
 const AlertMessage: React.FC<AlertProps> = ({ message, type = 'info' }) => {
   return (
-    <div className={`alert alert-${type} alert-dismissible fade show mt-3`} role="alert">
+    <div className={`alert alert-${type} alert-dismissible fade show`} role="alert">
       {message}
     </div>
   );

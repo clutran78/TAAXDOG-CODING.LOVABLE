@@ -7,6 +7,7 @@ import {
 } from '@/services/helperFunction';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import AddExpenseModal from './AddExpensesForm';
 
 // Define the structure of an expense item
 interface Expense {
@@ -22,6 +23,7 @@ const TotalExpensesPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [expensesPerPage] = useState(10);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
 
   useEffect(() => {
@@ -82,12 +84,21 @@ const TotalExpensesPage = () => {
   }
 
   return (
+    <>
+      <AddExpenseModal
+        show={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onAdd={loadDetailedExpenses}
+      />
     <div className="container py-4">
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h3>
           <i className="fas fa-receipt text-danger me-2"></i>Detailed Expenses
         </h3>
+          <button className="btn btn-outline-danger" onClick={() => setShowAddModal(true)}>
+            + Add Expense
+          </button>
       </div>
 
       {/* Totals and Search */}
@@ -179,6 +190,7 @@ const TotalExpensesPage = () => {
         </button>
       </div>
     </div>
+    </>
   );
 };
 

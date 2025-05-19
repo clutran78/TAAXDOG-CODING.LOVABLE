@@ -65,7 +65,7 @@ const GridBoxes = () => {
       const dataCreated = initializeMockData();
       if (dataCreated) {
         setAlert({
-          message: 'Demo data has been initialized. You can now explore the app features.',
+          message: 'All set! Your data is ready—start exploring your dashboard.',
           type: 'success',
         });
         // Auto-dismiss after 5 seconds

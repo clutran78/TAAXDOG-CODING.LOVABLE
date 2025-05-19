@@ -139,7 +139,7 @@ function initializeMockData() {
             transactions = generateMockTransactions(30);
 
             // Save to local storage
-            localStorage.setItem('bankTransactions', JSON.stringify(transactions));
+            // localStorage.setItem('bankTransactions', JSON.stringify(transactions));
 
             // log('Mock transactions created successfully');
             dataCreated = true;
@@ -548,106 +548,91 @@ async function loadDetailedExpenses() {
 }
 
 async function loadExpenseCategoriesContent(modalElement) {
+  try {
+    const snapshot = await getDocs(collection(db, 'bankTransactions'));
+    const transactions = snapshot.docs.map(doc => doc.data());
+    const expenses = transactions.filter(tx => parseFloat(tx.amount) < 0);
 
-    try {
-        // Get transactions
-        const snapshot = await getDocs(collection(db, 'bankTransactions'));
-
-        // Map Firestore docs to Expense[]
-        const transactions = snapshot.docs.map(doc => doc.data());
-        const expenses = transactions.filter(tx => parseFloat(tx.amount) < 0);
-
-        if (expenses.length === 0) {
-            modalElement.querySelector('.modal-body').innerHTML = `
-                <div class="text-center py-4">
-                    <i class="fas fa-exclamation-circle fa-3x text-warning mb-3"></i>
-                    <p>No expense transactions found. Connect your bank account or create mock data first.</p>
-                </div>
-            `;
-            return;
-        }
-
-        // Calculate total expenses
-        const totalExpenses = expenses.reduce((sum, tx) => sum + Math.abs(parseFloat(tx.amount)), 0);
-
-        // Group by category
-        const categories = {};
-        expenses.forEach(tx => {
-            const category = tx.category || 'Uncategorized';
-            if (!categories[category]) {
-                categories[category] = 0;
-            }
-            categories[category] += Math.abs(parseFloat(tx.amount));
-        });
-
-        // Sort categories by amount
-        const sortedCategories = Object.entries(categories)
-            .sort((a, b) => b[1] - a[1]);
-
-        // Generate HTML content
-        let categoriesHTML = '';
-        sortedCategories.forEach(([category, amount]) => {
-            const percentage = ((amount / totalExpenses) * 100).toFixed(1);
-            categoriesHTML += `
-                <div class="d-flex justify-content-between align-items-center mb-2 p-2 border-bottom">
-                    <div>
-                        <span class="badge bg-primary me-2">${category}</span>
-                        <span>${percentage}%</span>
-                    </div>
-                    <span class="text-danger fw-bold">$${amount.toFixed(2)}</span>
-                </div>
-            `;
-        });
-
-        // Update modal content
-        modalElement.querySelector('.modal-body').innerHTML = `
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="card bg-light">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <h4 class="mb-0">Total Expenses</h4>
-                                <h3 class="text-danger mb-0">$${totalExpenses.toFixed(2)}</h3>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-md-7">
-                    <h5 class="mb-3">Expenses by Category</h5>
-                    <div class="card">
-                        <div class="card-body p-3">
-                            ${categoriesHTML}
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-5">
-                    <h5 class="mb-3">Distribution</h5>
-                    <div class="card">
-                        <div class="card-body">
-                            <div class="text-center py-3">
-                                <i class="fas fa-chart-pie fa-3x text-primary mb-3"></i>
-                                <p>Chart visualization would appear here</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-
-    } catch (error) {
-        if (modalElement) {
-            modalElement.querySelector('.modal-body').innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    An error occurred while loading expense data. Please try again.
-                </div>
-            `;
-        }
+    if (expenses.length === 0) {
+      modalElement.querySelector('.modal-body').innerHTML = `
+        <div class="text-center py-4">
+          <i class="fas fa-exclamation-circle fa-3x text-warning mb-3"></i>
+          <p>No expense transactions found. Connect your bank account or create mock data first.</p>
+        </div>
+      `;
+      return;
     }
-}
 
+    const totalExpenses = expenses.reduce((sum, tx) => sum + Math.abs(parseFloat(tx.amount)), 0);
+
+    const categoryMap = {};
+    expenses.forEach(tx => {
+      const category = tx.category || 'Uncategorized';
+      categoryMap[category] = (categoryMap[category] || 0) + Math.abs(parseFloat(tx.amount));
+    });
+
+    const sortedCategories = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]);
+
+    let categoriesHTML = '';
+    sortedCategories.forEach(([category, amount]) => {
+      const percentage = ((amount / totalExpenses) * 100).toFixed(1);
+      categoriesHTML += `
+        <div class="d-flex justify-content-between align-items-center mb-2 p-2 border-bottom">
+          <div>
+            <span class="badge bg-primary me-2">${category}</span>
+            <span>${percentage}%</span>
+          </div>
+          <span class="text-danger fw-bold">$${amount.toFixed(2)}</span>
+        </div>
+      `;
+    });
+
+    modalElement.querySelector('.modal-body').innerHTML = `
+      <div class="row mb-4">
+        <div class="col-12">
+          <div class="card bg-light">
+            <div class="card-body d-flex justify-content-between align-items-center">
+              <h4 class="mb-0">Total Expenses</h4>
+              <h3 class="text-danger mb-0">$${totalExpenses.toFixed(2)}</h3>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-7">
+          <h5 class="mb-3">Expenses by Category</h5>
+          <div class="card">
+            <div class="card-body p-3">
+              ${categoriesHTML}
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-5">
+          <h5 class="mb-3">Distribution</h5>
+          <div class="card">
+            <div class="card-body">
+              <div class="text-center py-3">
+                <i class="fas fa-chart-pie fa-3x text-primary mb-3"></i>
+                <p>Chart visualization would appear here</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+  } catch (error) {
+    console.error('Failed to load expense categories:', error);
+    modalElement.querySelector('.modal-body').innerHTML = `
+      <div class="alert alert-danger">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        An error occurred while loading expense data. Please try again.
+      </div>
+    `;
+  }
+}
 
 // Open net balance modal
 async function openNetBalanceModal() {
