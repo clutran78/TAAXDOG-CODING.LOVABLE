@@ -6,7 +6,8 @@ import NetIncomeModal from "@/shared/modals/NetIncomeModal";
 import NetBalanceDetails from "@/shared/modals/NetBalanceDetailsModal";
 import SubscriptionsModal from "@/shared/modals/ManageSubscriptionsModal";
 import { auth, db } from '../../lib/firebase';
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 
 
 const GridBoxes = () => {
@@ -20,9 +21,9 @@ const GridBoxes = () => {
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(user => {
       if (user) {
-        console.log('User logged in:', user);
+        // console.log('User logged in:', user);
       } else {
-        console.log('No user logged in');
+        // console.log('No user logged in');
       }
     });
     return () => unsubscribe();
@@ -37,23 +38,41 @@ const GridBoxes = () => {
     }
   }, [showNetIncomeModal]);
 
- useEffect(() => {
-  const loadSubscriptions = async () => {
-    try {
-      const snapshot = await getDocs(collection(db, "subscriptions"));
-      const subscriptions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  useEffect(() => {
+    const loadSubscriptions = async () => {
+      try {
 
-    setTimeout(() => {
-      setupFinancialFeatureHandlers();
-      updateBankConnectionsDisplay();
-      updateSubscriptionDisplays(subscriptions);
-      }, 0);
-    } catch (error) {
-      console.error("Failed to load subscriptions:", error);
-    }
-  };
-  loadSubscriptions()
-}, []);
+
+
+        onAuthStateChanged(auth, async (user) => {
+
+          if (!user) {
+            console.error('No authenticated user found. Cannot fetch user-specific data.');
+            return;
+          }
+
+          const q = query(
+            collection(db, 'subscriptions'),
+            where('userId', '==', user?.uid)
+          );
+
+
+          const snapshot = await getDocs(q)
+
+          const subscriptions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+          setTimeout(() => {
+            setupFinancialFeatureHandlers();
+            updateBankConnectionsDisplay();
+            updateSubscriptionDisplays(subscriptions);
+          }, 0);
+        })
+      } catch (error) {
+        console.error("Failed to load subscriptions:", error);
+      }
+    };
+    loadSubscriptions()
+  }, []);
 
 
   const handleShowNetIncomeModal = () => setShowNetIncomeModal(true)
@@ -81,13 +100,28 @@ const GridBoxes = () => {
     getBankTransactions();
   }, [])
 
-  const getBankTransactions = async ()=>{
-     // const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
-    const transactions = await getDocs(collection(db, 'bankTransactions') || '[]');
-    
-    if (transactions) {
-      displayTransactionSummary()
-    }
+  const getBankTransactions = async () => {
+    // const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+
+
+    onAuthStateChanged(auth, async (user) => {
+
+      if (!user) {
+        console.error('No authenticated user found. Cannot fetch user-specific data.');
+        return;
+      }
+
+      const q = query(
+        collection(db, 'bankTransactions'),
+        where('userId', '==', user?.uid)
+      );
+
+      const transactions = await getDocs(q);
+
+      if (transactions) {
+        displayTransactionSummary()
+      }
+    })
   }
 
   return (
@@ -117,7 +151,7 @@ const GridBoxes = () => {
         </div>
       </div>
 
-      <div className="col-md-3 mb-4 cursor-pointer"   id="view-expense-categories-btn">
+      <div className="col-md-3 mb-4 cursor-pointer" id="view-expense-categories-btn">
         <div
           className="card stats-card h-100"
           id="total-expenses-card"

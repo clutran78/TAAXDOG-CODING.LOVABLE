@@ -1,6 +1,7 @@
 import Chart from '@/components/utils/chartSetup';
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 // Generate mock transactions
 function generateMockTransactions(days = 30) {
@@ -240,39 +241,53 @@ function updateElementText(elementId, text) {
 async function displayTransactionSummary() {
     try {
         // Get transactions from localStorage
-        const snapshot = await getDocs(collection(db, 'bankTransactions'));
 
-        // Map Firestore docs to Expense[]
-        const transactions= snapshot.docs.map(doc => doc.data())
+        onAuthStateChanged(auth, async (user) => {
 
-        if (transactions.length === 0) {
-            return;
-        }
+            if (!user) {
+                console.error('No authenticated user found. Cannot fetch user-specific data.');
+                return;
+            }
 
-        // Calculate income (positive transactions)
-        const income = transactions.reduce((sum, tx) => {
-            const amount = parseFloat(tx.amount || '0');
-            return sum + (amount > 0 ? amount : 0);
-        }, 0);
+            const q = query(
+                collection(db, 'bankTransactions'),
+                where('userId', '==', user?.uid)
+            );
 
-        // Calculate expenses (negative transactions)
-        const expenses = transactions.reduce((sum, tx) => {
-            const amount = parseFloat(tx.amount || '0');
-            return sum + (amount < 0 ? Math.abs(amount) : 0);
-        }, 0);
 
-        // Calculate net balance
-        const netBalance = income - expenses;
+            const snapshot = await getDocs(q);
 
-        // Update UI elements
-        updateElementText('net-income-value', formatCurrency(income));
-        updateElementText('total-expenses-value', formatCurrency(expenses));
-        updateElementText('net-balance-value', formatCurrency(netBalance));
+            // Map Firestore docs to Expense[]
+            const transactions = snapshot.docs.map(doc => doc.data())
 
-        // Calculate and update subscriptions (simplified estimate)
-        const subscriptions = expenses * 0.15; // 15% of expenses as estimation
-        updateElementText('subscriptions-value', formatCurrency(subscriptions));
+            if (transactions.length === 0) {
+                return;
+            }
 
+            // Calculate income (positive transactions)
+            const income = transactions.reduce((sum, tx) => {
+                const amount = parseFloat(tx.amount || '0');
+                return sum + (amount > 0 ? amount : 0);
+            }, 0);
+
+            // Calculate expenses (negative transactions)
+            const expenses = transactions.reduce((sum, tx) => {
+                const amount = parseFloat(tx.amount || '0');
+                return sum + (amount < 0 ? Math.abs(amount) : 0);
+            }, 0);
+
+            // Calculate net balance
+            const netBalance = income - expenses;
+
+            // Update UI elements
+            updateElementText('net-income-value', formatCurrency(income));
+            updateElementText('total-expenses-value', formatCurrency(expenses));
+            updateElementText('net-balance-value', formatCurrency(netBalance));
+
+            // Calculate and update subscriptions (simplified estimate)
+            const subscriptions = expenses * 0.15; // 15% of expenses as estimation
+            updateElementText('subscriptions-value', formatCurrency(subscriptions));
+        })
     } catch (error) {
         console.log('errorr', error);
 
@@ -284,48 +299,62 @@ async function loadIncomeDetails() {
 
     try {
         // Get transactions from localStorage
-        const snapshot = await getDocs(collection(db, 'bankTransactions'));
 
-        // Map Firestore docs to Expense[]
-        const transactions = snapshot.docs.map(doc => doc.data());
-        const incomeTransactions = transactions.filter(tx => parseFloat(tx.amount) > 0);
+        onAuthStateChanged(auth, async (user) => {
 
-        // Update total income value in modal
-        const totalIncome = incomeTransactions.reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
-        const incomeValueElement = document.getElementById('modal-net-income-value');
-        if (incomeValueElement) {
-            incomeValueElement.textContent = formatCurrency(totalIncome);
-        }
-
-        // Group income by source/category
-        const incomeBySource = {};
-        incomeTransactions.forEach(tx => {
-            const source = tx.category || 'Other Income';
-            if (!incomeBySource[source]) {
-                incomeBySource[source] = 0;
-            }
-            incomeBySource[source] += parseFloat(tx.amount);
-        });
-
-        // Generate HTML for income sources
-        const sourcesContainer = document.getElementById('income-sources-container');
-        const noSourcesMessage = document.getElementById('no-income-sources-message');
-
-        if (sourcesContainer) {
-            if (incomeTransactions.length === 0) {
-                if (noSourcesMessage) noSourcesMessage.style.display = 'block';
-                sourcesContainer.innerHTML = '';
+            if (!user) {
+                console.error('No authenticated user found. Cannot fetch user-specific data.');
                 return;
             }
 
+            const q = query(
+                collection(db, 'bankTransactions'),
+                where('userId', '==', user?.uid)
+            );
 
-            if (noSourcesMessage) noSourcesMessage.style.display = 'none';
 
-            let sourcesHTML = '';
-            Object.entries(incomeBySource).forEach(([source, amount]) => {
-                const percentage = ((amount / totalIncome) * 100).toFixed(1);
+            const snapshot = await getDocs(q);
 
-                sourcesHTML += `
+            // Map Firestore docs to Expense[]
+            const transactions = snapshot.docs.map(doc => doc.data());
+            const incomeTransactions = transactions.filter(tx => parseFloat(tx.amount) > 0);
+
+            // Update total income value in modal
+            const totalIncome = incomeTransactions.reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
+            const incomeValueElement = document.getElementById('modal-net-income-value');
+            if (incomeValueElement) {
+                incomeValueElement.textContent = formatCurrency(totalIncome);
+            }
+
+            // Group income by source/category
+            const incomeBySource = {};
+            incomeTransactions.forEach(tx => {
+                const source = tx.category || 'Other Income';
+                if (!incomeBySource[source]) {
+                    incomeBySource[source] = 0;
+                }
+                incomeBySource[source] += parseFloat(tx.amount);
+            });
+
+            // Generate HTML for income sources
+            const sourcesContainer = document.getElementById('income-sources-container');
+            const noSourcesMessage = document.getElementById('no-income-sources-message');
+
+            if (sourcesContainer) {
+                if (incomeTransactions.length === 0) {
+                    if (noSourcesMessage) noSourcesMessage.style.display = 'block';
+                    sourcesContainer.innerHTML = '';
+                    return;
+                }
+
+
+                if (noSourcesMessage) noSourcesMessage.style.display = 'none';
+
+                let sourcesHTML = '';
+                Object.entries(incomeBySource).forEach(([source, amount]) => {
+                    const percentage = ((amount / totalIncome) * 100).toFixed(1);
+
+                    sourcesHTML += `
                         <div class="card mb-3">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-center">
@@ -343,11 +372,11 @@ async function loadIncomeDetails() {
                             </div>
                         </div>
                     `;
-            });
+                });
 
-            sourcesContainer.innerHTML = sourcesHTML;
-        }
-
+                sourcesContainer.innerHTML = sourcesHTML;
+            }
+        })
     } catch (error) {
         console.log(`Error loading income details: ${error.message}`, 'error');
     }
@@ -359,26 +388,41 @@ export async function performExpenseSearch(term, setFilteredExpenses) {
     try {
         const searchTerm = term.toLowerCase().trim();
 
-        const snapshot = await getDocs(collection(db, 'bankTransactions'));
 
-        // Map Firestore docs to Expense[]
-        const transactions = snapshot.docs.map(doc => doc.data())
-        const expenses = transactions.filter((tx) => parseFloat(tx.amount) < 0);
+        onAuthStateChanged(auth, async (user) => {
 
-        const filteredExpenses = expenses.filter((expense) => {
-            return (
-                (expense.description && expense.description.toLowerCase().includes(searchTerm)) ||
-                (expense.merchant && expense.merchant.toLowerCase().includes(searchTerm)) ||
-                (expense.category && expense.category.toLowerCase().includes(searchTerm)) ||
-                (expense.accountName && expense.accountName.toLowerCase().includes(searchTerm))
+            if (!user) {
+                console.error('No authenticated user found. Cannot fetch user-specific data.');
+                return;
+            }
+
+            const q = query(
+                collection(db, 'bankTransactions'),
+                where('userId', '==', user?.uid)
             );
-        });
 
-        // Sort filtered results
-        filteredExpenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-        // Update state
-        setFilteredExpenses(filteredExpenses);
+            const snapshot = await getDocs(q);
+
+            // Map Firestore docs to Expense[]
+            const transactions = snapshot.docs.map(doc => doc.data())
+            const expenses = transactions.filter((tx) => parseFloat(tx.amount) < 0);
+
+            const filteredExpenses = expenses.filter((expense) => {
+                return (
+                    (expense.description && expense.description.toLowerCase().includes(searchTerm)) ||
+                    (expense.merchant && expense.merchant.toLowerCase().includes(searchTerm)) ||
+                    (expense.category && expense.category.toLowerCase().includes(searchTerm)) ||
+                    (expense.accountName && expense.accountName.toLowerCase().includes(searchTerm))
+                );
+            });
+
+            // Sort filtered results
+            filteredExpenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+            // Update state
+            setFilteredExpenses(filteredExpenses);
+        })
     } catch (error) {
         console.log(`Error performing expense search: ${error.message}`);
     }
@@ -491,43 +535,57 @@ async function loadDetailedExpenses() {
 
     try {
         // Get transactions from localStorage
-        const snapshot = await getDocs(collection(db, 'bankTransactions'));
 
-        // Map Firestore docs to Expense[]
-        const transactions = snapshot.docs.map(doc => doc.data())
-        const expenses = transactions.filter(tx => parseFloat(tx.amount) < 0);
+        onAuthStateChanged(auth, async (user) => {
 
-        // Update total expenses value in modal
-        const totalExpenses = expenses.reduce((sum, tx) => sum + Math.abs(parseFloat(tx.amount)), 0);
-
-        const expensesValueElement = document.getElementById('modal-detailed-expenses-value');
-
-        if (expensesValueElement) {
-            expensesValueElement.textContent = formatCurrency(totalExpenses);
-        }
-
-        // Display expenses in table
-        const tableBody = document.getElementById('expenses-table-body');
-        const noExpensesMessage = document.getElementById('no-expenses-message');
-
-        if (tableBody) {
-            if (expenses.length === 0) {
-                tableBody.innerHTML = '';
-                if (noExpensesMessage) noExpensesMessage.classList.remove('d-none');
+            if (!user) {
+                console.error('No authenticated user found. Cannot fetch user-specific data.');
                 return;
             }
 
-            if (noExpensesMessage) noExpensesMessage.classList.add('d-none');
+            const q = query(
+                collection(db, 'bankTransactions'),
+                where('userId', '==', user?.uid)
+            );
 
-            // Sort expenses by date (newest first)
-            expenses.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-            let tableRows = '';
-            expenses.forEach(expense => {
-                const amount = Math.abs(parseFloat(expense.amount)).toFixed(2);
-                const date = new Date(expense.date).toLocaleDateString();
+            const snapshot = await getDocs(q);
 
-                tableRows += `
+            // Map Firestore docs to Expense[]
+            const transactions = snapshot.docs.map(doc => doc.data())
+            const expenses = transactions.filter(tx => parseFloat(tx.amount) < 0);
+
+            // Update total expenses value in modal
+            const totalExpenses = expenses.reduce((sum, tx) => sum + Math.abs(parseFloat(tx.amount)), 0);
+
+            const expensesValueElement = document.getElementById('modal-detailed-expenses-value');
+
+            if (expensesValueElement) {
+                expensesValueElement.textContent = formatCurrency(totalExpenses);
+            }
+
+            // Display expenses in table
+            const tableBody = document.getElementById('expenses-table-body');
+            const noExpensesMessage = document.getElementById('no-expenses-message');
+
+            if (tableBody) {
+                if (expenses.length === 0) {
+                    tableBody.innerHTML = '';
+                    if (noExpensesMessage) noExpensesMessage.classList.remove('d-none');
+                    return;
+                }
+
+                if (noExpensesMessage) noExpensesMessage.classList.add('d-none');
+
+                // Sort expenses by date (newest first)
+                expenses.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                let tableRows = '';
+                expenses.forEach(expense => {
+                    const amount = Math.abs(parseFloat(expense.amount)).toFixed(2);
+                    const date = new Date(expense.date).toLocaleDateString();
+
+                    tableRows += `
                     <tr>
                         <td>${date}</td>
                         <td>${expense.description || 'No description'}</td>
@@ -537,46 +595,60 @@ async function loadDetailedExpenses() {
                         <td class="text-end text-danger">$${amount}</td>
                     </tr>
                 `;
-            });
+                });
 
-            tableBody.innerHTML = tableRows;
-        }
-
+                tableBody.innerHTML = tableRows;
+            }
+        })
     } catch (error) {
         console.log(`Error loading detailed expenses: ${error.message}`, 'error');
     }
 }
 
 async function loadExpenseCategoriesContent(modalElement) {
-  try {
-    const snapshot = await getDocs(collection(db, 'bankTransactions'));
-    const transactions = snapshot.docs.map(doc => doc.data());
-    const expenses = transactions.filter(tx => parseFloat(tx.amount) < 0);
+    try {
 
-    if (expenses.length === 0) {
-      modalElement.querySelector('.modal-body').innerHTML = `
+        onAuthStateChanged(auth, async (user) => {
+
+            if (!user) {
+                console.error('No authenticated user found. Cannot fetch user-specific data.');
+                return;
+            }
+
+            const q = query(
+                collection(db, 'bankTransactions'),
+                where('userId', '==', user?.uid)
+            );
+
+
+            const snapshot = await getDocs(q);
+            const transactions = snapshot.docs.map(doc => doc.data());
+            const expenses = transactions.filter(tx => parseFloat(tx.amount) < 0);
+
+            if (expenses.length === 0) {
+                modalElement.querySelector('.modal-body').innerHTML = `
         <div class="text-center py-4">
           <i class="fas fa-exclamation-circle fa-3x text-warning mb-3"></i>
           <p>No expense transactions found. Connect your bank account or create mock data first.</p>
         </div>
       `;
-      return;
-    }
+                return;
+            }
 
-    const totalExpenses = expenses.reduce((sum, tx) => sum + Math.abs(parseFloat(tx.amount)), 0);
+            const totalExpenses = expenses.reduce((sum, tx) => sum + Math.abs(parseFloat(tx.amount)), 0);
 
-    const categoryMap = {};
-    expenses.forEach(tx => {
-      const category = tx.category || 'Uncategorized';
-      categoryMap[category] = (categoryMap[category] || 0) + Math.abs(parseFloat(tx.amount));
-    });
+            const categoryMap = {};
+            expenses.forEach(tx => {
+                const category = tx.category || 'Uncategorized';
+                categoryMap[category] = (categoryMap[category] || 0) + Math.abs(parseFloat(tx.amount));
+            });
 
-    const sortedCategories = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]);
+            const sortedCategories = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]);
 
-    let categoriesHTML = '';
-    sortedCategories.forEach(([category, amount]) => {
-      const percentage = ((amount / totalExpenses) * 100).toFixed(1);
-      categoriesHTML += `
+            let categoriesHTML = '';
+            sortedCategories.forEach(([category, amount]) => {
+                const percentage = ((amount / totalExpenses) * 100).toFixed(1);
+                categoriesHTML += `
         <div class="d-flex justify-content-between align-items-center mb-2 p-2 border-bottom">
           <div>
             <span class="badge bg-primary me-2">${category}</span>
@@ -585,9 +657,9 @@ async function loadExpenseCategoriesContent(modalElement) {
           <span class="text-danger fw-bold">$${amount.toFixed(2)}</span>
         </div>
       `;
-    });
+            });
 
-    modalElement.querySelector('.modal-body').innerHTML = `
+            modalElement.querySelector('.modal-body').innerHTML = `
       <div class="row mb-4">
         <div class="col-12">
           <div class="card bg-light">
@@ -622,16 +694,16 @@ async function loadExpenseCategoriesContent(modalElement) {
         </div>
       </div>
     `;
-
-  } catch (error) {
-    console.error('Failed to load expense categories:', error);
-    modalElement.querySelector('.modal-body').innerHTML = `
+        })
+    } catch (error) {
+        console.error('Failed to load expense categories:', error);
+        modalElement.querySelector('.modal-body').innerHTML = `
       <div class="alert alert-danger">
         <i class="fas fa-exclamation-triangle me-2"></i>
         An error occurred while loading expense data. Please try again.
       </div>
     `;
-  }
+    }
 }
 
 // Open net balance modal
@@ -660,99 +732,113 @@ async function loadNetBalanceDetails() {
 
     try {
         // Get transactions from localStorage
-        const snapshot = await getDocs(collection(db, 'bankTransactions'));
 
-        // Map Firestore docs to Expense[]
-        const transactions = snapshot.docs.map(doc => doc.data())
+        onAuthStateChanged(auth, async (user) => {
 
-        // Calculate income (positive transactions)
-        const incomeTransactions = transactions.filter(tx => parseFloat(tx.amount) > 0);
-        const totalIncome = incomeTransactions.reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
-
-        // Calculate expenses (negative transactions)
-        const expenseTransactions = transactions.filter(tx => parseFloat(tx.amount) < 0);
-        const totalExpenses = expenseTransactions.reduce((sum, tx) => sum + Math.abs(parseFloat(tx.amount)), 0);
-
-        // Calculate net balance
-        const netBalance = totalIncome - totalExpenses;
-
-        // Update values in the modal
-        updateElementText('modal-net-balance-value', formatCurrency(netBalance));
-        updateElementText('modal-balance-income-value', formatCurrency(totalIncome));
-        updateElementText('modal-balance-expenses-value', formatCurrency(totalExpenses));
-
-        // Load top income sources
-        const incomeBySource = {};
-        incomeTransactions.forEach(tx => {
-            const source = tx.category || 'Other Income';
-            if (!incomeBySource[source]) {
-                incomeBySource[source] = 0;
+            if (!user) {
+                console.error('No authenticated user found. Cannot fetch user-specific data.');
+                return;
             }
-            incomeBySource[source] += parseFloat(tx.amount);
-        });
 
-        // Sort income sources by amount and take top 3
-        const topIncomeSources = Object.entries(incomeBySource)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 3);
+            const q = query(
+                collection(db, 'bankTransactions'),
+                where('userId', '==', user?.uid)
+            );
 
-        // Generate HTML for top income sources
-        const incomeSourcesContainer = document.getElementById('balance-income-sources');
-        if (incomeSourcesContainer) {
-            if (topIncomeSources.length === 0) {
-                incomeSourcesContainer.innerHTML = '<p class="text-muted">No income sources found</p>';
-            } else {
-                let sourcesHTML = '';
-                topIncomeSources.forEach(([source, amount]) => {
-                    const percentage = ((amount / totalIncome) * 100).toFixed(1);
 
-                    sourcesHTML += `
+            const snapshot = await getDocs(q);
+
+            // Map Firestore docs to Expense[]
+            const transactions = snapshot.docs.map(doc => doc.data())
+
+            // Calculate income (positive transactions)
+            const incomeTransactions = transactions.filter(tx => parseFloat(tx.amount) > 0);
+            const totalIncome = incomeTransactions.reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
+
+            // Calculate expenses (negative transactions)
+            const expenseTransactions = transactions.filter(tx => parseFloat(tx.amount) < 0);
+            const totalExpenses = expenseTransactions.reduce((sum, tx) => sum + Math.abs(parseFloat(tx.amount)), 0);
+
+            // Calculate net balance
+            const netBalance = totalIncome - totalExpenses;
+
+            // Update values in the modal
+            updateElementText('modal-net-balance-value', formatCurrency(netBalance));
+            updateElementText('modal-balance-income-value', formatCurrency(totalIncome));
+            updateElementText('modal-balance-expenses-value', formatCurrency(totalExpenses));
+
+            // Load top income sources
+            const incomeBySource = {};
+            incomeTransactions.forEach(tx => {
+                const source = tx.category || 'Other Income';
+                if (!incomeBySource[source]) {
+                    incomeBySource[source] = 0;
+                }
+                incomeBySource[source] += parseFloat(tx.amount);
+            });
+
+            // Sort income sources by amount and take top 3
+            const topIncomeSources = Object.entries(incomeBySource)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 3);
+
+            // Generate HTML for top income sources
+            const incomeSourcesContainer = document.getElementById('balance-income-sources');
+            if (incomeSourcesContainer) {
+                if (topIncomeSources.length === 0) {
+                    incomeSourcesContainer.innerHTML = '<p class="text-muted">No income sources found</p>';
+                } else {
+                    let sourcesHTML = '';
+                    topIncomeSources.forEach(([source, amount]) => {
+                        const percentage = ((amount / totalIncome) * 100).toFixed(1);
+
+                        sourcesHTML += `
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span>${source}</span>
                             <span class="text-success">${formatCurrency(amount)} <small class="text-muted">(${percentage}%)</small></span>
                         </div>
                     `;
-                });
-                incomeSourcesContainer.innerHTML = sourcesHTML;
+                    });
+                    incomeSourcesContainer.innerHTML = sourcesHTML;
+                }
             }
-        }
 
-        // Load top expense categories
-        const expensesByCategory = {};
-        expenseTransactions.forEach(tx => {
-            const category = tx.category || 'Uncategorized';
-            if (!expensesByCategory[category]) {
-                expensesByCategory[category] = 0;
-            }
-            expensesByCategory[category] += Math.abs(parseFloat(tx.amount));
-        });
+            // Load top expense categories
+            const expensesByCategory = {};
+            expenseTransactions.forEach(tx => {
+                const category = tx.category || 'Uncategorized';
+                if (!expensesByCategory[category]) {
+                    expensesByCategory[category] = 0;
+                }
+                expensesByCategory[category] += Math.abs(parseFloat(tx.amount));
+            });
 
-        // Sort expense categories by amount and take top 3
-        const topExpenseCategories = Object.entries(expensesByCategory)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 3);
+            // Sort expense categories by amount and take top 3
+            const topExpenseCategories = Object.entries(expensesByCategory)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 3);
 
-        // Generate HTML for top expense categories
-        const expenseCategoriesContainer = document.getElementById('balance-expense-categories');
-        if (expenseCategoriesContainer) {
-            if (topExpenseCategories.length === 0) {
-                expenseCategoriesContainer.innerHTML = '<p class="text-muted">No expense categories found</p>';
-            } else {
-                let categoriesHTML = '';
-                topExpenseCategories.forEach(([category, amount]) => {
-                    const percentage = ((amount / totalExpenses) * 100).toFixed(1);
+            // Generate HTML for top expense categories
+            const expenseCategoriesContainer = document.getElementById('balance-expense-categories');
+            if (expenseCategoriesContainer) {
+                if (topExpenseCategories.length === 0) {
+                    expenseCategoriesContainer.innerHTML = '<p class="text-muted">No expense categories found</p>';
+                } else {
+                    let categoriesHTML = '';
+                    topExpenseCategories.forEach(([category, amount]) => {
+                        const percentage = ((amount / totalExpenses) * 100).toFixed(1);
 
-                    categoriesHTML += `
+                        categoriesHTML += `
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span>${category}</span>
                             <span class="text-danger">${formatCurrency(amount)} <small class="text-muted">(${percentage}%)</small></span>
                         </div>
                     `;
-                });
-                expenseCategoriesContainer.innerHTML = categoriesHTML;
+                    });
+                    expenseCategoriesContainer.innerHTML = categoriesHTML;
+                }
             }
-        }
-
+        })
     } catch (error) {
     }
 }
@@ -1766,21 +1852,36 @@ async function loadDataDashboard() {
         dashboardSection.style.display = 'block';
 
         // Load transactions
-        const snapshot = await getDocs(collection(db, 'bankTransactions'));
 
-        // Map Firestore docs to Expense[]
-        const transactions = snapshot.docs.map(doc => doc.data())
+        onAuthStateChanged(auth, async (user) => {
 
-        // Load chart data if Chart.js is available
-        if (typeof Chart !== 'undefined') {
-            createExpenseCategoryChart(transactions);
-            createExpenseTimeChart(transactions);
-        }
+            if (!user) {
+                console.error('No authenticated user found. Cannot fetch user-specific data.');
+                return;
+            }
 
-        // Load transactions table
-        loadTransactionsTable(transactions);
+            const q = query(
+                collection(db, 'bankTransactions'),
+                where('userId', '==', user?.uid)
+            );
 
-        // log('Data dashboard loaded successfully');
+
+            const snapshot = await getDocs(q);
+
+            // Map Firestore docs to Expense[]
+            const transactions = snapshot.docs.map(doc => doc.data())
+
+            // Load chart data if Chart.js is available
+            if (typeof Chart !== 'undefined') {
+                createExpenseCategoryChart(transactions);
+                createExpenseTimeChart(transactions);
+            }
+
+            // Load transactions table
+            loadTransactionsTable(transactions);
+
+            // log('Data dashboard loaded successfully');
+        })
     } catch (error) {
         console.log(`Error loading data dashboard: ${error.message}`, 'error');
     }
@@ -1999,38 +2100,52 @@ async function handleCustomAccountAddition() {
         localStorage.setItem('bankAccounts', JSON.stringify(accounts));
 
         // Create an initial deposit transaction
-        const snapshot = await getDocs(collection(db, 'bankTransactions'));
 
-        // Map Firestore docs to Expense[]
-        const transactions = snapshot.docs.map(doc => doc.data());
+        onAuthStateChanged(auth, async (user) => {
 
-        // Add initial balance as a transaction
-        transactions.push({
-            id: 'tx-' + Math.random().toString(36).substring(2, 9),
-            date: new Date().toISOString(),
-            description: 'Initial Balance',
-            amount: initialBalance.toString(),
-            category: 'Deposit',
-            merchant: bankName,
-            accountName: getAccountTypeName(accountType) + ` (${accountNumber})`,
-            accountId: newAccount.id
-        });
+            if (!user) {
+                console.error('No authenticated user found. Cannot fetch user-specific data.');
+                return;
+            }
 
-        // Save transactions
-        localStorage.setItem('bankTransactions', JSON.stringify(transactions));
+            const q = query(
+                collection(db, 'bankTransactions'),
+                where('userId', '==', user?.uid)
+            );
 
-        // Close the modal
-        // const modal = Modal.getInstance(document.getElementById('bank-connection-modal'));
 
-        // if (modal) modal.hide();
+            const snapshot = await getDocs(q);
 
-        // Show success message
-        showToast(`${bankName} account ending in ${accountNumber} has been added successfully!`, 'success');
+            // Map Firestore docs to Expense[]
+            const transactions = snapshot.docs.map(doc => doc.data());
 
-        // Update the UI
-        displayTransactionSummary();
-        updateBankConnectionsDisplay();
+            // Add initial balance as a transaction
+            transactions.push({
+                id: 'tx-' + Math.random().toString(36).substring(2, 9),
+                date: new Date().toISOString(),
+                description: 'Initial Balance',
+                amount: initialBalance.toString(),
+                category: 'Deposit',
+                merchant: bankName,
+                accountName: getAccountTypeName(accountType) + ` (${accountNumber})`,
+                accountId: newAccount.id
+            });
 
+            // Save transactions
+            localStorage.setItem('bankTransactions', JSON.stringify(transactions));
+
+            // Close the modal
+            // const modal = Modal.getInstance(document.getElementById('bank-connection-modal'));
+
+            // if (modal) modal.hide();
+
+            // Show success message
+            showToast(`${bankName} account ending in ${accountNumber} has been added successfully!`, 'success');
+
+            // Update the UI
+            displayTransactionSummary();
+            updateBankConnectionsDisplay();
+        })
     } catch (error) {
         showToast('An error occurred while adding your bank account. Please try again.', 'danger');
     }
@@ -2497,78 +2612,99 @@ async function scanForSubscriptions(forceScan = false) {
     try {
         if (!forceScan && !shouldAutoScanSubscriptions()) return;
 
-        const txSnapshot = await getDocs(collection(db, 'bankTransactions'));
-        const transactions = txSnapshot.docs.map(doc => doc.data());
-        const subSnapshot = await getDocs(collection(db, 'subscriptions'));
-        const subscriptions = subSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        const existingMerchants = subscriptions.map(sub => (sub.name || '').toLowerCase().trim());
 
-        const merchantTransactions = {};
+        onAuthStateChanged(auth, async (user) => {
 
-        transactions
-            .filter(tx => parseFloat(tx.amount) < 0)
-            .forEach(tx => {
-                const merchant = tx.merchant || 'Unknown';
-                const amount = Math.abs(parseFloat(tx.amount)).toFixed(2);
-                const key = `${merchant.toLowerCase()}_${amount}`;
-
-                if (!merchantTransactions[key]) merchantTransactions[key] = [];
-                merchantTransactions[key].push({ ...tx, date: new Date(tx.date) });
-            });
-
-        let added = 0;
-
-        for (const [key, txs] of Object.entries(merchantTransactions)) {
-            if (txs.length < 2) continue;
-
-            txs.sort((a, b) => a.date - b.date);
-
-            let totalDays = 0;
-            let intervals = 0;
-            for (let i = 1; i < txs.length; i++) {
-                const days = Math.round((txs[i].date - txs[i - 1].date) / (1000 * 60 * 60 * 24));
-                if (days > 5) {
-                    totalDays += days;
-                    intervals++;
-                }
+            if (!user) {
+                console.error('No authenticated user found. Cannot fetch user-specific data.');
+                return;
             }
 
-            if (intervals === 0) continue;
+            const q = query(
+                collection(db, 'bankTransactions'),
+                where('userId', '==', user?.uid)
+            );
 
-            const avgDays = totalDays / intervals;
-            let frequency = 'monthly';
-            if (avgDays <= 10) frequency = 'weekly';
-            else if (avgDays >= 75 && avgDays <= 105) frequency = 'quarterly';
-            else if (avgDays >= 350) frequency = 'yearly';
+            const r = query(
+                collection(db, 'subscriptions'),
+                where('userId', '==', user?.uid)
+            );
 
-            const [merchantName] = key.split('_');
-            if (existingMerchants.includes(merchantName)) continue;
-            const user = auth.currentUser;
 
-            const subscription = {
-                id: 'sub-' + Math.random().toString(36).substring(2, 9),
-                name: merchantName.charAt(0).toUpperCase() + merchantName.slice(1),
-                amount: txs[0].amount,
-                category: txs[0].category || 'Entertainment',
-                frequency,
-                startDate: txs[0].date.toISOString().split('T')[0],
-                nextPaymentDate: calculateNextPaymentDate(txs[txs.length - 1].date, avgDays).toISOString().split('T')[0],
-                notes: `Auto-detected from ${txs.length} transactions. Avg interval: ${Math.round(avgDays)} days.`,
-                autoDetected: true,
-                createdAt: new Date().toISOString(),
-                userId: user.uid,
-            };
+            const txSnapshot = await getDocs(q);
+            // const txSnapshot = await getDocs(collection(db, 'bankTransactions'));
+            const transactions = txSnapshot.docs.map(doc => doc.data());
+            const subSnapshot = await getDocs(r);
+            const subscriptions = subSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const existingMerchants = subscriptions.map(sub => (sub.name || '').toLowerCase().trim());
 
-            await addDoc(collection(db, 'subscriptions'), subscription);
-            added++;
-        }
+            const merchantTransactions = {};
 
-        if (added > 0) {
-            showToast(`Added ${added} new subscription${added > 1 ? 's' : ''}`, 'success');
-            loadSubscriptionsData(); // Refresh view
-        } else {
-            showToast('No new subscriptions detected.', 'info');
-        }
+            transactions
+                .filter(tx => parseFloat(tx.amount) < 0)
+                .forEach(tx => {
+                    const merchant = tx.merchant || 'Unknown';
+                    const amount = Math.abs(parseFloat(tx.amount)).toFixed(2);
+                    const key = `${merchant.toLowerCase()}_${amount}`;
+
+                    if (!merchantTransactions[key]) merchantTransactions[key] = [];
+                    merchantTransactions[key].push({ ...tx, date: new Date(tx.date) });
+                });
+
+            let added = 0;
+
+            for (const [key, txs] of Object.entries(merchantTransactions)) {
+                if (txs.length < 2) continue;
+
+                txs.sort((a, b) => a.date - b.date);
+
+                let totalDays = 0;
+                let intervals = 0;
+                for (let i = 1; i < txs.length; i++) {
+                    const days = Math.round((txs[i].date - txs[i - 1].date) / (1000 * 60 * 60 * 24));
+                    if (days > 5) {
+                        totalDays += days;
+                        intervals++;
+                    }
+                }
+
+                if (intervals === 0) continue;
+
+                const avgDays = totalDays / intervals;
+                let frequency = 'monthly';
+                if (avgDays <= 10) frequency = 'weekly';
+                else if (avgDays >= 75 && avgDays <= 105) frequency = 'quarterly';
+                else if (avgDays >= 350) frequency = 'yearly';
+
+                const [merchantName] = key.split('_');
+                if (existingMerchants.includes(merchantName)) continue;
+                const user = auth.currentUser;
+
+                const subscription = {
+                    id: 'sub-' + Math.random().toString(36).substring(2, 9),
+                    name: merchantName.charAt(0).toUpperCase() + merchantName.slice(1),
+                    amount: txs[0].amount,
+                    category: txs[0].category || 'Entertainment',
+                    frequency,
+                    startDate: txs[0].date.toISOString().split('T')[0],
+                    nextPaymentDate: calculateNextPaymentDate(txs[txs.length - 1].date, avgDays).toISOString().split('T')[0],
+                    notes: `Auto-detected from ${txs.length} transactions. Avg interval: ${Math.round(avgDays)} days.`,
+                    autoDetected: true,
+                    createdAt: new Date().toISOString(),
+                    userId: user.uid,
+                };
+
+                await addDoc(collection(db, 'subscriptions'), subscription);
+                added++;
+            }
+
+            if (added > 0) {
+                showToast(`Added ${added} new subscription${added > 1 ? 's' : ''}`, 'success');
+                loadSubscriptionsData(); // Refresh view
+            } else {
+                showToast('No new subscriptions detected.', 'info');
+            }
+        })
     } catch (err) {
         console.error(err);
         showToast('Error during subscription scan.', 'danger');
@@ -2582,64 +2718,77 @@ export async function loadSubscriptionsData() {
     try {
         // Get subscriptions from localStorage
         // const subscriptions = JSON.parse(localStorage.getItem('subscriptions') || '[]');
-        const snapshot = await getDocs(collection(db, "subscriptions"));
-        const subscriptions = snapshot.docs.map(doc => ({
-            docId: doc.id, // ✅ Actual Firestore doc ID
-            ...doc.data()
-        }));
 
-        // Update dashboard display
-        updateSubscriptionDisplays(subscriptions);
-
-        // Show/hide no subscriptions message
-        const noSubscriptionsMessage = document.getElementById('no-subscriptions-message');
-        const subscriptionsContainer = document.getElementById('subscriptions-container');
-
-        if (subscriptions.length === 0) {
-            noSubscriptionsMessage.style.display = 'block';
-            subscriptionsContainer.innerHTML = '';
-            return;
-        }
-
-        noSubscriptionsMessage.style.display = 'none';
-
-        // Generate HTML for subscriptions
-        let subscriptionsHTML = '';
-
-        subscriptions.forEach((subscription, index) => {
-            // Calculate monthly cost based on frequency
-            let monthlyCost = parseFloat(subscription.amount);
-            switch (subscription.frequency) {
-                case 'yearly':
-                    monthlyCost = monthlyCost / 12;
-                    break;
-                case 'quarterly':
-                    monthlyCost = monthlyCost / 3;
-                    break;
-                case 'weekly':
-                    monthlyCost = monthlyCost * 4.33; // Average weeks in a month
-                    break;
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                console.error('No authenticated user found. Cannot fetch user-specific data.');
+                return;
             }
 
-            // Format dates
-            const startDate = new Date(subscription.startDate);
-            const nextPayment = new Date(subscription.nextPaymentDate);
+            const q = query(
+                collection(db, 'subscriptions'),
+                where('userId', '==', user?.uid)
+            );
 
-            // Calculate days until next payment
-            const today = new Date();
-            const daysUntilPayment = Math.ceil((nextPayment - today) / (1000 * 60 * 60 * 24));
-            let paymentStatus = '';
 
-            if (daysUntilPayment < 0) {
-                paymentStatus = '<span class="badge bg-danger">Overdue</span>';
-            } else if (daysUntilPayment <= 3) {
-                paymentStatus = '<span class="badge bg-warning text-dark">Due soon</span>';
-            } else {
-                paymentStatus = `<span class="badge bg-success">In ${daysUntilPayment} days</span>`;
+            const snapshot = await getDocs(q);
+            const subscriptions = snapshot.docs.map(doc => ({
+                docId: doc.id, // ✅ Actual Firestore doc ID
+                ...doc.data()
+            }));
+
+            // Update dashboard display
+            updateSubscriptionDisplays(subscriptions);
+
+            // Show/hide no subscriptions message
+            const noSubscriptionsMessage = document.getElementById('no-subscriptions-message');
+            const subscriptionsContainer = document.getElementById('subscriptions-container');
+
+            if (subscriptions.length === 0) {
+                noSubscriptionsMessage.style.display = 'block';
+                subscriptionsContainer.innerHTML = '';
+                return;
             }
 
-            // Create subscription card
-            subscriptionsHTML += `
+            noSubscriptionsMessage.style.display = 'none';
+
+            // Generate HTML for subscriptions
+            let subscriptionsHTML = '';
+
+            subscriptions.forEach((subscription, index) => {
+                // Calculate monthly cost based on frequency
+                let monthlyCost = parseFloat(subscription.amount);
+                switch (subscription.frequency) {
+                    case 'yearly':
+                        monthlyCost = monthlyCost / 12;
+                        break;
+                    case 'quarterly':
+                        monthlyCost = monthlyCost / 3;
+                        break;
+                    case 'weekly':
+                        monthlyCost = monthlyCost * 4.33; // Average weeks in a month
+                        break;
+                }
+
+                // Format dates
+                const startDate = new Date(subscription.startDate);
+                const nextPayment = new Date(subscription.nextPaymentDate);
+
+                // Calculate days until next payment
+                const today = new Date();
+                const daysUntilPayment = Math.ceil((nextPayment - today) / (1000 * 60 * 60 * 24));
+                let paymentStatus = '';
+
+                if (daysUntilPayment < 0) {
+                    paymentStatus = '<span class="badge bg-danger">Overdue</span>';
+                } else if (daysUntilPayment <= 3) {
+                    paymentStatus = '<span class="badge bg-warning text-dark">Due soon</span>';
+                } else {
+                    paymentStatus = `<span class="badge bg-success">In ${daysUntilPayment} days</span>`;
+                }
+
+                // Create subscription card
+                subscriptionsHTML += `
                 <div class="card mb-3 subscription-card" data-subscription-id="${subscription.id}">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start">
@@ -2680,26 +2829,26 @@ export async function loadSubscriptionsData() {
                     </div>
                 </div>
             `;
-        });
-
-        // Update container
-        subscriptionsContainer.innerHTML = subscriptionsHTML;
-
-        // Add event listeners for edit and delete buttons
-        document.querySelectorAll('.edit-subscription-btn').forEach(button => {
-            button.addEventListener('click', function () {
-                const docId = this.getAttribute('data-subscription-id');
-                editSubscription(docId);
             });
-        });
-        document.querySelectorAll('.delete-subscription-btn').forEach(button => {
-            button.addEventListener('click', function () {
-                const docId = this.getAttribute('data-subscription-index')
 
-                deleteSubscription(docId);
+            // Update container
+            subscriptionsContainer.innerHTML = subscriptionsHTML;
+
+            // Add event listeners for edit and delete buttons
+            document.querySelectorAll('.edit-subscription-btn').forEach(button => {
+                button.addEventListener('click', function () {
+                    const docId = this.getAttribute('data-subscription-id');
+                    editSubscription(docId);
+                });
             });
-        });
+            document.querySelectorAll('.delete-subscription-btn').forEach(button => {
+                button.addEventListener('click', function () {
+                    const docId = this.getAttribute('data-subscription-index')
 
+                    deleteSubscription(docId);
+                });
+            });
+        })
     } catch (error) {
         console.log(`Error loading subscriptions data: ${error.message}`, 'error');
     }
@@ -2997,7 +3146,7 @@ function setupFinancialFeatureHandlers() {
 
 
         // const viewExpenseCategoriesBtn = document.getElementById('view-expense-categories-btn');
-        
+
 
         // if (viewExpenseCategoriesBtn) {
         //   viewExpenseCategoriesBtn.addEventListener('click', async function () {

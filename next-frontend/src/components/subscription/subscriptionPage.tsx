@@ -1,7 +1,8 @@
 "use client"
-import { db } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { loadSubscriptionsData, setupFinancialFeatureHandlers, setupSubscriptionFormHandlers, updateSubscriptionDisplays } from '@/services/helperFunction';
-import { collection, getDocs } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import React, { useEffect } from 'react';
 
 const SubscriptionsPage: React.FC = () => {
@@ -9,14 +10,27 @@ const SubscriptionsPage: React.FC = () => {
     useEffect(() => {
         const fetchSubscriptions = async () => {
             try {
-                const snapshot = await getDocs(collection(db, "subscriptions"));
-                const subscriptions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                setTimeout(() => {
-                    setupFinancialFeatureHandlers();
-                    loadSubscriptionsData(); // If this internally fetches too, consider skipping it
-                    updateSubscriptionDisplays(subscriptions);
-                    setupSubscriptionFormHandlers();
-                }, 0);
+
+                onAuthStateChanged(auth, async (user) => {
+
+                    if (!user) {
+                        console.error('No authenticated user found. Cannot fetch user-specific data.');
+                        return;
+                    }
+
+                    const q = query(
+                        collection(db, 'subscriptions'),
+                        where('userId', '==', user?.uid)
+                    );
+                    const snapshot = await getDocs(q);
+                    const subscriptions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setTimeout(() => {
+                        setupFinancialFeatureHandlers();
+                        loadSubscriptionsData(); // If this internally fetches too, consider skipping it
+                        updateSubscriptionDisplays(subscriptions);
+                        setupSubscriptionFormHandlers();
+                    }, 0);
+                })
             } catch (error) {
                 console.error("Failed to fetch subscriptions:", error);
             }

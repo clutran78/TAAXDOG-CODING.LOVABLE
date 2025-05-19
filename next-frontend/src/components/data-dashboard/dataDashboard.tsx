@@ -2,8 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { loadDataDashboard } from '@/services/helperFunction';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const ITEMS_PER_PAGE = 10
 interface Transaction {
@@ -19,34 +20,50 @@ const DataDashboardComponent = () => {
     const [currentPage, setCurrentPage] = React.useState(1);
 
     useEffect(() => {
-    const fetchData = async () => {
-        const dataDashboardSection = document.getElementById('data-dashboard-section') as HTMLElement | null;
-        if (dataDashboardSection) {
-            dataDashboardSection.style.display = 'block';
-        }
+        const fetchData = async () => {
+            const dataDashboardSection = document.getElementById('data-dashboard-section') as HTMLElement | null;
+            if (dataDashboardSection) {
+                dataDashboardSection.style.display = 'block';
+            }
 
-    try {
-      const snapshot = await getDocs(collection(db, 'bankTransactions'));
-      const transactions = snapshot.docs.map(doc => doc.data());
+            try {
 
-        const tx: Transaction[] = transactions.map((t: any) => ({
-            ...t,
-            amount: typeof t.amount === 'string' ? parseFloat(t.amount) : t.amount
-        }));
-        setTransactions(tx);
-        loadDataDashboard(); // Load charts or metrics
-    } catch (error) {
-      console.error('Error loading bank transactions:', error);
-    }
-  };
-  fetchData()
-}, []);
+
+                onAuthStateChanged(auth, async (user) => {
+
+                    if (!user) {
+                        console.error('No authenticated user found. Cannot fetch user-specific data.');
+                        return;
+                    }
+
+                    const q = query(
+                        collection(db, 'bankTransactions'),
+                        where('userId', '==', user?.uid)
+                    );
+
+
+                    const snapshot = await getDocs(q);
+                    const transactions = snapshot.docs.map(doc => doc.data());
+
+                    const tx: Transaction[] = transactions.map((t: any) => ({
+                        ...t,
+                        amount: typeof t.amount === 'string' ? parseFloat(t.amount) : t.amount
+                    }));
+                    setTransactions(tx);
+                    loadDataDashboard(); // Load charts or metrics
+                })
+            } catch (error) {
+                console.error('Error loading bank transactions:', error);
+            }
+        };
+        fetchData()
+    }, []);
     // Pagination logic
     const totalPages = Math.ceil(transactions.length / ITEMS_PER_PAGE)
 
-   const paginatedData = transactions
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    const paginatedData = transactions
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
 
     const handlePrev = () => {

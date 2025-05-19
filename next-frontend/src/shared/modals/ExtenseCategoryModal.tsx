@@ -2,8 +2,9 @@
 
 import { Modal } from 'react-bootstrap';
 import { useEffect, useState } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 interface ExpenseCategory {
   name: string;
@@ -40,38 +41,53 @@ const ExpenseCategoriesModal: React.FC<ExpenseCategoriesModalProps> = ({
     }
   }, [show]);
 
-  const loadExpenseCategories = async() => {
+  const loadExpenseCategories = async () => {
     try {
       setLoading(true);
       // const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
-       const snapshot = await getDocs(collection(db, 'bankTransactions'));
- 
-       // Map Firestore docs to Expense[]
-       const transactions: Expense[] = snapshot.docs.map(doc => doc.data() as Expense);
-      const expenseTransactions = transactions.filter((tx: any) => parseFloat(tx.amount) < 0);
 
-      const total = expenseTransactions.reduce(
-        (sum: number, tx: any) => sum + Math.abs(parseFloat(tx.amount)),
-        0
-      );
+      onAuthStateChanged(auth, async (user) => {
 
-      const categoryTotals: { [key: string]: number } = {};
-      expenseTransactions.forEach((tx: any) => {
-        const category = tx.category || 'Uncategorized';
-        categoryTotals[category] = (categoryTotals[category] || 0) + Math.abs(parseFloat(tx.amount));
-      });
+        if (!user) {
+          console.error('No authenticated user found. Cannot fetch user-specific data.');
+          return;
+        }
 
-      const sortedCategories = Object.entries(categoryTotals)
-        .sort((a, b) => b[1] - a[1])
-        .map(([name, amount]) => ({
-          name,
-          amount,
-          percentage: (amount / total) * 100,
-        }));
+        const q = query(
+          collection(db, 'bankTransactions'),
+          where('userId', '==', user?.uid)
+        );
 
-      setTotalExpenses(total);
-      setCategories(sortedCategories);
-      setLoading(false);
+
+        const snapshot = await getDocs(q);
+
+        // Map Firestore docs to Expense[]
+        const transactions: Expense[] = snapshot.docs.map(doc => doc.data() as Expense);
+        const expenseTransactions = transactions.filter((tx: any) => parseFloat(tx.amount) < 0);
+
+        const total = expenseTransactions.reduce(
+          (sum: number, tx: any) => sum + Math.abs(parseFloat(tx.amount)),
+          0
+        );
+
+        const categoryTotals: { [key: string]: number } = {};
+        expenseTransactions.forEach((tx: any) => {
+          const category = tx.category || 'Uncategorized';
+          categoryTotals[category] = (categoryTotals[category] || 0) + Math.abs(parseFloat(tx.amount));
+        });
+
+        const sortedCategories = Object.entries(categoryTotals)
+          .sort((a, b) => b[1] - a[1])
+          .map(([name, amount]) => ({
+            name,
+            amount,
+            percentage: (amount / total) * 100,
+          }));
+
+        setTotalExpenses(total);
+        setCategories(sortedCategories);
+        setLoading(false);
+      })
     } catch (error) {
       console.error('Failed to load expense categories:', error);
       setLoading(false);

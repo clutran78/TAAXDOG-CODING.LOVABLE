@@ -4,8 +4,9 @@ import {
   performExpenseSearch,
   setupFinancialFeatureHandlers,
 } from '@/services/helperFunction';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 interface Expense {
   date: string;
@@ -38,18 +39,33 @@ const TotalExpensesModal = () => {
   const loadAndSetExpenses = async () => {
     try {
 
-      const snapshot = await getDocs(collection(db, 'bankTransactions'));
 
-      // Map Firestore docs to Expense[]
-      const transactions: Expense[] = snapshot.docs.map(doc => doc.data() as Expense);
+      onAuthStateChanged(auth, async (user) => {
+
+        if (!user) {
+          console.error('No authenticated user found. Cannot fetch user-specific data.');
+          return;
+        }
+
+        const q = query(
+          collection(db, 'bankTransactions'),
+          where('userId', '==', user?.uid)
+        );
 
 
-      const expenses = transactions.filter((tx: any) => parseFloat(tx.amount) < 0);
-      const total = expenses.reduce((sum: number, tx: any) => sum + Math.abs(parseFloat(tx.amount)), 0);
-      const display = document.getElementById('modal-detailed-expenses-value');
-      if (display) display.textContent = total.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+        const snapshot = await getDocs(q);
 
-      setFilteredExpenses(expenses.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+        // Map Firestore docs to Expense[]
+        const transactions: Expense[] = snapshot.docs.map(doc => doc.data() as Expense);
+
+
+        const expenses = transactions.filter((tx: any) => parseFloat(tx.amount) < 0);
+        const total = expenses.reduce((sum: number, tx: any) => sum + Math.abs(parseFloat(tx.amount)), 0);
+        const display = document.getElementById('modal-detailed-expenses-value');
+        if (display) display.textContent = total.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+
+        setFilteredExpenses(expenses.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      })
     } catch (e) {
       console.error('Failed to load expenses');
     }
