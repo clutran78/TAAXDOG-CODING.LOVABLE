@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Modal, Button } from 'react-bootstrap';
 import { collection, addDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 
 interface Props {
   show: boolean;
@@ -23,7 +23,9 @@ const AddExpenseModal = ({ show, onClose, onAdd }: Props) => {
     e.stopPropagation();
     setValidated(true);
 
-    if (!category || !amount) return;
+    const user = auth.currentUser;
+    
+    if (!category || !amount || !user) return;
 
     const newExpense = {
       id: 'tx-' + Math.random().toString(36).substring(2, 9),
@@ -33,6 +35,7 @@ const AddExpenseModal = ({ show, onClose, onAdd }: Props) => {
       merchant: merchant || 'Manual Entry',
       description: description || category,
       accountName: 'Manual Entry',
+      userId: user.uid,
     };
 
     try {

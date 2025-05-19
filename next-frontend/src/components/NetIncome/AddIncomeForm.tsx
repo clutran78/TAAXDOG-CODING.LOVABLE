@@ -1,4 +1,5 @@
-import { db } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
+import { showToast } from "@/services/helperFunction";
 import { addDoc, collection } from "firebase/firestore";
 import { useState } from "react";
 import { Modal, Button } from "react-bootstrap";
@@ -11,6 +12,7 @@ interface Transaction {
   category: string;
   merchant: string;
   accountName: string;
+  userId: string,
 }
 
 interface Props {
@@ -37,8 +39,12 @@ const AddIncomeModal = ({ show, onClose, onAdd }: Props) => {
 
     const category = source === 'Other' ? customSource : source;
     const isValid = form.checkValidity();
+    const user = auth.currentUser;
 
-    if (!isValid || !category || !amount) return;
+    if (!isValid || !category || !amount || !user) {
+      showToast('You must be logged in to add a transaction.', 'warning');
+      return;
+    }
 
     const newTx: Transaction = {
       id: 'tx-' + Math.random().toString(36).substring(2, 9),
@@ -47,7 +53,8 @@ const AddIncomeModal = ({ show, onClose, onAdd }: Props) => {
       amount,
       category,
       merchant: merchant || 'Manual Entry',
-      accountName: 'Manual Entry'
+      accountName: 'Manual Entry',
+      userId: user.uid,
     };
 
     // const existing = JSON.parse(localStorage.getItem('bankTransactions') || '[]');

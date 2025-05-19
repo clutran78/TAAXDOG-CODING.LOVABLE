@@ -1,6 +1,6 @@
 import Chart from '@/components/utils/chartSetup';
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 
 // Generate mock transactions
 function generateMockTransactions(days = 30) {
@@ -2543,6 +2543,7 @@ async function scanForSubscriptions(forceScan = false) {
 
             const [merchantName] = key.split('_');
             if (existingMerchants.includes(merchantName)) continue;
+            const user = auth.currentUser;
 
             const subscription = {
                 id: 'sub-' + Math.random().toString(36).substring(2, 9),
@@ -2554,7 +2555,8 @@ async function scanForSubscriptions(forceScan = false) {
                 nextPaymentDate: calculateNextPaymentDate(txs[txs.length - 1].date, avgDays).toISOString().split('T')[0],
                 notes: `Auto-detected from ${txs.length} transactions. Avg interval: ${Math.round(avgDays)} days.`,
                 autoDetected: true,
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                userId: user.uid,
             };
 
             await addDoc(collection(db, 'subscriptions'), subscription);
@@ -2786,6 +2788,7 @@ async function saveSubscription() {
         const startDate = document.getElementById('subscription-start-date').value;
         const nextPaymentDate = document.getElementById('subscription-next-payment').value;
         const notes = document.getElementById('subscription-notes').value;
+        const user = auth.currentUser;
 
         const subscription = {
             id: 'sub-' + Math.random().toString(36).substring(2, 9), // Store the ID in the document
@@ -2797,6 +2800,7 @@ async function saveSubscription() {
             nextPaymentDate,
             notes,
             autoDetected: false,
+            userId: user.uid,
             createdAt: new Date().toISOString(),
         };
 
