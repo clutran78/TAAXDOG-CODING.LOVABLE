@@ -178,25 +178,26 @@ const TotalExpensesPage = () => {
           </table>
 
           {/* Pagination */}
-          <div className="d-flex justify-content-between align-items-center mt-3">
-            <button
-              className="btn btn-outline-primary"
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-            >
-              Previous
-            </button>
+          {currentExpenses.length > 10 &&
+            <div className="d-flex justify-content-between align-items-center mt-3">
+              <button
+                className="btn btn-outline-primary"
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </button>
 
-            <span className="mx-2">Page {currentPage} of {totalPages}</span>
+              <span className="mx-2">Page {currentPage} of {totalPages}</span>
 
-            <button
-              className="btn btn-outline-primary"
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-            >
-              Next
-            </button>
-          </div>
+              <button
+                className="btn btn-outline-primary"
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </button>
+            </div>}
         </div>
 
         {/* View Categories Button */}

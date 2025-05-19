@@ -199,7 +199,8 @@ const TotalExpensesModal = () => {
                   )}
                 </tbody>
               </table>
-              <div className="d-flex justify-content-between align-items-center mt-3">
+             {currentExpenses.length > 10 &&
+               <div className="d-flex justify-content-between align-items-center mt-3">
                 <button
                   className="btn btn-outline-primary"
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
@@ -218,6 +219,7 @@ const TotalExpensesModal = () => {
                   Next
                 </button>
               </div>
+              }
             </div>
 
             <div className="d-flex justify-content-end mt-3 cursor-pointer">

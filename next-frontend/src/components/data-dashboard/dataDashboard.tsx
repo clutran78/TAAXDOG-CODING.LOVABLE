@@ -141,26 +141,34 @@ const DataDashboardComponent = () => {
                                                     <th>Type</th>
                                                 </tr>
                                             </thead>
-                                             <tbody>
-                                                {paginatedData.map((tx:any, index) => {
-                                                    const amount = parseFloat(tx.amount);
-                                                    const date = new Date(tx.date).toLocaleDateString();
-                                                    const type = amount >= 0 ? 'Income' : 'Expense';
-                                                    const amountClass = amount >= 0 ? 'text-success' : 'text-danger';
+                                            <tbody>
+                                                {paginatedData.length > 0 ? (
+                                                    paginatedData.map((tx: any, index) => {
+                                                        const amount = parseFloat(tx.amount);
+                                                        const date = new Date(tx.date).toLocaleDateString();
+                                                        const type = amount >= 0 ? 'Income' : 'Expense';
+                                                        const amountClass = amount >= 0 ? 'text-success' : 'text-danger';
 
-                                                    return (
-                                                        <tr key={index}>
-                                                            <td>{date}</td>
-                                                            <td>{tx.merchant || 'Unknown'}</td>
-                                                            <td>{tx.category || 'Uncategorized'}</td>
-                                                            <td className={amountClass}>${Math.abs(amount).toFixed(2)}</td>
-                                                            <td>{type}</td>
+                                                        return (
+                                                            <tr key={index}>
+                                                                <td>{date}</td>
+                                                                <td>{tx.merchant || 'Unknown'}</td>
+                                                                <td>{tx.category || 'Uncategorized'}</td>
+                                                                <td className={amountClass}>${Math.abs(amount).toFixed(2)}</td>
+                                                                <td>{type}</td>
+                                                            </tr>
+                                                        );
+                                                    })
+                                                )
+
+                                                    : (
+                                                        <tr>
+                                                            <td colSpan={6} className="text-center">No transaction  found.</td>
                                                         </tr>
-                                                    );
-                                                })}
+                                                    )}
                                             </tbody>
                                         </table>
-                                        {renderPagination()}
+                                        {paginatedData?.length > 10 && renderPagination()}
                                     </div>
                                 </div>
                             </div>
