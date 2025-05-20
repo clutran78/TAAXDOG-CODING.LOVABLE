@@ -83,7 +83,9 @@ const NetIncomePage = () => {
     } catch (error) {
       console.error('Failed to load income details:', error);
     } finally {
-      setLoading(false);
+      setTimeout(() => {
+        setLoading(false);
+      }, 2000);
     }
   };
 
@@ -132,7 +134,7 @@ const NetIncomePage = () => {
             <div className="spinner-border text-success" role="status"></div>
             <p className="mt-3">Loading income sources...</p>
           </div>
-        ) : incomeSources.length === 0 ? (
+        ) : !loading && incomeSources.length === 0 ? (
           <div className="alert alert-info" id="no-income-sources-message">
             <i className="fas fa-info-circle me-2"></i>No income sources found. Add or connect your bank account.
           </div>

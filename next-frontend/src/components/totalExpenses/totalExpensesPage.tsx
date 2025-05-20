@@ -26,10 +26,14 @@ const TotalExpensesPage = () => {
   const [expensesPerPage] = useState(10);
   const [showAddModal, setShowAddModal] = useState(false);
   const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     loadDetailedExpenses();
     setupFinancialFeatureHandlers();
+    setTimeout(() => {
+      setLoading(false)
+    }, 2400);
   }, []);
 
   useEffect(() => {
@@ -154,7 +158,15 @@ const TotalExpensesPage = () => {
               </tr>
             </thead>
             <tbody>
-              {currentExpenses.length > 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="text-center">
+                    <div className="spinner-border text-primary" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : currentExpenses.length > 0 ? (
                 currentExpenses.map((expense, index) => {
                   const amount = Math.abs(parseFloat(expense.amount)).toFixed(2);
                   const date = new Date(expense.date).toLocaleDateString();
@@ -163,7 +175,11 @@ const TotalExpensesPage = () => {
                       <td>{date}</td>
                       <td>{expense.description || 'No description'}</td>
                       <td>{expense.merchant || 'Unknown'}</td>
-                      <td><span className="badge bg-primary">{expense.category || 'Uncategorized'}</span></td>
+                      <td>
+                        <span className="badge bg-primary">
+                          {expense.category || 'Uncategorized'}
+                        </span>
+                      </td>
                       <td>{expense.accountName || 'Unknown Account'}</td>
                       <td className="text-end text-danger">${amount}</td>
                     </tr>
@@ -171,33 +187,38 @@ const TotalExpensesPage = () => {
                 })
               ) : (
                 <tr>
-                  <td colSpan={6} className="text-center">No expenses found.</td>
+                  <td colSpan={6} className="text-center">
+                    No expenses found.
+                  </td>
                 </tr>
               )}
             </tbody>
           </table>
 
           {/* Pagination */}
-          {currentExpenses.length > 10 &&
+          {currentExpenses.length > 10 && !loading && (
             <div className="d-flex justify-content-between align-items-center mt-3">
               <button
                 className="btn btn-outline-primary"
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
               >
                 Previous
               </button>
 
-              <span className="mx-2">Page {currentPage} of {totalPages}</span>
+              <span className="mx-2">
+                Page {currentPage} of {totalPages}
+              </span>
 
               <button
                 className="btn btn-outline-primary"
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
               >
                 Next
               </button>
-            </div>}
+            </div>
+          )}
         </div>
 
         {/* View Categories Button */}
