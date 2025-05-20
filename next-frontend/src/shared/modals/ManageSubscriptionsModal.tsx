@@ -51,8 +51,8 @@ const SubscriptionsModal: React.FC = () => {
               <div className="card-header bg-light">
                 <div className="d-flex justify-content-between align-items-center">
                   <h5 className="mb-0">Add New Subscription</h5>
-                  <button type="button" className="btn-close" id="close-subscription-form"></button>
                 </div>
+                  <button type="button" className="btn-close" id="close-subscription-form"></button>
               </div>
               <div className="card-body">
                 <form id="subscription-form">
@@ -118,7 +118,7 @@ const SubscriptionsModal: React.FC = () => {
                   </div>
 
                   <div className="text-end">
-                    <button type="button" className="btn btn-secondary me-2" id="cancel-subscription-btn">Cancel</button>
+                    {/* <button type="button" className="btn btn-secondary me-2" id="cancel-subscription-btn">Cancel</button> */}
                     <button type="submit" className="btn btn-primary">Save Subscription</button>
                   </div>
                 </form>

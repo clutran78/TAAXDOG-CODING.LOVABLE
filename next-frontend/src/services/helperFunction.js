@@ -2569,14 +2569,15 @@ export function setupSubscriptionFormHandlers() {
         }
 
         // Cancel button
-        const cancelButton = document.getElementById('cancel-subscription-btn');
-        if (cancelButton) {
-            cancelButton.addEventListener('click', function () {
-                document.getElementById('add-subscription-form').style.display = 'none';
-                document.getElementById('add-subscription-btn').style.display = 'block';
-                document.getElementById('subscription-form').reset();
-            });
-        }
+        // const cancelButton = document.getElementById('cancel-subscription-btn');
+        // debugger
+        // if (cancelButton) {
+        //     cancelButton.addEventListener('click', function () {
+        //         document.getElementById('add-subscription-form').style.display = 'none';
+        //         document.getElementById('add-subscription-btn').style.display = 'block';
+        //         document.getElementById('subscription-form').reset();
+        //     });
+        // }
 
         // Form submission
         const form = document.getElementById('subscription-form');
@@ -2870,10 +2871,12 @@ async function deleteSubscription(docId) {
 
 // Edit subscription by ID (Firestore version)
 async function editSubscription(docId) {
+    const saveBtn = document.querySelector('#subscription-form button[type="submit"]');
+    const originalBtnText = saveBtn ? saveBtn.innerHTML : '';
+    let isSubmitting = false;
     try {
         const docRef = doc(db, 'subscriptions', docId); // ✅ Now using correct Firestore document ID
         const docSnap = await getDoc(docRef);
-
         if (!docSnap.exists()) {
             showToast('Subscription not found', 'warning');
             return;
@@ -2898,6 +2901,21 @@ async function editSubscription(docId) {
         form.parentNode.replaceChild(newForm, form);
 
         newForm.addEventListener('submit', async function handleUpdate(e) {
+
+
+            if (isSubmitting) return; // Prevent double submission
+            isSubmitting = true;
+
+
+
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = `
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            Saving...
+        `;
+            }
+
             e.preventDefault();
 
             const updatedData = {
@@ -2923,6 +2941,13 @@ async function editSubscription(docId) {
     } catch (error) {
         console.error('Edit error:', error);
         showToast('An error occurred while editing the subscription.', 'danger');
+    } finally {
+        // Always reset button and state
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalBtnText;
+        }
+        isSubmitting = false;
     }
 }
 
@@ -2933,6 +2958,8 @@ async function saveSubscription() {
     if (isSubmitting) return; // Prevent double submission
     isSubmitting = true;
     const saveBtn = document.querySelector('#subscription-form button[type="submit"]');
+    const originalBtnText = saveBtn ? saveBtn.innerHTML : '';
+
     if (saveBtn) {
         saveBtn.disabled = true;
         saveBtn.innerHTML = `
@@ -2976,6 +3003,13 @@ async function saveSubscription() {
     } catch (error) {
         console.error(error);
         showToast('An error occurred while saving the subscription', 'danger');
+    } finally {
+        // Always reset button and state
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalBtnText;
+        }
+        isSubmitting = false;
     }
 }
 // Update subscription displays across the app
