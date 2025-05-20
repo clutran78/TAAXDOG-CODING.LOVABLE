@@ -1,17 +1,38 @@
 "use client";
 import React, { useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { initializeEmptyTaxProfile, loadTaxProfileData, setupTaxProfileForm } from '@/services/helperFunction';
+import { initializeEmptyTaxProfile, loadTaxProfileData, populateFormWithProfileData, setupTaxProfileForm, showToast, updateTaxProfileSummary } from '@/services/helperFunction';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase';
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 
 const TaxProfile: React.FC = () => {
 
     useEffect(() => {
-        if (!localStorage.getItem('taxProfileData')) {
-            initializeEmptyTaxProfile();
-        } else {
-            loadTaxProfileData();
-        }
-        setupTaxProfileForm(); // You can progressively migrate this to React logic
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (!user) return;
+            const q = query(
+                collection(db, 'taxProfiles'),
+                where('userId', '==', user?.uid)
+            );
+            try {
+                const profileSnap = await getDocs(q)
+
+                if (profileSnap.empty) {
+                    await initializeEmptyTaxProfile(user); // pass user
+                } else {
+                    const profileData = profileSnap.docs[0].data(); // get first match
+                    populateFormWithProfileData(profileData);
+                    updateTaxProfileSummary(profileData);
+                }
+
+                setupTaxProfileForm();
+            } catch (error) {
+                console.error("Error loading tax profile:", error);
+                showToast("Unable to load tax profile. Please try again later.", "danger");
+            }
+        });
+        return () => unsubscribe();
     }, []);
 
     const goToNextTab = (fromId: string, toId: string) => {

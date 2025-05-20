@@ -1,5 +1,5 @@
 import Chart from '@/components/utils/chartSetup';
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -969,7 +969,7 @@ function showAddGoalForm() {
 
 // Save goal
 // function saveGoal(editIndex = null) {
-// debugger
+// 
 //  let isSubmitting = false;
 //     if (isSubmitting) return; // Prevent double submission
 //     isSubmitting = true;
@@ -2590,7 +2590,7 @@ export function setupSubscriptionFormHandlers() {
 
         // Cancel button
         // const cancelButton = document.getElementById('cancel-subscription-btn');
-        // debugger
+        // 
         // if (cancelButton) {
         //     cancelButton.addEventListener('click', function () {
         //         document.getElementById('add-subscription-form').style.display = 'none';
@@ -3384,107 +3384,95 @@ function updateReceiptDashboard(stats) {
 
 
 // Function to update tax profile summary on the dashboard
-function updateTaxProfileSummary() {
-
+function updateTaxProfileSummary(profile) {
     try {
-        const taxProfileData = localStorage.getItem('taxProfileData');
         const noProfileMessage = document.getElementById('no-tax-profile-message');
         const summaryContent = document.getElementById('tax-profile-summary-content');
 
-        if (!taxProfileData) {
-            // No profile data exists
+        if (!profile || !profile.personalInfo) {
             if (noProfileMessage) noProfileMessage.style.display = 'block';
             if (summaryContent) summaryContent.style.display = 'none';
             return;
         }
 
-        // Profile data exists, parse it
-        const profile = JSON.parse(taxProfileData);
-
-        // Hide no profile message and show summary
+        // Show summary content
         if (noProfileMessage) noProfileMessage.style.display = 'none';
         if (summaryContent) summaryContent.style.display = 'block';
 
-        // Update personal information
-        if (profile.personalInfo) {
-            const personalInfo = profile.personalInfo;
+        const p = profile.personalInfo;
 
-            // Name
-            const fullName = `${personalInfo.firstName || ''} ${personalInfo.lastName || ''}`.trim();
-            document.getElementById('summary-full-name').textContent = fullName || '-';
+        // === Personal Info Summary ===
+        const fullName = `${p.firstName || ''} ${p.familyName || ''}`.trim();
+        const fullNameEl = document.getElementById('summary-full-name');
+        if (fullNameEl) fullNameEl.textContent = fullName || '-';
 
-            // TFN (masked for privacy)
-            if (personalInfo.tfn) {
-                const maskedTfn = personalInfo.tfn.replace(/\d(?=\d{4})/g, '*');
-                document.getElementById('summary-tfn').textContent = maskedTfn;
-            } else {
-                document.getElementById('summary-tfn').textContent = '-';
-            }
+        const tfnSummary = p.tfn ? p.tfn.replace(/\d(?=\d{4})/g, '*') : '-';
+        const tfnEl = document.getElementById('summary-tfn');
+        if (tfnEl) tfnEl.textContent = tfnSummary;
 
-            // Filing Status
-            document.getElementById('summary-filing-status').textContent = personalInfo.filingStatus || '-';
+        const filingStatusEl = document.getElementById('summary-filing-status');
+        if (filingStatusEl) filingStatusEl.textContent = p.filingStatus || p.residencyStatus || '-';
 
-            // Dependents
-            const dependentsCount = personalInfo.hasDependents ?
-                (personalInfo.dependents ? personalInfo.dependents.length : 0) : 0;
-            document.getElementById('summary-dependents').textContent =
-                dependentsCount > 0 ? `${dependentsCount} dependent(s)` : 'None';
+        const dependentsCount = p.hasDependents ? (p.dependents?.length || 0) : 0;
+        const dependentsEl = document.getElementById('summary-dependents');
+        if (dependentsEl) dependentsEl.textContent = dependentsCount > 0 ? `${dependentsCount} dependent(s)` : 'None';
+
+        // === Income Summary ===
+        const i = profile.income || {};
+        const employersCount = i.employers?.length || 0;
+
+        const otherIncomeSources = [
+            i.interestIncome && 'Interest',
+            i.dividendIncome && 'Dividends',
+            i.trustIncome && 'Trust',
+            i.rentalIncome && 'Rental',
+            i.capitalGains && 'Capital Gains',
+            i.foreignIncome && 'Foreign',
+            i.businessIncome && 'Business',
+            i.superIncome && 'Super',
+            i.partnershipIncome && 'Partnership'
+        ].filter(Boolean);
+
+        const incomeText = employersCount > 0
+            ? `${employersCount} employer(s)`
+            : 'No employment income';
+
+        const incomeSourcesEl = document.getElementById('summary-income-sources');
+        if (incomeSourcesEl) {
+            incomeSourcesEl.textContent = incomeText +
+                (otherIncomeSources.length > 0 ? `, plus ${otherIncomeSources.length} other source(s)` : '');
         }
 
-        // Update financial summary
+        // === Deductions Summary ===
+        const d = profile.deductions || {};
+        const deductionTypes = [
+            d.useCarForWork && 'Car',
+            d.workClothing && 'Work clothing',
+            d.homeOffice && 'Home office',
+            d.selfEducation && 'Self-education',
+            d.tools && 'Tools',
+            d.donations && 'Donations',
+            d.taxAgentFees && 'Tax agent fees'
+        ].filter(Boolean);
 
-        // Income sources
-        if (profile.income) {
-            const income = profile.income;
-            const employersCount = income.employers ? income.employers.length : 0;
-            const otherIncomeSources = [
-                income.interestIncome && 'Interest',
-                income.dividendIncome && 'Dividends',
-                income.trustIncome && 'Trust',
-                income.rentalIncome && 'Rental',
-                income.capitalGains && 'Capital Gains',
-                income.foreignIncome && 'Foreign',
-                income.businessIncome && 'Business',
-                income.superIncome && 'Super',
-                income.partnershipIncome && 'Partnership'
-            ].filter(Boolean);
-
-            const incomeSourcesText = employersCount > 0 ?
-                `${employersCount} employer(s)` : 'No employment income';
-
-            const additionalText = otherIncomeSources.length > 0 ?
-                `, plus ${otherIncomeSources.length} other source(s)` : '';
-
-            document.getElementById('summary-income-sources').textContent =
-                incomeSourcesText + additionalText;
+        const deductionsEl = document.getElementById('summary-deductions');
+        if (deductionsEl) {
+            deductionsEl.textContent = deductionTypes.length > 0
+                ? `${deductionTypes.length} type(s)`
+                : 'None claimed';
         }
 
-        // Deductions
-        if (profile.deductions) {
-            const deductions = profile.deductions;
-            const deductionTypes = [
-                deductions.useCarForWork && 'Car',
-                deductions.workClothing && 'Work clothing',
-                deductions.homeOffice && 'Home office',
-                deductions.selfEducation && 'Self-education',
-                deductions.tools && 'Tools',
-                deductions.donations && 'Donations',
-                deductions.taxAgentFees && 'Tax agent fees'
-            ].filter(Boolean);
-
-            document.getElementById('summary-deductions').textContent =
-                deductionTypes.length > 0 ?
-                    `${deductionTypes.length} type(s)` : 'None claimed';
-        }
-
-        // HECS/HELP
-        if (profile.hecs) {
-            document.getElementById('summary-hecs').textContent =
-                profile.hecs.hasHecs ? 'Yes' : 'No';
+        // === HECS/HELP Summary ===
+        const hecs = profile.hecs || {};
+        const hecsEl = document.getElementById('summary-hecs');
+        if (hecsEl) {
+            hecsEl.textContent = hecs.hasHecs ? 'Yes' : 'No';
         }
 
     } catch (error) {
-        // In case of error, just show the no profile message
+        console.error("Error updating tax profile summary:", error);
+
+        // Fallback to hiding summary
         const noProfileMessage = document.getElementById('no-tax-profile-message');
         const summaryContent = document.getElementById('tax-profile-summary-content');
 
@@ -3493,153 +3481,143 @@ function updateTaxProfileSummary() {
     }
 }
 
-// Initialize empty tax profile data
-function initializeEmptyTaxProfile() {
-    const emptyProfile = {
-        personalInfo: {},
-        income: {},
-        deductions: {},
-        taxOffsets: {},
-        medicare: {},
-        hecs: {},
-        additionalInfo: {},
-        lastUpdated: new Date().toISOString()
-    };
 
-    localStorage.setItem('taxProfileData', JSON.stringify(emptyProfile));
+
+// Initialize empty tax profile data
+async function initializeEmptyTaxProfile(user) {
+  try {
+    const profileRef = doc(db, "taxProfiles", user.uid);
+
+    await setDoc(profileRef, {
+      userId: user.uid,
+      personalInfo: {},
+      income: {},
+      deductions: {},
+      taxOffsets: {},
+      medicare: {},
+      hecs: {},
+      additionalInfo: {},
+      lastUpdated: new Date().toISOString()
+    });
+
+    // showToast("Empty tax profile initialized.", "info");
+  } catch (error) {
+    console.error("Error initializing empty tax profile:", error);
+    showToast("Failed to initialize tax profile.", "danger");
+  }
 }
 
-// Load existing tax profile data into the form
-function loadTaxProfileData() {
+async function loadTaxProfileData() {
     try {
-        const taxProfileData = JSON.parse(localStorage.getItem('taxProfileData'));
-        if (!taxProfileData) return;
+        const user = auth.currentUser;
+        if (!user) return;
 
-        // Populate form fields from the saved data
-        // Personal Information
-        if (taxProfileData.personalInfo) {
-            const personalInfo = taxProfileData.personalInfo;
+        const docRef = doc(db, "taxProfiles", user.uid);
+        const snapshot = await getDoc(docRef);
 
-            // Basic Identification
-            if (personalInfo.title) document.getElementById('title').value = personalInfo.title;
-            if (personalInfo.familyName) document.getElementById('family-name').value = personalInfo.familyName;
-            if (personalInfo.firstName) document.getElementById('first-given-name').value = personalInfo.firstName;
-            if (personalInfo.otherNames) document.getElementById('other-given-names').value = personalInfo.otherNames;
-            if (personalInfo.previousNames) document.getElementById('previous-names').value = personalInfo.previousNames;
-            if (personalInfo.dateOfBirth) document.getElementById('date-of-birth').value = personalInfo.dateOfBirth;
-            if (personalInfo.tfn) document.getElementById('tfn').value = personalInfo.tfn;
-            if (personalInfo.abn) document.getElementById('abn').value = personalInfo.abn;
+        if (!snapshot.exists()) return;
 
-            // Contact Details
-            if (personalInfo.residentialAddress) document.getElementById('residential-address').value = personalInfo.residentialAddress;
-            if (personalInfo.postalAddress) document.getElementById('postal-address').value = personalInfo.postalAddress;
-            if (personalInfo.email) document.getElementById('email').value = personalInfo.email;
-            if (personalInfo.mobile) document.getElementById('mobile').value = personalInfo.mobile;
-            if (personalInfo.alternativePhone) document.getElementById('alternative-phone').value = personalInfo.alternativePhone;
+        const taxProfileData = snapshot.data();
 
-            // Filing Status
-            if (personalInfo.residencyStatus) {
-                if (personalInfo.residencyStatus === 'yes') {
-                    document.getElementById('resident-yes').checked = true;
-                } else {
-                    document.getElementById('resident-no').checked = true;
-                }
-            }
-
-            if (personalInfo.taxFreeThreshold) {
-                if (personalInfo.taxFreeThreshold === 'yes') {
-                    document.getElementById('threshold-yes').checked = true;
-                } else {
-                    document.getElementById('threshold-no').checked = true;
-                }
-            }
-
-            // Spouse details
-            if (personalInfo.hasSpouse) {
-                document.getElementById('has-spouse').checked = true;
-                toggleSpouseDetails();
-
-                if (personalInfo.spouseName) document.getElementById('spouse-name').value = personalInfo.spouseName;
-                if (personalInfo.spouseTfn) document.getElementById('spouse-tfn').value = personalInfo.spouseTfn;
-                if (personalInfo.spouseIncome) document.getElementById('spouse-income').value = personalInfo.spouseIncome;
-
-                if (personalInfo.spousePeriod) {
-                    if (personalInfo.spousePeriod === 'full') {
-                        document.getElementById('spouse-full').checked = true;
-                    } else {
-                        document.getElementById('spouse-partial').checked = true;
-                    }
-                }
-            }
-
-            // Dependent details
-            if (personalInfo.hasDependents) {
-                document.getElementById('has-dependents').checked = true;
-                toggleDependentDetails();
-
-                if (personalInfo.dependents && personalInfo.dependents.length > 0) {
-                    personalInfo.dependents.forEach(dependent => addDependentToForm(dependent));
-                }
-            }
-
-            // Bank account
-            if (personalInfo.bankBsb) document.getElementById('bank-bsb').value = personalInfo.bankBsb;
-            if (personalInfo.bankAccount) document.getElementById('bank-account').value = personalInfo.bankAccount;
-            if (personalInfo.bankName) document.getElementById('bank-name').value = personalInfo.bankName;
-        }
-
-        // Income information
-        if (taxProfileData.income) {
-            const income = taxProfileData.income;
-
-            // Employment Income
-            if (income.employers && income.employers.length > 0) {
-                income.employers.forEach(employer => addEmployerToForm(employer));
-            }
-
-            // Investment Income
-            if (income.interestIncome) document.getElementById('interest-income').value = income.interestIncome;
-            if (income.dividendIncome) document.getElementById('dividend-income').value = income.dividendIncome;
-            if (income.trustIncome) document.getElementById('trust-income').value = income.trustIncome;
-            if (income.rentalIncome) document.getElementById('rental-income').value = income.rentalIncome;
-            if (income.capitalGains) document.getElementById('capital-gains').value = income.capitalGains;
-
-            // Government Payments
-            if (income.govtPaymentType) document.getElementById('govt-payment-type').value = income.govtPaymentType;
-            if (income.govtPaymentAmount) document.getElementById('govt-payment-amount').value = income.govtPaymentAmount;
-            if (income.govtPaymentTax) document.getElementById('govt-payment-tax').value = income.govtPaymentTax;
-
-            // Other Income
-            if (income.foreignIncome) document.getElementById('foreign-income').value = income.foreignIncome;
-            if (income.businessIncome) document.getElementById('business-income').value = income.businessIncome;
-            if (income.superIncome) document.getElementById('super-income').value = income.superIncome;
-            if (income.partnershipIncome) document.getElementById('partnership-income').value = income.partnershipIncome;
-        }
-
-        // Deductions
-        if (taxProfileData.deductions) {
-            const deductions = taxProfileData.deductions;
-
-            // Car Expenses
-            if (deductions.useCarForWork) {
-                document.getElementById('use-car-for-work').checked = true;
-                toggleCarExpenseDetails();
-
-                if (deductions.carMake) document.getElementById('car-make').value = deductions.carMake;
-                if (deductions.carRegistration) document.getElementById('car-registration').value = deductions.carRegistration;
-                if (deductions.carMethod) document.getElementById('car-method').value = deductions.carMethod;
-                if (deductions.businessKm) document.getElementById('business-km').value = deductions.businessKm;
-                if (deductions.carExpenses) document.getElementById('car-expenses').value = deductions.carExpenses;
-            }
-
-            // Other deduction sections would be populated here
-        }
-
-        // Other sections (tax offsets, medicare, hecs, additional info) would be populated here
-
+        // Populate fields from Firestore (same logic as current loadTaxProfileData)
+        populateFormWithProfileData(taxProfileData);
     } catch (error) {
-        showToast('Failed to load your tax profile data. Please try again.', 'danger');
+        showToast("Failed to load your tax profile data.", "danger");
     }
+}
+
+function populateFormWithProfileData(data) {
+    if (!data || !data.personalInfo) return;
+
+    const p = data.personalInfo;
+
+    // Basic Identification
+    document.getElementById('title').value = p.title || '';
+    document.getElementById('family-name').value = p.familyName || '';
+    document.getElementById('first-given-name').value = p.firstName || '';
+    document.getElementById('other-given-names').value = p.otherNames || '';
+    document.getElementById('previous-names').value = p.previousNames || '';
+    document.getElementById('date-of-birth').value = p.dateOfBirth || '';
+    document.getElementById('tfn').value = p.tfn || '';
+    document.getElementById('abn').value = p.abn || '';
+
+    // Contact
+    document.getElementById('residential-address').value = p.residentialAddress || '';
+    document.getElementById('postal-address').value = p.postalAddress || '';
+    document.getElementById('email').value = p.email || '';
+    document.getElementById('mobile').value = p.mobile || '';
+    document.getElementById('alternative-phone').value = p.alternativePhone || '';
+
+    // Filing Status
+    if (p.residencyStatus === 'yes') document.getElementById('resident-yes').checked = true;
+    else if (p.residencyStatus === 'no') document.getElementById('resident-no').checked = true;
+
+    if (p.taxFreeThreshold === 'yes') document.getElementById('threshold-yes').checked = true;
+    else if (p.taxFreeThreshold === 'no') document.getElementById('threshold-no').checked = true;
+
+    // Spouse
+    document.getElementById('has-spouse').checked = !!p.hasSpouse;
+    if (p.hasSpouse) {
+        toggleSpouseDetails();
+        document.getElementById('spouse-name').value = p.spouseName || '';
+        document.getElementById('spouse-tfn').value = p.spouseTfn || '';
+        document.getElementById('spouse-income').value = p.spouseIncome || '';
+
+        if (p.spousePeriod === 'full') document.getElementById('spouse-full').checked = true;
+        else if (p.spousePeriod === 'partial') document.getElementById('spouse-partial').checked = true;
+    }
+
+    // Dependents
+    document.getElementById('has-dependents').checked = !!p.hasDependents;
+    if (p.hasDependents && p.dependents?.length > 0) {
+        toggleDependentDetails();
+        p.dependents.forEach(dep => addDependentToForm(dep));
+    }
+
+    // Bank
+    document.getElementById('bank-bsb').value = p.bankBsb || '';
+    document.getElementById('bank-account').value = p.bankAccount || '';
+    document.getElementById('bank-name').value = p.bankName || '';
+
+    // Income
+    if (data.income) {
+        const income = data.income;
+        if (income.employers?.length > 0) {
+            income.employers.forEach(emp => addEmployerToForm(emp));
+        }
+
+        document.getElementById('interest-income').value = income.interestIncome || '';
+        document.getElementById('dividend-income').value = income.dividendIncome || '';
+        document.getElementById('trust-income').value = income.trustIncome || '';
+        document.getElementById('rental-income').value = income.rentalIncome || '';
+        document.getElementById('capital-gains').value = income.capitalGains || '';
+
+        document.getElementById('govt-payment-type').value = income.govtPaymentType || '';
+        document.getElementById('govt-payment-amount').value = income.govtPaymentAmount || '';
+        document.getElementById('govt-payment-tax').value = income.govtPaymentTax || '';
+
+        document.getElementById('foreign-income').value = income.foreignIncome || '';
+        document.getElementById('business-income').value = income.businessIncome || '';
+        document.getElementById('super-income').value = income.superIncome || '';
+        document.getElementById('partnership-income').value = income.partnershipIncome || '';
+    }
+
+    // Deductions
+    if (data.deductions) {
+        const d = data.deductions;
+        document.getElementById('use-car-for-work').checked = !!d.useCarForWork;
+
+        if (d.useCarForWork) {
+            toggleCarExpenseDetails();
+            document.getElementById('car-make').value = d.carMake || '';
+            document.getElementById('car-registration').value = d.carRegistration || '';
+            document.getElementById('car-method').value = d.carMethod || '';
+            document.getElementById('business-km').value = d.businessKm || '';
+            document.getElementById('car-expenses').value = d.carExpenses || '';
+        }
+    }
+
+    // Further: taxOffsets, medicare, hecs, additionalInfo if implemented...
 }
 
 
@@ -3819,7 +3797,7 @@ function validateTaxProfileForm() {
             firstInvalidField.focus();
         }
 
-        showToast('Please fill in all required fields correctly.', 'warning');
+        // showToast('Please fill in all required fields correctly.', 'warning');
         return false;
     }
 
@@ -3849,7 +3827,7 @@ function collectEmployersData() {
 
 // Update saveTaxProfileData to update the dashboard summary
 async function saveTaxProfileData() {
-
+    
     try {
         const { default: Modal } = await import('bootstrap/js/dist/modal');
 
@@ -3948,22 +3926,30 @@ async function saveTaxProfileData() {
         };
 
         // Save to local storage
-        localStorage.setItem('taxProfileData', JSON.stringify(taxProfileData));
+        // localStorage.setItem('taxProfileData', JSON.stringify(taxProfileData));
+        
+        onAuthStateChanged(auth, async (user) => {
 
-        // Update dashboard summary
-        updateTaxProfileSummary();
+            const docRef = doc(db, "taxProfiles", user.uid);
+            
+            await setDoc(docRef, taxProfileData, { merge: true });
 
-        // Show success message
-        showToast('Your tax profile has been saved successfully!', 'success');
+            updateTaxProfileSummary(taxProfileData); // pass the object directly
 
-        // // Close the modal
-        const modal = Modal.getInstance(document.getElementById('tax-profile-modal'));
-        if (modal) {
-            modal.hide();
-        }
+            // Update dashboard summary
+            // updateTaxProfileSummary();
 
-        return true;
+            // Show success message
+            showToast('Your tax profile has been saved successfully!', 'success');
 
+            // // Close the modal
+            const modal = Modal.getInstance(document.getElementById('tax-profile-modal'));
+            if (modal) {
+                modal.hide();
+            }
+
+            return true;
+        })
     } catch (error) {
 
         showToast('Failed to save your tax profile. Please try again.', 'danger');
@@ -4027,7 +4013,7 @@ function setupDashboardTiles() {
 
             // If no tax profile data exists yet, initialize with empty data
             if (!localStorage.getItem('taxProfileData')) {
-                initializeEmptyTaxProfile();
+                // initializeEmptyTaxProfile();
             } else {
                 // Load existing tax profile data
                 loadTaxProfileData();
@@ -4076,5 +4062,6 @@ export {
     initializeEmptyTaxProfile,
     loadTaxProfileData,
     setupTaxProfileForm,
-    setupDashboardTiles
+    setupDashboardTiles,
+    populateFormWithProfileData
 }
