@@ -8,10 +8,13 @@ import SubscriptionsModal from "@/shared/modals/ManageSubscriptionsModal";
 import { auth, db } from '../../lib/firebase';
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+import GoalsDashboardCard from "../Goal/GoalDashboardCard";
+import GoalsModal from "../Goal/DashboardGoalModal";
 
 
 const GridBoxes = () => {
   const [showNetIncomeModal, setShowNetIncomeModal] = useState(false);
+  const [showFullGoalsModal, setShowFullGoalsModal] = useState(false);
 
   const [alert, setAlert] = useState<{ message: string; type: string } | null>(null);
 
@@ -128,6 +131,10 @@ const GridBoxes = () => {
     <>
       {alert && <AlertMessage message={alert.message} type={alert.type as any} />}
 
+      {showFullGoalsModal && (
+        <GoalsModal onClose={() => setShowFullGoalsModal(false)} />
+      )}
+
       <div className="col-md-3 mb-4 cursor-pointer" onClick={handleShowNetIncomeModal}>
         <div
           className="card stats-card h-100 cursor-pointer"
@@ -235,76 +242,10 @@ const GridBoxes = () => {
       {/* <!-- Second Row - Goals, Notifications, and Bank Accounts --> */}
       <div className="row mt-3">
         {/* <!-- Left Side - Goals --> */}
+
         <div className="col-md-6">
           {/* <!-- Goals Card --> */}
-          <div className="card tile-card h-100 cursor-pointer" data-tile-type="goals" id="goals-card" >
-            <div className="card-header">
-              {/* Goals Progress */}
-              <i className="fas fa-bullseye text-warning"></i>
-            </div>
-            <div className="card-body">
-              <div className="scrollable-content">
-                <h3>3 Active Goals</h3>
-                <div className="stat-change positive-change mb-4">
-                  <i className="fas fa-check-circle"></i> 60% Complete from last month
-                </div>
-
-                {/* <!-- Emergency Fund Goal --> */}
-                <div className="goal-item">
-                  <div className="goal-details">
-                    <span>Emergency Fund</span>
-                    <span className="text-success">$5000.00</span>
-                  </div>
-                  <div className="progress">
-                    <div className="progress-bar bg-success" role="progressbar" style={{ width: "50%" }} aria-valuenow={50} aria-valuemin={0} aria-valuemax={100}>
-
-                    </div>
-                  </div>
-                  <div className="d-flex justify-content-between">
-                    <small>$5000.00 of $10000.00</small>
-                    <small>Due: 30/06/2024</small>
-                  </div>
-                </div>
-
-                {/* <!-- New Car Goal --> */}
-                <div className="goal-item">
-                  <div className="goal-details">
-                    <span>New Car</span>
-                    <span className="text-success">$2500.00</span>
-                  </div>
-                  <div className="progress">
-                    <div className="progress-bar bg-success" role="progressbar" style={{ width: "16.7%" }} aria-valuenow={16.7} aria-valuemin={0} aria-valuemax={100}></div>
-                  </div>
-                  <div className="d-flex justify-content-between">
-                    <small>$2500.00 of $15000.00</small>
-                    <small>Due: 31/12/2024</small>
-                  </div>
-                </div>
-
-                {/* <!-- Holiday Goal --> */}
-                <div className="goal-item">
-                  <div className="goal-details">
-                    <span>Holiday</span>
-                    <span className="text-success">$1200.00</span>
-                  </div>
-                  <div className="progress">
-                    <div
-                      className="progress-bar bg-success"
-                      role="progressbar"
-                      style={{ width: "40%" }}
-                      aria-valuenow={40}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                    />
-                  </div>
-                  <div className="d-flex justify-content-between">
-                    <small>$1200.00 of $3000.00</small>
-                    <small>Due: 15/09/2024</small>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <GoalsDashboardCard onOpenModal={() => setShowFullGoalsModal(true)} />
         </div>
 
         {/* <!-- Right Side - Bank Accounts and Notifications --> */}

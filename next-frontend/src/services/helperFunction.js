@@ -198,7 +198,7 @@ function initializeMockData() {
             ];
 
             // Save to local storage
-            localStorage.setItem('financialGoals', JSON.stringify(goals));
+            // localStorage.setItem('financialGoals', JSON.stringify(goals));
 
 
             dataCreated = true;
@@ -968,69 +968,89 @@ function showAddGoalForm() {
 
 
 // Save goal
-function saveGoal(editIndex = null) {
+// function saveGoal(editIndex = null) {
+// debugger
+//  let isSubmitting = false;
+//     if (isSubmitting) return; // Prevent double submission
+//     isSubmitting = true;
+//     const saveBtn = document.querySelector('#');
+//     const originalBtnText = saveBtn ? saveBtn.innerHTML : '';
 
+//     if (saveBtn) {
+//         saveBtn.disabled = true;
+//         saveBtn.innerHTML = `
+//             <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+//             Saving...
+//         `;
+//     }
 
-    try {
-        // Get form values
-        const name = document.getElementById('goal-name').value;
-        const description = document.getElementById('goal-description').value;
-        const currentAmount = parseFloat(document.getElementById('goal-current-amount').value) || 0;
-        const targetAmount = parseFloat(document.getElementById('goal-target-amount').value) || 0;
-        const dueDate = document.getElementById('goal-due-date').value;
-        const category = document.getElementById('goal-category').value;
+//     try {
+//         // Get form values
+//         const name = document.getElementById('goal-name').value;
+//         const description = document.getElementById('goal-description').value;
+//         const currentAmount = parseFloat(document.getElementById('goal-current-amount').value) || 0;
+//         const targetAmount = parseFloat(document.getElementById('goal-target-amount').value) || 0;
+//         const dueDate = document.getElementById('goal-due-date').value;
+//         const category = document.getElementById('goal-category').value;
 
-        // Validate inputs
-        if (!name || !targetAmount || !dueDate || !category) {
-            // log('Invalid goal form inputs', 'warn');
-            showToast('Please fill all required fields.', 'warning');
-            return;
-        }
+//         // Validate inputs
+//         if (!name || !targetAmount || !dueDate || !category) {
+//             // log('Invalid goal form inputs', 'warn');
+//             showToast('Please fill all required fields.', 'warning');
+//             return;
+//         }
 
-        // Create goal object
-        const goal = {
-            id: editIndex !== null ? getGoals()[editIndex].id : Date.now(),
-            name,
-            description,
-            currentAmount,
-            targetAmount,
-            dueDate,
-            category,
-            createdAt: editIndex !== null ? getGoals()[editIndex].createdAt : new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        };
+//         // Create goal object
+//         const goal = {
+//             id: editIndex !== null ? getGoals()[editIndex].id : Date.now(),
+//             name,
+//             description,
+//             currentAmount,
+//             targetAmount,
+//             dueDate,
+//             category,
+//             createdAt: editIndex !== null ? getGoals()[editIndex].createdAt : new Date().toISOString(),
+//             updatedAt: new Date().toISOString()
+//         };
 
-        // Get existing goals
-        const goals = getGoals();
+//         // Get existing goals
+//         const goals = getGoals();
 
-        // Update or add goal
-        if (editIndex !== null) {
-            goals[editIndex] = goal;
-        } else {
-            goals.push(goal);
-        }
+//         // Update or add goal
+//         if (editIndex !== null) {
+//             goals[editIndex] = goal;
+//         } else {
+//             goals.push(goal);
+//         }
 
-        // Save to localStorage
-        localStorage.setItem('financialGoals', JSON.stringify(goals));
+//         // Save to localStorage
+//         localStorage.setItem('financialGoals', JSON.stringify(goals));
 
-        // Show success message
-        showToast(`Goal "${name}" ${editIndex !== null ? 'updated' : 'added'} successfully!`, 'success');
+//         // Show success message
+//         showToast(`Goal "${name}" ${editIndex !== null ? 'updated' : 'added'} successfully!`, 'success');
 
-        // Reload goals content
-        const goalsModal = document.getElementById('goals-modal');
-        if (goalsModal) {
-            loadGoalsContent(goalsModal);
-        }
+//         // Reload goals content
+//         const goalsModal = document.getElementById('goals-modal');
+//         if (goalsModal) {
+//             loadGoalsContent(goalsModal);
+//         }
 
-        // Update dashboard if needed
-        updateGoalsDisplay();
+//         // Update dashboard if needed
+//         updateGoalsDisplay();
 
-        // log('Goal saved successfully');
-    } catch (error) {
-        // log(`Error saving goal: ${error.message}`, 'error');
-        showToast('An error occurred while saving the goal. Please try again.', 'danger');
-    }
-}
+//         // log('Goal saved successfully');
+//     } catch (error) {
+//         // log(`Error saving goal: ${error.message}`, 'error');
+//         showToast('An error occurred while saving the goal. Please try again.', 'danger');
+//     }finally {
+//         // Always reset button and state
+//         if (saveBtn) {
+//             saveBtn.disabled = false;
+//             saveBtn.innerHTML = originalBtnText;
+//         }
+//         isSubmitting = false;
+//     }
+// }
 
 // Edit goal
 export function editGoal(index) {
@@ -1114,7 +1134,7 @@ function deleteGoal(index) {
         goals.splice(index, 1);
 
         // Save to localStorage
-        localStorage.setItem('financialGoals', JSON.stringify(goals));
+        // localStorage.setItem('financialGoals', JSON.stringify(goals));
 
         // Show success message
         showToast(`Goal "${goal.name}" deleted successfully!`, 'success');
@@ -1174,7 +1194,7 @@ function updateGoalProgress(index) {
         }
 
         // Save to localStorage
-        localStorage.setItem('financialGoals', JSON.stringify(goals));
+        // localStorage.setItem('financialGoals', JSON.stringify(goals));
 
         // Show success message
         showToast(`Added ${formatCurrency(additionalAmount)} to "${goal.name}" successfully!`, 'success');
