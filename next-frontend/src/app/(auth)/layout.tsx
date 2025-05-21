@@ -6,6 +6,7 @@ import "@fortawesome/fontawesome-free/css/all.min.css";
 
 import Sidebar from "@/components/sidebar";
 import Header from "@/shared/Header";
+import GlobalWrapper from "@/shared/GlobalWrapper";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -62,7 +63,9 @@ export default function RootLayout({
 
             {/* <!-- Main Content --> */}
             <main className="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
-              {children}
+              <GlobalWrapper>
+                {children}
+              </GlobalWrapper>
             </main>
           </div>
         </div>

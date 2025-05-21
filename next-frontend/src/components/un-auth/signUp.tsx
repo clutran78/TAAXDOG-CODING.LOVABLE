@@ -3,10 +3,11 @@ import { useState } from 'react';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import { doc, setDoc } from 'firebase/firestore';
 
 const SignupSchema = Yup.object().shape({
   email: Yup.string().email('Invalid email address').required('Email is required'),
@@ -33,7 +34,14 @@ export default function SignupPage() {
   const handleSubmit = async (values: any) => {
     setFirebaseError('');
     try {
-      await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
+      // Store custom user data in Firestore
+      await setDoc(doc(db, 'users', user.uid), {
+        email: values.email,
+        createdAt: new Date(),
+        userId: user.uid  
+      });
       router.push('/login')
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') {

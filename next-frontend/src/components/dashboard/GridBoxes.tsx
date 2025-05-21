@@ -22,17 +22,6 @@ const GridBoxes = () => {
 
   // Example: useEffect for auth state
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(user => {
-      if (user) {
-        // console.log('User logged in:', user);
-      } else {
-        // console.log('No user logged in');
-      }
-    });
-    return () => unsubscribe();
-  }, [])
-
-  useEffect(() => {
     if (showNetIncomeModal) {
       // Give React time to render the modal content
       setTimeout(() => {
