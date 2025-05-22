@@ -19,4 +19,6 @@ passlib==1.7.4
 # For handling dates and times
 python-dateutil==2.8.2
 # For testing
-pytest==7.4.2 
+pytest==7.4.2
+pillow==10.2.0
+google-generativeai==0.8.5
