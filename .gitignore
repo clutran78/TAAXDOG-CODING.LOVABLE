@@ -40,7 +40,6 @@ ENV/
 
 # Project specific
 browser-tools-mcp/
-firebase-adminsdk.json
 
 # Logs
 *.log
