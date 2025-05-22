@@ -13,6 +13,13 @@ jobs:
     - name: Checkout Repo
       uses: actions/checkout@v3
 
+    - name: 🔍 Debug GitHub Secrets
+      run: |
+        echo "🔐 EC2_HOST: ${{ secrets.EC2_HOST }}"
+        echo "👤 EC2_USER: ${{ secrets.EC2_USER }}"
+        echo "🔑 EC2_SSH_KEY (first 5 lines):"
+        echo "${{ secrets.EC2_SSH_KEY }}" | head -n 5
+
     - name: Setup SSH
       run: |
         mkdir -p ~/.ssh
