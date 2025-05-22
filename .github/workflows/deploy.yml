@@ -1,6 +1,5 @@
 name: 🚀 Deploy Flask App to EC2
 
-
 on:
   push:
     branches:
