@@ -1,5 +1,5 @@
 import Chart from '@/components/utils/chartSetup';
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, increment, query, setDoc, updateDoc, where } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -221,15 +221,15 @@ function initializeMockData() {
 //     return '$' + parseFloat(value).toFixed(2);
 // }
 function formatCurrency(value) {
-  // Ensure it's a number
-  const num = typeof value === 'string' ? parseFloat(value) : value;
+    // Ensure it's a number
+    const num = typeof value === 'string' ? parseFloat(value) : value;
 
-  if (isNaN(num)) return '$0.00';
+    if (isNaN(num)) return '$0.00';
 
-  return '$' + num.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+    return '$' + num.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
 }
 
 
@@ -3381,35 +3381,82 @@ function populateFormWithReceiptData(data) {
     window.currentReceiptData = data;
 }
 
+async function updateFirebaseAndUI(newData) {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        unsubscribe(); // Prevent multiple triggers
 
-function updateLocalStorageAndUI(newData) {
+        if (!user) {
+            showToast('User not authenticated', 'danger');
+            return;
+        }
 
-    const currentStats = JSON.parse(localStorage.getItem('receiptStats')) || {
-        totalReceipts: 0,
-        totalSpent: 0,
-        matchedReceipts: 0
-    };
+        const receiptAmount = parseFloat(newData.documents[0].data.total_amount || 0);
 
-    // Increment values
-    currentStats.totalReceipts += 1;
-    currentStats.totalSpent += parseFloat(newData.documents[0].data.total_amount || 0);
-    if (newData.matched) {
-        currentStats.matchedReceipts += 1;
-    }
+        const statsCollectionRef = collection(db, 'receiptStats');
+        const q = query(statsCollectionRef, where('userId', '==', user.uid));
+        debugger
+        const snapshot = await getDocs(q);
 
-    // Store in localStorage
-    localStorage.setItem('receiptStats', JSON.stringify(currentStats));
+        if (snapshot.empty) {
+            debugger
+            await addDoc(statsCollectionRef, {
+                userId: user.uid,
+                totalReceipts: 1,
+                totalSpent: receiptAmount,
+                matchedReceipts: newData.matched ? 1 : 0
+            });
+        } else {
+            const docRef = snapshot.docs[0].ref;
+            await updateDoc(docRef, {
+                totalReceipts: increment(1),
+                totalSpent: increment(receiptAmount),
+                matchedReceipts: newData.matched ? increment(1) : increment(0)
+            });
 
-    // Update HTML
-    updateReceiptDashboard(currentStats);
+            const updatedSnap = await getDoc(docRef);
+            updateReceiptDashboard(updatedSnap.data());
+        }
+    });
 }
 
-function updateReceiptDashboard(stats) {
-    document.getElementById('total-receipts-count').textContent = stats.totalReceipts;
-    document.getElementById('total-receipts-amount').textContent = `$${stats.totalSpent.toFixed(2)}`;
-    document.getElementById('matched-receipts-count').textContent = stats.matchedReceipts;
+// function updateLocalStorageAndUI(newData) {
 
-    const average = stats.totalReceipts > 0 ? stats.totalSpent / stats.totalReceipts : 0;
+//     const currentStats = JSON.parse(localStorage.getItem('receiptStats')) || {
+//         totalReceipts: 0,
+//         totalSpent: 0,
+//         matchedReceipts: 0
+//     };
+
+//     // Increment values
+//     currentStats.totalReceipts += 1;
+//     currentStats.totalSpent += parseFloat(newData.documents[0].data.total_amount || 0);
+//     if (newData.matched) {
+//         currentStats.matchedReceipts += 1;
+//     }
+
+//     // Store in localStorage
+//     localStorage.setItem('receiptStats', JSON.stringify(currentStats));
+
+//     // Update HTML
+//     updateReceiptDashboard(currentStats);
+// }
+
+function updateReceiptDashboard(stats) {
+    debugger
+    if (!stats) {
+        console.warn("No stats available to update dashboard.");
+        return;
+    }
+
+    const totalReceipts = stats.totalReceipts ?? 0;
+    const totalSpent = stats.totalSpent ?? 0;
+    const matchedReceipts = stats.matchedReceipts ?? 0;
+
+    document.getElementById('total-receipts-count').textContent = totalReceipts.toString();
+    document.getElementById('total-receipts-amount').textContent = `$${totalSpent.toFixed(2)}`;
+    document.getElementById('matched-receipts-count').textContent = matchedReceipts.toString();
+
+    const average = totalReceipts > 0 ? totalSpent / totalReceipts : 0;
     document.getElementById('average-receipt-amount').textContent = `$${average.toFixed(2)}`;
 }
 
@@ -3516,26 +3563,26 @@ function updateTaxProfileSummary(profile) {
 
 // Initialize empty tax profile data
 async function initializeEmptyTaxProfile(user) {
-  try {
-    const profileRef = doc(db, "taxProfiles", user.uid);
+    try {
+        const profileRef = doc(db, "taxProfiles", user.uid);
 
-    await setDoc(profileRef, {
-      userId: user.uid,
-      personalInfo: {},
-      income: {},
-      deductions: {},
-      taxOffsets: {},
-      medicare: {},
-      hecs: {},
-      additionalInfo: {},
-      lastUpdated: new Date().toISOString()
-    });
+        await setDoc(profileRef, {
+            userId: user.uid,
+            personalInfo: {},
+            income: {},
+            deductions: {},
+            taxOffsets: {},
+            medicare: {},
+            hecs: {},
+            additionalInfo: {},
+            lastUpdated: new Date().toISOString()
+        });
 
-    // showToast("Empty tax profile initialized.", "info");
-  } catch (error) {
-    console.error("Error initializing empty tax profile:", error);
-    showToast("Failed to initialize tax profile.", "danger");
-  }
+        // showToast("Empty tax profile initialized.", "info");
+    } catch (error) {
+        console.error("Error initializing empty tax profile:", error);
+        showToast("Failed to initialize tax profile.", "danger");
+    }
 }
 
 async function loadTaxProfileData() {
@@ -3858,7 +3905,7 @@ function collectEmployersData() {
 
 // Update saveTaxProfileData to update the dashboard summary
 async function saveTaxProfileData() {
-    
+
     try {
         const { default: Modal } = await import('bootstrap/js/dist/modal');
 
@@ -3958,11 +4005,11 @@ async function saveTaxProfileData() {
 
         // Save to local storage
         // localStorage.setItem('taxProfileData', JSON.stringify(taxProfileData));
-        
+
         onAuthStateChanged(auth, async (user) => {
 
             const docRef = doc(db, "taxProfiles", user.uid);
-            
+
             await setDoc(docRef, taxProfileData, { merge: true });
 
             updateTaxProfileSummary(taxProfileData); // pass the object directly
@@ -4082,7 +4129,7 @@ export {
     openDetailedExpensesModal,
     populateFormWithReceiptData,
     updateReceiptDashboard,
-    updateLocalStorageAndUI,
+    updateFirebaseAndUI,
     loadDataDashboard,
     loadNetBalanceDetails,
     loadBankAccountsContent,

@@ -1,6 +1,9 @@
 'use client';
-import { populateFormWithReceiptData, showToast, updateLocalStorageAndUI, updateReceiptDashboard } from '@/services/helperFunction';
-import React, { useEffect } from 'react';
+import { auth, db } from '@/lib/firebase';
+import { populateFormWithReceiptData, showToast, updateFirebaseAndUI, updateReceiptDashboard } from '@/services/helperFunction';
+import { onAuthStateChanged } from 'firebase/auth';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import React, { useEffect, useState } from 'react';
 // import 'bootstrap/dist/js/bootstrap.bundle.min';
 
 declare global {
@@ -11,6 +14,7 @@ declare global {
 }
 
 const ReceiptsComponent = () => {
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         // @ts-expect-error
@@ -39,13 +43,25 @@ const ReceiptsComponent = () => {
                 });
             }
         };
-        const receiptStats = localStorage.getItem('receiptStats')
-        if (receiptStats) {
-            const storedStats = JSON.parse(receiptStats);
-            if (storedStats) {
-                updateReceiptDashboard(storedStats);
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) return;
+
+            try {
+                const q = query(
+                    collection(db, "receiptStats"),
+                    where("userId", "==", user.uid)
+                );
+
+                const snapshot = await getDocs(q);
+
+                if (!snapshot.empty) {
+                    const userStats = snapshot.docs[0].data();
+                    updateReceiptDashboard(userStats);
+                }
+            } catch (error) {
+                console.error("Failed to load receipt stats:", error);
             }
-        }
+        });
 
         init();
     }, []);
@@ -193,7 +209,7 @@ const ReceiptsComponent = () => {
 
         const handleUploadFromActiveTab = async () => {
             const activeTab = document.querySelector('#uploadTab .nav-link.active')?.id;
-
+            setLoading(true); // Start spinner
             try {
                 if (activeTab === 'local-tab') {
                     if (!receiptFileInput?.files?.length) {
@@ -227,8 +243,11 @@ const ReceiptsComponent = () => {
                         await handleReceiptUpload(file);
                     }, 'image/jpeg');
                 }
+
+                setLoading(false);
             } catch (error: any) {
                 showToast(`Upload failed: ${error.message}`, 'danger');
+                setLoading(false);
                 console.error('Error during upload:', error);
             }
         };
@@ -269,37 +288,57 @@ const ReceiptsComponent = () => {
         const cancelBtn = document.getElementById('cancel-review-btn') as HTMLButtonElement | null;
         const reviewForm = document.getElementById('receipt-review-form') as HTMLElement | null;
 
-        const handleSubmit = (e: Event) => {
+        const handleSubmit = async (e: Event) => {
             e.preventDefault();
 
             const vendorInput = document.getElementById('vendor_name') as HTMLInputElement | null;
             const amountInput = document.getElementById('total_amount') as HTMLInputElement | null;
             const dateInput = document.getElementById('date') as HTMLInputElement | null;
 
-            if (!vendorInput || !amountInput || !dateInput) return;
+            const saveBtn = document.getElementById('confirm-save-btn') as HTMLButtonElement | null;
+            const spinner = document.getElementById('save-spinner');
+            const textSpan = document.getElementById('save-text');
+
+            if (!vendorInput || !amountInput || !dateInput || !saveBtn || !spinner || !textSpan) return;
+
+            // 🔁 Show loading state
+            saveBtn.disabled = true;
+            spinner.classList.remove('d-none');
+            textSpan.textContent = 'Saving...';
 
             const updatedData = {
                 vendor_name: vendorInput.value,
                 total_amount: amountInput.value,
                 date: dateInput.value,
             };
-            debugger
-            // Update the global data (assumes window.currentReceiptData exists)
-            if (window.currentReceiptData?.documents?.[0]?.data) {
-                window.currentReceiptData.documents[0].data = {
-                    ...window.currentReceiptData.documents[0].data,
-                    ...updatedData,
-                };
+
+            try {
+                if (window.currentReceiptData?.documents?.[0]?.data) {
+                    window.currentReceiptData.documents[0].data = {
+                        ...window.currentReceiptData.documents[0].data,
+                        ...updatedData,
+                    };
+                }
+
+                await updateFirebaseAndUI(window.currentReceiptData); // Make sure this is an async function
+
+                // Hide the form
+                const reviewForm = document.getElementById('receipt-review-form');
+                if (reviewForm) reviewForm.style.display = 'none';
+
+                showToast('Receipt data saved successfully!', 'success');
+
+            } catch (error) {
+                console.error(error);
+                showToast('Failed to save receipt.', 'danger');
+            } finally {
+                // ✅ Reset button state
+                saveBtn.disabled = false;
+                spinner.classList.add('d-none');
+                textSpan.textContent = 'Confirm and Save';
             }
-
-            // Call function to update localStorage and UI
-            updateLocalStorageAndUI(window.currentReceiptData);
-
-            // Hide the form
-            if (reviewForm) reviewForm.style.display = 'none';
-
-            showToast('Receipt data saved successfully!', 'success');
         };
+
 
         const handleCancel = () => {
             if (reviewForm) reviewForm.style.display = 'none';
@@ -480,7 +519,10 @@ const ReceiptsComponent = () => {
                         <input type="date" className="form-control" id="date" name="date" />
                     </div>
                     <div className="d-flex justify-content-between">
-                        <button type="submit" className="btn btn-primary">Confirm and Save</button>
+                        <button type="submit" className="btn btn-primary" id="confirm-save-btn">
+                            <span className="spinner-border spinner-border-sm me-2 d-none" id="save-spinner" role="status" aria-hidden="true"></span>
+                            <span id="save-text">Confirm and Save</span>
+                        </button>
                         <button type="button" className="btn btn-secondary" id="cancel-review-btn">Cancel</button>
                     </div>
                 </form>
@@ -646,9 +688,16 @@ const ReceiptsComponent = () => {
                                         <button
                                             type="submit"
                                             className="btn btn-success"
-                                            disabled
+                                            disabled={loading}
                                         >
-                                            Submit Receipt
+                                            {loading ? (
+                                                <>
+                                                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                                    Uploading...
+                                                </>
+                                            ) : (
+                                                'Submit Receipt'
+                                            )}
                                         </button>
                                     </div>
                                 </div>
