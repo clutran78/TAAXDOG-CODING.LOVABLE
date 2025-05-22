@@ -225,7 +225,7 @@ const ReceiptsComponent = () => {
                     }
 
                     showToast('Fetching image from URL...', 'primary');
-                    const response = await fetch(url);
+                    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/${url}`);
                     const blob = await response.blob();
                     const type = blob.type || 'image/jpeg';
                     const ext = type.split('/')[1] || 'jpg';
