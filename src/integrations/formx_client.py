@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 # Load .env variables
 
 load_dotenv()
-configure(api_key=os.environ.get('GOOGLE_API_KEY'))
+configure(api_key=os.environ.get('GOOGLE_API_KEY', 'AIzaSyADSKfEEx1WISywXTw7V1CHqjM72bn7kEY'))
 
 model = GenerativeModel("gemini-1.5-flash")
 
