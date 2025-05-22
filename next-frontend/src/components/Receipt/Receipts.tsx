@@ -176,7 +176,7 @@ const ReceiptsComponent = () => {
             formData.append('receipt', file);
 
             try {
-                const response = await fetch('/api/receipts/upload/gemini', {
+                const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/receipts/upload/gemini`, {
                     method: 'POST',
                     body: formData,
                 });
