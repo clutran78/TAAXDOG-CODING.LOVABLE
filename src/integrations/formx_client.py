@@ -6,8 +6,9 @@ from flask import jsonify
 from google.generativeai import GenerativeModel, configure
 from dotenv import load_dotenv
 # Load .env variables
-load_dotenv()
 
+load_dotenv()
+print(os.getenv("GOOGLE_API_KEY"))
 configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 model = GenerativeModel("gemini-1.5-flash")
