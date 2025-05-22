@@ -33,5 +33,5 @@ jobs:
           source venv/bin/activate
           pip install --upgrade pip
           pip install -r ../requirements.txt
-          sudo systemctl restart yourapp || echo "Gunicorn service not found. Start manually if needed."
+          sudo systemctl restart taaxdog || echo "Gunicorn service not found. Start manually if needed."
         EOF
