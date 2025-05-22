@@ -108,7 +108,7 @@ const ConnectBankForm = () => {
         }
       } catch (err: any) {
         console.error('❌ Setup error:', err)
-        setError(err?.response?.data?.error || 'Something went wrong')
+        // setError(err?.response?.data?.error || 'Something went wrong')
       } finally {
         setSubmitting(false)
       }
@@ -138,11 +138,11 @@ const ConnectBankForm = () => {
         setConnections([response.connections]) // wrap the single object in an array
         setLastUpdated(new Date().toLocaleTimeString())
       } else {
-        setError(response.error || 'Unable to fetch connections')
+        // setError(response.error || 'Unable to fetch connections')
       }
     } catch (err: any) {
       console.error('❌ Failed to fetch Basiq connections:', err)
-      setError(err?.response?.data?.error || 'Something went wrong')
+      // setError(err?.response?.data?.error || 'Something went wrong')
     } finally {
       setLoading(false)
     }
@@ -342,7 +342,7 @@ const ConnectBankForm = () => {
       {/* -------------------------------------------------------------------- */}
 
       {/* 🔗 Connections */}
-      <div className="bg-white shadow-xl border border-gray-100 p-6 rounded-lg transition-all duration-300">
+      {/* <div className="bg-white shadow-xl border border-gray-100 p-6 rounded-lg transition-all duration-300">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-semibold text-gray-800">Your Bank Connections</h2>
           <button
@@ -383,7 +383,7 @@ const ConnectBankForm = () => {
         )}
 
         {error && <p className="text-red-500 mt-4">{error}</p>}
-      </div>
+      </div> */}
 
       {/* -------------------------------------------------------------------- */}
 
