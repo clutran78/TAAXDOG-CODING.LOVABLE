@@ -2580,6 +2580,11 @@ export function setupSubscriptionFormHandlers() {
         const addButton = document.getElementById('add-subscription-btn');
         if (addButton) {
             addButton.addEventListener('click', function () {
+                const formEl = document.getElementById('add-subscription-form');
+                formEl.style.display = 'block';
+                formEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                formEl.focus();
+
                 document.getElementById('add-subscription-form').style.display = 'block';
                 this.style.display = 'none';
 
@@ -2638,6 +2643,20 @@ function shouldAutoScanSubscriptions() {
     const autoScanEnabled = localStorage.getItem('autoScanSubscriptionsEnabled')
     return autoScanEnabled
 }
+
+function calculateNextPaymentDate(lastDate, avgDays) {
+    const nextDate = new Date(lastDate);
+    nextDate.setDate(nextDate.getDate() + Math.round(avgDays));
+
+    // If next date is in the past, add another interval
+    const today = new Date();
+    if (nextDate < today) {
+        nextDate.setDate(nextDate.getDate() + Math.round(avgDays));
+    }
+
+    return nextDate;
+}
+
 
 // Scan for potential subscriptions in transactions
 async function scanForSubscriptions(forceScan = false) {
@@ -2926,6 +2945,12 @@ async function editSubscription(docId) {
 
         document.getElementById('add-subscription-form').style.display = 'block';
         document.getElementById('add-subscription-btn').style.display = 'none';
+
+
+        // 🔽 Add focus/scroll
+        const formEl = document.getElementById('add-subscription-form');
+        formEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        formEl.focus();
 
         const form = document.getElementById('subscription-form');
         const newForm = form.cloneNode(true);

@@ -13,7 +13,6 @@ const ConnectBankForm = () => {
   const [connections, setConnections] = useState<any[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [successMsg, setSuccessMsg] = useState('')
   const [lastUpdated, setLastUpdated] = useState<string | null>(null)
 
 
@@ -340,6 +339,7 @@ const ConnectBankForm = () => {
           </div>
         </form>
       </div>
+      {/* -------------------------------------------------------------------- */}
 
       {/* 🔗 Connections */}
       <div className="bg-white shadow-xl border border-gray-100 p-6 rounded-lg transition-all duration-300">
@@ -385,8 +385,9 @@ const ConnectBankForm = () => {
         {error && <p className="text-red-500 mt-4">{error}</p>}
       </div>
 
+      {/* -------------------------------------------------------------------- */}
 
-      {/* dfsdfsd */}
+      {/* Bank Accounts */}
 
       <div className="bg-white shadow-md border p-6 rounded-lg mt-8">
         <div className="flex justify-between items-center mb-4">

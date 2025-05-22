@@ -66,7 +66,7 @@ export default function Sidebar() {
               <i className="fas fa-repeat text-primary"></i> Subscriptions
             </Link>
           </li>
-          <li className="nav-item">
+          {/* <li className="nav-item">
             <Link
               href="/bank-accounts"
               className={`nav-link ${isActive("/bank-accounts") ? "active fw-bold text-primary" : ""}`}
@@ -74,7 +74,7 @@ export default function Sidebar() {
             >
               <i className="fas fa-university text-success"></i> Bank Accounts
             </Link>
-          </li>
+          </li> */}
           <li className="nav-item">
             <Link
               href="/goals"
@@ -102,7 +102,7 @@ export default function Sidebar() {
               <i className="fas fa-file-invoice text-primary"></i> Receipt Module
             </Link>
           </li>
-          {/* <li className="nav-item">
+          <li className="nav-item">
             <Link
               href="/connect-bank"
               className={`nav-link ${isActive("/connect-bank") ? "active fw-bold text-primary" : ""}`}
@@ -110,7 +110,7 @@ export default function Sidebar() {
             >
             <i className="fas fa-university text-success"></i> Connect your bank
             </Link>
-          </li> */}
+          </li>
           <li className="nav-item">
             <Link
               href="/financial-insights"
