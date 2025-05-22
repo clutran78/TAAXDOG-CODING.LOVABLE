@@ -1,4 +1,4 @@
-name: 🚀 Deploy Flask App to EC2
+name: 🚀 Deploy Flask App to EC2 (backend folder)
 
 on:
   push:
@@ -8,17 +8,11 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: backend
-    steps:
-    - name: Checkout Repo
-      uses: actions/checkout@v3
+    environment: backend  # use only if you store secrets in an environment
 
-    - name: 🔍 Debug GitHub Secrets
-      run: |
-        echo "🔐 EC2_HOST: ${{ secrets.EC2_HOST }}"
-        echo "👤 EC2_USER: ${{ secrets.EC2_USER }}"
-        echo "🔑 EC2_SSH_KEY (first 5 lines):"
-        echo "${{ secrets.EC2_SSH_KEY }}" | head -n 5
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
 
     - name: Setup SSH
       run: |
@@ -27,12 +21,17 @@ jobs:
         chmod 600 ~/.ssh/id_rsa
         ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-    - name: Deploy Code via SSH
+    - name: Upload backend folder to EC2
       run: |
-        ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-          cd ${{ secrets.EC2_PATH }}
-          git pull origin main
+        scp -r -o StrictHostKeyChecking=no ./backend ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/ubuntu
+
+    - name: Setup and Restart Flask App on EC2
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          cd /home/ubuntu/backend
+          python3 -m venv venv || true
           source venv/bin/activate
+          pip install --upgrade pip
           pip install -r requirements.txt
-          sudo systemctl restart yourapp
+          sudo systemctl restart yourapp || echo "Gunicorn service not found. Start manually if needed."
         EOF
