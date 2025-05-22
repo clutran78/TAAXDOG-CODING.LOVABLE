@@ -6,6 +6,7 @@ import AddIncomeModal from './AddIncomeForm';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
+import { formatCurrency } from '@/services/helperFunction';
 
 export interface Transaction {
   id: string;
@@ -24,7 +25,7 @@ interface IncomeSource {
   transactions?: Transaction[]
 }
 
-const formatCurrency = (value: number) => `$${value.toFixed(2)}`;
+// const formatCurrency = (value: number) => `$${value.toFixed(2)}`;
 
 const NetIncomePage = () => {
   const [incomeSources, setIncomeSources] = useState<IncomeSource[]>([]);
@@ -85,7 +86,7 @@ const NetIncomePage = () => {
     } finally {
       setTimeout(() => {
         setLoading(false);
-      }, 2000);
+      }, 2800);
     }
   };
 

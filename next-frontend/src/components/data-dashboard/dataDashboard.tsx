@@ -168,7 +168,7 @@ const DataDashboardComponent = () => {
                                                     )}
                                             </tbody>
                                         </table>
-                                        {paginatedData?.length > 10 && renderPagination()}
+                                        {transactions?.length > 10 && renderPagination()}
                                     </div>
                                 </div>
                             </div>

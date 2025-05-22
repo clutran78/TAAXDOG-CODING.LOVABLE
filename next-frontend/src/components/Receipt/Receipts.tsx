@@ -13,19 +13,19 @@ declare global {
 const ReceiptsComponent = () => {
 
     useEffect(() => {
-  // @ts-expect-error
-  import('bootstrap/dist/js/bootstrap.bundle.min')
-    .then(() => {
-      console.log('Bootstrap loaded');
-    })
-    .catch((err) => console.error('Bootstrap failed to load', err));
-}, []);
+        // @ts-expect-error
+        import('bootstrap/dist/js/bootstrap.bundle.min')
+            .then(() => {
+                console.log('Bootstrap loaded');
+            })
+            .catch((err) => console.error('Bootstrap failed to load', err));
+    }, []);
 
 
     useEffect(() => {
         debugger
         const init = async () => {
-              const { default: Modal } = await import('bootstrap/js/dist/modal');
+            const { default: Modal } = await import('bootstrap/js/dist/modal');
 
             const uploadBtn = document.getElementById('receipt-upload-section-btn');
 
@@ -160,7 +160,7 @@ const ReceiptsComponent = () => {
             formData.append('receipt', file);
 
             try {
-                const response = await fetch('http://127.0.0.1:8080/api/receipts/upload/formx', {
+                const response = await fetch('http://127.0.0.1:8080/api/receipts/upload/gemini', {
                     method: 'POST',
                     body: formData,
                 });
@@ -283,7 +283,7 @@ const ReceiptsComponent = () => {
                 total_amount: amountInput.value,
                 date: dateInput.value,
             };
-
+            debugger
             // Update the global data (assumes window.currentReceiptData exists)
             if (window.currentReceiptData?.documents?.[0]?.data) {
                 window.currentReceiptData.documents[0].data = {

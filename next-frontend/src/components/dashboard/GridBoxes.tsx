@@ -10,7 +10,8 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import GoalsDashboardCard from "../Goal/GoalDashboardCard";
 import GoalsModal from "../Goal/DashboardGoalModal";
-
+import Cookies from 'js-cookie';
+import { postData } from "@/services/api/apiController";
 
 const GridBoxes = () => {
   const [showNetIncomeModal, setShowNetIncomeModal] = useState(false);
@@ -28,7 +29,33 @@ const GridBoxes = () => {
         loadIncomeDetails();
       }, 0);
     }
+    // setupBasiqUser()
   }, [showNetIncomeModal]);
+
+
+//   const setupBasiqUser = async () => {
+//   const token = Cookies.get('auth-token');
+
+//   if (!token) {
+//     throw new Error('User is not authenticated');
+//   }
+// debugger
+//   const config = {
+//     headers: {
+//       Authorization: `Bearer ${token}`,
+//     }
+//   };
+
+//   try {
+//     const response = await postData('/api/banking/setup-user', null, config);
+//     console.log('Basiq user setup response:', response);
+//     return response;
+//   } catch (error) {
+//     console.error('Failed to set up Basiq user:', error);
+//     throw error;
+//   }
+// };
+
 
   useEffect(() => {
     const loadSubscriptions = async () => {

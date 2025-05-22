@@ -1,10 +1,18 @@
-import requests
 import os
-import mimetypes
+import json
+from PIL import Image
+from io import BytesIO
+from flask import jsonify
+from google.generativeai import GenerativeModel, configure
 from dotenv import load_dotenv
-
+# Load .env variables
 load_dotenv()
 
+configure(api_key=os.getenv("GEMINI_API_KEY"))
+
+model = GenerativeModel("gemini-1.5-flash")
+
+# FormX legacy setup (optional)
 FORMFAI_API_ENDPOINT = "https://worker.formextractorai.com/v2/extract"
 
 def get_env_variable(name, required=True):
@@ -29,44 +37,56 @@ def build_headers(token: str, extractor_id: str, extra_headers: dict = None) -> 
         headers.update(extra_headers)
     return headers
 
-def extract_data_from_image(image_path: str, token=None, extractor_id=None, extra_headers=None) -> dict:
-    if not os.path.exists(image_path):
-        raise FileNotFoundError(f"Image file not found at: {image_path}")
-
-    token = token or get_env_variable("FORMFAI_ACCESS_TOKEN")
-    extractor_id = extractor_id or get_env_variable("FORMFAI_EXTRACTOR_ID")
-
-    content_type, _ = mimetypes.guess_type(image_path)
-    content_type = content_type or 'image/jpeg'
-
-    headers = build_headers(token, extractor_id, extra_headers)
-
+# ✅ GEMINI 2.0 Receipt Extractor
+def extract_data_from_image_with_gemini(image_path: str) -> dict:
     try:
-        with open(image_path, 'rb') as image_file:
-            response = requests.post(
-                FORMFAI_API_ENDPOINT,
-                headers=headers,
-                data=image_file
-            )
-            response.raise_for_status()
-            return response.json()
+        with Image.open(image_path) as img:
+            prompt = """
+            You are a receipt parser. Extract and return the following as valid JSON:
+            {
+              "merchant_name": string,
+              "date": string (in YYYY-MM-DD format if possible),
+              "time": string (optional),
+              "total_amount": number,
+              "category": string,
+              "items": [
+                {
+                  "name": string,
+                  "price": number
+                }
+              ]
+            }
 
-    except requests.exceptions.RequestException as e:
-        print(f"[ERROR] API Request failed: {e}")
-        raise
-    except ValueError as e:
-        print(f"[ERROR] Failed to parse API response: {e}")
-        raise ValueError(f"Invalid JSON received: {response.text}") from e
+            Only return valid JSON with no extra commentary or formatting.
+            """
+
+            response = model.generate_content([prompt, img])
+            raw_text = response.text.strip()
+
+            # Try to extract only the JSON part (for extra safety)
+            json_start = raw_text.find('{')
+            json_end = raw_text.rfind('}')
+            if json_start == -1 or json_end == -1:
+                raise ValueError("No JSON structure found in Gemini response.")
+
+            json_str = raw_text[json_start:json_end+1]
+            data = json.loads(json_str)
+
+            return {
+                "success": True,
+                "documents": [{
+                    "data": data
+                }]
+            }
     except Exception as e:
-        print(f"[ERROR] Unexpected error: {e}")
-        raise
+        return {"success": False, "error": str(e)}
 
-# Example usage
+# Optional CLI test
 if __name__ == "__main__":
     try:
-        image_path = 'path/to/your/test_receipt.jpg'  # Update with your path
-        result = extract_data_from_image(image_path)
+        test_path = "path/to/your/test_receipt.jpg"
+        result = extract_data_from_image_with_gemini(test_path)
         import json
         print(json.dumps(result, indent=2))
-    except Exception as e:
-        print(f"Extraction failed: {e}")
+    except Exception as err:
+        print("Error:", err)

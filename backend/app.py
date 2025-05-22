@@ -35,7 +35,8 @@ from ai.financial_insights import (
 # Import secure_filename for safe file handling
 from werkzeug.utils import secure_filename
 # Import the FormX client
-from src.integrations.formx_client import extract_data_from_image
+# from src.integrations.formx_client import extract_data_from_image
+from src.integrations.formx_client import extract_data_from_image_with_gemini
 
 # Load environment variables
 load_dotenv()
@@ -59,45 +60,41 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# Optional: Enable mock auth explicitly via .env
+USE_MOCK_AUTH = os.environ.get("USE_MOCK_AUTH", "false").lower() == "true"
+
 # Authentication middleware
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # Check if we're in development mode
-        if os.environ.get('FLASK_ENV') == 'development' or not db:
-            # In development mode, mock authentication
-            request.user_id = "mock-user-123"
-            return f(*args, **kwargs)
-        
-        # Check if id_token is in the request headers
         id_token = request.headers.get('Authorization')
+        if id_token and id_token.startswith('Bearer '):
+            id_token = id_token[7:]
+
         if id_token:
             try:
-                # Remove 'Bearer ' prefix if present
-                if id_token.startswith('Bearer '):
-                    id_token = id_token[7:]
-                
-                # Verify the ID token
                 decoded_token = auth.verify_id_token(id_token)
-                # Add user_id to the request context
                 request.user_id = decoded_token['uid']
+
+                if request.user_id.startswith("mock-") and not USE_MOCK_AUTH:
+                    return jsonify({'success': False, 'error': 'Mock users not allowed'}), 403
+
                 return f(*args, **kwargs)
+
             except Exception as e:
-                print(f"Authentication error: {e}")
-                # For development, we'll mock authentication
-                if os.environ.get('FLASK_ENV') == 'development':
+                print(f"🔐 Firebase token verification failed: {e}")
+                if USE_MOCK_AUTH:
                     request.user_id = "mock-user-123"
                     return f(*args, **kwargs)
-                return jsonify({'success': False, 'error': 'Invalid authentication token'}), 401
-        
-        # No token provided
-        if os.environ.get('FLASK_ENV') == 'development':
-            # In development mode, mock authentication
+                return jsonify({'success': False, 'error': 'Invalid or expired authentication token'}), 401
+
+        if USE_MOCK_AUTH:
             request.user_id = "mock-user-123"
             return f(*args, **kwargs)
-        return jsonify({'success': False, 'error': 'Authentication required'}), 401
-    return decorated_function
 
+        return jsonify({'success': False, 'error': 'Authentication token required'}), 401
+
+    return decorated_function
 # Routes for serving HTML pages
 @app.route('/')
 def index():
@@ -215,24 +212,27 @@ def update_user_profile():
 @login_required
 def setup_basiq_user():
     """
-    Set up a user in the Basiq system.
-    If the user already has a Basiq user ID, retrieve their data.
+    Set up a user in the Basiq system using data from request payload.
+    If the user already has a Basiq user ID, return it.
     Otherwise, create a new Basiq user.
     """
     try:
         firebase_user_id = request.user_id
+        print("🔥 Firebase UID received from token:", firebase_user_id)
+
+        # Get Firestore user document
         user_doc = db.collection('users').document(firebase_user_id).get()
-        
+
         if not user_doc.exists:
             return jsonify({
-                'success': False, 
+                'success': False,
                 'error': 'User not found in Firebase'
             }), 404
-            
+
         user_data = user_doc.to_dict()
         basiq_user_id = user_data.get('basiq_user_id')
-        
-        # If user already has a Basiq ID, retrieve their data
+
+        # If already exists, return user from Basiq
         if basiq_user_id:
             result = get_basiq_user(basiq_user_id)
             if result['success']:
@@ -242,29 +242,42 @@ def setup_basiq_user():
                     'message': 'Retrieved existing Basiq user'
                 })
             else:
-                # If there was an error retrieving the user, create a new one
-                basiq_user_id = None
-        
-        # Create a new Basiq user
-        email = user_data.get('email')
-        name = user_data.get('name')
-        mobile = user_data.get('phone')
-        
+                basiq_user_id = None  # fallback to recreate
+
+        # 🔽 Extract form data from request body
+        data = request.get_json()
+        email = data.get('email')
+        mobile = data.get('mobile')
+        first_name = data.get('firstName')
+        last_name = data.get('lastName')
+        business_name = data.get('businessName')
+        business_id = data.get('businessIdNo')
+        business_id_type = data.get('businessIdNoType')
+        verification_status = data.get('verificationStatus', True)
+        verification_date = data.get('verificationDate')
+        business_address = data.get('businessAddress')
+
         if not email:
-            return jsonify({
-                'success': False,
-                'error': 'User email not found'
-            }), 400
-            
-        result = create_basiq_user(email, mobile, name)
-        
+            return jsonify({'success': False, 'error': 'Email is required'}), 400
+
+        # Call your Basiq API user creation logic
+        result = create_basiq_user(
+            email=email,
+            mobile=mobile,
+            name=f"{first_name} {last_name}",
+            business_name=business_name,
+            business_id=business_id,
+            business_id_type=business_id_type,
+            verification_status=verification_status,
+            verification_date=verification_date,
+            business_address=business_address
+        )
+
         if result['success']:
-            # Save the Basiq user ID in Firebase
             basiq_user_id = result['user']['id']
             db.collection('users').document(firebase_user_id).update({
                 'basiq_user_id': basiq_user_id
             })
-            
             return jsonify({
                 'success': True,
                 'user': result['user'],
@@ -272,9 +285,11 @@ def setup_basiq_user():
             })
         else:
             return jsonify(result), 400
-            
+
     except Exception as e:
+        print("❌ Exception:", str(e))
         return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @app.route('/api/banking/auth-link', methods=['POST'])
 @login_required
@@ -348,40 +363,36 @@ def get_auth_link():
 @app.route('/api/banking/connections', methods=['GET'])
 @login_required
 def get_bank_connections():
-    """
-    Get all bank connections for the user.
-    """
     try:
         firebase_user_id = request.user_id
         user_doc = db.collection('users').document(firebase_user_id).get()
         
         if not user_doc.exists:
-            return jsonify({
-                'success': False, 
-                'error': 'User not found in Firebase'
-            }), 404
-            
+            return jsonify({'success': False, 'error': 'User not found in Firebase'}), 404
+
         user_data = user_doc.to_dict()
         basiq_user_id = user_data.get('basiq_user_id')
-        
+
         if not basiq_user_id:
             return jsonify({
                 'success': False,
                 'error': 'Basiq user not set up. Please call /api/banking/setup-user first.'
             }), 400
-            
+
         result = get_user_connections(basiq_user_id)
-        
+
         if result['success']:
             return jsonify({
                 'success': True,
                 'connections': result['connections']
             })
         else:
-            return jsonify(result), 400
-            
+            return jsonify({'success': False, 'error': result.get('error', 'Unknown error')}), 400
+
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        print(f"[ERROR] Failed to get bank connections: {e}")
+        return jsonify({'success': False, 'error': 'Server error occurred'}), 500
+
 
 @app.route('/api/banking/accounts', methods=['GET'])
 @login_required
@@ -1364,16 +1375,67 @@ def upload_receipt_formx():
         print(f"Error during receipt processing: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
+
+# --- New gemini Image Upload Route --- #
+@app.route('/api/receipts/upload/gemini', methods=['POST'])
+def upload_receipt_form():
+    temp_file_path = None
+
+    try:
+        # Handle uploaded file
+        if 'receipt' in request.files:
+            file = request.files['receipt']
+            if file.filename == '':
+                return jsonify({'success': False, 'error': 'No selected file'}), 400
+
+            filename = secure_filename(file.filename)
+            temp_file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(temp_file_path)
+            print(f"📥 File uploaded: {temp_file_path}")
+
+        # Handle URL fallback
+        elif 'url' in request.form:
+            url = request.form['url']
+            if not url:
+                return jsonify({'success': False, 'error': 'Empty URL provided'}), 400
+
+            response = requests.get(url, stream=True)
+            if response.status_code != 200:
+                return jsonify({'success': False, 'error': 'Failed to fetch image from URL'}), 400
+
+            content_type = response.headers.get('Content-Type', 'image/jpeg')
+            extension = mimetypes.guess_extension(content_type) or '.jpg'
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix=extension, dir=app.config['UPLOAD_FOLDER']) as tmp:
+                for chunk in response.iter_content(chunk_size=1024):
+                    if chunk:
+                        tmp.write(chunk)
+                temp_file_path = tmp.name
+                print(f"🌐 Image downloaded: {temp_file_path}")
+
+        else:
+            return jsonify({'success': False, 'error': 'No receipt file or URL provided'}), 400
+
+        # 🧠 Process image using Gemini
+        extracted_data = extract_data_from_image_with_gemini(temp_file_path)
+        return jsonify({'success': True, 'data': extracted_data})
+
+    except Exception as e:
+        print(f"❌ Error during receipt processing: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
     finally:
-        # Clean up temporary file
+        # 🧹 Clean up temp file
         if temp_file_path and os.path.exists(temp_file_path):
             try:
                 os.remove(temp_file_path)
-                print(f"Temporary file deleted: {temp_file_path}")
+                print(f"🧽 Temporary file deleted: {temp_file_path}")
             except Exception as e:
-                print(f"Error deleting temporary file: {e}")
+                print(f"⚠️ Error deleting temp file: {e}")
+
+
 if __name__ == "__main__":
-    # Run on a different port than the standard 5000 (which might be taken by AirPlay on macOS)
     port = int(os.environ.get('FLASK_RUN_PORT', 8080))
     host = os.environ.get('FLASK_RUN_HOST', '127.0.0.1')
     app.run(debug=True, host=host, port=port, threaded=True)

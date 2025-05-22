@@ -55,8 +55,6 @@ const TotalExpensesPage = () => {
   const totalPages = Math.ceil(filteredExpenses.length / expensesPerPage);
 
 
-
-
   async function loadDetailedExpenses() {
     try {
 
@@ -79,6 +77,7 @@ const TotalExpensesPage = () => {
         const transactions: Expense[] = snapshot.docs.map(doc => doc.data() as Expense);
 
         const expenses = transactions.filter(tx => parseFloat(tx.amount) < 0);
+console.log("expenses",expenses);
 
         const totalExpenses = expenses.reduce((sum, tx) => sum + Math.abs(parseFloat(tx.amount)), 0);
         const expensesValueElement = document.getElementById('modal-detailed-expenses-value');
@@ -196,7 +195,7 @@ const TotalExpensesPage = () => {
           </table>
 
           {/* Pagination */}
-          {currentExpenses.length > 10 && !loading && (
+          {totalPages > 10 && !loading && (
             <div className="d-flex justify-content-between align-items-center mt-3">
               <button
                 className="btn btn-outline-primary"

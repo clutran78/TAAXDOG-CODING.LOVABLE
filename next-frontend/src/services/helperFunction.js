@@ -212,13 +212,24 @@ function initializeMockData() {
 }
 
 
+// function formatCurrency(value) {
+//     // Make sure we're dealing with a number and not already formatted
+//     if (typeof value === 'string' && value.startsWith('$')) {
+//         // Already formatted, just return it
+//         return value;
+//     }
+//     return '$' + parseFloat(value).toFixed(2);
+// }
 function formatCurrency(value) {
-    // Make sure we're dealing with a number and not already formatted
-    if (typeof value === 'string' && value.startsWith('$')) {
-        // Already formatted, just return it
-        return value;
-    }
-    return '$' + parseFloat(value).toFixed(2);
+  // Ensure it's a number
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+
+  if (isNaN(num)) return '$0.00';
+
+  return '$' + num.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 
@@ -654,7 +665,7 @@ async function loadExpenseCategoriesContent(modalElement) {
             <span class="badge bg-primary me-2">${category}</span>
             <span>${percentage}%</span>
           </div>
-          <span class="text-danger fw-bold">$${amount.toFixed(2)}</span>
+          <span class="text-danger fw-bold">${formatCurrency(amount.toFixed(2))}</span>
         </div>
       `;
             });
@@ -665,7 +676,7 @@ async function loadExpenseCategoriesContent(modalElement) {
           <div class="card bg-light">
             <div class="card-body d-flex justify-content-between align-items-center">
               <h4 class="mb-0">Total Expenses</h4>
-              <h3 class="text-danger mb-0">$${totalExpenses.toFixed(2)}</h3>
+              <h3 class="text-danger mb-0">${formatCurrency(totalExpenses.toFixed(2))}</h3>
             </div>
           </div>
         </div>
@@ -3337,16 +3348,36 @@ export const showToast = (message, type = 'primary') => {
             console.error('Failed to load Bootstrap Toast module:', err);
         });
 };
-
-
 function populateFormWithReceiptData(data) {
+    const doc = data.documents?.[0]?.data || {};
 
-    const doc = data.documents[0].data;
+    // Populate basic fields
     document.getElementById('vendor_name').value = doc.merchant_name || '';
     document.getElementById('total_amount').value = doc.total_amount || '';
     document.getElementById('date').value = doc.date || '';
 
-    // Save original data temporarily for later reference
+    // Optional: populate time and category if you have those fields in the form
+    const timeField = document.getElementById('time');
+    if (timeField) timeField.value = doc.time || '';
+
+    const categoryField = document.getElementById('category');
+    if (categoryField) categoryField.value = doc.category || '';
+
+    // Optional: show item list if you want to review it
+    const itemsContainer = document.getElementById('items-container');
+    if (itemsContainer && Array.isArray(doc.items)) {
+        itemsContainer.innerHTML = ''; // Clear previous items
+        doc.items.forEach((item, index) => {
+            const row = document.createElement('div');
+            row.className = 'mb-2';
+            row.innerHTML = `
+                <strong>Item ${index + 1}:</strong> ${item.name} - $${item.price.toFixed(2)}
+            `;
+            itemsContainer.appendChild(row);
+        });
+    }
+
+    // Save original data for future reference
     window.currentReceiptData = data;
 }
 
