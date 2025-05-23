@@ -165,25 +165,72 @@ const ReceiptsComponent = () => {
             }
         };
 
+        const compressImage = async (file: File): Promise<File> => {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                const reader = new FileReader();
+
+                reader.onload = (e) => {
+                    if (!e.target?.result) return reject("File load error");
+
+                    img.onload = () => {
+                        const canvas = document.createElement("canvas");
+                        const maxWidth = 1000;
+                        const scaleFactor = maxWidth / img.width;
+                        canvas.width = maxWidth;
+                        canvas.height = img.height * scaleFactor;
+
+                        const ctx = canvas.getContext("2d");
+                        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                        canvas.toBlob(
+                            (blob) => {
+                                if (blob) {
+                                    const compressed = new File([blob], file.name, {
+                                        type: file.type,
+                                    });
+                                    resolve(compressed);
+                                } else {
+                                    reject("Compression failed");
+                                }
+                            },
+                            file.type,
+                            0.7 // quality (70%)
+                        );
+                    };
+
+                    img.onerror = () => reject("Image load error");
+                    img.src = e.target.result as string;
+                };
+
+                reader.readAsDataURL(file);
+            });
+        };
+
+
         const handleReceiptUpload = async (file: File | null) => {
             if (!file) {
-                showToast("No file selected!", 'primary');
+                showToast("No file selected!", "primary");
                 return;
             }
 
-            showToast('Uploading receipt...', 'primary');
-            const formData = new FormData();
-            formData.append('receipt', file);
-
-            if (file.size > 10 * 1024 * 1024) {
-                showToast("File too large. Max 10MB allowed.", "danger");
-                return;
-            }
-
+            showToast("Compressing image...", "primary");
 
             try {
+                const compressedFile = await compressImage(file);
+
+                if (compressedFile.size > 10 * 1024 * 1024) {
+                    showToast("File too large. Max 10MB allowed.", "danger");
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append("receipt", compressedFile);
+
+                showToast("Uploading receipt...", "primary");
+
                 const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/receipts/upload/gemini`, {
-                    method: 'POST',
+                    method: "POST",
                     body: formData,
                 });
 
@@ -192,24 +239,21 @@ const ReceiptsComponent = () => {
                     throw new Error(result.error || `HTTP error! status: ${response.status}`);
                 }
 
-                showToast('Extraction Successful!', 'success');
+                showToast("Extraction Successful!", "success");
                 populateFormWithReceiptData(result.data);
 
-                const formElement = document.getElementById('receipt-review-form');
-                if (formElement) {
-                    formElement.style.display = 'block';
-                }
+                const formElement = document.getElementById("receipt-review-form");
+                if (formElement) formElement.style.display = "block";
 
-                const { default: Modal } = await import('bootstrap/js/dist/modal');
-                const modalEl = document.getElementById('receipt-upload-section');
+                const { default: Modal } = await import("bootstrap/js/dist/modal");
+                const modalEl = document.getElementById("receipt-upload-section");
                 if (modalEl) {
                     const modalInstance = Modal.getInstance(modalEl) || Modal.getOrCreateInstance(modalEl);
                     modalInstance.hide();
                 }
-
             } catch (error: any) {
-                showToast(`Extraction Failed: ${error.message}`, 'danger');
-                console.error('Receipt upload/extraction failed:', error);
+                showToast(`Upload failed: ${error.message}`, "danger");
+                console.error("Receipt upload/extraction failed:", error);
             }
         };
 
