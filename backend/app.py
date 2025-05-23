@@ -71,15 +71,14 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Optional: Enable mock auth explicitly via .env
-USE_MOCK_AUTH = os.environ.get("USE_MOCK_AUTH", "false").lower() == "true"
 
 # Authentication middleware
 from flask import request, jsonify
 from functools import wraps
 import os
 
-USE_MOCK_AUTH = os.getenv("USE_MOCK_AUTH", "false").lower() == "true"
+# Optional: Enable mock auth explicitly via .env
+USE_MOCK_AUTH = os.environ.get("USE_MOCK_AUTH", "false").lower() == "true"
 
 def login_required(f):
     @wraps(f)
@@ -244,6 +243,7 @@ def setup_basiq_user():
     try:
         # 🔐 Get and verify the Firebase ID token
         id_token = request.headers.get("Authorization")
+        print("id_token",id_token)
         if not id_token or not id_token.startswith("Bearer "):
             return jsonify({'success': False, 'error': 'Authorization token missing or invalid'}), 401
 
