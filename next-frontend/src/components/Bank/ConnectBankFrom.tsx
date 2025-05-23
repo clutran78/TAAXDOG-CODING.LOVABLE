@@ -174,8 +174,8 @@ const ConnectBankForm = () => {
         setAccountError(res.error || 'Failed to load accounts')
       }
     } catch (err: any) {
-      console.error('❌ Failed to fetch accounts:', err)
-      setAccountError(err?.response?.data?.error || 'Something went wrong')
+      // console.error('❌ Failed to fetch accounts:', err)
+      // setAccountError(err?.error || 'Something went wrong')
     } finally {
       setAccountLoading(false)
     }
@@ -257,6 +257,149 @@ const ConnectBankForm = () => {
 
 
   return (
+    <>
+
+      {/* -------------------------------------------------------------------- */}
+
+      {/* Bank Accounts */}
+
+      {accounts.length > 0
+        && 
+        <div className="bg-white shadow-md border p-6 rounded-lg mt-8">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-gray-800">Your Bank Accounts</h2>
+            <button
+              onClick={fetchAccounts}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+            >
+              {accountLoading ? 'Loading...' : 'Load Accounts'}
+            </button>
+          </div>
+
+          {accountError && <p className="text-red-500">{accountError}</p>}
+
+          {accounts.length > 0 ? (
+            <ul className="space-y-4">
+              {accounts.map((acc) => {
+                const balance = parseFloat(acc.balance || '0')
+                const productType = acc.class?.type || 'account'
+                const isActive = acc.id === activeAccountId
+
+                return (
+                  <li
+                    key={acc.id}
+                    className="border border-gray-200 p-5 rounded-lg bg-white hover:shadow-md transition-all"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="text-3xl">
+                          {productType === 'transaction' && '🏦'}
+                          {productType === 'savings' && '💰'}
+                          {productType === 'credit-card' && '💳'}
+                          {productType === 'mortgage' && '🏠'}
+                          {productType === 'account' && '📄'}
+                        </div>
+
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-800">
+                            {acc.name || acc.class?.product || 'Unnamed Account'}
+                          </h3>
+                          <p className="text-sm text-gray-500">{acc.accountHolder || '—'}</p>
+                          <p className="text-sm text-gray-400">
+                            Type: {acc.class?.type || acc.type}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <p className={`text-xl font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                          {balance < 0 ? '-' : ''}${Math.abs(balance).toFixed(2)}
+                        </p>
+                        {acc.creditLimit && (
+                          <p className="text-xs text-gray-400">
+                            Credit Limit: ${parseFloat(acc.creditLimit).toFixed(2)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <hr className="my-4 border-gray-200" />
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-600">
+                      <div><strong>Account No:</strong> {acc.accountNo || '—'}</div>
+                      <div><strong>BSB:</strong> {acc.bsb || '—'}</div>
+                      <div><strong>Currency:</strong> {acc.currency || 'AUD'}</div>
+                      <div><strong>Status:</strong> {acc.status || 'available'}</div>
+                      <div><strong>Institution:</strong> {acc.institution || 'AU Institution'}</div>
+                      <div>
+                        <strong>Updated:</strong>{' '}
+                        {acc.lastUpdated ? new Date(acc.lastUpdated).toLocaleDateString() : '—'}
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <button
+                        onClick={() =>
+                          isActive ? setActiveAccountId(null) : fetchTransactions(acc.id)
+                        }
+                        className="text-blue-600 text-sm underline hover:text-blue-800"
+                      >
+                        {isActive ? 'Hide Transactions' : 'View Transactions →'}
+                      </button>
+                    </div>
+
+                    {isActive && (
+                      <>
+                        {txnLoading && <p className="text-gray-600 mt-4">Loading transactions...</p>}
+                        {txnError && <p className="text-red-500 mt-4">{txnError}</p>}
+
+                        {transactions.length > 0 ? (
+                          <div className="mt-4">
+                            <h3 className="text-md font-semibold text-gray-700 mb-2">Transactions</h3>
+                            <ul className="space-y-3">
+                              {transactions.map((txn: any) => {
+                                const isDebit = txn.direction === 'debit'
+                                const date = txn.postDate ? new Date(txn.postDate).toLocaleDateString() : '—'
+                                const amount = parseFloat(txn.amount || '0')
+
+                                return (
+                                  <li key={txn.id} className="bg-gray-50 border p-3 rounded text-sm">
+                                    <div className="flex justify-between">
+                                      <span className="font-medium">
+                                        {txn.description || '(No description)'}
+                                      </span>
+                                      <span className={`font-semibold ${isDebit ? 'text-red-600' : 'text-green-600'}`}>
+                                        {isDebit ? '-' : '+'}${Math.abs(amount).toFixed(2)}
+                                      </span>
+                                    </div>
+
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      {date} &middot; {txn.direction || '—'} &middot; {txn.class || 'Unclassified'}
+                                    </div>
+                                  </li>
+                                )
+                              })}
+                            </ul>
+                          </div>
+                        ) : (
+                          !txnLoading && <p className="text-sm text-gray-500 mt-2">No transactions found.</p>
+                        )}
+                      </>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+
+          ) : (
+            <p className="text-gray-500">No accounts found.</p>
+          )}
+        </div>
+      }
+
+      {/* -------------------------------------------------------------------- */}
+
+    
     <div className="max-w-3xl mx-auto p-6 space-y-12">
       {/* 🔹 Form */}
       <div className="bg-white shadow-xl border border-gray-100 p-8 rounded-lg transition-all duration-300">
@@ -385,149 +528,12 @@ const ConnectBankForm = () => {
         {error && <p className="text-red-500 mt-4">{error}</p>}
       </div> */}
 
-      {/* -------------------------------------------------------------------- */}
-
-      {/* Bank Accounts */}
-
-      <div className="bg-white shadow-md border p-6 rounded-lg mt-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">Your Bank Accounts</h2>
-          <button
-            onClick={fetchAccounts}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
-          >
-            {accountLoading ? 'Loading...' : 'Load Accounts'}
-          </button>
-        </div>
-
-        {accountError && <p className="text-red-500">{accountError}</p>}
-
-        {accounts.length > 0 ? (
-          <ul className="space-y-4">
-            {accounts.map((acc) => {
-              const balance = parseFloat(acc.balance || '0')
-              const productType = acc.class?.type || 'account'
-              const isActive = acc.id === activeAccountId
-
-              return (
-                <li
-                  key={acc.id}
-                  className="border border-gray-200 p-5 rounded-lg bg-white hover:shadow-md transition-all"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="text-3xl">
-                        {productType === 'transaction' && '🏦'}
-                        {productType === 'savings' && '💰'}
-                        {productType === 'credit-card' && '💳'}
-                        {productType === 'mortgage' && '🏠'}
-                        {productType === 'account' && '📄'}
-                      </div>
-
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-800">
-                          {acc.name || acc.class?.product || 'Unnamed Account'}
-                        </h3>
-                        <p className="text-sm text-gray-500">{acc.accountHolder || '—'}</p>
-                        <p className="text-sm text-gray-400">
-                          Type: {acc.class?.type || acc.type}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="text-right">
-                      <p className={`text-xl font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                        {balance < 0 ? '-' : ''}${Math.abs(balance).toFixed(2)}
-                      </p>
-                      {acc.creditLimit && (
-                        <p className="text-xs text-gray-400">
-                          Credit Limit: ${parseFloat(acc.creditLimit).toFixed(2)}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <hr className="my-4 border-gray-200" />
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-600">
-                    <div><strong>Account No:</strong> {acc.accountNo || '—'}</div>
-                    <div><strong>BSB:</strong> {acc.bsb || '—'}</div>
-                    <div><strong>Currency:</strong> {acc.currency || 'AUD'}</div>
-                    <div><strong>Status:</strong> {acc.status || 'available'}</div>
-                    <div><strong>Institution:</strong> {acc.institution || 'AU Institution'}</div>
-                    <div>
-                      <strong>Updated:</strong>{' '}
-                      {acc.lastUpdated ? new Date(acc.lastUpdated).toLocaleDateString() : '—'}
-                    </div>
-                  </div>
-
-                  <div className="mt-4">
-                    <button
-                      onClick={() =>
-                        isActive ? setActiveAccountId(null) : fetchTransactions(acc.id)
-                      }
-                      className="text-blue-600 text-sm underline hover:text-blue-800"
-                    >
-                      {isActive ? 'Hide Transactions' : 'View Transactions →'}
-                    </button>
-                  </div>
-
-                  {isActive && (
-                    <>
-                      {txnLoading && <p className="text-gray-600 mt-4">Loading transactions...</p>}
-                      {txnError && <p className="text-red-500 mt-4">{txnError}</p>}
-
-                      {transactions.length > 0 ? (
-                        <div className="mt-4">
-                          <h3 className="text-md font-semibold text-gray-700 mb-2">Transactions</h3>
-                          <ul className="space-y-3">
-                            {transactions.map((txn:any) => {
-                              const isDebit = txn.direction === 'debit'
-                              const date = txn.postDate ? new Date(txn.postDate).toLocaleDateString() : '—'
-                              const amount = parseFloat(txn.amount || '0')
-
-                              return (
-                                <li key={txn.id} className="bg-gray-50 border p-3 rounded text-sm">
-                                  <div className="flex justify-between">
-                                    <span className="font-medium">
-                                      {txn.description || '(No description)'}
-                                    </span>
-                                    <span className={`font-semibold ${isDebit ? 'text-red-600' : 'text-green-600'}`}>
-                                      {isDebit ? '-' : '+'}${Math.abs(amount).toFixed(2)}
-                                    </span>
-                                  </div>
-
-                                  <div className="text-xs text-gray-500 mt-1">
-                                    {date} &middot; {txn.direction || '—'} &middot; {txn.class || 'Unclassified'}
-                                  </div>
-                                </li>
-                              )
-                            })}
-                          </ul>
-                        </div>
-                      ) : (
-                        !txnLoading && <p className="text-sm text-gray-500 mt-2">No transactions found.</p>
-                      )}
-                    </>
-                  )}
-                </li>
-              )
-            })}
-          </ul>
-
-        ) : (
-          <p className="text-gray-500">No accounts found.</p>
-        )}
-      </div>
-
-      {/* -------------------------------------------------------------------- */}
-
-
 
 
 
 
     </div>
+    </>
   )
 
 }

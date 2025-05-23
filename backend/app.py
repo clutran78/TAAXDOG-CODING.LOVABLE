@@ -64,6 +64,12 @@ def allowed_file(filename):
 USE_MOCK_AUTH = os.environ.get("USE_MOCK_AUTH", "false").lower() == "true"
 
 # Authentication middleware
+from flask import request, jsonify
+from functools import wraps
+import os
+
+USE_MOCK_AUTH = os.getenv("USE_MOCK_AUTH", "false").lower() == "true"
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -73,25 +79,35 @@ def login_required(f):
 
         if id_token:
             try:
+                print("🔐 Received Auth Token:", id_token[:10], "..." if len(id_token) > 20 else "")
                 decoded_token = auth.verify_id_token(id_token)
-                request.user_id = decoded_token['uid']
+                request.user_id = decoded_token.get('uid')
 
+                print("✅ Firebase Token Verified - UID:", request.user_id)
+
+                # Check for mock fallback in production
                 if request.user_id.startswith("mock-") and not USE_MOCK_AUTH:
+                    print("🚫 Mock user detected but USE_MOCK_AUTH is disabled.")
                     return jsonify({'success': False, 'error': 'Mock users not allowed'}), 403
 
                 return f(*args, **kwargs)
 
             except Exception as e:
                 print(f"🔐 Firebase token verification failed: {e}")
+
                 if USE_MOCK_AUTH:
                     request.user_id = "mock-user-123"
+                    print("⚠️ Using fallback mock-user-123 (dev only).")
                     return f(*args, **kwargs)
+
                 return jsonify({'success': False, 'error': 'Invalid or expired authentication token'}), 401
 
         if USE_MOCK_AUTH:
             request.user_id = "mock-user-123"
+            print("⚠️ No token provided, using mock-user-123 (dev only).")
             return f(*args, **kwargs)
 
+        print("🚫 No token provided and mock mode disabled.")
         return jsonify({'success': False, 'error': 'Authentication token required'}), 401
 
     return decorated_function
@@ -128,7 +144,6 @@ def verify_token():
         # Verify the ID token
         decoded_token = auth.verify_id_token(id_token)
         user_id = decoded_token['uid']
-        
         # Get user data from Firestore
         user_doc = db.collection('users').document(user_id).get()
         
