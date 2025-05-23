@@ -102,7 +102,7 @@ const ConnectBankForm = () => {
         const response = await postData('/api/banking/setup-user', payload, config)
         console.log('✅ User created/setup:', response)
         debugger
-        const authRes = await postData('/api/banking/auth-link', {}, config)
+        const authRes = await postData('/api/banking/auth-link', config)
         debugger
         if (authRes.success && authRes.auth_link) {
           window.location.href = authRes.auth_link?.links?.public
@@ -111,7 +111,7 @@ const ConnectBankForm = () => {
         }
       } catch (err: any) {
         console.error('❌ Setup error:', err)
-        // setError(err?.response?.data?.error || 'Something went wrong')
+        setError(err?.error_data?.data[0]?.detail || 'Something went wrong')
       } finally {
         setSubmitting(false)
       }

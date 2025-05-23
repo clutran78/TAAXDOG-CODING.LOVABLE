@@ -75,28 +75,6 @@ const GridBoxes = () => {
 
 
 
-  //   const setupBasiqUser = async () => {
-  //   const token = Cookies.get('auth-token');
-
-  //   if (!token) {
-  //     throw new Error('User is not authenticated');
-  //   }
-  // debugger
-  //   const config = {
-  //     headers: {
-  //       Authorization: `Bearer ${token}`,
-  //     }
-  //   };
-
-  //   try {
-  //     const response = await postData('/api/banking/setup-user', null, config);
-  //     console.log('Basiq user setup response:', response);
-  //     return response;
-  //   } catch (error) {
-  //     console.error('Failed to set up Basiq user:', error);
-  //     throw error;
-  //   }
-  // };
 
 
   useEffect(() => {
