@@ -12,7 +12,6 @@ import os
 import json
 from functools import wraps
 from dotenv import load_dotenv
-from firebase_admin import auth as firebase_auth  # make sure firebase_admin is initialized
 from firebase_config import db, auth
 from basiq_api import (
     create_basiq_user, 
@@ -36,6 +35,7 @@ from ai.financial_insights import (
 # Import secure_filename for safe file handling
 from werkzeug.utils import secure_filename
 # Import the FormX client
+# from src.integrations.formx_client import extract_data_from_image
 from src.integrations.formx_client import extract_data_from_image_with_gemini
 
 # Load environment variables
@@ -44,19 +44,8 @@ load_dotenv()
 app = Flask(__name__, template_folder='../frontend', static_folder='../frontend')
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')
 
-# ✅ Allow uploads up to 10MB
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10 MB
-
 # Enable CORS for all routes
 CORS(app)
-
-# ✅ Handle large file errors
-from werkzeug.exceptions import RequestEntityTooLarge
-
-@app.errorhandler(413)
-@app.errorhandler(RequestEntityTooLarge)
-def handle_large_file(e):
-    return jsonify({'success': False, 'error': 'File too large. Maximum allowed size is 10MB.'}), 413
 
 # Define the upload folder and ensure it exists
 UPLOAD_FOLDER = 'uploads'
@@ -70,12 +59,6 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-
-# Authentication middleware
-from flask import request, jsonify
-from functools import wraps
-import os
 
 # Optional: Enable mock auth explicitly via .env
 USE_MOCK_AUTH = os.environ.get("USE_MOCK_AUTH", "false").lower() == "true"
@@ -234,6 +217,7 @@ def update_user_profile():
 
 # Banking integration with Basiq API
 @app.route('/api/banking/setup-user', methods=['POST'])
+@login_required
 def setup_basiq_user():
     """
     Set up a user in the Basiq system using data from request payload.
@@ -241,31 +225,21 @@ def setup_basiq_user():
     Otherwise, create a new Basiq user.
     """
     try:
-        # 🔐 Get and verify the Firebase ID token
-        id_token = request.headers.get("Authorization")
-        print("id_token",id_token)
-        if not id_token or not id_token.startswith("Bearer "):
-            return jsonify({'success': False, 'error': 'Authorization token missing or invalid'}), 401
-
-        id_token = id_token.replace("Bearer ", "")
-
-        try:
-            decoded_token = firebase_auth.verify_id_token(id_token)
-            firebase_user_id = decoded_token.get("uid")
-            print("✅ Firebase UID verified:", firebase_user_id)
-        except Exception as e:
-            print("❌ Token verification failed:", str(e))
-            return jsonify({'success': False, 'error': 'Invalid or expired Firebase token'}), 401
-
-        # 🔍 Look up user in Firestore
+        firebase_user_id = request.user_id
+        print("🔥 Firebase UID received from token:", firebase_user_id)
+        # Get Firestore user document
         user_doc = db.collection('users').document(firebase_user_id).get()
+
         if not user_doc.exists:
-            return jsonify({'success': False, 'error': 'User not found in Firebase'}), 404
+            return jsonify({
+                'success': False,
+                'error': 'User not found in Firebase'
+            }), 404
 
         user_data = user_doc.to_dict()
         basiq_user_id = user_data.get('basiq_user_id')
 
-        # ✅ Return existing Basiq user if available
+        # If already exists, return user from Basiq
         if basiq_user_id:
             result = get_basiq_user(basiq_user_id)
             if result['success']:
@@ -277,7 +251,7 @@ def setup_basiq_user():
             else:
                 basiq_user_id = None  # fallback to recreate
 
-        # 🔽 Extract request body
+        # 🔽 Extract form data from request body
         data = request.get_json()
         email = data.get('email')
         mobile = data.get('mobile')
@@ -320,7 +294,7 @@ def setup_basiq_user():
             return jsonify(result), 400
 
     except Exception as e:
-        print("❌ Exception in setup_basiq_user:", str(e))
+        print("❌ Exception:", str(e))
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/banking/auth-link', methods=['POST'])
@@ -1376,6 +1350,7 @@ def upload_receipt_form():
             file.save(temp_file_path)
             print(f"📥 File uploaded: {temp_file_path}")
 
+        # Handle URL fallback
         elif 'url' in request.form:
             url = request.form['url']
             if not url:
