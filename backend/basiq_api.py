@@ -12,7 +12,7 @@ load_dotenv()
 
 # Basiq API base URL and configuration
 BASIQ_API_URL = os.environ.get('BASIQ_SERVER_URL', 'https://au-api.basiq.io')
-BASIQ_API_KEY = os.environ.get('BASIQ_API_KEY')
+BASIQ_API_KEY = os.environ.get('BASIQ_API_KEY', 'MThmYjA5ZWEtNzRhMi00Nzc5LTk0ZjAtYmRkOTExZDgwMGI4OjRkNzI4M2VhLTViYTMtNGJlMi04ZGJlLTAwMGQ5ODhhMzZiOQ') 
 
 # Token cache to avoid requesting new tokens unnecessarily
 token_cache = {
