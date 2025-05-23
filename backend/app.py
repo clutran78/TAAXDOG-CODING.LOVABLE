@@ -35,7 +35,6 @@ from ai.financial_insights import (
 # Import secure_filename for safe file handling
 from werkzeug.utils import secure_filename
 # Import the FormX client
-# from src.integrations.formx_client import extract_data_from_image
 from src.integrations.formx_client import extract_data_from_image_with_gemini
 
 # Load environment variables
@@ -1352,56 +1351,6 @@ def serve_static(filename):
     Serve static files from the frontend directory
     """
     return send_from_directory(app.static_folder, filename)
-
-# --- New FormX.AI Receipt Upload Route --- #
-# @app.route('/api/receipts/upload/formx', methods=['POST'])
-# def upload_receipt_formx():
-#     temp_file_path = None
-
-#     try:
-#         # Check for uploaded file
-#         if 'receipt' in request.files:
-#             file = request.files['receipt']
-#             if file.filename == '':
-#                 return jsonify({'success': False, 'error': 'No selected file'}), 400
-
-#             filename = secure_filename(file.filename)
-#             temp_file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-#             file.save(temp_file_path)
-#             print(f"File uploaded: {temp_file_path}")
-
-#         # Check for URL if file is not present
-#         elif 'url' in request.form:
-#             url = request.form['url']
-#             if not url:
-#                 return jsonify({'success': False, 'error': 'Empty URL provided'}), 400
-
-#             response = requests.get(url, stream=True)
-#             if response.status_code != 200:
-#                 return jsonify({'success': False, 'error': 'Failed to fetch image from URL'}), 400
-
-#             content_type = response.headers.get('Content-Type', 'image/jpeg')
-#             extension = mimetypes.guess_extension(content_type) or '.jpg'
-
-#             with tempfile.NamedTemporaryFile(delete=False, suffix=extension, dir=app.config['UPLOAD_FOLDER']) as tmp:
-#                 for chunk in response.iter_content(chunk_size=1024):
-#                     if chunk:
-#                         tmp.write(chunk)
-#                 temp_file_path = tmp.name
-#                 print(f"Downloaded file from URL: {temp_file_path}")
-
-#         else:
-#             return jsonify({'success': False, 'error': 'No receipt file or URL provided'}), 400
-
-#         # Process the file
-#         extracted_data = extract_data_from_image(temp_file_path)
-#         return jsonify({'success': True, 'data': extracted_data})
-
-#     except Exception as e:
-#         print(f"Error during receipt processing: {e}")
-#         return jsonify({'success': False, 'error': str(e)}), 500
-
-
 
 # --- New gemini Image Upload Route --- #
 @app.route('/api/receipts/upload/gemini', methods=['POST'])
