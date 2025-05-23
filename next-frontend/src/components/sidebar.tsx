@@ -122,7 +122,7 @@ export default function Sidebar() {
           </li>
         </ul>
 
-        <div onClick={logout} className="logout-button mt-auto">
+        {/* <div onClick={logout} className="logout-button mt-auto">
           <ul className="nav flex-column">
             <li className="nav-item">
               <div className="nav-link d-flex align-items-center cursor-pointer" id="logout-button">
@@ -131,7 +131,7 @@ export default function Sidebar() {
               </div>
             </li>
           </ul>
-        </div>
+        </div> */}
       </div>
     </nav>
   );

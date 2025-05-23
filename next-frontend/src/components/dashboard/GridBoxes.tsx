@@ -10,12 +10,18 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import GoalsDashboardCard from "../Goal/GoalDashboardCard";
 import GoalsModal from "../Goal/DashboardGoalModal";
-import Cookies from 'js-cookie';
-import { postData } from "@/services/api/apiController";
+import Link from "next/link";
+import Cookies from 'js-cookie'
+import { getData } from "@/services/api/apiController";
+
 
 const GridBoxes = () => {
   const [showNetIncomeModal, setShowNetIncomeModal] = useState(false);
   const [showFullGoalsModal, setShowFullGoalsModal] = useState(false);
+
+  const [connections, setConnections] = useState([]);
+  const [connectionLoading, setConnectionLoading] = useState(false);
+  const [connectionError, setConnectionError] = useState<any>(null);
 
   const [alert, setAlert] = useState<{ message: string; type: string } | null>(null);
 
@@ -33,28 +39,64 @@ const GridBoxes = () => {
   }, [showNetIncomeModal]);
 
 
-//   const setupBasiqUser = async () => {
-//   const token = Cookies.get('auth-token');
+  useEffect(() => {
+    fetchConnections();
+  }, []);
 
-//   if (!token) {
-//     throw new Error('User is not authenticated');
-//   }
-// debugger
-//   const config = {
-//     headers: {
-//       Authorization: `Bearer ${token}`,
-//     }
-//   };
+  const fetchConnections = async () => {
+    const token = Cookies.get('auth-token');
+    if (!token) {
+      setConnectionError('Not authenticated');
+      return;
+    }
 
-//   try {
-//     const response = await postData('/api/banking/setup-user', null, config);
-//     console.log('Basiq user setup response:', response);
-//     return response;
-//   } catch (error) {
-//     console.error('Failed to set up Basiq user:', error);
-//     throw error;
-//   }
-// };
+    setConnectionLoading(true);
+    setConnectionError(null);
+
+    try {
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      };
+
+      const res = await getData('/api/banking/connections', config);
+      if (res.success) {
+        setConnections(res.connections?.data || []);
+      } else {
+        setConnectionError(res.error || 'Failed to load connections');
+      }
+    } catch (err: any) {
+      setConnectionError(err?.error || 'Something went wrong');
+    } finally {
+      setConnectionLoading(false);
+    }
+  };
+
+
+
+  //   const setupBasiqUser = async () => {
+  //   const token = Cookies.get('auth-token');
+
+  //   if (!token) {
+  //     throw new Error('User is not authenticated');
+  //   }
+  // debugger
+  //   const config = {
+  //     headers: {
+  //       Authorization: `Bearer ${token}`,
+  //     }
+  //   };
+
+  //   try {
+  //     const response = await postData('/api/banking/setup-user', null, config);
+  //     console.log('Basiq user setup response:', response);
+  //     return response;
+  //   } catch (error) {
+  //     console.error('Failed to set up Basiq user:', error);
+  //     throw error;
+  //   }
+  // };
 
 
   useEffect(() => {
@@ -269,24 +311,50 @@ const GridBoxes = () => {
           {/* <!-- Bank Accounts Card --> */}
           <div className="card tile-card mb-3" data-tile-type="bank-accounts" style={{ height: "calc(50% - 10px)" }}>
             <div className="card-header">
-              {/* Bank Accounts */}
-              <i className="fas fa-university text-primary"></i>
+              <i className="fas fa-university text-primary"></i> Bank Accounts
             </div>
             <div className="card-body">
               <div className="scrollable-content">
-                <div id="bank-connections-container">
-                  {/* <!-- Bank connections will be loaded here --> */}
-                  <div className="text-center py-4" id="no-connections-message">
+                {connectionLoading ? (
+                  <p className="text-center text-muted py-4">Checking your bank connections...</p>
+                ) : connectionError?.includes('setup-user') ? (
+                  <div className="text-center py-4">
+                    <i className="fas fa-plug fa-3x mb-3 text-muted"></i>
+                    <p className="text-red-500 mb-3">
+                      You haven’t set up your bank account connection yet.
+                    </p>
+                    <Link href="/connect-bank" className="btn btn-primary mt-2">
+                      Connect Bank
+                    </Link>
+                  </div>
+                ) : connectionError ? (
+                  <p className="text-center text-danger py-4">{connectionError}</p>
+                ) : connections.length === 0 ? (
+                  <div className="text-center py-4">
                     <i className="fas fa-university fa-3x mb-3 text-muted"></i>
-                    <p>No bank accounts connected yet. Click the &quot;Connect Bank&quot; button in the top-right corner to get started.</p>
+                    <p>You haven't connected your bank yet.</p>
+                    <Link href="/connect-bank" className="btn btn-primary mt-2">
+                      Connect Bank
+                    </Link>
                   </div>
-                  <div id="dashboard-connections-list" style={{ display: "none" }}>
-                    {/* <!-- Bank connections will be loaded here --> */}
+                ) : (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-3">Connected Banks:</p>
+                    {connections.map((conn: any) => (
+                      <div key={conn.id} className="border p-3 rounded mb-2 bg-light">
+                        <strong>{conn.institution?.name || 'Unknown Institution'}</strong><br />
+                        <small>Connection ID: {conn.id}</small>
+                      </div>
+                    ))}
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
+
+
+
+
 
           {/* <!-- Notifications Card --> */}
           <div className="card tile-card" data-tile-type="notifications" style={{ height: "calc(50% - 10px)" }}>
