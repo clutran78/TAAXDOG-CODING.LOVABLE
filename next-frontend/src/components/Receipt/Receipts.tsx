@@ -175,6 +175,12 @@ const ReceiptsComponent = () => {
             const formData = new FormData();
             formData.append('receipt', file);
 
+            if (file.size > 10 * 1024 * 1024) {
+                showToast("File too large. Max 10MB allowed.", "danger");
+                return;
+            }
+
+
             try {
                 const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/receipts/upload/gemini`, {
                     method: 'POST',

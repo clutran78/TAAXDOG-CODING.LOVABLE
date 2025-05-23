@@ -317,7 +317,7 @@ const GridBoxes = () => {
               <div className="scrollable-content">
                 {connectionLoading ? (
                   <p className="text-center text-muted py-4">Checking your bank connections...</p>
-                ) : connectionError?.includes('setup-user') ? (
+                ) : connectionError?.includes('setup-user') || connectionError?.includes('Mock users not allowed') ? (
                   <div className="text-center py-4">
                     <i className="fas fa-plug fa-3x mb-3 text-muted"></i>
                     <p className="text-red-500 mb-3">

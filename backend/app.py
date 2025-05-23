@@ -44,8 +44,19 @@ load_dotenv()
 app = Flask(__name__, template_folder='../frontend', static_folder='../frontend')
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')
 
+# ✅ Allow uploads up to 10MB
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10 MB
+
 # Enable CORS for all routes
 CORS(app)
+
+# ✅ Handle large file errors
+from werkzeug.exceptions import RequestEntityTooLarge
+
+@app.errorhandler(413)
+@app.errorhandler(RequestEntityTooLarge)
+def handle_large_file(e):
+    return jsonify({'success': False, 'error': 'File too large. Maximum allowed size is 10MB.'}), 413
 
 # Define the upload folder and ensure it exists
 UPLOAD_FOLDER = 'uploads'
@@ -1409,7 +1420,6 @@ def upload_receipt_form():
             file.save(temp_file_path)
             print(f"📥 File uploaded: {temp_file_path}")
 
-        # Handle URL fallback
         elif 'url' in request.form:
             url = request.form['url']
             if not url:
@@ -1441,14 +1451,12 @@ def upload_receipt_form():
         return jsonify({'success': False, 'error': str(e)}), 500
 
     finally:
-        # 🧹 Clean up temp file
         if temp_file_path and os.path.exists(temp_file_path):
             try:
                 os.remove(temp_file_path)
                 print(f"🧽 Temporary file deleted: {temp_file_path}")
             except Exception as e:
                 print(f"⚠️ Error deleting temp file: {e}")
-
 
 if __name__ == "__main__":
     port = int(os.environ.get('FLASK_RUN_PORT', 8080))
