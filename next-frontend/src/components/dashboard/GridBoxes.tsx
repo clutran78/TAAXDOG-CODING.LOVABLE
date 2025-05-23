@@ -321,7 +321,7 @@ const GridBoxes = () => {
                   <div className="text-center py-4">
                     <i className="fas fa-plug fa-3x mb-3 text-muted"></i>
                     <p className="text-red-500 mb-3">
-                      You haven’t set up your bank account connection yet.
+                      You &apos;t set up your bank account connection yet.
                     </p>
                     <Link href="/connect-bank" className="btn btn-primary mt-2">
                       Connect Bank
@@ -332,7 +332,7 @@ const GridBoxes = () => {
                 ) : connections.length === 0 ? (
                   <div className="text-center py-4">
                     <i className="fas fa-university fa-3x mb-3 text-muted"></i>
-                    <p>You haven't connected your bank yet.</p>
+                    <p>You haven&apos;t connected your bank yet.</p>
                     <Link href="/connect-bank" className="btn btn-primary mt-2">
                       Connect Bank
                     </Link>
