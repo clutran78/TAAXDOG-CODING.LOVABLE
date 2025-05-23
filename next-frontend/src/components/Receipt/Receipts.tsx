@@ -38,6 +38,7 @@ const ReceiptsComponent = () => {
                     const modalEl = document.getElementById('receipt-upload-section');
                     if (modalEl) {
                         const modalInstance = Modal.getInstance(modalEl) || new Modal(modalEl);
+                        resetUploadFields()
                         modalInstance.show();
                     }
                 });
@@ -404,6 +405,30 @@ const ReceiptsComponent = () => {
         };
     }, []);
 
+    const resetUploadFields = () => {
+        // Clear file input
+        const fileInput = document.getElementById("receipt-file") as HTMLInputElement;
+        if (fileInput) fileInput.value = "";
+
+        // Clear URL input
+        const urlInput = document.getElementById("receipt-url") as HTMLInputElement;
+        if (urlInput) urlInput.value = "";
+
+        // Clear photo preview
+        const photoPreview = document.getElementById("photo-preview") as HTMLImageElement;
+        const photoWrapper = document.getElementById("photo-preview-wrapper");
+        if (photoPreview && photoWrapper) {
+            photoPreview.src = "";
+            photoWrapper.classList.add("d-none");
+        }
+
+        // Reset canvas
+        const canvas = document.getElementById("photo-canvas") as HTMLCanvasElement;
+        if (canvas) {
+            const ctx = canvas.getContext("2d");
+            ctx?.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    };
 
     return (
         <div className=''>
