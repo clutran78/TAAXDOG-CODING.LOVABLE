@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useFormik } from 'formik'
 import * as Yup from 'yup'
 import Cookies from 'js-cookie'
@@ -27,6 +27,9 @@ const ConnectBankForm = () => {
   const [txnError, setTxnError] = useState('')
   const [activeAccountId, setActiveAccountId] = useState<any>(null)
 
+  useEffect(() => {
+    fetchAccounts()
+  }, [])
 
 
   const formik = useFormik({
@@ -399,93 +402,93 @@ const ConnectBankForm = () => {
 
       {/* -------------------------------------------------------------------- */}
 
-    
-    <div className="max-w-3xl mx-auto p-6 space-y-12">
-      {/* 🔹 Form */}
-      <div className="bg-white shadow-xl border border-gray-100 p-8 rounded-lg transition-all duration-300">
-        <h2 className="text-3xl font-extrabold text-blue-700 mb-6">Connect Your Bank</h2>
 
-        <form onSubmit={formik.handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[
-              { name: 'email', label: 'Email', type: 'email' },
-              { name: 'mobile', label: 'Mobile', type: 'text' },
-              { name: 'firstName', label: 'First Name', type: 'text' },
-              { name: 'lastName', label: 'Last Name', type: 'text' },
-              { name: 'businessName', label: 'Business Name', type: 'text' },
-              { name: 'businessIdNo', label: 'Business ID (ABN)', type: 'text' },
-              { name: 'verificationDate', label: 'Verification Date (DD/MM/YYYY)', type: 'text' },
-              { name: 'addressLine1', label: 'Address Line 1', type: 'text' },
-              { name: 'suburb', label: 'Suburb', type: 'text' },
-              { name: 'state', label: 'State', type: 'text' },
-              { name: 'postcode', label: 'Postcode', type: 'text' },
-              { name: 'countryCode', label: 'Country Code', type: 'text' },
-            ].map(({ name, label, type }) => {
-              const hasError =
-                formik.touched[name as keyof typeof formik.touched] &&
-                formik.errors[name as keyof typeof formik.errors]
+      <div className="max-w-3xl mx-auto p-6 space-y-12">
+        {/* 🔹 Form */}
+        <div className="bg-white shadow-xl border border-gray-100 p-8 rounded-lg transition-all duration-300">
+          <h2 className="text-3xl font-extrabold text-blue-700 mb-6">Connect Your Bank</h2>
 
-              return (
-                <div key={name} className="relative">
-                  <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
-                    {label}
-                  </label>
-                  <input
-                    id={name}
-                    name={name}
-                    type={type}
-                    value={formik.values[name as keyof typeof formik.values]}
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    className={`w-full px-4 py-2 pr-10 rounded-md shadow-sm focus:outline-none focus:ring-2 transition duration-300 ${hasError
-                      ? 'border-2 border-red-500 text-red-700 focus:ring-red-400'
-                      : 'border border-gray-300 focus:ring-blue-500'
-                      }`}
-                  />
-                  {hasError && (
-                    <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                      <svg
-                        className="w-5 h-5 text-red-500"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M12 9v2m0 4h.01M12 2a10 10 0 110 20 10 10 0 010-20z"
-                        />
-                      </svg>
-                    </div>
-                  )}
-                  {hasError && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {formik.errors[name as keyof typeof formik.errors]}
-                    </p>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+          <form onSubmit={formik.handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {[
+                { name: 'email', label: 'Email', type: 'email' },
+                { name: 'mobile', label: 'Mobile', type: 'text' },
+                { name: 'firstName', label: 'First Name', type: 'text' },
+                { name: 'lastName', label: 'Last Name', type: 'text' },
+                { name: 'businessName', label: 'Business Name', type: 'text' },
+                { name: 'businessIdNo', label: 'Business ID (ABN)', type: 'text' },
+                { name: 'verificationDate', label: 'Verification Date (DD/MM/YYYY)', type: 'text' },
+                { name: 'addressLine1', label: 'Address Line 1', type: 'text' },
+                { name: 'suburb', label: 'Suburb', type: 'text' },
+                { name: 'state', label: 'State', type: 'text' },
+                { name: 'postcode', label: 'Postcode', type: 'text' },
+                { name: 'countryCode', label: 'Country Code', type: 'text' },
+              ].map(({ name, label, type }) => {
+                const hasError =
+                  formik.touched[name as keyof typeof formik.touched] &&
+                  formik.errors[name as keyof typeof formik.errors]
 
-          <div className="pt-4">
-            <button
-              type="submit"
-              disabled={formik.isSubmitting}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition duration-300"
-            >
-              {formik.isSubmitting ? 'Submitting...' : 'Connect Bank'}
-            </button>
-            {formik.status && <p className="mt-2 text-sm text-gray-600">{formik.status}</p>}
-            {error && <p className="text-red-500 mt-2 text-sm">{error}</p>}
-          </div>
-        </form>
-      </div>
-      {/* -------------------------------------------------------------------- */}
+                return (
+                  <div key={name} className="relative">
+                    <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
+                      {label}
+                    </label>
+                    <input
+                      id={name}
+                      name={name}
+                      type={type}
+                      value={formik.values[name as keyof typeof formik.values]}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      className={`w-full px-4 py-2 pr-10 rounded-md shadow-sm focus:outline-none focus:ring-2 transition duration-300 ${hasError
+                        ? 'border-2 border-red-500 text-red-700 focus:ring-red-400'
+                        : 'border border-gray-300 focus:ring-blue-500'
+                        }`}
+                    />
+                    {hasError && (
+                      <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                        <svg
+                          className="w-5 h-5 text-red-500"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M12 9v2m0 4h.01M12 2a10 10 0 110 20 10 10 0 010-20z"
+                          />
+                        </svg>
+                      </div>
+                    )}
+                    {hasError && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {formik.errors[name as keyof typeof formik.errors]}
+                      </p>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
 
-      {/* 🔗 Connections */}
-      {/* <div className="bg-white shadow-xl border border-gray-100 p-6 rounded-lg transition-all duration-300">
+            <div className="pt-4">
+              <button
+                type="submit"
+                disabled={formik.isSubmitting}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition duration-300"
+              >
+                {formik.isSubmitting ? 'Submitting...' : 'Connect Bank'}
+              </button>
+              {formik.status && <p className="mt-2 text-sm text-gray-600">{formik.status}</p>}
+              {error && <p className="text-red-500 mt-2 text-sm">{error}</p>}
+            </div>
+          </form>
+        </div>
+        {/* -------------------------------------------------------------------- */}
+
+        {/* 🔗 Connections */}
+        {/* <div className="bg-white shadow-xl border border-gray-100 p-6 rounded-lg transition-all duration-300">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-semibold text-gray-800">Your Bank Connections</h2>
           <button

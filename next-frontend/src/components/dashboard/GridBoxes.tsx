@@ -60,9 +60,9 @@ const GridBoxes = () => {
         },
       };
 
-      const res = await getData('/api/banking/connections', config);
+      const res = await getData('/api/banking/accounts', config);
       if (res.success) {
-        setConnections(res.connections?.data || []);
+        setConnections(res.accounts?.data || []);
       } else {
         setConnectionError(res.error || 'Failed to load connections');
       }
@@ -313,60 +313,69 @@ const GridBoxes = () => {
             <div className="card-header">
               <i className="fas fa-university text-primary"></i> Bank Accounts
             </div>
-            <div className="card-body">
-              <div className="scrollable-content">
+            <div className="card shadow-sm">
+              <div className="card-header bg-white border-bottom">
+                <h5 className="mb-0">Bank Connections</h5>
+              </div>
+
+              <div className="card-body">
                 {connectionLoading ? (
-                  <p className="text-center text-muted py-4">Checking your bank connections...</p>
-                ) : connectionError?.includes('setup-user') || connectionError?.includes('Mock users not allowed') ? (
-                  <div className="text-center py-4">
+                  <div className="text-center text-muted py-5">
+                    <div className="spinner-border text-primary" role="status"></div>
+                    <p className="mt-3">Loading your bank connections...</p>
+                  </div>
+                ) : connectionError?.includes("setup-user") || connectionError?.includes("Mock users not allowed") ? (
+                  <div className="text-center text-danger py-4">
                     <i className="fas fa-plug fa-3x mb-3 text-muted"></i>
-                    <p className="text-red-500 mb-3">
-                      You &apos;t set up your bank account connection yet.
-                    </p>
-                    <Link href="/connect-bank" className="btn btn-primary mt-2">
+                    <p className="mb-2">You haven&apos;t set up your bank account connection yet.</p>
+                    <Link href="/connect-bank" className="btn btn-outline-primary">
                       Connect Bank
                     </Link>
                   </div>
                 ) : connectionError ? (
-                  <p className="text-center text-danger py-4">{connectionError}</p>
+                  <div className="alert alert-danger text-center">{connectionError}</div>
                 ) : connections.length === 0 ? (
                   <div className="text-center py-4">
                     <i className="fas fa-university fa-3x mb-3 text-muted"></i>
                     <p>You haven&apos;t connected your bank yet.</p>
-                    <Link href="/connect-bank" className="btn btn-primary mt-2">
+                    <Link href="/connect-bank" className="btn btn-primary">
                       Connect Bank
                     </Link>
                   </div>
                 ) : (
-                  <div>
-                    <p className="text-sm text-gray-600 mb-3">Connected Banks:</p>
+                  <div className="row">
                     {connections.map((conn: any) => (
-                      <div key={conn.id} className="border p-3 rounded mb-2 bg-light">
-                        <strong>{conn.institution?.name || 'Unknown Institution'}</strong><br />
-                        <small>Connection ID: {conn.id}</small>
+                      <div className="col-md-6 mb-4" key={conn.id}>
+                        <Link href={`/connect-bank`} style={{textDecoration:'none', color:'black'}}>
+                        <div className="border rounded shadow-sm p-3 h-100 bg-light">
+                          <h6 className="mb-1 text-dark">{conn.name || "Unnamed Account"}</h6>
+                          <p className="mb-1"><strong>Institution:</strong> {conn.institution || "Unknown"}</p>
+                          <p className="mb-1"><strong>Account Holder:</strong> {conn.accountHolder || "N/A"}</p>
+                          <p className="mb-1"><strong>Account Number:</strong> {conn.accountNo || "—"}</p>
+                          <p className="mb-1"><strong>Balance:</strong> {conn.balance ? `AUD $${conn.balance}` : "—"}</p>
+                          <p className="mb-0"><strong>Connection ID:</strong> <code>{conn.id}</code></p>
+                        </div>
+                      </Link>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
             </div>
+
           </div>
 
-
-
-
-
           {/* <!-- Notifications Card --> */}
-          <div className="card tile-card" data-tile-type="notifications" style={{ height: "calc(50% - 10px)" }}>
+          {/* <div className="card tile-card" data-tile-type="notifications" style={{ height: "calc(50% - 10px)" }}>
             <div className="card-header">
-              {/* Notifications */}
+
               <i className="fas fa-bell text-warning"></i>
             </div>
             <div className="card-body">
               <div className="scrollable-content">
                 <h3>2 New Updates</h3>
 
-                {/* <!-- Notifications List --> */}
+
                 <div className="notification-item">
                   <h5>Tax Return Due</h5>
                   <p>Your tax return is due in 2 weeks</p>
@@ -380,7 +389,7 @@ const GridBoxes = () => {
                 </div>
               </div>
 
-              {/* <!-- Clock Display --> */}
+
               <div className="clock-display">
                 <span id="hours">14</span>:<span id="minutes">31</span>
                 <div className="d-flex justify-content-between">
@@ -389,7 +398,7 @@ const GridBoxes = () => {
                 </div>
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
 

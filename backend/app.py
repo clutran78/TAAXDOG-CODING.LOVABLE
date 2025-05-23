@@ -12,6 +12,7 @@ import os
 import json
 from functools import wraps
 from dotenv import load_dotenv
+from firebase_admin import auth as firebase_auth  # make sure firebase_admin is initialized
 from firebase_config import db, auth
 from basiq_api import (
     create_basiq_user, 
@@ -234,7 +235,6 @@ def update_user_profile():
 
 # Banking integration with Basiq API
 @app.route('/api/banking/setup-user', methods=['POST'])
-@login_required
 def setup_basiq_user():
     """
     Set up a user in the Basiq system using data from request payload.
@@ -242,22 +242,30 @@ def setup_basiq_user():
     Otherwise, create a new Basiq user.
     """
     try:
-        firebase_user_id = request.user_id
-        print("🔥 Firebase UID received from token:", firebase_user_id)
+        # 🔐 Get and verify the Firebase ID token
+        id_token = request.headers.get("Authorization")
+        if not id_token or not id_token.startswith("Bearer "):
+            return jsonify({'success': False, 'error': 'Authorization token missing or invalid'}), 401
 
-        # Get Firestore user document
+        id_token = id_token.replace("Bearer ", "")
+
+        try:
+            decoded_token = firebase_auth.verify_id_token(id_token)
+            firebase_user_id = decoded_token.get("uid")
+            print("✅ Firebase UID verified:", firebase_user_id)
+        except Exception as e:
+            print("❌ Token verification failed:", str(e))
+            return jsonify({'success': False, 'error': 'Invalid or expired Firebase token'}), 401
+
+        # 🔍 Look up user in Firestore
         user_doc = db.collection('users').document(firebase_user_id).get()
-
         if not user_doc.exists:
-            return jsonify({
-                'success': False,
-                'error': 'User not found in Firebase'
-            }), 404
+            return jsonify({'success': False, 'error': 'User not found in Firebase'}), 404
 
         user_data = user_doc.to_dict()
         basiq_user_id = user_data.get('basiq_user_id')
 
-        # If already exists, return user from Basiq
+        # ✅ Return existing Basiq user if available
         if basiq_user_id:
             result = get_basiq_user(basiq_user_id)
             if result['success']:
@@ -269,7 +277,7 @@ def setup_basiq_user():
             else:
                 basiq_user_id = None  # fallback to recreate
 
-        # 🔽 Extract form data from request body
+        # 🔽 Extract request body
         data = request.get_json()
         email = data.get('email')
         mobile = data.get('mobile')
@@ -285,7 +293,7 @@ def setup_basiq_user():
         if not email:
             return jsonify({'success': False, 'error': 'Email is required'}), 400
 
-        # Call your Basiq API user creation logic
+        # 🏗 Create new Basiq user
         result = create_basiq_user(
             email=email,
             mobile=mobile,
@@ -312,9 +320,8 @@ def setup_basiq_user():
             return jsonify(result), 400
 
     except Exception as e:
-        print("❌ Exception:", str(e))
+        print("❌ Exception in setup_basiq_user:", str(e))
         return jsonify({'success': False, 'error': str(e)}), 500
-
 
 @app.route('/api/banking/auth-link', methods=['POST'])
 @login_required
