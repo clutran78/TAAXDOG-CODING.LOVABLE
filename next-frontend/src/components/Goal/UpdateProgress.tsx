@@ -1,10 +1,9 @@
 "use client";
-import { db } from "@/lib/firebase";
+import { Goal } from "@/lib/types/goal";
+import { updateGoalProgress } from "@/services/firebase-service";
 import { showToast } from "@/services/helperFunction";
-import { doc, updateDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { Modal, Button, Form } from "react-bootstrap";
-import { Goal } from "./goalPage";
 
 interface Props {
   show: boolean;
@@ -13,11 +12,11 @@ interface Props {
 }
 
 const UpdateProgressModal: React.FC<Props> = ({ show, onClose, goal }) => {
-  const [amountToAdd, setAmountToAdd] = useState<string>('');
+  const [amountToAdd, setAmountToAdd] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setAmountToAdd('');
+    setAmountToAdd("");
   }, [goal]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,16 +32,15 @@ const UpdateProgressModal: React.FC<Props> = ({ show, onClose, goal }) => {
     let newAmount = goal.currentAmount + additional;
 
     if (newAmount > goal.targetAmount) {
-      const confirmCap = window.confirm("You've exceeded the target. Cap at target amount?");
+      const confirmCap = window.confirm(
+        "You've exceeded the target. Cap at target amount?"
+      );
       if (confirmCap) newAmount = goal.targetAmount;
     }
 
     try {
       setLoading(true);
-      await updateDoc(doc(db, "goals", goal.id), {
-        currentAmount: newAmount,
-        updatedAt: new Date().toISOString()
-      });
+      await updateGoalProgress(goal.id, newAmount);
       showToast(`Added $${additional.toFixed(2)} to "${goal.name}"`, "success");
       onClose();
     } catch (err) {
@@ -62,9 +60,15 @@ const UpdateProgressModal: React.FC<Props> = ({ show, onClose, goal }) => {
         <Modal.Body>
           {goal && (
             <>
-              <p className="mb-1"><strong>Goal:</strong> {goal.name}</p>
-              <p className="mb-1"><strong>Current:</strong> ${goal.currentAmount.toFixed(2)}</p>
-              <p className="mb-3"><strong>Target:</strong> ${goal.targetAmount.toFixed(2)}</p>
+              <p className="mb-1">
+                <strong>Goal:</strong> {goal.name}
+              </p>
+              <p className="mb-1">
+                <strong>Current:</strong> ${goal.currentAmount.toFixed(2)}
+              </p>
+              <p className="mb-3">
+                <strong>Target:</strong> ${goal.targetAmount.toFixed(2)}
+              </p>
 
               <Form.Group controlId="amountToAdd">
                 <Form.Label>Amount to Add</Form.Label>

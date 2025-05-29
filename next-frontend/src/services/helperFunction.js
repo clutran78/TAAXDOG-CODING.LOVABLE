@@ -3467,7 +3467,6 @@ async function updateFirebaseAndUI(newData) {
 // }
 
 function updateReceiptDashboard(stats) {
-    debugger
     if (!stats) {
         console.warn("No stats available to update dashboard.");
         return;

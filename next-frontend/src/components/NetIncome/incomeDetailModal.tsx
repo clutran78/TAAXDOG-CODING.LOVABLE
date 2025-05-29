@@ -1,6 +1,6 @@
 // components/NetIncomeModal.tsx
+import { Transaction } from "@/lib/types/transactions";
 import { Modal } from "react-bootstrap";
-import { Transaction } from "./netIncomePage";
 
 interface NetIncomeModalProps {
     show: boolean;

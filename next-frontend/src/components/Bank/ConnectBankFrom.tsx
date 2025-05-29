@@ -101,9 +101,9 @@ const ConnectBankForm = () => {
 
         const response = await postData('/api/banking/setup-user', payload, config)
         console.log('✅ User created/setup:', response)
-        debugger
+
         const authRes = await postData('/api/banking/auth-link', config)
-        debugger
+        
         if (authRes.success && authRes.auth_link) {
           window.location.href = authRes.auth_link?.links?.public
         } else {
@@ -168,7 +168,7 @@ const ConnectBankForm = () => {
       setAccountLoading(true)
       setAccountError(null)
       const res = await getData('/api/banking/accounts', config)
-      debugger
+      
       console.log("res", res);
 
       if (res.success) {
@@ -186,7 +186,7 @@ const ConnectBankForm = () => {
 
 
   const clearOldTransactions = async (userId: string, accountId: string) => {
-    debugger
+
     const q = query(
       collection(db, 'bankTransactions'),
       where('userId', '==', userId),
@@ -234,11 +234,11 @@ const ConnectBankForm = () => {
             accountName: txn.account || '',
             createdAt: new Date().toISOString()
           }))
-          debugger
+          
           // Optionally: clear previous transactions for that user/account
           await clearOldTransactions(user?.uid, accountId)
 
-          debugger
+          
 
           // Add to Firestore
           for (const txn of formattedTxns) {

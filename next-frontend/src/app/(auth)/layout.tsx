@@ -3,10 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "../../app/globals.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
-
-import Sidebar from "@/components/sidebar";
-import Header from "@/shared/Header";
-import GlobalWrapper from "@/shared/GlobalWrapper";
+import ClientLayout from "@/shared/client-layout";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,42 +30,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Header />
-        <div className="container-fluid">
-          <div className="row">
-            <Sidebar />
-
-            {/* Global Toast Element */}
-            <div
-              id="main-toast"
-              className="toast align-items-center text-white bg-primary border-0 position-fixed top-0 start-50 translate-middle-x mt-3"
-              role="alert"
-              aria-live="assertive"
-              aria-atomic="true"
-              style={{ zIndex: 9999, minWidth: '300px' }}
-            >
-              <div className="d-flex">
-                <div id="toast-body" className="toast-body">
-                  This is a toast message.
-                </div>
-                <button
-                  type="button"
-                  className="btn-close btn-close-white me-2 m-auto"
-                  data-bs-dismiss="toast"
-                  aria-label="Close"
-                ></button>
-              </div>
-            </div>
-
-
-            {/* <!-- Main Content --> */}
-            <main className="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
-              <GlobalWrapper>
-                {children}
-              </GlobalWrapper>
-            </main>
-          </div>
-        </div>
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   );

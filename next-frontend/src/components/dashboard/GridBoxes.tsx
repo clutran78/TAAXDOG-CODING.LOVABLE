@@ -1,19 +1,25 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { displayTransactionSummary, initializeMockData, loadIncomeDetails, setupFinancialFeatureHandlers, updateBankConnectionsDisplay, updateSubscriptionDisplays } from '@/services/helperFunction';
+import {
+  formatCurrency,
+  loadIncomeDetails,
+  setupFinancialFeatureHandlers,
+  updateBankConnectionsDisplay,
+} from "@/services/helperFunction";
 import AlertMessage from "@/shared/alerts";
 import NetIncomeModal from "@/shared/modals/NetIncomeModal";
 import NetBalanceDetails from "@/shared/modals/NetBalanceDetailsModal";
 import SubscriptionsModal from "@/shared/modals/ManageSubscriptionsModal";
-import { auth, db } from '../../lib/firebase';
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
 import GoalsDashboardCard from "../Goal/GoalDashboardCard";
 import GoalsModal from "../Goal/DashboardGoalModal";
-import Link from "next/link";
-import Cookies from 'js-cookie'
+import Cookies from "js-cookie";
 import { getData } from "@/services/api/apiController";
-
+import StatCard from "./stats-card";
+import BankAccountsCard from "./bank-accounts-card";
+import {
+  fetchBankTransactions,
+  fetchSubscriptions,
+} from "@/services/firebase-service";
 
 const GridBoxes = () => {
   const [showNetIncomeModal, setShowNetIncomeModal] = useState(false);
@@ -22,31 +28,38 @@ const GridBoxes = () => {
   const [connections, setConnections] = useState([]);
   const [connectionLoading, setConnectionLoading] = useState(false);
   const [connectionError, setConnectionError] = useState<any>(null);
+  const [transactions, setTransactions] = useState({
+    income: "$0.00",
+    expenses: "$0.00",
+    netBalance: "$0.00",
+    subscriptions: "$0.00",
+    activeSubscriptions: 0,
+  });
 
-  const [alert, setAlert] = useState<{ message: string; type: string } | null>(null);
+  const [alert, setAlert] = useState<{ message: string; type: string } | null>(
+    null
+  );
+  const [loading, setLoading] = useState(false);
 
-  const [showNetBalanceDetailsModal, setShowNetBalanceDetailsModal] = useState(false)
+  const [showNetBalanceDetailsModal, setShowNetBalanceDetailsModal] =
+    useState(false);
 
-  // Example: useEffect for auth state
   useEffect(() => {
     if (showNetIncomeModal) {
-      // Give React time to render the modal content
-      setTimeout(() => {
-        loadIncomeDetails();
-      }, 0);
+      loadIncomeDetails();
     }
-    // setupBasiqUser()
   }, [showNetIncomeModal]);
-
 
   useEffect(() => {
     fetchConnections();
+    loadSubscriptions();
+    getBankTransactions();
   }, []);
 
   const fetchConnections = async () => {
-    const token = Cookies.get('auth-token');
+    const token = Cookies.get("auth-token");
     if (!token) {
-      setConnectionError('Not authenticated');
+      setConnectionError("Not authenticated");
       return;
     }
 
@@ -60,203 +73,171 @@ const GridBoxes = () => {
         },
       };
 
-      const res = await getData('/api/banking/accounts', config);
+      const res = await getData("/api/banking/accounts", config);
+
       if (res.success) {
         setConnections(res.accounts?.data || []);
       } else {
-        setConnectionError(res.error || 'Failed to load connections');
+        setConnectionError(res.error || "Failed to load connections");
       }
     } catch (err: any) {
-      setConnectionError(err?.error || 'Something went wrong');
+      setConnectionError(err?.error || "Something went wrong");
     } finally {
       setConnectionLoading(false);
     }
   };
 
+  const loadSubscriptions = async () => {
+    try {
+      const subscriptions = await fetchSubscriptions();
+      let totalMonthlyCost = 0;
 
+      subscriptions.forEach((subscription) => {
+        let amount = parseFloat(subscription.amount || 0);
+        if (isNaN(amount)) amount = 0;
 
+        switch (subscription.frequency) {
+          case "yearly":
+            amount = amount / 12;
+            break;
+          case "quarterly":
+            amount = amount / 3;
+            break;
+          case "weekly":
+            amount = amount * 4.33;
+            break;
+        }
 
+        totalMonthlyCost += amount;
+      });
 
-  useEffect(() => {
-    const loadSubscriptions = async () => {
-      try {
+      setTransactions((prev) => ({
+        ...prev,
+        subscriptions: formatCurrency(totalMonthlyCost),
+        activeSubscriptions: subscriptions.length,
+      }));
 
+      setupFinancialFeatureHandlers();
+      updateBankConnectionsDisplay();
+      // updateSubscriptionDisplays(subscriptions);
+    } catch (error) {
+      console.error("Failed to load subscriptions:", error);
+    }
+  };
 
-
-        onAuthStateChanged(auth, async (user) => {
-
-          if (!user) {
-            console.error('No authenticated user found. Cannot fetch user-specific data.');
-            return;
-          }
-
-          const q = query(
-            collection(db, 'subscriptions'),
-            where('userId', '==', user?.uid)
-          );
-
-
-          const snapshot = await getDocs(q)
-
-          const subscriptions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-          setTimeout(() => {
-            setupFinancialFeatureHandlers();
-            updateBankConnectionsDisplay();
-            updateSubscriptionDisplays(subscriptions);
-          }, 0);
-        })
-      } catch (error) {
-        console.error("Failed to load subscriptions:", error);
-      }
-    };
-    loadSubscriptions()
-  }, []);
-
-
-  const handleShowNetIncomeModal = () => setShowNetIncomeModal(true)
+  const handleShowNetIncomeModal = () => setShowNetIncomeModal(true);
 
   const handleCloseNetIncomeModal = () => setShowNetIncomeModal(false);
 
   const handleShowNetBalanceDetails = () => setShowNetBalanceDetailsModal(true);
 
-  const handleCloseNetBalanceDetails = () => setShowNetBalanceDetailsModal(false);
-
-
-  useEffect(() => {
-    const initializeApp = () => {
-      const dataCreated = initializeMockData();
-      if (dataCreated) {
-        // setAlert({
-        //   message: 'All set! Your data is ready—start exploring your dashboard.',
-        //   type: 'success',
-        // });
-        // Auto-dismiss after 5 seconds
-        setTimeout(() => setAlert(null), 3000);
-      }
-    };
-    initializeApp();
-    getBankTransactions();
-  }, [])
+  const handleCloseNetBalanceDetails = () =>
+    setShowNetBalanceDetailsModal(false);
 
   const getBankTransactions = async () => {
-    // const transactions = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
-
-
-    onAuthStateChanged(auth, async (user) => {
-
-      if (!user) {
-        console.error('No authenticated user found. Cannot fetch user-specific data.');
+    try {
+      setLoading(true);
+      const transactions = await fetchBankTransactions();
+      if (transactions.length === 0) {
         return;
       }
 
-      const q = query(
-        collection(db, 'bankTransactions'),
-        where('userId', '==', user?.uid)
-      );
+      const income = transactions.reduce((sum, tx) => {
+        const amount = parseFloat(tx.amount || "0");
+        return sum + (amount > 0 ? amount : 0);
+      }, 0);
 
-      const transactions = await getDocs(q);
+      const expenses = transactions.reduce((sum, tx) => {
+        const amount = parseFloat(tx.amount || "0");
+        return sum + (amount < 0 ? Math.abs(amount) : 0);
+      }, 0);
 
-      if (transactions) {
-        displayTransactionSummary()
-      }
-    })
-  }
+      const netBalance = income - expenses;
+
+      setTransactions((prev) => ({
+        ...prev,
+        income: formatCurrency(income),
+        expenses: formatCurrency(expenses),
+        netBalance: formatCurrency(netBalance),
+      }));
+    } catch (error) {
+      console.error("Failed to load bank transactions:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <>
-      {alert && <AlertMessage message={alert.message} type={alert.type as any} />}
+      {alert && (
+        <AlertMessage message={alert.message} type={alert.type as any} />
+      )}
 
       {showFullGoalsModal && (
         <GoalsModal onClose={() => setShowFullGoalsModal(false)} />
       )}
 
-      <div className="col-md-3 mb-4 cursor-pointer" onClick={handleShowNetIncomeModal}>
-        <div
-          className="card stats-card h-100 cursor-pointer"
-          id="net-income-card"
-          data-card="net-income"
-        >
-          <div className="card-header">
-            Net Income
-            <i className="fas fa-arrow-circle-up income-icon"></i>
-          </div>
-          <div className="card-body">
-            <div className="stat-value" id="net-income-value">
-              $0.00
-            </div>
-            <div
-              className="stat-change positive-change cursor-pointer"
-            >
-              <i className="fas fa-arrow-up"></i> +12.3% from last month
-            </div>
-          </div>
-        </div>
-      </div>
+      <StatCard
+        id="net-income-card"
+        dataCard="net-income"
+        title="Net Income"
+        iconClass="fas fa-arrow-circle-up income-icon"
+        value={transactions.income ? `${transactions.income}` : "$0.00"}
+        valueId="net-income-value"
+        change="+12.3% from last month"
+        changeType="positive"
+        arrowIcon={<i className="fas fa-arrow-up"></i>}
+        onClick={handleShowNetIncomeModal}
+        loading={loading}
+      />
 
-      <div className="col-md-3 mb-4 cursor-pointer" id="view-expense-categories-btn">
-        <div
-          className="card stats-card h-100"
-          id="total-expenses-card"
-          data-card="total-expenses"
-        >
-          <div className="card-header">
-            Total Expenses
-            <i className="fas fa-arrow-circle-down expense-icon"></i>
-          </div>
-          <div className="card-body">
-            <div className="stat-value" id="total-expenses-value">
-              $0.00
-            </div>
-            <div
-              className="stat-change negative-change cursor-pointer"
-            >
-              <i className="fas fa-arrow-down"></i> -8.1% from last month
-            </div>
-          </div>
-        </div>
-      </div>
+      <StatCard
+        id="total-expenses-card"
+        dataCard="total-expenses"
+        title="Total Expenses"
+        iconClass="fas fa-arrow-circle-down expense-icon"
+        value={transactions.expenses ? `${transactions.expenses}` : "$0.00"}
+        valueId="total-expenses-value"
+        change="-8.1% from last month"
+        changeType="negative"
+        arrowIcon={<i className="fas fa-arrow-down"></i>}
+        loading={loading}
+      />
 
-      <div className="col-md-3 mb-4">
-        <div
-          className="card stats-card h-100 cursor-pointer"
-          id="net-balance-card"
-          data-card="net-balance"
-        >
-          <div className="card-header">
-            Net Balance
-            <i className="fas fa-balance-scale balance-icon"></i>
-          </div>
-          <div className="card-body">
-            <div className="stat-value" id="net-balance-value">
-              $0.00
-            </div>
-            <div
-              className="stat-change positive-change cursor-pointer"
-              onClick={handleShowNetBalanceDetails}
-            >
-              <i className="fas fa-arrow-up"></i> +15.2% from last month
-            </div>
-          </div>
-        </div>
-      </div>
+      <StatCard
+        id="net-balance-card"
+        dataCard="net-balance"
+        title="Net Balance"
+        iconClass="fas fa-balance-scale balance-icon"
+        value={transactions.netBalance ? `${transactions.netBalance}` : "$0.00"}
+        valueId="net-balance-value"
+        change="+15.2% from last month"
+        changeType="positive"
+        arrowIcon={<i className="fas fa-arrow-up"></i>}
+        onClick={handleShowNetBalanceDetails}
+        loading={loading}
+      />
 
-
-      {/* Subscription */}
-      <div className="col-md-3 mb-4">
-        <div className="card stats-card h-100 cursor-pointer" id="subscriptions-card" data-card="subscriptions" >
-          <div className="card-header">
-            Subscriptions
-            <i className="fas fa-repeat subscription-icon"></i>
-          </div>
-          <div className="card-body">
-            <div className="stat-value">$<span id="total-subscriptions-value">0.00</span></div>
-            <div className="stat-change neutral-change">
-              <span id="subscription-count">0</span> active subscriptions
-            </div>
-          </div>
-        </div>
-      </div>
+      <StatCard
+        id="subscriptions-card"
+        dataCard="subscriptions"
+        title="Subscriptions"
+        iconClass="fas fa-repeat subscription-icon"
+        value={
+          transactions.subscriptions ? transactions.subscriptions : "$0.00"
+        }
+        valueId=""
+        change={
+          <>
+            <span id="subscription-count">
+              {transactions.activeSubscriptions || 0}
+            </span>{" "}
+            active subscriptions
+          </>
+        }
+        changeType="neutral"
+        loading={loading}
+      />
 
       {/* NetIncomeModal component */}
       <NetIncomeModal
@@ -271,120 +252,24 @@ const GridBoxes = () => {
 
       <SubscriptionsModal />
 
-
-      {/* ////////////////////////////////////////////////////////////////////////////////////////////////  Goal Progress  */}
-
-
       {/* <!-- Second Row - Goals, Notifications, and Bank Accounts --> */}
-      <div className="row mt-3">
+      <div className="row mt-3 p-0 m-0">
         {/* <!-- Left Side - Goals --> */}
 
-        <div className="col-md-6">
+        <div className="col-md-12 col-lg-6">
           {/* <!-- Goals Card --> */}
           <GoalsDashboardCard onOpenModal={() => setShowFullGoalsModal(true)} />
         </div>
 
         {/* <!-- Right Side - Bank Accounts and Notifications --> */}
-        <div className="col-md-6">
-          {/* <!-- Bank Accounts Card --> */}
-          <div className="card tile-card mb-3" data-tile-type="bank-accounts" style={{ height: "calc(50% - 10px)" }}>
-            <div className="card-header">
-              <i className="fas fa-university text-primary"></i> Bank Accounts
-            </div>
-            <div className="card shadow-sm">
-              <div className="card-header bg-white border-bottom">
-                <h5 className="mb-0">Bank Connections</h5>
-              </div>
-
-              <div className="card-body">
-                {connectionLoading ? (
-                  <div className="text-center text-muted py-5">
-                    <div className="spinner-border text-primary" role="status"></div>
-                    <p className="mt-3">Loading your bank connections...</p>
-                  </div>
-                ) : connectionError?.includes("setup-user") || connectionError?.includes("Mock users not allowed") ? (
-                  <div className="text-center text-danger py-4">
-                    <i className="fas fa-plug fa-3x mb-3 text-muted"></i>
-                    <p className="mb-2">You haven&apos;t set up your bank account connection yet.</p>
-                    <Link href="/connect-bank" className="btn btn-outline-primary">
-                      Connect Bank
-                    </Link>
-                  </div>
-                ) : connectionError ? (
-                  <div className="alert alert-danger text-center">{connectionError}</div>
-                ) : connections.length === 0 ? (
-                  <div className="text-center py-4">
-                    <i className="fas fa-university fa-3x mb-3 text-muted"></i>
-                    <p>You haven&apos;t connected your bank yet.</p>
-                    <Link href="/connect-bank" className="btn btn-primary">
-                      Connect Bank
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="row">
-                    {connections.map((conn: any) => (
-                      <div className="col-md-6 mb-4" key={conn.id}>
-                        <Link href={`/connect-bank`} style={{textDecoration:'none', color:'black'}}>
-                        <div className="border rounded shadow-sm p-3 h-100 bg-light">
-                          <h6 className="mb-1 text-dark">{conn.name || "Unnamed Account"}</h6>
-                          <p className="mb-1"><strong>Institution:</strong> {conn.institution || "Unknown"}</p>
-                          <p className="mb-1"><strong>Account Holder:</strong> {conn.accountHolder || "N/A"}</p>
-                          <p className="mb-1"><strong>Account Number:</strong> {conn.accountNo || "—"}</p>
-                          <p className="mb-1"><strong>Balance:</strong> {conn.balance ? `AUD $${conn.balance}` : "—"}</p>
-                          <p className="mb-0"><strong>Connection ID:</strong> <code>{conn.id}</code></p>
-                        </div>
-                      </Link>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-          </div>
-
-          {/* <!-- Notifications Card --> */}
-          {/* <div className="card tile-card" data-tile-type="notifications" style={{ height: "calc(50% - 10px)" }}>
-            <div className="card-header">
-
-              <i className="fas fa-bell text-warning"></i>
-            </div>
-            <div className="card-body">
-              <div className="scrollable-content">
-                <h3>2 New Updates</h3>
-
-
-                <div className="notification-item">
-                  <h5>Tax Return Due</h5>
-                  <p>Your tax return is due in 2 weeks</p>
-                  <p className="notification-date">15/03/2024</p>
-                </div>
-
-                <div className="notification-item">
-                  <h5>Goal Milestone</h5>
-                  <p>Emergency Fund reached 75% of target</p>
-                  <p className="notification-date">10/03/2024</p>
-                </div>
-              </div>
-
-
-              <div className="clock-display">
-                <span id="hours">14</span>:<span id="minutes">31</span>
-                <div className="d-flex justify-content-between">
-                  <small>min</small>
-                  <small>hour</small>
-                </div>
-              </div>
-            </div>
-          </div> */}
+        <div className="col-md-12 col-lg-6 mt-4 mt-lg-0">
+          <BankAccountsCard
+            connections={connections}
+            connectionLoading={connectionLoading}
+            connectionError={connectionError}
+          />
         </div>
       </div>
-
-
-
-
-
-      {/* ////////////////////////////////////////////////////////////////////////////////////////////////   */}
     </>
   );
 };
