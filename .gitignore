@@ -91,6 +91,7 @@ yarn-error.log
 .Trashes
 ehthumbs.db
 Thumbs.db
+~$ckend_Working.docx
 
 # Firebase
 firebase-debug.log
@@ -104,3 +105,16 @@ htmlcov/
 # Build
 /frontend/build/
 /frontend/dist/ 
+
+#docs
+Backend_Working.docx
+suggestions.docx
+
+#Collection Postman
+collection.json
+
+#old code
+backend/app_old.py
+backend/routes/auth_routes_v1.py
+backend/routes/banking_routes_v1.py
+backend/routes/financial_routes_v1.py

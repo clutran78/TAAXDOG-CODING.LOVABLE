@@ -4,7 +4,6 @@ import json
 import time
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-import requests
 import logging
 
 # Load environment variables
@@ -12,7 +11,7 @@ load_dotenv()
 
 # Basiq API base URL and configuration
 BASIQ_API_URL = os.environ.get('BASIQ_SERVER_URL', 'https://au-api.basiq.io')
-BASIQ_API_KEY = os.environ.get('BASIQ_API_KEY', 'MThmYjA5ZWEtNzRhMi00Nzc5LTk0ZjAtYmRkOTExZDgwMGI4OjRkNzI4M2VhLTViYTMtNGJlMi04ZGJlLTAwMGQ5ODhhMzZiOQ') 
+BASIQ_API_KEY = os.environ.get('BASIQ_API_KEY', '')
 
 # Token cache to avoid requesting new tokens unnecessarily
 token_cache = {
@@ -22,22 +21,20 @@ token_cache = {
 
 logger = logging.getLogger(__name__)
 
-def get_auth_token():
+def get_basiq_token():
     """
     Get an authentication token from Basiq API.
     The token is cached and only refreshed when expired.
-    
+
     Returns:
-        str: The access token
+        str: The access token, or None if failed
     """
     global token_cache
-    
-    # Check if we have a valid cached token
-    now = datetime.now()
+
+    now = datetime.utcnow()
     if token_cache['access_token'] and token_cache['expires_at'] and now < token_cache['expires_at']:
         return token_cache['access_token']
-    
-    # Request a new token
+
     url = f"{BASIQ_API_URL}/token"
     headers = {
         'Authorization': f'Basic {BASIQ_API_KEY}',
@@ -45,103 +42,58 @@ def get_auth_token():
         'basiq-version': '3.0'
     }
     data = {
-        'scope': 'SERVER_ACCESS'
+        'scope': 'SERVER_ACCESS',
+        'grant_type': 'client_credentials'
     }
-    
+
     try:
         response = requests.post(url, headers=headers, data=data)
-        response.raise_for_status()  # Raise exception for non-200 responses
-        
+        response.raise_for_status()
         token_data = response.json()
-        
         # Cache the token with expiration (subtract 5 minutes for safety)
         token_cache['access_token'] = token_data['access_token']
-        expires_in_seconds = token_data.get('expires_in', 3600)  # Default to 1 hour if not specified
+        expires_in_seconds = token_data.get('expires_in', 3600)
         token_cache['expires_at'] = now + timedelta(seconds=expires_in_seconds - 300)
-        
+        logger.info("✅ Basiq token acquired.")
         return token_cache['access_token']
     except requests.exceptions.RequestException as e:
-        print(f"Error getting auth token: {e}")
+        logger.error(f"❌ Failed to get Basiq token: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+            logger.error(f"📄 Response: {e.response.status_code} {e.response.text}")
         return None
 
-
-cached_token = None
-token_expiry = None
-
-def get_auth_token():
-    global cached_token, token_expiry
-    if cached_token and token_expiry and token_expiry > datetime.utcnow():
-        return cached_token
-
-    # Fetch new token
-    response = requests.post(
-        f'{BASIQ_SERVER_URL}/token',
-        headers={'Authorization': f'Basic {BASIQ_API_KEY}'},
-        data={'scope': 'SERVER_ACCESS', 'grant_type': 'client_credentials'}
-    )
-
-    if response.status_code == 200:
-        token_data = response.json()
-        cached_token = token_data['access_token']
-        token_expiry = datetime.utcnow() + timedelta(seconds=int(token_data['expires_in']))
-        return cached_token
+def get_headers(token_type="basic", token=None):
+    """
+    Returns headers for Basiq API requests.
+    token_type: "basic" or "bearer"
+    token: token string if using bearer
+    """
+    if token_type == "bearer" and token:
+        return {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "basiq-version": "3.0"
+        }
     else:
-        raise Exception(f"Token request failed: {response.status_code} - {response.text}")
-
-def get_headers():
-    return {
-        'Authorization': f'Basic {BASIQ_API_KEY}',
-        'Content-Type': 'application/json'
-    }
-
-def get_basiq_token():
-    global cached_token, token_expiry
-
-    if cached_token and token_expiry and token_expiry > datetime.utcnow():
-        return cached_token
-
-    headers = {
-        "Authorization": f"Basic {BASIQ_API_KEY}",
-        "Content-Type": "application/x-www-form-urlencoded",
-        "basiq-version": "3.0"
-    }
-
-    data = "grant_type=client_credentials&scope=SERVER_ACCESS"
-
-    try:
-        response = requests.post(f"{BASIQ_API_URL}/token", headers=headers, data=data)
-        response.raise_for_status()
-
-        token_data = response.json()
-        cached_token = token_data["access_token"]
-        token_expiry = datetime.utcnow() + timedelta(seconds=int(token_data["expires_in"]))
-        print("✅ Basiq token acquired.")
-        return cached_token
-
-    except requests.exceptions.RequestException as e:
-        print("❌ Failed to get Basiq token:", e)
-        if e.response is not None:
-            print("📄 Response:", e.response.status_code, e.response.text)
-        return None
-
+        return {
+            "Authorization": f"Basic {BASIQ_API_KEY}",
+            "Content-Type": "application/json",
+            "basiq-version": "3.0"
+        }
 
 def create_basiq_user(email, mobile=None, name=None, business_name=None,
                       business_id=None, business_id_type=None,
                       verification_status=True, verification_date=None,
                       business_address=None):
+    logger.info("Creating Basiq user...")
     token = get_basiq_token()
     if not token:
         return {
             'success': False,
             'error': 'Failed to get Basiq access token'
         }
-
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "basiq-version": "3.0"
-    }
+    headers = get_headers(token_type="bearer", token=token)
 
     # Default address if none provided
     if not business_address:
@@ -249,14 +201,7 @@ def create_auth_link(user_id, mobile=True):
 
     url = f"{BASIQ_API_URL}/users/{user_id}/auth_link"
 
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "basiq-version": "3.0"
-    }
-
-    # headers = get_headers()
+    headers = get_headers(token_type="bearer", token=token)
     
     payload = {
       "type": "link",
@@ -306,12 +251,7 @@ def get_user_connections(user_id):
 
     url = f"{BASIQ_API_URL}/users/{user_id}/auth_link"
 
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "basiq-version": "3.0"
-    }
+    headers = get_headers(token_type="bearer", token=token)
 
     
     try:
@@ -340,12 +280,7 @@ def get_user_accounts(user_id):
             'error': 'Failed to get Basiq access token'
         }
 
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "basiq-version": "3.0"
-    }
+    headers = get_headers(token_type="bearer", token=token)
 
     try:
         response = requests.get(url, headers=headers)
@@ -385,12 +320,7 @@ def get_user_transactions(user_id, filter_str=None):
     base_url = f"{BASIQ_API_URL}/users/{user_id}/transactions"
     url = f"{base_url}?filter={filter_str}" if filter_str else base_url
 
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "basiq-version": "3.0"
-    }
+    headers = get_headers(token_type="bearer", token=token)
 
     try:
         response = requests.get(url, headers=headers)
@@ -419,11 +349,12 @@ def refresh_connection(user_id, connection_id):
     Returns:
         dict: Job information for the refresh on success, or error info
     """
-    url = f"{BASIQ_API_URL}/users/{user_id}/connections/{connection_id}/refresh"
-    headers = get_headers()
+    token = get_basiq_token()
+    url = f"{BASIQ_API_URL}/users/{user_id}/connections/{connection_id}"
+    headers = get_headers(token_type="bearer", token=token)
     
     try:
-        response = requests.post(url, headers=headers)
+        response = requests.get(url, headers=headers)
         response.raise_for_status()
         return {
             'success': True,
@@ -460,4 +391,4 @@ def delete_connection(user_id, connection_id):
         return {
             'success': False,
             'error': str(e)
-        } 
+        }

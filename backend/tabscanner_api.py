@@ -7,6 +7,9 @@ from dotenv import load_dotenv
 from datetime import datetime
 import time
 import math
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -244,7 +247,8 @@ def get_processing_result(token):
                     })
                 except Exception as e:
                     # Log error but continue with other items
-                    print(f"Error processing line item: {e}")
+                    # print(f"Error processing line item: {e}")
+                    logger.error(f"Error processing line item: {e}")
                     continue
         
         # Extract tax amount with fallbacks
