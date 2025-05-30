@@ -13,7 +13,7 @@ interface Transaction {
   category: string;
   merchant: string;
   accountName: string;
-  userId: string,
+  userId: string;
 }
 
 interface Props {
@@ -23,14 +23,20 @@ interface Props {
 }
 
 const AddIncomeModal = ({ show, onClose, onAdd }: Props) => {
-  const [source, setSource] = useState('');
-  const [customSource, setCustomSource] = useState('');
-  const [amount, setAmount] = useState('');
-  const [merchant, setMerchant] = useState('');
+  const [source, setSource] = useState("");
+  const [customSource, setCustomSource] = useState("");
+  const [amount, setAmount] = useState("");
+  const [merchant, setMerchant] = useState("");
   const [validated, setValidated] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const commonSources = ['Salary', 'Business', 'Investments', 'Real Estate', 'Other'];
+  const commonSources = [
+    "Salary",
+    "Business",
+    "Investments",
+    "Real Estate",
+    "Other",
+  ];
 
   const handleAdd = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -39,49 +45,53 @@ const AddIncomeModal = ({ show, onClose, onAdd }: Props) => {
     const form = e.currentTarget;
     setValidated(true);
 
-    const category = source === 'Other' ? customSource : source;
+    const category = source === "Other" ? customSource : source;
     const isValid = form.checkValidity();
 
     if (!isValid || !category || !amount) return;
-     setLoading(true);
+    setLoading(true);
     // const existing = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
     // existing.push(newTx);
     // localStorage.setItem('bankTransactions', JSON.stringify(existing));
     try {
       onAuthStateChanged(auth, async (user) => {
         if (!user) {
-          console.error('No authenticated user found. Cannot fetch user-specific data.');
-          return
+          console.error(
+            "No authenticated user found. Cannot fetch user-specific data."
+          );
+          return;
         }
-    const newTx: Transaction = {
-      id: 'tx-' + Math.random().toString(36).substring(2, 9),
-      date: new Date().toISOString(),
-      description: category,
-      amount,
-      category,
-      merchant: merchant || 'Manual Entry',
-      accountName: 'Manual Entry',
-      userId: user.uid,
-    };
+        const newTx: Transaction = {
+          id: "tx-" + Math.random().toString(36).substring(2, 9),
+          date: new Date().toISOString(),
+          description: category,
+          amount,
+          category,
+          merchant: merchant || "Manual Entry",
+          accountName: "Manual Entry",
+          userId: user.uid,
+        };
 
-      await addDoc(collection(db, 'bankTransactions'), newTx);
-      })
+        await addDoc(collection(db, "bankTransactions"), newTx);
+      });
     } catch (error) {
+    } finally {
+      setLoading(false);
     }
     onAdd();
     onClose();
-    setSource('');
-    setCustomSource('');
-    setAmount('');
-    setMerchant('');
+    setSource("");
+    setCustomSource("");
+    setAmount("");
+    setMerchant("");
     setValidated(false);
   };
 
   const resetForm = () => {
-    setSource('');
-    setCustomSource('');
-    setAmount('');
-    setMerchant('');
+    setSource("");
+    setCustomSource("");
+    setAmount("");
+    setMerchant("");
     setValidated(false);
   };
 
@@ -90,7 +100,11 @@ const AddIncomeModal = ({ show, onClose, onAdd }: Props) => {
       <Modal.Header closeButton>
         <Modal.Title>Add Income</Modal.Title>
       </Modal.Header>
-      <form noValidate className={`needs-validation ${validated ? 'was-validated' : ''}`} onSubmit={handleAdd}>
+      <form
+        noValidate
+        className={`needs-validation ${validated ? "was-validated" : ""}`}
+        onSubmit={handleAdd}
+      >
         <Modal.Body>
           <div className="mb-3">
             <label className="form-label">Source</label>
@@ -102,13 +116,15 @@ const AddIncomeModal = ({ show, onClose, onAdd }: Props) => {
             >
               <option value="">-- Select --</option>
               {commonSources.map((src) => (
-                <option key={src} value={src}>{src}</option>
+                <option key={src} value={src}>
+                  {src}
+                </option>
               ))}
             </select>
             <div className="invalid-feedback">Please select a source.</div>
           </div>
 
-          {source === 'Other' && (
+          {source === "Other" && (
             <div className="mb-3">
               <label className="form-label">Custom Source</label>
               <input
@@ -118,7 +134,9 @@ const AddIncomeModal = ({ show, onClose, onAdd }: Props) => {
                 onChange={(e) => setCustomSource(e.target.value)}
                 required
               />
-              <div className="invalid-feedback">Please enter a custom source.</div>
+              <div className="invalid-feedback">
+                Please enter a custom source.
+              </div>
             </div>
           )}
 
@@ -149,15 +167,21 @@ const AddIncomeModal = ({ show, onClose, onAdd }: Props) => {
           </div>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
           <Button type="submit" variant="success" disabled={loading}>
             {loading ? (
               <>
-                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                <span
+                  className="spinner-border spinner-border-sm me-2"
+                  role="status"
+                  aria-hidden="true"
+                ></span>
                 Adding...
               </>
             ) : (
-              'Add Income'
+              "Add Income"
             )}
           </Button>
         </Modal.Footer>

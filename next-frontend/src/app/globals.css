@@ -533,7 +533,7 @@ body {
   }
 
   #data-dashboard-section .card .card-body {
-    height: 350px;
+    /* height: 350px; */
   }
 }
 

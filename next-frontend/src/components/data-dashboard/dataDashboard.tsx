@@ -72,15 +72,15 @@ const DataDashboardComponent = () => {
                 <div className="card-header">
                   <h5 className="mb-0">Financial Overview</h5>
                 </div>
-                <div className="card-body">
+                <div className="card-body h-sm-auto ">
                   <div className="row">
-                    <div className="col-md-6">
+                    <div className="col-lg-6">
                       <h6 className="mb-3">Expenses by Category</h6>
                       <div style={{ height: "300px" }}>
                         <canvas id="categoryChart"></canvas>
                       </div>
                     </div>
-                    <div className="col-md-6">
+                    <div className="col-lg-6">
                       <h6 className="mb-3">Income vs Expenses Over Time</h6>
                       <div style={{ height: "300px" }}>
                         <canvas id="timeChart"></canvas>

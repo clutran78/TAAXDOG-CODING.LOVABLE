@@ -45,6 +45,8 @@ const AddExpenseModal = ({ show, onClose, onAdd }: Props) => {
       onClose();
     } catch (err) {
       console.error("❌ Failed to add expense:", err);
+    } finally {
+      setLoading(false);
     }
 
     setAmount("");
