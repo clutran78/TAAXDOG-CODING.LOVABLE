@@ -7,6 +7,7 @@ import { formatCurrency } from "@/services/helperFunction";
 import { fetchIncomeTransactions } from "@/services/firebase-service";
 import { IncomeSource, Transaction } from "@/lib/types/transactions";
 import IncomeSourceCard from "./income-source-card";
+import { useDarkMode } from "@/providers/dark-mode-provider";
 
 interface IncomeTransactionResult {
   sources: IncomeSource[];
@@ -14,6 +15,7 @@ interface IncomeTransactionResult {
 }
 
 const NetIncomePage = () => {
+  const { darkMode } = useDarkMode();
   const [incomeSources, setIncomeSources] = useState<IncomeSource[]>([]);
   const [totalIncome, setTotalIncome] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
@@ -56,7 +58,7 @@ const NetIncomePage = () => {
         onClose={() => setShowAddModal(false)}
         onAdd={loadIncomeDetails}
       />
-      <div className="container py-4">
+      <div className={`"container py-4`}>
         <div className="d-flex justify-content-between align-items-center mb-4">
           <h3>
             <i className="fas fa-money-bill-wave text-success me-2"></i>Net
@@ -72,14 +74,14 @@ const NetIncomePage = () => {
         </div>
 
         {/* Total Income Card */}
-        <div className="card bg-light mb-4">
+        <div className="card  mb-4">
           <div className="card-body d-flex justify-content-between align-items-center">
-            <h4 className="mb-0">Total Income</h4>
+            <h4 className={`mb-0`}>Total Income</h4>
             <h3 className="text-success mb-0">{formatCurrency(totalIncome)}</h3>
           </div>
         </div>
 
-        <h5 className="mb-3">Income Sources</h5>
+        <h5 className={`mb-3`}>Income Sources</h5>
 
         {loading ? (
           <div className="text-center p-5">

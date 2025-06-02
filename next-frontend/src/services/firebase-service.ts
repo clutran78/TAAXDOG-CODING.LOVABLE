@@ -7,6 +7,7 @@ import {
   query,
   where,
   updateDoc,
+  addDoc,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -265,6 +266,19 @@ export const fetchReceiptStats = async (userId: string): Promise<any> => {
     }
   } catch (error) {
     console.error("Error fetching receipt stats:", error);
+    throw error;
+  }
+};
+
+export const addBankTransaction = async (
+  data: Transaction,
+  userId: string
+): Promise<any> => {
+  try {
+    const transactionWithUserId = { ...data, userId };
+    await addDoc(collection(db, "bankTransactions"), transactionWithUserId);
+  } catch (error) {
+    console.error("Error fetching tax profile:", error);
     throw error;
   }
 };

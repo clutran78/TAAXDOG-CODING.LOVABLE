@@ -19,6 +19,7 @@ import OffsetTabContent from "./offset-tab-content";
 import MedicareTabContent from "./medicare-tab-content";
 import HelpHECSTabContent from "./help-tab-content";
 import AdditionalInfoTabContent from "./additional-info-tab-content";
+import { useDarkMode } from "@/providers/dark-mode-provider";
 
 const TAB_IDS = {
   "Personal Information": "personal-tab",
@@ -32,6 +33,7 @@ const TAB_IDS = {
 
 const TaxProfile: React.FC = () => {
   const [loading, setLoading] = useState(true);
+  const { darkMode } = useDarkMode();
 
   useEffect(() => {
     const handleAuthSuccess = async (userId: string) => {
@@ -82,13 +84,13 @@ const TaxProfile: React.FC = () => {
   };
 
   const NavTabs: React.FC = () => (
-    <ul className="nav nav-tabs mb-4" id="taxProfileTabs" role="tablist">
+    <ul className={`nav nav-tabs mb-4 `} id="taxProfileTabs" role="tablist">
       {Object.entries(TAB_IDS).map(([key, id]) => (
         <li className="nav-item" role="presentation" key={id}>
           <button
             className={`nav-link ${
               id === TAB_IDS["Personal Information"] ? "active" : ""
-            }`}
+            } `}
             id={id}
             data-bs-toggle="tab"
             data-bs-target={`#${id.replace("-tab", "-content")}`}

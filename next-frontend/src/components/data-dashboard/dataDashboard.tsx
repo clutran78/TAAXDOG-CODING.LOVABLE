@@ -2,10 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { loadDataDashboard } from "@/services/helperFunction";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
 import TransactionTable from "./transaction-table";
+import { fetchBankTransactions } from "@/services/firebase-service";
 
 const ITEMS_PER_PAGE = 10;
 interface Transaction {
@@ -29,30 +27,14 @@ const DataDashboardComponent = () => {
       }
 
       try {
-        onAuthStateChanged(auth, async (user) => {
-          if (!user) {
-            console.error(
-              "No authenticated user found. Cannot fetch user-specific data."
-            );
-            return;
-          }
-
-          const q = query(
-            collection(db, "bankTransactions"),
-            where("userId", "==", user?.uid)
-          );
-
-          const snapshot = await getDocs(q);
-          const transactions = snapshot.docs.map((doc) => doc.data());
-
-          const tx: Transaction[] = transactions.map((t: any) => ({
-            ...t,
-            amount:
-              typeof t.amount === "string" ? parseFloat(t.amount) : t.amount,
-          }));
-          setTransactions(tx);
-          loadDataDashboard(); // Load charts or metrics
-        });
+        const transactions = await fetchBankTransactions();
+        const tx: Transaction[] = transactions.map((t: any) => ({
+          ...t,
+          amount:
+            typeof t.amount === "string" ? parseFloat(t.amount) : t.amount,
+        }));
+        setTransactions(tx);
+        loadDataDashboard(); // Load charts or metrics
       } catch (error) {
         console.error("Error loading bank transactions:", error);
       }

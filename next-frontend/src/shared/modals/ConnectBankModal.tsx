@@ -54,7 +54,6 @@ const ConnectBankModal: React.FC<ConnectBankModalProps> = ({
   };
 
   const handleMockConnection = () => {
-    console.log("Mock connection completed!");
     setShowMockAlert(true); // <-- show alert
     setTimeout(() => {
       setShowMockAlert(false); // hide after 3 seconds

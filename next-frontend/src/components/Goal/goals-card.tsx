@@ -1,4 +1,5 @@
 import { Goal } from "@/lib/types/goal";
+import { useDarkMode } from "@/providers/dark-mode-provider";
 import React from "react";
 
 interface GoalCardProps {
@@ -16,6 +17,7 @@ const GoalCard: React.FC<GoalCardProps> = ({
   onDelete,
   onUpdateProgress,
 }) => {
+  const { darkMode } = useDarkMode();
   const progress =
     goal.targetAmount > 0 ? (goal.currentAmount / goal.targetAmount) * 100 : 0;
   const dueDate = new Date(goal.dueDate).toLocaleDateString();
@@ -35,7 +37,9 @@ const GoalCard: React.FC<GoalCardProps> = ({
         <div className="d-flex justify-content-between align-items-start mb-3">
           <div>
             <h5 className="mb-1">{goal.name}</h5>
-            <span className="text-muted small">
+            <span
+              className={`${darkMode ? "text-secondary" : "text-muted"} small`}
+            >
               {goal.description || "No description"}
             </span>
           </div>
@@ -74,10 +78,10 @@ const GoalCard: React.FC<GoalCardProps> = ({
           ></div>
         </div>
         <div className="d-flex justify-content-between mb-2">
-          <span className="text-muted">
+          <span className={`${darkMode ? "text-secondary" : "text-muted"}`}>
             Current: {formatCurrency(goal.currentAmount)}
           </span>
-          <span className="text-muted">
+          <span className={`${darkMode ? "text-secondary" : "text-muted"}`}>
             Target: {formatCurrency(goal.targetAmount)}
           </span>
         </div>
@@ -88,7 +92,11 @@ const GoalCard: React.FC<GoalCardProps> = ({
           >
             <i className="fas fa-plus me-1"></i>Update Progress
           </button>
-          <span className="text-muted small">Due: {dueDate}</span>
+          <span
+            className={`${darkMode ? "text-secondary" : "text-muted"} small`}
+          >
+            Due: {dueDate}
+          </span>
         </div>
       </div>
     </div>

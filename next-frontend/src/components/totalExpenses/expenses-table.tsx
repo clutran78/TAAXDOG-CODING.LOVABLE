@@ -1,4 +1,5 @@
 import { Expense } from "@/lib/types/expenses";
+import { useDarkMode } from "@/providers/dark-mode-provider";
 import React from "react";
 
 interface ExpensesTableProps {
@@ -12,6 +13,7 @@ const ExpensesTable: React.FC<ExpensesTableProps> = ({
   loading,
   error,
 }) => {
+  const { darkMode } = useDarkMode();
   const renderTableBody = () => {
     if (loading) {
       return (
@@ -67,7 +69,7 @@ const ExpensesTable: React.FC<ExpensesTableProps> = ({
 
   return (
     <div className="table-responsive">
-      <table className="table table-hover">
+      <table className={`table table-hover ${darkMode ? "table-dark" : ""}`}>
         <thead>
           <tr>
             <th>Date</th>

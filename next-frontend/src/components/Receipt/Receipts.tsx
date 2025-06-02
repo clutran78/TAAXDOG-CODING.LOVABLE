@@ -17,6 +17,7 @@ import {
 import { handleUploadFromActiveTab } from "@/services/upload-receipt-service";
 import StatisticCard from "./statistic-card";
 import ReceiptFileUploadModal from "@/shared/modals/receipt-file-upload-modal";
+import { useDarkMode } from "@/providers/dark-mode-provider";
 
 declare global {
   interface Window {
@@ -26,6 +27,7 @@ declare global {
 }
 
 const ReceiptsComponent = () => {
+  const { darkMode } = useDarkMode();
   const [loading, setLoading] = useState(false);
   const [statsLoading, setStatsLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -273,7 +275,7 @@ const ReceiptsComponent = () => {
       >
         <div className="col-12">
           <div className="card shadow-sm mb-4">
-            <div className="card-header bg-white d-flex justify-content-between align-items-center py-3">
+            <div className="card-header d-flex justify-content-between align-items-center py-3">
               <h5 className="mb-0">
                 <i className="fas fa-receipt text-primary me-2"></i>Receipts
               </h5>
@@ -296,11 +298,15 @@ const ReceiptsComponent = () => {
                       placeholder="Search merchant, items..."
                     />
                     <button
-                      className="btn btn-outline-secondary border-start-0 bg-white"
+                      className="btn btn-outline-secondary border-start-0"
                       type="button"
                       id="receipt-search-btn"
                     >
-                      <i className="fas fa-search text-muted"></i>
+                      <i
+                        className={`fas fa-search ${
+                          darkMode ? "text-secondary" : "text-muted"
+                        }`}
+                      ></i>
                     </button>
                   </div>
                 </div>
@@ -401,7 +407,7 @@ const ReceiptsComponent = () => {
 
           {/* <!-- Receipt Statistics Card --> */}
           <div className="card shadow-sm mb-4">
-            <div className="card-header bg-white py-3">
+            <div className="card-header py-3">
               <h5 className="mb-0">
                 <i className="fas fa-chart-pie text-primary me-2"></i>Receipt
                 Summary

@@ -10,7 +10,7 @@ const DeductionsTabContent: React.FC<Props> = ({ goToNextTab }) => (
 
     {/* Car Expenses */}
     <div className="card mb-3">
-      <div className="card-header bg-light">
+      <div className="card-header">
         <h5 className="mb-0">Car Expenses (D1)</h5>
       </div>
       <div className="card-body">

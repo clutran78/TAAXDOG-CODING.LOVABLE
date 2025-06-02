@@ -115,7 +115,7 @@ const TotalExpensesPage = () => {
         {/* Totals and Search */}
         <div className="row mb-4">
           <div className="col-md-6">
-            <div className="card bg-light">
+            <div className="card">
               <div className="card-body d-flex justify-content-between align-items-center">
                 <h4 className="mb-0">Total Expenses</h4>
                 <h3

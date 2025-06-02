@@ -24,6 +24,134 @@ body {
   background-color: #f8f9fa;
 }
 
+.navbar {
+  background-color: #f8f9fa;
+  color: #000000;
+}
+
+body.dark-mode {
+  background-color: #131313;
+  color: #f8f9fa;
+}
+
+body.dark-mode .navbar {
+  background-color: #343a40;
+  color: #f8f9fa;
+}
+
+body.dark-mode .navbar-brand {
+  color: #f8f9fa;
+}
+
+body.dark-mode .sidebar {
+  background-color: #1e1e1e;
+  color: #f8f9fa;
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .sidebar .nav-link {
+  color: #f8f9fa;
+}
+
+body.dark-mode .sidebar .nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+body.dark-mode .sidebar .nav-link.active {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+body.dark-mode .sidebar .nav-link i {
+  color: #f8f9fa;
+}
+
+body.dark-mode .main-content {
+  background-color: #131313;
+  color: #f8f9fa;
+}
+body.dark-mode .card {
+  background-color: #1e1e1e;
+  color: #f8f9fa;
+  border: none;
+}
+body.dark-mode .card-header {
+  background-color: transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.125);
+}
+body.dark-mode .stats-card {
+  background-color: #1e1e1e;
+  color: #f8f9fa;
+}
+body.dark-mode .stats-card .stat-value {
+  color: #f8f9fa;
+}
+body.dark-mode .stats-card .stat-change {
+  color: #f8f9fa;
+}
+body.dark-mode .stats-card .positive-change {
+  background-color: rgba(0, 200, 0, 0.1);
+}
+body.dark-mode .stats-card .negative-change {
+  background-color: rgba(255, 0, 0, 0.1);
+}
+body.dark-mode .stats-card .neutral-change {
+  background-color: rgba(128, 128, 128, 0.1);
+}
+body.dark-mode table {
+  background-color: #1e1e1e;
+  color: #f8f9fa;
+}
+
+.form-control::placeholder {
+  color: #6c757d;
+  opacity: 1;
+}
+
+body.dark-mode .form-control::placeholder {
+  color: #aaaaaa;
+  opacity: 1;
+}
+
+body.dark-mode .input::placeholder {
+  color: #aaaaaa;
+  opacity: 1;
+}
+body.dark-mode .form-control,
+body.dark-mode .form-select {
+  background-color: #1e1e1e;
+  color: #ffffff;
+  border-color: #343a40;
+}
+
+body.dark-mode .form-control::placeholder,
+body.dark-mode .form-select::placeholder {
+  color: #aaaaaa;
+}
+
+body.dark-mode .nav-tabs .nav-link.active {
+  background-color: #495057;
+  color: #ffffff;
+}
+
+body.dark-mode .nav-tabs .nav-link {
+  background-color: transparent;
+  color: #aaaaaa;
+}
+body.dark-mode .select {
+  background-color: transparent;
+  color: #aaaaaa;
+}
+body.dark-mode .modal-body {
+  background-color: #1e1e1e;
+  color: #f8f9fa;
+}
+body.dark-mode .modal-header {
+  background-color: #1e1e1e;
+  color: #f8f9fa;
+}
+body.dark-mode .modal-footer {
+  background-color: #1e1e1e;
+  color: #f8f9fa;
+}
+
 .sidebar {
   position: fixed;
   top: 56px;

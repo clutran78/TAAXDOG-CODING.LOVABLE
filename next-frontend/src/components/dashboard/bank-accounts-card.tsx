@@ -102,7 +102,7 @@ const BankAccountsCard: React.FC<BankAccountsCardProps> = ({
         <i className="fas fa-university text-primary"></i> Bank Accounts
       </div>
       <div className="card shadow-sm">
-        <div className="card-header bg-white border-bottom">
+        <div className="card-header border-bottom">
           <h5 className="mb-0">Bank Connections</h5>
         </div>
         <div className="card-body">{renderContent()}</div>

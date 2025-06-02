@@ -100,7 +100,7 @@ const NetBalanceDetailsComponent = () => {
 
           {/* Monthly Balance Trend */}
           <div className="card mt-4">
-            <div className="card-header bg-light">
+            <div className="card-header">
               <h5 className="mb-0">
                 <i className="fas fa-chart-line me-2"></i>Monthly Balance Trend
               </h5>

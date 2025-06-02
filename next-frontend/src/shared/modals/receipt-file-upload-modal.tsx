@@ -1,6 +1,8 @@
+import { useDarkMode } from "@/providers/dark-mode-provider";
 import React from "react";
 
 function ReceiptFileUploadModal({ loading = false }: { loading?: boolean }) {
+  const { darkMode } = useDarkMode();
   return (
     <div
       className="modal fade"
@@ -13,14 +15,14 @@ function ReceiptFileUploadModal({ loading = false }: { loading?: boolean }) {
           <div className="modal-header">
             <button
               type="button"
-              className="btn-close"
+              className={`btn-close ${darkMode ? "btn-close-white" : ""}`}
               data-bs-dismiss="modal"
               aria-label="Close"
             ></button>
           </div>
           <div className="modal-body">
             <div className="card mt-3">
-              <div className="card-header bg-light">
+              <div className="card-header">
                 <h5 className="mb-0">
                   <i className="fas fa-file-upload text-primary me-2"></i>
                   Upload Receipt

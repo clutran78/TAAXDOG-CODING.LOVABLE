@@ -7,8 +7,10 @@ import ConfirmModal from "./ConfirmModal";
 import GoalCard from "./goals-card";
 import { deleteGoal, fetchGoals } from "@/services/firebase-service";
 import { Goal } from "@/lib/types/goal";
+import { useDarkMode } from "@/providers/dark-mode-provider";
 
 const GoalPage: React.FC = () => {
+  const { darkMode } = useDarkMode();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [showGoalModal, setShowGoalModal] = useState<boolean>(false);
@@ -179,10 +181,14 @@ const GoalPage: React.FC = () => {
                   ></div>
                 </div>
                 <div className="d-flex justify-content-between">
-                  <span className="text-muted">
+                  <span
+                    className={`${darkMode ? "text-secondary" : "text-muted"}`}
+                  >
                     Total Saved: {formatCurrency(totalSaved)}
                   </span>
-                  <span className="text-muted">
+                  <span
+                    className={`${darkMode ? "text-secondary" : "text-muted"}`}
+                  >
                     Target: {formatCurrency(totalTarget)}
                   </span>
                 </div>
@@ -194,7 +200,11 @@ const GoalPage: React.FC = () => {
 
             {sortedGoals.length === 0 ? (
               <div className="text-center py-4">
-                <i className="fas fa-bullseye fa-3x text-muted mb-3"></i>
+                <i
+                  className={`fas fa-bullseye fa-3x ${
+                    darkMode ? "text-secondary" : "text-muted"
+                  } mb-3`}
+                ></i>
                 <p>
                   No financial goals set yet. Click &quot;Add Goal&quot; to get
                   started!
@@ -220,7 +230,7 @@ const GoalPage: React.FC = () => {
             )}
 
             {/* Tip Section */}
-            <div className="alert alert-light border mt-3">
+            <div className="alert border mt-3">
               <div className="d-flex">
                 <div className="me-3">
                   <i className="fas fa-lightbulb text-warning"></i>

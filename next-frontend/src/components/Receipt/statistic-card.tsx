@@ -1,3 +1,4 @@
+import { useDarkMode } from "@/providers/dark-mode-provider";
 import React from "react";
 
 interface StatisticCardProps {
@@ -15,11 +16,14 @@ const StatisticCard: React.FC<StatisticCardProps> = ({
   parentStyleClass,
   loading = false,
 }) => {
+  const { darkMode } = useDarkMode();
   return (
     <div className={`col-md-6 col-lg-3 ${parentStyleClass}`}>
-      <div className="card border-0 bg-light h-100">
+      <div className="card border-0 h-100">
         <div className="card-body text-center">
-          <h6 className="text-muted mb-2">{title}</h6>
+          <h6 className={`${darkMode ? "text-secondary" : "text-muted"} mb-2`}>
+            {title}
+          </h6>
           {loading ? (
             <div className="spinner-border text-primary" role="status">
               <span className="visually-hidden">Loading...</span>

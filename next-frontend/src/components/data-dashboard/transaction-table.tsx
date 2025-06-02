@@ -1,3 +1,4 @@
+import { useDarkMode } from "@/providers/dark-mode-provider";
 import PaginationControls from "@/shared/pagination-controls";
 import React from "react";
 
@@ -21,6 +22,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
   setCurrentPage,
   itemsPerPage,
 }) => {
+  const { darkMode } = useDarkMode();
   const totalPages = Math.ceil(transactions.length / itemsPerPage);
 
   const paginatedData = transactions
@@ -45,7 +47,9 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
           </div>
           <div className="card-body">
             <div className="table-responsive">
-              <table className="table table-hover">
+              <table
+                className={`table table-hover ${darkMode ? "table-dark" : ""}`}
+              >
                 <thead>
                   <tr>
                     <th>Date</th>

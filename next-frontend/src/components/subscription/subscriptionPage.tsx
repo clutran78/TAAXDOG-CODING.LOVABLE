@@ -1,4 +1,5 @@
 "use client";
+import { useDarkMode } from "@/providers/dark-mode-provider";
 import { fetchSubscriptions } from "@/services/firebase-service";
 import {
   loadSubscriptionsData,
@@ -10,6 +11,7 @@ import React, { useEffect } from "react";
 
 const SubscriptionsPage: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
+  const { darkMode } = useDarkMode();
   useEffect(() => {
     const getSubscriptions = async () => {
       try {
@@ -40,7 +42,7 @@ const SubscriptionsPage: React.FC = () => {
       {/* Total Monthly Cost */}
       <div className="row mb-4">
         <div className="col-12">
-          <div className="card bg-light">
+          <div className="card">
             <div className="card-body d-flex justify-content-between align-items-center">
               <h4 className="mb-0">Total Monthly Cost</h4>
               <h3
@@ -86,7 +88,7 @@ const SubscriptionsPage: React.FC = () => {
         className="card mt-4"
         style={{ display: "none" }}
       >
-        <div className="card-header bg-light">
+        <div className="card-header">
           <div className="d-flex justify-content-between align-items-center">
             <h5 className="mb-0">Add New Subscription</h5>
           </div>
@@ -214,7 +216,7 @@ const SubscriptionsPage: React.FC = () => {
 
       {/* Auto-Detection Settings */}
       <div className="card mt-4">
-        <div className="card-header bg-light">
+        <div className="card-header">
           <h5 className="mb-0">Auto-Detection Settings</h5>
         </div>
         <div className="card-body">
@@ -232,12 +234,12 @@ const SubscriptionsPage: React.FC = () => {
               Automatically detect subscriptions from transactions
             </label>
           </div>
-          <p className="text-muted small">
+          <p className={`${darkMode ? "text-secondary" : "text-muted "} small`}>
             The app will analyze your transactions and automatically detect
             recurring payments that might be subscriptions. You can review and
             confirm these detections.
           </p>
-          <div className="alert alert-light border">
+          <div className="alert border">
             <div className="d-flex">
               <div className="me-3">
                 <i className="fas fa-lightbulb text-warning fa-2x"></i>
