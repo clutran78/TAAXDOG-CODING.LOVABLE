@@ -75,7 +75,7 @@ def get_gemini_response(message, search_results=None):
         - Clearly state if information is from the current tax year
         - Highlight any deadlines or important dates
         - Mention record-keeping requirements
-
+        - Do not start your response "Okay, I will now answer your question..." or anything similar.
         For Reference:
         - ATO.gov.au
         - My.gov.au
@@ -112,7 +112,7 @@ def get_gemini_response(message, search_results=None):
                 max_output_tokens=1000,
             )
         )
-        
+        """
         # Remove the first line from the Gemini response
         response_lines = response.text.strip().split('\n')
         # Skip empty lines at the start
@@ -122,13 +122,13 @@ def get_gemini_response(message, search_results=None):
         if len(response_lines) > 1:
             response_lines = response_lines[1:]
         cleaned_response = '\n'.join(response_lines).strip()
-
+        """
         # Print Gemini response
         print("\n=== Gemini Response ===")
-        print(cleaned_response)
+        print(response.text)
         print("=====================\n")
         
-        return cleaned_response
+        return response.text
     except Exception as e:
         logger.error(f"Gemini API error: {str(e)}")
         return None
@@ -146,9 +146,28 @@ def chat():
         print(user_message)
         print("===================\n")
         # Check if the message contains a question mark or question words
-        question_words = ['what', 'why', 'how', 'when', 'where', 'who', 'which', 'whose', 'whom']
+        question_words = ['what', 'why', 'how', 'when', 'where', 'who', 'which', 'whose', 'whom', 'help']
         is_question = '?' in user_message.lower() or any(word in user_message.lower().split() for word in question_words)
+        # Check for generic questions that don't need web search
+        generic_questions = [
+            "what can you do",
+            "what can you help me with",
+            "what are your capabilities",
+            "how can you help me",
+            "what do you do",
+            "what are you",
+            "who are you",
+            "what is your name",
+            "what is your purpose",
+            "what is your goal",
+            "what is your mission",
+            "what is your vision",
+            "what is your goal",
+        ]
         
+        # If it's a generic question, don't perform web search
+        if any(question in user_message.lower() for question in generic_questions):
+            is_question = False
         # Only perform web search if it's a question
         search_results = perform_web_search(user_message) if is_question else None
         
