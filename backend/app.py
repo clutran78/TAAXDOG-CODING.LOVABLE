@@ -44,7 +44,8 @@ from routes.user_routes import user_routes
 from routes.banking_routes import banking_routes
 from routes.receipt_routes import receipt_routes
 from routes.financial_routes import financial_routes
-from routes.public_routes import public_bp  # If you created this for /submit-tax-info
+from routes.public_routes import public_bp
+from chatbot import chatbot_bp  # Import the chatbot blueprint
 
 api.add_namespace(auth_routes)
 api.add_namespace(banking_routes)
@@ -53,7 +54,8 @@ app.register_blueprint(user_routes)
 # app.register_blueprint(banking_routes)
 app.register_blueprint(receipt_routes)
 app.register_blueprint(financial_routes)
-app.register_blueprint(public_bp)  # Optional, if you have public routes
+app.register_blueprint(public_bp)
+app.register_blueprint(chatbot_bp, url_prefix='/api/chatbot')  # Register chatbot blueprint
 
 # --- Error Handling Helpers (for blueprints to import) ---
 def api_error(message="An error occurred", status=500, details=None):
