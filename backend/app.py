@@ -11,7 +11,13 @@ load_dotenv()
 # --- Flask App Setup ---
 app = Flask(__name__, template_folder='../frontend', static_folder='../frontend')
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')
-CORS(app)
+# Set the upload folder (choose a suitable path)
+app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'uploads')
+
+# Optionally, create the folder if it doesn't exist
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+CORS(app, origins='*')
 
 # --- Flask-RESTX API ---
 api = Api(
@@ -49,9 +55,8 @@ from chatbot import chatbot_bp  # Import the chatbot blueprint
 
 api.add_namespace(auth_routes)
 api.add_namespace(banking_routes)
-# app.register_blueprint(auth_routes)
+
 app.register_blueprint(user_routes)
-# app.register_blueprint(banking_routes)
 app.register_blueprint(receipt_routes)
 app.register_blueprint(financial_routes)
 app.register_blueprint(public_bp)
@@ -63,8 +68,9 @@ def api_error(message="An error occurred", status=500, details=None):
     response = {"success": False, "error": message}
     if details:
         response["details"] = str(details)
-    from flask import jsonify
-    return jsonify(response), status
+    # from flask import jsonify
+    # return jsonify(response), status
+    return response, status
 
 @app.errorhandler(Exception)
 def handle_exception(e):

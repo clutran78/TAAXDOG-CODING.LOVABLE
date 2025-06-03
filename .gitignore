@@ -109,6 +109,7 @@ htmlcov/
 #docs
 Backend_Working.docx
 suggestions.docx
+client_docs/
 
 #Collection Postman
 collection.json
