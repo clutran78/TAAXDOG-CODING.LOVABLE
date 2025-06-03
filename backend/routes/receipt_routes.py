@@ -8,6 +8,7 @@ from werkzeug.utils import secure_filename
 import os, requests
 import tempfile, mimetypes
 from src.integrations.formx_client import extract_data_from_image_with_gemini
+from flask import current_app
 
 receipt_routes = Blueprint('receipts', __name__, url_prefix='/api/receipts')
 
@@ -358,14 +359,18 @@ def upload_receipt_form():
     temp_file_path = None
 
     try:
+        print("getting image")
         # Handle uploaded file
         if 'receipt' in request.files:
             file = request.files['receipt']
             if file.filename == '':
                 return api_error('No selected file', status=400)
 
+            print("Got image")
             filename = secure_filename(file.filename)
-            temp_file_path = os.path.join(receipt_routes.config['UPLOAD_FOLDER'], filename)
+            print("got filename")
+            # temp_file_path = os.path.join(receipt_routes.config['UPLOAD_FOLDER'], filename)
+            temp_file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
             file.save(temp_file_path)
             logger.info(f"File uploaded: {temp_file_path}")
 
@@ -382,7 +387,7 @@ def upload_receipt_form():
             content_type = response.headers.get('Content-Type', 'image/jpeg')
             extension = mimetypes.guess_extension(content_type) or '.jpg'
 
-            with tempfile.NamedTemporaryFile(delete=False, suffix=extension, dir=receipt_routes.config['UPLOAD_FOLDER']) as tmp:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=extension, dir=current_app.config['UPLOAD_FOLDER']) as tmp:
                 for chunk in response.iter_content(chunk_size=1024):
                     if chunk:
                         tmp.write(chunk)

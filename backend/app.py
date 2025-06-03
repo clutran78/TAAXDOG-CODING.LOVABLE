@@ -11,7 +11,13 @@ load_dotenv()
 # --- Flask App Setup ---
 app = Flask(__name__, template_folder='../frontend', static_folder='../frontend')
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')
-CORS(app)
+# Set the upload folder (choose a suitable path)
+app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'uploads')
+
+# Optionally, create the folder if it doesn't exist
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+CORS(app, origins='*')
 
 # --- Flask-RESTX API ---
 api = Api(

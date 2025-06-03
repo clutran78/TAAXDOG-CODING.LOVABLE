@@ -8,6 +8,7 @@ from .utils import api_error, login_required, logger, serialize_dates
 import json, os
 from datetime import datetime, timedelta
 from flask_restx import Namespace, Resource, fields
+from flask import current_app
 
 banking_routes = Namespace('banking', description='Banking operations', path='/api/banking')
 
@@ -190,7 +191,11 @@ class GetAuthLink(Resource):
                 if not basiq_user_id:
                     # Create a Basiq user first
                     setup_user_resource = SetupBasiqUser()
-                    setup_result = setup_user_resource.post()
+                    # setup_result = setup_user_resource.post()
+
+                    with current_app.test_request_context():
+                        setup_result = setup_user_resource.post()
+
                     if not isinstance(setup_result, tuple):  # Not an error response
                         response_data = json.loads(setup_result.data)
                         if response_data.get('success'):

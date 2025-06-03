@@ -39,6 +39,7 @@ def build_headers(token: str, extractor_id: str, extra_headers: dict = None) -> 
 
 # ✅ GEMINI 2.0 Receipt Extractor
 def extract_data_from_image_with_gemini(image_path: str) -> dict:
+    print("Inside gemini")
     try:
         with Image.open(image_path) as img:
             prompt = """
