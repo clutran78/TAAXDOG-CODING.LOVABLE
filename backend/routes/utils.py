@@ -32,7 +32,8 @@ def api_error(message="An error occurred", status=500, details=None):
     response = {"success": False, "error": message}
     if details:
         response["details"] = str(details)
-    return jsonify(response), status
+    # return jsonify(response), status
+    return response, status
 
 def login_required(f):
     @wraps(f)

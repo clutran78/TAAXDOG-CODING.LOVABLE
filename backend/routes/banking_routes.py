@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request#, jsonify
 from firebase_config import db
 from basiq_api import (
     create_basiq_user, get_basiq_user, create_auth_link, get_user_connections,
@@ -93,11 +93,16 @@ class SetupBasiqUser(Resource):
             if basiq_user_id:
                 result = get_basiq_user(basiq_user_id)
                 if result['success']:
-                    return jsonify({
+                    # return jsonify({
+                    #     'success': True,
+                    #     'user': result['user'],
+                    #     'message': 'Retrieved existing Basiq user'
+                    # })
+                    return {
                         'success': True,
                         'user': result['user'],
                         'message': 'Retrieved existing Basiq user'
-                    })
+                    }
                 else:
                     basiq_user_id = None  # fallback to recreate
 
@@ -135,11 +140,16 @@ class SetupBasiqUser(Resource):
                 db.collection('users').document(firebase_user_id).update({
                     'basiq_user_id': basiq_user_id
                 })
-                return jsonify({
+                # return jsonify({
+                #     'success': True,
+                #     'user': result['user'],
+                #     'message': 'Created new Basiq user'
+                # })
+                return {
                     'success': True,
                     'user': result['user'],
                     'message': 'Created new Basiq user'
-                })
+                }
             else:
                 return api_error(result.get('error', 'Failed to create Basiq user'), status=400, details=result.get('error_data'))
 
@@ -176,7 +186,8 @@ class GetAuthLink(Resource):
                     },
                     'message': 'Generated mock auth link for development'
                 }
-                return jsonify(mock_auth_link)
+                # return jsonify(mock_auth_link)
+                return mock_auth_link
             else:
                 # In production mode, use real Basiq API
                 user_doc = db.collection('users').document(firebase_user_id).get()
@@ -212,7 +223,8 @@ class GetAuthLink(Resource):
                 result = create_auth_link(basiq_user_id, mobile)
                 
                 if result['success']:
-                    return jsonify(result)
+                    # return jsonify(result)
+                    return result
                 else:
                     return api_error(result.get('error', 'Failed to create auth link'), status=400)
         except Exception as e:
@@ -242,10 +254,14 @@ class GetBankConnections(Resource):
             result = get_user_connections(basiq_user_id)
 
             if result['success']:
-                return jsonify({
+                # return jsonify({
+                #     'success': True,
+                #     'connections': result['connections']
+                # })
+                return {
                     'success': True,
                     'connections': result['connections']
-                })
+                }
             else:
                 return api_error(result.get('error', 'Unknown error'), status=400)
 
@@ -279,10 +295,14 @@ class GetBankAccounts(Resource):
             result = get_user_accounts(basiq_user_id)
             
             if result['success']:
-                return jsonify({
+                # return jsonify({
+                #     'success': True,
+                #     'accounts': result['accounts']
+                # })
+                return {
                     'success': True,
                     'accounts': result['accounts']
-                })
+                }
             else:
                 return api_error(result.get('error', 'Unknown error'), status=400)
                 
@@ -315,10 +335,14 @@ class GetBankTransactions(Resource):
             filter_str = request.args.get('filter')
             result = get_user_transactions(basiq_user_id, filter_str)
             if result['success']:
-                return jsonify({
+                # return jsonify({
+                #     'success': True,
+                #     'transactions': result['transactions']
+                # })
+                return {
                     'success': True,
                     'transactions': result['transactions']
-                })
+                }
             else:
                 return api_error(result.get('error', 'Unknown error'), status=400)
                 
@@ -356,10 +380,14 @@ class RefreshBankConnection(Resource):
             result = refresh_connection(basiq_user_id, connection_id)
             
             if result['success']:
-                return jsonify({
+                # return jsonify({
+                #     'success': True,
+                #     'job': result['job']
+                # })
+                return {
                     'success': True,
                     'job': result['job']
-                })
+                }
             else:
                 return api_error(result.get('error', 'Unknown error'), status=400)
                 
@@ -397,10 +425,14 @@ class DeleteBankConnection(Resource):
             result = delete_connection(basiq_user_id, connection_id)
             
             if result['success']:
-                return jsonify({
+                # return jsonify({
+                #     'success': True,
+                #     'message': result['message']
+                # })
+                return {
                     'success': True,
                     'message': result['message']
-                })
+                }
             else:
                 return api_error(result.get('error', 'Unknown error'), status=400)
                 

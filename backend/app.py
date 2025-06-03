@@ -54,9 +54,8 @@ from routes.public_routes import public_bp  # If you created this for /submit-ta
 
 api.add_namespace(auth_routes)
 api.add_namespace(banking_routes)
-# app.register_blueprint(auth_routes)
+
 app.register_blueprint(user_routes)
-# app.register_blueprint(banking_routes)
 app.register_blueprint(receipt_routes)
 app.register_blueprint(financial_routes)
 app.register_blueprint(public_bp)  # Optional, if you have public routes
@@ -67,8 +66,9 @@ def api_error(message="An error occurred", status=500, details=None):
     response = {"success": False, "error": message}
     if details:
         response["details"] = str(details)
-    from flask import jsonify
-    return jsonify(response), status
+    # from flask import jsonify
+    # return jsonify(response), status
+    return response, status
 
 @app.errorhandler(Exception)
 def handle_exception(e):
