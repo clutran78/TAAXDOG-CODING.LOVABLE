@@ -1,11 +1,12 @@
 import os
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Response
 from dotenv import load_dotenv
 import http.client
 import json
 import logging
-import google.generativeai as genai
+# import google.generativeai as genai
 import openai
+import requests
 
 # Load environment variables
 load_dotenv()
@@ -13,8 +14,8 @@ load_dotenv()
 # Setup logging
 logger = logging.getLogger(__name__)
 
-# Initialize Gemini
-genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
+# # Initialize Gemini
+# genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
 
 # Create blueprint
 chatbot_bp = Blueprint('chatbot', __name__)
@@ -46,8 +47,8 @@ def perform_web_search(query):
         logger.error(f"Web search error: {str(e)}")
         return None
 
-def get_gemini_response(message, search_results=None):
-    """Get response from Gemini with optional search results"""
+def get_llm_response(message, search_results=None):
+    """Get response from llm with optional search results"""
     try:
         # Optimized system prompt focusing on key aspects
         system_prompt = """
@@ -122,7 +123,7 @@ def get_gemini_response(message, search_results=None):
             message = f"Based on the following verified information:\n{json.dumps(relevant_info, indent=2)}\n\nUser question: {message}"
         
         """
-        # Get response from Gemini
+        # Get response from LLM
         model = genai.GenerativeModel('gemini-2.0-flash')
         response = model.generate_content(
             contents=[system_prompt, message],
@@ -134,7 +135,7 @@ def get_gemini_response(message, search_results=None):
             )
         )
         
-        # Remove the first line from the Gemini response
+        # Remove the first line from the LLM response
         response_lines = response.text.strip().split('\n')
         # Skip empty lines at the start
         while response_lines and response_lines[0].strip() == '':
@@ -153,16 +154,21 @@ def get_gemini_response(message, search_results=None):
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": message}
-            ]
+            ],
+            stream=True
         )
 
-        reply = response['choices'][0]['message']['content']
-        # Print Gemini response
-        print("\n=== Open Router Response ===")
-        print(reply)
-        print("=====================\n")
+        for chunk in response:
+            if 'choices' in chunk and chunk['choices'][0]['delta'].get('content'):
+                yield chunk['choices'][0]['delta']['content']
+
+        # reply = response['choices'][0]['message']['content']
+        # # Print LLM response
+        # print("\n=== Open Router Response ===")
+        # print(reply)
+        # print("=====================\n")
         
-        return reply
+        # return reply
     except Exception as e:
         logger.error(f"open router API error: {str(e)}")
         return None
@@ -176,9 +182,12 @@ def chat():
             return jsonify({"error": "No message provided"}), 400
 
         user_message = data['message']
-        print(f"\n=== User Message ===")
-        print(user_message)
-        print("===================\n")
+
+        webhook_url = data.get('webhook_url')  # Optional webhook
+
+        # print(f"\n=== User Message ===")
+        # print(user_message)
+        # print("===================\n")
         # Check if the message contains a question mark or question words
         question_words = ['what', 'why', 'how', 'when', 'where', 'who', 'which', 'whose', 'whom', 'help']
         is_question = '?' in user_message.lower() or any(word in user_message.lower().split() for word in question_words)
@@ -205,17 +214,36 @@ def chat():
         # Only perform web search if it's a question
         search_results = perform_web_search(user_message) if is_question else None
         
-        # Get response from Gemini
-        response = get_gemini_response(user_message, search_results)
+        # # Get response from LLM
+        # response = get_llm_response(user_message, search_results)
         
-        if response:
-            return jsonify({
-                "response": response,
-                "search_results": search_results
-            })
-        else:
-            return jsonify({"error": "Failed to get response"}), 500
+        # if response:
+        #     return jsonify({
+        #         "response": response,
+        #         "search_results": search_results
+        #     })
+        # else:
+        #     return jsonify({"error": "Failed to get response"}), 500
+        def generate():
+            buffer = ""
+            for chunk in get_llm_response(user_message, search_results):
+                buffer += chunk
+                yield chunk
+                # Webhook support: send each chunk to webhook if provided
+                if webhook_url:
+                    try:
+                        requests.post(webhook_url, json={"chunk": chunk})
+                    except Exception as e:
+                        logger.error(f"Webhook error: {e}")
+            # Optionally, send the full response at the end
+            if webhook_url:
+                try:
+                    requests.post(webhook_url, json={"full_response": buffer})
+                except Exception as e:
+                    logger.error(f"Webhook error (final): {e}")
+
+        return Response(generate(), mimetype='text/plain')
 
     except Exception as e:
         logger.error(f"Chat error: {str(e)}")
-        return jsonify({"error": str(e)}), 500 
+        return jsonify({"error": str(e)}), 500
