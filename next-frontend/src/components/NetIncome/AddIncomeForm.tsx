@@ -1,8 +1,4 @@
 import { auth, db } from "@/lib/firebase";
-import {
-  addBankTransaction,
-  subscribeToAuthState,
-} from "@/services/firebase-service";
 import { showToast } from "@/services/helperFunction";
 import { onAuthStateChanged } from "firebase/auth";
 import { addDoc, collection } from "firebase/firestore";
@@ -42,37 +38,6 @@ const AddIncomeModal = ({ show, onClose, onAdd }: Props) => {
     "Other",
   ];
 
-  const handleAuthSuccess = async (userId: string) => {
-    const category = source === "Other" ? customSource : source;
-
-    const newTransaction: Omit<Transaction, "userId"> = {
-      id: "tx-" + Math.random().toString(36).substring(2, 9),
-      date: new Date().toISOString(),
-      description: category,
-      amount,
-      category,
-      merchant: merchant || "Manual Entry",
-      accountName: "Manual Entry",
-    };
-
-    try {
-      await addBankTransaction(newTransaction, userId);
-      showToast("Income added successfully!", "success");
-    } catch (error) {
-      console.error("Error adding income:", error);
-      showToast("Unable to add income. Please try again later.", "danger");
-    } finally {
-      setLoading(false);
-      onAdd();
-      onClose();
-    }
-  };
-
-  const handleAuthFail = () => {
-    showToast("You must be logged in to add income.", "warning");
-    setLoading(false);
-  };
-
   const handleAdd = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -85,9 +50,34 @@ const AddIncomeModal = ({ show, onClose, onAdd }: Props) => {
 
     if (!isValid || !category || !amount) return;
     setLoading(true);
+    // const existing = JSON.parse(localStorage.getItem('bankTransactions') || '[]');
+    // existing.push(newTx);
+    // localStorage.setItem('bankTransactions', JSON.stringify(existing));
+    try {
+      onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+          console.error(
+            "No authenticated user found. Cannot fetch user-specific data."
+          );
+          return;
+        }
+        const newTx: Transaction = {
+          id: "tx-" + Math.random().toString(36).substring(2, 9),
+          date: new Date().toISOString(),
+          description: category,
+          amount,
+          category,
+          merchant: merchant || "Manual Entry",
+          accountName: "Manual Entry",
+          userId: user.uid,
+        };
 
-    subscribeToAuthState(handleAuthSuccess, handleAuthFail);
-
+        await addDoc(collection(db, "bankTransactions"), newTx);
+      });
+    } catch (error) {
+    } finally {
+      setLoading(false);
+    }
     onAdd();
     onClose();
     setSource("");

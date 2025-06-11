@@ -1,5 +1,5 @@
-import ClientLayout from "@/shared/client-layout";
 import type { Metadata } from "next";
+import ClientLayout from "@/shared/client-layout";
 
 export const metadata: Metadata = {
   title: "Create Next App",

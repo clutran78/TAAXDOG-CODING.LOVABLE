@@ -29,7 +29,7 @@ export const handleUploadFromActiveTab = async (
       const fullUrl = new URL(url.startsWith("http") ? url : `https://${url}`);
       showToast("Fetching image from URL...", "primary");
 
-      const response = await fetch(`${proxyUrl}${fullUrl.toString()}`);
+      const response = await fetch(`${fullUrl.toString()}`);
       if (!response.ok) {
         throw new Error(`Something went wrong`);
       }
@@ -79,7 +79,7 @@ export const handleReceiptUpload = async (file: File | null): Promise<void> => {
     showToast("Uploading receipt...", "primary");
 
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL}/api/receipts/upload/gemini`,
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/receipts/upload/gemini`,
       {
         method: "POST",
         body: formData,

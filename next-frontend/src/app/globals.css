@@ -152,6 +152,38 @@ body.dark-mode .modal-footer {
   color: #f8f9fa;
 }
 
+body.dark-mode .offcanvas {
+  background-color: #343a40;
+  color: #ffffff;
+}
+
+body.dark-mode .offcanvas-header {
+  border-bottom: 1px solid #495057;
+}
+
+body.dark-mode .btn-close {
+  filter: invert(1);
+}
+
+.offcanvas-body {
+  background-color: #e9effe7d;
+  color: #ffffff;
+}
+
+body.dark-mode .offcanvas-body {
+  background-color: #343a40;
+  color: #ffffff;
+}
+
+.chat-messages {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.chat-messages::-webkit-scrollbar {
+  display: none;
+}
+
 .sidebar {
   position: fixed;
   top: 56px;

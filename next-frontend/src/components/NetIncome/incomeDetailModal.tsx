@@ -1,4 +1,3 @@
-// components/NetIncomeModal.tsx
 import { Transaction } from "@/lib/types/transactions";
 import { useDarkMode } from "@/providers/dark-mode-provider";
 import { Modal } from "react-bootstrap";
