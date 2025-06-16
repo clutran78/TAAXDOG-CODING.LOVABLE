@@ -30,7 +30,7 @@ This document outlines the step-by-step plan for building the TAAXDOG web app, a
 ---
 
 ### Phase 4: Receipt Scanning and Data Extraction
-- **Step 4.1**: Integrate Tabscanner OCR API for receipt scanning and data extraction.
+- **Step 4.1**: Integrate Gemini 2.0 Flash API Key API for receipt scanning and data extraction.
 - **Step 4.2**: Create a feature to upload receipts and extract data (e.g., amount, date, merchant).
 - **Step 4.3**: Implement receipt matching with banking transactions from Basiq.
 
