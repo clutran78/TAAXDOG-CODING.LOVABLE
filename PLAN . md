@@ -1,6 +1,6 @@
 # TAAXDOG Web App Development Plan
 
-This document outlines the step-by-step plan for building the TAAXDOG web app, a SAAS finance platform for tax reports and financial management. The app uses Firebase for user data, Basiq for banking transactions, DocuClipper for receipt scanning, DevExpress Dashboard API for data visualization, and Claude 3.7 for financial insights. Cursor will refer to this plan for every prompt, following each step sequentially to ensure systematic development.
+This document outlines the step-by-step plan for building the TAAXDOG web app, a SAAS finance platform for tax reports and financial management. The app uses Firebase for user data, Basiq for banking transactions, Gemini 2.0 Flash API for receipt scanning, DevExpress Dashboard API for data visualization, and Claude 3.7 for financial insights. Cursor will refer to this plan for every prompt, following each step sequentially to ensure systematic development.
 
 ---
 

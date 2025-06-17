@@ -1,7 +1,7 @@
 {
   "name": "taaxdog-receipt-scanner",
   "version": "1.0.0",
-  "description": "TAAXDOG Receipt Scanner with TabScanner API integration",
+  "description": "TAAXDOG Receipt Scanner with OCR integration",
   "main": "proxy-server.js",
   "scripts": {
     "start": "node proxy-server.js"

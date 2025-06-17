@@ -99,10 +99,10 @@ This document outlines the step-by-step plan for building the TAAXDOG web app, a
 ---
 
 ### Phase 8: Notifications System
-- **Step 8.1**: [ ] Implement overspending alerts by category
-- **Step 8.2**: [ ] Add goal progress update notifications
-- **Step 8.3**: [ ] Create notifications for income, spending, upcoming subscriptions
-- **Step 8.4**: [ ] Add petrol price alert within 10km radius
+- **Step 8.1**: ✅ Implement overspending alerts by category
+- **Step 8.2**: ✅ Add goal progress update notifications
+- **Step 8.3**: ✅ Create notifications for income, spending, upcoming subscriptions
+- **Step 8.4**: ✅ Add petrol price alert within 10km radius
 
 ---
 
@@ -202,3 +202,13 @@ We have successfully completed Phases 1-7 and Phase 9-10, with partial completio
 ---
 
 Cursor will follow this plan step by step, asking for confirmation after each step before proceeding to the next. 
+
+# Run all tests
+pytest tests/
+
+# Run with coverage
+pytest tests/ --cov=backend --cov-report=html
+
+# Run specific test categories
+pytest tests/unit/           # Unit tests only
+pytest tests/performance/    # Performance tests only 

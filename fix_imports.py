@@ -35,7 +35,7 @@ def find_module_path(module_name, base_dir='.'):
 def generate_pythonpath():
     """Generate a PYTHONPATH environment variable setup"""
     # List of modules known to be needed
-    modules_to_check = ['firebase_config', 'basiq_api', 'tabscanner_api', 'ai']
+    modules_to_check = ['firebase_config', 'basiq_api', 'ai']
     
     # Current directory
     cwd = os.path.abspath(os.getcwd())

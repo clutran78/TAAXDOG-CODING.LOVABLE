@@ -199,7 +199,7 @@ For debugging and testing:
 As per the PLAN.md, the next phases to implement and test are:
 
 - Banking Integration with Basiq (Phase 3)
-- Receipt Scanning with DocuClipper (Phase 4)
+- Receipt Scanning with Gemini 2.0 Flash API (Phase 4)
 - Data Dashboard with DevExpress (Phase 5)
 - Financial Analysis with Claude 3.7 (Phase 6)
 

@@ -147,7 +147,7 @@ class Transaction:
 
 class Receipt:
     """
-    Receipt model representing a scanned receipt via DocuClipper API.
+    Receipt model representing a scanned receipt via Gemini 2.0 Flash API.
     """
     def __init__(self, receipt_id, user_id, merchant, total_amount, date, 
                  items=None, tax_amount=None, image_url=None, transaction_id=None):

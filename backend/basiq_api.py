@@ -1,25 +1,49 @@
+"""
+Basiq API interface module for TAAXDOG application.
+
+This module provides a simplified interface for interacting with the Basiq API
+through the BasiqClient. It handles user authentication, account management,
+and transaction syncing operations.
+"""
+
+import logging
+import sys
 import os
+from typing import Dict, List, Any, Optional
 import requests
 import json
 import time
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-import logging
+
+# Add parent directory to path for cross-module imports
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
+sys.path.insert(0, os.path.join(project_root, 'src'))
+
+# Import the new comprehensive BASIQ client
+from integrations.basiq_client import basiq_client
+from config.basiq_config import get_basiq_config
 
 # Load environment variables
 load_dotenv()
 
-# Basiq API base URL and configuration
+# Legacy configuration for backward compatibility
 BASIQ_API_URL = os.environ.get('BASIQ_SERVER_URL', 'https://au-api.basiq.io')
 BASIQ_API_KEY = os.environ.get('BASIQ_API_KEY', '')
 
-# Token cache to avoid requesting new tokens unnecessarily
+# Token cache to avoid requesting new tokens unnecessarily (legacy)
 token_cache = {
     'access_token': None,
     'expires_at': None
 }
 
 logger = logging.getLogger(__name__)
+
+# Helper function to get the current client instance
+def get_basiq_client():
+    """Get the current BASIQ client instance with environment awareness."""
+    return basiq_client
 
 def get_basiq_token():
     """

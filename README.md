@@ -1,6 +1,6 @@
 # TAAXDOG - Financial Management & Tax Reporting Platform
 
-A comprehensive SAAS finance platform for tax reports and financial management. The app uses Firebase for user data, Basiq for banking transactions, DocuClipper and Tabscanner for receipt scanning, DevExpress Dashboard API for data visualization, and Claude 3.7 for financial insights.
+A comprehensive SAAS finance platform for tax reports and financial management. The app uses Firebase for user data, Basiq for banking transactions, Gemini 2.0 Flash API for receipt scanning, DevExpress Dashboard API for data visualization, and Claude 3.7 for financial insights.
 
 ## Project Structure
 
