@@ -52,6 +52,7 @@ from routes.receipt_routes import receipt_routes
 from routes.financial_routes import financial_routes
 from routes.public_routes import public_bp
 from chatbot import chatbot_bp  # Import the chatbot blueprint
+from flask import  jsonify
 
 api.add_namespace(auth_routes)
 api.add_namespace(banking_routes)
@@ -103,6 +104,13 @@ def serve_static(filename):
     Serve static files from the frontend directory
     """
     return send_from_directory(app.static_folder, filename)
+
+@app.route('/test')
+def test_server():
+    """
+    Test the Server
+    """
+    return jsonify({"message": "Test Successful"})
 
 if __name__ == "__main__":
     port = int(os.environ.get('FLASK_RUN_PORT', 8080))

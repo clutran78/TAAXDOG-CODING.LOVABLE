@@ -5,6 +5,7 @@ import Sidebar from "@/components/sidebar";
 import Header from "@/shared/Header";
 import GlobalWrapper from "@/shared/GlobalWrapper";
 import MobileSidebar from "@/components/mobile-sidebar";
+import Chatbot from "@/components/chatbot/chatbot";
 
 export default function ClientLayout({
   children,

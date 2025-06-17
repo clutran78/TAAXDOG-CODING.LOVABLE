@@ -270,13 +270,9 @@ export const fetchReceiptStats = async (userId: string): Promise<any> => {
   }
 };
 
-export const addBankTransaction = async (
-  data: Transaction,
-  userId: string
-): Promise<any> => {
+export const addBankTransaction = async (data: Transaction): Promise<any> => {
   try {
-    const transactionWithUserId = { ...data, userId };
-    await addDoc(collection(db, "bankTransactions"), transactionWithUserId);
+    await addDoc(collection(db, "bankTransactions"), data);
   } catch (error) {
     console.error("Error fetching tax profile:", error);
     throw error;

@@ -20,6 +20,15 @@ logger = logging.getLogger(__name__)
 # Create blueprint
 chatbot_bp = Blueprint('chatbot', __name__)
 
+# Formatting instructions for the LLM
+formatting_instructions = """- Use **double asterisks** for bold text.
+- Use *single asterisks* or _underscores_ for italic text.
+- Use `-` for bullet points.
+- Use `1.`, `2.`, etc. for numbered lists.
+- Use [size=24]Text[/size] for text in font size 24.
+- Use [size=16]Text[/size] for text in font size 16.
+- When you need to go to the next line, write the **literal characters** `\\n`."""
+
 def perform_web_search(query):
     """Perform web search using Serper API"""
     try:
@@ -37,10 +46,10 @@ def perform_web_search(query):
         res = conn.getresponse()
         data = json.loads(res.read().decode("utf-8"))
         
-        # Print web search results
-        print("\n=== Web Search Results ===")
-        print(json.dumps(data, indent=2))
-        print("=========================\n")
+        # # Print web search results
+        # print("\n=== Web Search Results ===")
+        # print(json.dumps(data, indent=2))
+        # print("=========================\n")
         
         return data
     except Exception as e:
@@ -51,7 +60,7 @@ def get_llm_response(message, search_results=None):
     """Get response from llm with optional search results"""
     try:
         # Optimized system prompt focusing on key aspects
-        system_prompt = """
+        system_prompt = f"""
         You are by the name of Dobbie, an AI-powered tax assistant for Australian taxpayers. Your responses should be:
         1. Clear and concise
         2. Based on official ATO sources
@@ -88,19 +97,20 @@ def get_llm_response(message, search_results=None):
         - Do not start your response "Okay, I will now answer your question..." or anything similar.
         - When listing things, make sure to use bullet points or numbered lists.
         - In case of verified information attached, make sure to use it to answer and format it in a way that is easy to read.
-        
+
+        ## Formatting Instructions (must use these in every response):
+        {formatting_instructions}
+
         ## Greeting [Only use this if the user greets you]
         "Hey there, I'm Dobbie — your tax-smart sidekick! 🐾
         I'm here to sniff out savings, explain ATO rules, and help you sort your finances without the jargon.
         Ask me anything about your tax return, expenses, or how to make your money bark louder.
         Ready to fetch some insights?
 
-        
         ## For Reference:
         - ATO.gov.au
         - My.gov.au
         - Moneysmart.gov.au
-
 
         You may also use the attached information from the web-search, but only as a reference to answer the question.
         """
@@ -227,14 +237,19 @@ def chat():
         def generate():
             buffer = ""
             for chunk in get_llm_response(user_message, search_results):
+                # Replace actual newlines with the literal characters `\n`
+                chunk = chunk.replace("\n", "\\n")
+
                 buffer += chunk
                 yield chunk
+
                 # Webhook support: send each chunk to webhook if provided
                 if webhook_url:
                     try:
                         requests.post(webhook_url, json={"chunk": chunk})
                     except Exception as e:
                         logger.error(f"Webhook error: {e}")
+
             # Optionally, send the full response at the end
             if webhook_url:
                 try:

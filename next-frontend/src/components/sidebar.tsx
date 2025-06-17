@@ -157,7 +157,7 @@ export default function Sidebar({
               }`}
               id="financial-insights-tab"
             >
-              <i className="fas fa-robot"></i> AI Insights
+              <i className="fas fa-robot"></i> Dobbie Agent
             </Link>
           </li>
         </ul>
