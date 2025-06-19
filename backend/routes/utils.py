@@ -294,3 +294,67 @@ def create_success_response(data: Any = None, message: Optional[str] = None) -> 
         response["message"] = message
     
     return response
+
+def api_error(message: str, status: int = 400, details: Any = None) -> tuple:
+    """
+    Create standardized API error response.
+    
+    Args:
+        message: Error message
+        status: HTTP status code
+        details: Additional error details
+        
+    Returns:
+        Tuple of (response_dict, status_code) for Flask
+    """
+    from flask import jsonify
+    
+    response = {
+        'success': False,
+        'error': message
+    }
+    if details:
+        response['details'] = details
+    return jsonify(response), status
+
+def serialize_dates(obj: Any) -> Any:
+    """
+    Serialize datetime objects in a dictionary or list to ISO format strings.
+    
+    Args:
+        obj: Object to serialize (dict, list, datetime, or other)
+        
+    Returns:
+        Object with datetime values converted to ISO format strings
+    """
+    from datetime import datetime
+    
+    if isinstance(obj, dict):
+        return {k: serialize_dates(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [serialize_dates(item) for item in obj]
+    elif isinstance(obj, datetime):
+        return obj.isoformat()
+    return obj
+
+def login_required(f):
+    """
+    Decorator to require authentication for route handlers.
+    
+    Args:
+        f: Function to decorate
+        
+    Returns:
+        Decorated function that validates authentication
+    """
+    from functools import wraps
+    from flask import request
+    
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # In a real implementation, you'd validate the auth token here
+        # For now, we'll assume the user_id is available on the request
+        if not hasattr(request, 'user_id') or not request.user_id:
+            return create_error_response('Authentication required', code='AUTH_REQUIRED'), 401
+        return f(*args, **kwargs)
+    return decorated_function

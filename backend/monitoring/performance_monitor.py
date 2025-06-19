@@ -17,15 +17,31 @@ import threading
 
 try:
     import redis
-    from prometheus_client import Counter, Histogram, Gauge, start_http_server
-    import sentry_sdk
-    from mixpanel import Mixpanel
+    REDIS_AVAILABLE = True
 except ImportError:
-    # Graceful degradation if monitoring dependencies not available
     redis = None
-    Counter = Histogram = Gauge = None
+    REDIS_AVAILABLE = False
+
+try:
+    from prometheus_client import Counter, Histogram, Gauge, start_http_server
+    PROMETHEUS_AVAILABLE = True
+except ImportError:
+    Counter = Histogram = Gauge = start_http_server = None
+    PROMETHEUS_AVAILABLE = False
+
+try:
+    import sentry_sdk
+    SENTRY_AVAILABLE = True
+except ImportError:
     sentry_sdk = None
+    SENTRY_AVAILABLE = False
+
+try:
+    from mixpanel import Mixpanel
+    MIXPANEL_AVAILABLE = True
+except ImportError:
     Mixpanel = None
+    MIXPANEL_AVAILABLE = False
 
 
 @dataclass
@@ -91,9 +107,9 @@ class PerformanceMonitor:
         if os.environ.get('ENABLE_PROMETHEUS', 'true').lower() == 'true':
             self._start_prometheus_server()
     
-    def _setup_redis(self) -> Optional[redis.Redis]:
+    def _setup_redis(self) -> Optional[Any]:
         """Setup Redis connection for metrics storage"""
-        if not redis:
+        if not REDIS_AVAILABLE or not redis:
             self.logger.warning("Redis not available, using in-memory metrics buffer")
             return None
         
@@ -312,9 +328,9 @@ class UserAnalytics:
         self.mixpanel = self._setup_mixpanel()
         self.analytics_buffer = deque(maxlen=500)
     
-    def _setup_redis(self) -> Optional[redis.Redis]:
+    def _setup_redis(self) -> Optional[Any]:
         """Setup Redis connection for analytics storage"""
-        if not redis:
+        if not REDIS_AVAILABLE or not redis:
             return None
         
         try:

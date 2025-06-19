@@ -665,4 +665,44 @@ class FinancialInsightsEngine:
                 "action_steps": ["Track expenses", "Reduce discretionary spending", "Automate savings"]
             })
         
-        return goals 
+        return goals
+
+# Global instance of the financial insights engine
+_insights_engine = None
+
+def get_insights_engine():
+    """Get or create the global insights engine instance"""
+    global _insights_engine
+    if _insights_engine is None:
+        _insights_engine = FinancialInsightsEngine()
+    return _insights_engine
+
+# Wrapper functions for backward compatibility with existing imports
+
+def analyze_transactions(transactions: List[Dict], user_profile: Optional[Dict] = None) -> Dict[str, Any]:
+    """
+    Wrapper function to analyze transactions using the FinancialInsightsEngine
+    """
+    engine = get_insights_engine()
+    return engine.analyze_transactions(transactions, user_profile)
+
+def identify_tax_deductions(transactions: List[Dict], receipts: Optional[List[Dict]] = None) -> List[Dict]:
+    """
+    Wrapper function to identify tax deductions using the FinancialInsightsEngine
+    """
+    engine = get_insights_engine()
+    return engine.identify_tax_deductions(transactions, receipts)
+
+def suggest_financial_goals(transactions: List[Dict], user_id: str) -> List[Dict]:
+    """
+    Wrapper function to suggest financial goals using the FinancialInsightsEngine
+    """
+    engine = get_insights_engine()
+    return engine.suggest_financial_goals(transactions, user_id)
+
+def generate_financial_report(user_id: str, transactions: List[Dict], period: str = "monthly") -> Dict[str, Any]:
+    """
+    Wrapper function to generate financial report using the FinancialInsightsEngine
+    """
+    engine = get_insights_engine()
+    return engine.generate_financial_report(user_id, transactions, period) 

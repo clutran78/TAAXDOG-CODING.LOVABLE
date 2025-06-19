@@ -80,6 +80,16 @@ const GoalPage: React.FC = () => {
     setGoalNameToDelete(goalName);
   };
 
+  const handleManageAutoSave = (goalId: string) => {
+    const goal = goals.find((g) => g.id === goalId);
+    if (!goal) return;
+
+    // Open the edit modal with focus on direct debit configuration
+    setGoalToEdit(goal);
+    setEditGoalId(goalId);
+    setShowGoalModal(true);
+  };
+
   const confirmDelete = async () => {
     setDeleteLoading(true);
     if (!goalIdToDelete) return;
@@ -225,6 +235,7 @@ const GoalPage: React.FC = () => {
                       setShowProgressModal(true);
                     }
                   }}
+                  onManageAutoSave={handleManageAutoSave}
                 />
               ))
             )}

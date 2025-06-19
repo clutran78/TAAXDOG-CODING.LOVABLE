@@ -28,6 +28,16 @@ class NotificationType(Enum):
     SPENDING_ALERT = "spending_alert"
     SUBSCRIPTION_REMINDER = "subscription_reminder"
     PETROL_PRICE = "petrol_price"
+    # Enhanced notification types for automated savings system
+    TRANSFER_SUCCESS = "transfer_success"
+    TRANSFER_FAILED = "transfer_failed"
+    GOAL_ACHIEVED = "goal_achieved"
+    SAVINGS_RECOMMENDATION = "savings_recommendation"
+    OPPORTUNITY_ALERT = "opportunity_alert"
+    MILESTONE_CELEBRATION = "milestone_celebration"
+    SMART_INSIGHT = "smart_insight"
+    ACHIEVEMENT_UNLOCK = "achievement_unlock"
+    STREAK_MILESTONE = "streak_milestone"
 
 class NotificationPriority(Enum):
     LOW = "low"
@@ -47,7 +57,11 @@ class Notification:
     created_at: datetime
     sent_at: Optional[datetime] = None
     read_at: Optional[datetime] = None
-    channels: List[str] = None  # email, push, sms
+    channels: Optional[List[str]] = None  # email, push, sms
+    
+    def __post_init__(self):
+        if self.channels is None:
+            self.channels = ['email', 'push']
 
 @dataclass
 class SpendingAlert:
@@ -458,4 +472,240 @@ async def run_notification_checks(user_id: str, user_data: Dict) -> None:
     for notification in all_notifications:
         await notification_system.send_notification(notification)
     
-    logger.info(f"Processed {len(all_notifications)} notifications for user {user_id}") 
+    logger.info(f"Processed {len(all_notifications)} notifications for user {user_id}")
+
+    # ==================== ENHANCED NOTIFICATION METHODS ====================
+
+    async def notify_transfer_success(self, user_id: str, transfer_data: Dict) -> None:
+        """Notify user of successful automated transfer."""
+        try:
+            notification = Notification(
+                id=f"transfer_success_{user_id}_{transfer_data.get('id')}",
+                user_id=user_id,
+                type=NotificationType.TRANSFER_SUCCESS,
+                priority=NotificationPriority.LOW,
+                title="Transfer Completed Successfully",
+                message=f"${transfer_data.get('amount', 0):.2f} has been transferred to your {transfer_data.get('goal_name', 'savings goal')}",
+                data=transfer_data,
+                created_at=datetime.now()
+            )
+            await self.send_notification(notification)
+            
+        except Exception as e:
+            logger.error(f"Error sending transfer success notification: {e}")
+
+    async def notify_transfer_failed(self, user_id: str, transfer_data: Dict, error_reason: str) -> None:
+        """Notify user of failed automated transfer."""
+        try:
+            notification = Notification(
+                id=f"transfer_failed_{user_id}_{transfer_data.get('id')}",
+                user_id=user_id,
+                type=NotificationType.TRANSFER_FAILED,
+                priority=NotificationPriority.HIGH,
+                title="Transfer Failed",
+                message=f"Unable to transfer ${transfer_data.get('amount', 0):.2f} to {transfer_data.get('goal_name', 'your goal')}: {error_reason}",
+                data={**transfer_data, 'error_reason': error_reason},
+                created_at=datetime.now()
+            )
+            await self.send_notification(notification)
+            
+        except Exception as e:
+            logger.error(f"Error sending transfer failed notification: {e}")
+
+    async def notify_goal_achieved(self, user_id: str, goal_data: Dict) -> None:
+        """Notify user when a goal is achieved with celebration."""
+        try:
+            notification = Notification(
+                id=f"goal_achieved_{user_id}_{goal_data.get('id')}",
+                user_id=user_id,
+                type=NotificationType.GOAL_ACHIEVED,
+                priority=NotificationPriority.HIGH,
+                title=f"🎉 Goal Achieved: {goal_data.get('name')}!",
+                message=f"Congratulations! You've successfully saved ${goal_data.get('targetAmount', 0):.2f} for your {goal_data.get('name')} goal!",
+                data=goal_data,
+                created_at=datetime.now()
+            )
+            await self.send_notification(notification)
+            
+        except Exception as e:
+            logger.error(f"Error sending goal achieved notification: {e}")
+
+    async def notify_savings_recommendation(self, user_id: str, recommendation: Dict) -> None:
+        """Send intelligent savings recommendation to user."""
+        try:
+            notification = Notification(
+                id=f"recommendation_{user_id}_{recommendation.get('id')}",
+                user_id=user_id,
+                type=NotificationType.SAVINGS_RECOMMENDATION,
+                priority=NotificationPriority.MEDIUM,
+                title=f"💡 Savings Tip: {recommendation.get('title')}",
+                message=recommendation.get('description', 'We have a personalized savings recommendation for you.'),
+                data=recommendation,
+                created_at=datetime.now()
+            )
+            await self.send_notification(notification)
+            
+        except Exception as e:
+            logger.error(f"Error sending savings recommendation notification: {e}")
+
+    async def notify_opportunity_alert(self, user_id: str, opportunity: Dict) -> None:
+        """Send savings opportunity alert to user."""
+        try:
+            notification = Notification(
+                id=f"opportunity_{user_id}_{datetime.now().strftime('%Y%m%d_%H%M')}",
+                user_id=user_id,
+                type=NotificationType.OPPORTUNITY_ALERT,
+                priority=NotificationPriority.MEDIUM,
+                title=f"💰 Savings Opportunity: {opportunity.get('title')}",
+                message=f"You could save ${opportunity.get('potential_savings', 0):.2f} by {opportunity.get('action')}",
+                data=opportunity,
+                created_at=datetime.now()
+            )
+            await self.send_notification(notification)
+            
+        except Exception as e:
+            logger.error(f"Error sending opportunity alert notification: {e}")
+
+    async def notify_milestone_celebration(self, user_id: str, milestone_data: Dict) -> None:
+        """Send milestone celebration notification."""
+        try:
+            notification = Notification(
+                id=f"milestone_{user_id}_{milestone_data.get('type')}_{milestone_data.get('value')}",
+                user_id=user_id,
+                type=NotificationType.MILESTONE_CELEBRATION,
+                priority=NotificationPriority.MEDIUM,
+                title=f"🏆 Milestone Achieved!",
+                message=milestone_data.get('message', 'You\'ve reached an important savings milestone!'),
+                data=milestone_data,
+                created_at=datetime.now()
+            )
+            await self.send_notification(notification)
+            
+        except Exception as e:
+            logger.error(f"Error sending milestone celebration notification: {e}")
+
+    async def notify_smart_insight(self, user_id: str, insight: Dict) -> None:
+        """Send AI-powered financial insight to user."""
+        try:
+            notification = Notification(
+                id=f"insight_{user_id}_{datetime.now().strftime('%Y%m%d_%H%M')}",
+                user_id=user_id,
+                type=NotificationType.SMART_INSIGHT,
+                priority=NotificationPriority.LOW,
+                title=f"📊 Financial Insight: {insight.get('title')}",
+                message=insight.get('summary', 'We have a new financial insight for you.'),
+                data=insight,
+                created_at=datetime.now()
+            )
+            await self.send_notification(notification)
+            
+        except Exception as e:
+            logger.error(f"Error sending smart insight notification: {e}")
+
+    async def check_achievement_unlocks(self, user_id: str, user_stats: Dict) -> List[Notification]:
+        """Check for achievement unlocks based on user statistics."""
+        notifications = []
+        
+        try:
+            # Define achievements
+            achievements = [
+                {
+                    'id': 'first_goal',
+                    'title': 'Goal Setter',
+                    'description': 'Created your first savings goal',
+                    'condition': lambda stats: stats.get('total_goals', 0) >= 1,
+                    'badge': '🎯'
+                },
+                {
+                    'id': 'consistent_saver',
+                    'title': 'Consistent Saver',
+                    'description': 'Made transfers for 7 consecutive days',
+                    'condition': lambda stats: stats.get('transfer_streak', 0) >= 7,
+                    'badge': '💪'
+                },
+                {
+                    'id': 'thousand_saved',
+                    'title': 'Thousand Club',
+                    'description': 'Saved your first $1,000',
+                    'condition': lambda stats: stats.get('total_saved', 0) >= 1000,
+                    'badge': '💎'
+                },
+                {
+                    'id': 'automation_master',
+                    'title': 'Automation Master',
+                    'description': 'Set up 5+ automated transfer rules',
+                    'condition': lambda stats: stats.get('active_rules', 0) >= 5,
+                    'badge': '🤖'
+                }
+            ]
+            
+            # Check each achievement
+            for achievement in achievements:
+                achievement_key = f"achievement:{user_id}:{achievement['id']}"
+                
+                # Check if achievement already unlocked
+                if self.redis_client.exists(achievement_key):
+                    continue
+                
+                # Check if condition is met
+                if achievement['condition'](user_stats):
+                    notification = Notification(
+                        id=f"achievement_{user_id}_{achievement['id']}",
+                        user_id=user_id,
+                        type=NotificationType.ACHIEVEMENT_UNLOCK,
+                        priority=NotificationPriority.MEDIUM,
+                        title=f"{achievement['badge']} Achievement Unlocked!",
+                        message=f"You've earned the '{achievement['title']}' achievement: {achievement['description']}",
+                        data=achievement,
+                        created_at=datetime.now()
+                    )
+                    notifications.append(notification)
+                    
+                    # Mark achievement as unlocked
+                    self.redis_client.set(achievement_key, "unlocked")
+                    
+        except Exception as e:
+            logger.error(f"Error checking achievements for user {user_id}: {e}")
+            
+        return notifications
+
+    async def get_user_notification_preferences(self, user_id: str) -> Dict:
+        """Get user's notification preferences."""
+        try:
+            prefs_key = f"notification_prefs:{user_id}"
+            prefs = self.redis_client.hgetall(prefs_key)
+            
+            # Default preferences if not set
+            if not prefs:
+                prefs = {
+                    'transfer_success': 'true',
+                    'transfer_failed': 'true',
+                    'goal_achieved': 'true',
+                    'savings_recommendation': 'true',
+                    'opportunity_alert': 'true',
+                    'milestone_celebration': 'true',
+                    'smart_insight': 'false',
+                    'achievement_unlock': 'true',
+                    'email_enabled': 'true',
+                    'push_enabled': 'true',
+                    'sms_enabled': 'false'
+                }
+                self.redis_client.hset(prefs_key, mapping=prefs)
+                
+            return {k: v == 'true' for k, v in prefs.items()}
+            
+        except Exception as e:
+            logger.error(f"Error getting notification preferences for user {user_id}: {e}")
+            return {}
+
+    async def update_notification_preferences(self, user_id: str, preferences: Dict) -> bool:
+        """Update user's notification preferences."""
+        try:
+            prefs_key = f"notification_prefs:{user_id}"
+            prefs_data = {k: str(v).lower() for k, v in preferences.items()}
+            self.redis_client.hset(prefs_key, mapping=prefs_data)
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error updating notification preferences for user {user_id}: {e}")
+            return False 

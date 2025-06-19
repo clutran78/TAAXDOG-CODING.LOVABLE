@@ -147,6 +147,71 @@ except ImportError as e:
 except Exception as e:
     logger.error(f"❌ Failed to initialize BASIQ integration: {e}")
 
+# --- Initialize Subaccount Manager ---
+try:
+    from services.subaccount_manager import init_subaccount_manager
+    
+    # Initialize subaccount manager
+    subaccount_manager = init_subaccount_manager(app)
+    logger.info("✅ Subaccount manager initialized successfully")
+        
+except ImportError as e:
+    logger.warning(f"⚠️ Subaccount manager not available: {e}")
+except Exception as e:
+    logger.error(f"❌ Failed to initialize subaccount manager: {e}")
+
+# --- Initialize Automated Transfer Engine ---
+try:
+    from services.transfer_engine import init_transfer_engine
+    from services.income_detector import init_income_detector
+    
+    # Initialize transfer engine
+    transfer_engine = init_transfer_engine(app)
+    
+    # Initialize income detector
+    income_detector = init_income_detector(app)
+    
+    logger.info("✅ Automated transfer engine initialized successfully")
+        
+except ImportError as e:
+    logger.warning(f"⚠️ Automated transfer engine not available: {e}")
+except Exception as e:
+    logger.error(f"❌ Failed to initialize automated transfer engine: {e}")
+
+# --- Initialize Transfer Processor (Background Jobs) ---
+try:
+    from jobs.transfer_processor import run_scheduler_daemon
+    
+    # Start transfer processor as daemon thread (if not in testing mode)
+    if not app.config.get('TESTING', False):
+        transfer_scheduler_thread = run_scheduler_daemon()
+        logger.info("✅ Transfer processor scheduler started")
+    else:
+        logger.info("ℹ️ Transfer processor disabled in testing mode")
+        
+except ImportError as e:
+    logger.warning(f"⚠️ Transfer processor not available: {e}")
+except Exception as e:
+    logger.error(f"❌ Failed to initialize transfer processor: {e}")
+
+# --- Initialize Enhanced Notification and Analytics System ---
+try:
+    from services.savings_advisor import init_savings_advisor
+    from services.savings_analytics import init_savings_analytics
+    
+    # Initialize savings advisor (Claude-powered recommendations)
+    savings_advisor = init_savings_advisor(app)
+    
+    # Initialize savings analytics (comprehensive analytics engine)
+    savings_analytics = init_savings_analytics(app)
+    
+    logger.info("✅ Enhanced notification and analytics system initialized successfully")
+        
+except ImportError as e:
+    logger.warning(f"⚠️ Enhanced notification system not available: {e}")
+except Exception as e:
+    logger.error(f"❌ Failed to initialize enhanced notification system: {e}")
+
 # --- Register Blueprints ---
 from routes.auth_routes import auth_routes
 from routes.user_routes import user_routes
@@ -164,6 +229,41 @@ from routes.subscription_routes import subscription_bp  # Subscription managemen
 from routes.reports_routes import reports_bp  # Automated tax reports
 from routes.team_routes import team_bp  # Team collaboration
 from chatbot import chatbot_bp  # Import the chatbot blueprint
+
+# Import goal transfer routes for direct debit functionality
+try:
+    from routes.goal_transfers import goal_transfers
+    api.add_namespace(goal_transfers)
+    logger.info("✅ Goal transfer routes registered")
+except ImportError as e:
+    logger.warning(f"⚠️ Goal transfer routes not available: {e}")
+
+# Import subaccount routes for goal-specific savings isolation
+try:
+    from routes.subaccount_routes import subaccount_bp
+    app.register_blueprint(subaccount_bp)
+    logger.info("✅ Subaccount routes registered")
+except ImportError as e:
+    logger.warning(f"⚠️ Subaccount routes not available: {e}")
+
+# Import automated transfer routes for savings automation
+try:
+    from routes.automated_transfers import create_automated_transfers_blueprint
+    automated_transfers_bp = create_automated_transfers_blueprint()
+    app.register_blueprint(automated_transfers_bp)
+    logger.info("✅ Automated transfer routes registered")
+except ImportError as e:
+    logger.warning(f"⚠️ Automated transfer routes not available: {e}")
+
+# Import enhanced notification and analytics routes
+try:
+    from routes.enhanced_notifications_routes import register_enhanced_notifications_routes
+    enhanced_notifications_bp = register_enhanced_notifications_routes(app)
+    logger.info("✅ Enhanced notification and analytics routes registered")
+except ImportError as e:
+    logger.warning(f"⚠️ Enhanced notification routes not available: {e}")
+except Exception as e:
+    logger.error(f"❌ Failed to register enhanced notification routes: {e}")
 
 # Import BASIQ admin routes
 try:
@@ -190,10 +290,10 @@ app.register_blueprint(receipt_routes)
 app.register_blueprint(financial_routes)
 app.register_blueprint(budget_routes)  # Register budget prediction routes
 app.register_blueprint(public_bp)
-app.register_blueprint(health_bp, url_prefix='/api')  # Register health monitoring routes
-app.register_blueprint(enhanced_health_bp, url_prefix='/api')  # Enhanced health monitoring
+# app.register_blueprint(health_bp, url_prefix='/api')  # Register health monitoring routes - commented out to avoid conflict
+app.register_blueprint(enhanced_health_bp, url_prefix='/api', name='enhanced_health')  # Enhanced health monitoring
 app.register_blueprint(feedback_bp, url_prefix='/api')  # User feedback system
-app.register_blueprint(notification_bp, url_prefix='/api')  # Notification system
+# app.register_blueprint(notification_bp, url_prefix='/api')  # Notification system - commented out to avoid conflict with enhanced notifications
 app.register_blueprint(insights_bp, url_prefix='/api')  # Smart insights system
 app.register_blueprint(subscription_bp, url_prefix='/api')  # Subscription management
 app.register_blueprint(reports_bp, url_prefix='/api')  # Automated tax reports

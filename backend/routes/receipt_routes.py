@@ -11,7 +11,8 @@ from firebase_config import db
 from .utils import (
     get_user_id, require_user_id, get_json_data, get_form_data, 
     get_file_upload, get_query_param, validate_required_fields,
-    safe_float, safe_int, create_error_response, create_success_response
+    safe_float, safe_int, create_error_response, create_success_response,
+    login_required
 )
 from datetime import datetime
 from basiq_api import get_user_transactions
