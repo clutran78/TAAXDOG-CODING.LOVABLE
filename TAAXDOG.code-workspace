@@ -1,0 +1,58 @@
+{
+  "folders": [
+    {
+      "name": "TAAXDOG Backend",
+      "path": "./backend"
+    },
+    {
+      "name": "TAAXDOG AI",
+      "path": "./ai"
+    },
+    {
+      "name": "TAAXDOG Database",
+      "path": "./database"
+    },
+    {
+      "name": "TAAXDOG Frontend",
+      "path": "./next-frontend"
+    },
+    {
+      "name": "TAAXDOG Root",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "python.pythonPath": "./venv/bin/python",
+    "python.defaultInterpreterPath": "./venv/bin/python",
+    "python.terminal.activateEnvironment": true,
+    "python.analysis.extraPaths": [
+      "./backend",
+      "./ai",
+      "./database", 
+      "./src",
+      "."
+    ],
+    "python.analysis.autoSearchPaths": true,
+    "python.analysis.autoImportCompletions": true,
+    "python.analysis.diagnosticMode": "workspace",
+    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.logLevel": "Information",
+    "files.exclude": {
+      "**/__pycache__": true,
+      "**/*.pyc": true,
+      "**/node_modules": true,
+      ".git": true,
+      ".pytest_cache": true,
+      "**/venv": false
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-python.python",
+      "ms-python.pylint",
+      "ms-python.black-formatter",
+      "bradlc.vscode-tailwindcss",
+      "esbenp.prettier-vscode"
+    ]
+  }
+} 

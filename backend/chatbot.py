@@ -14,6 +14,15 @@ load_dotenv()
 # Setup logging
 logger = logging.getLogger(__name__)
 
+# Import Claude client for enhanced financial advice
+try:
+    from integrations.claude_client import get_claude_client
+    claude_available = True
+    logger.info("Claude client available for enhanced chatbot responses")
+except ImportError:
+    claude_available = False
+    logger.warning("Claude client not available - using OpenRouter fallback")
+
 # # Initialize Gemini
 # genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
 
@@ -56,8 +65,46 @@ def perform_web_search(query):
         logger.error(f"Web search error: {str(e)}")
         return None
 
-def get_llm_response(message, search_results=None):
-    """Get response from llm with optional search results"""
+def get_llm_response_with_claude(message, search_results=None):
+    """Get response from Claude with enhanced financial advice capabilities"""
+    try:
+        if not claude_available:
+            logger.info("Claude not available, using OpenRouter fallback")
+            return get_llm_response_openrouter(message, search_results)
+        
+        claude_client = get_claude_client()
+        if not claude_client:
+            logger.warning("Failed to get Claude client, using OpenRouter fallback")
+            return get_llm_response_openrouter(message, search_results)
+        
+        # Prepare context for Claude
+        context = {
+            "user_message": message,
+            "search_results": search_results
+        }
+        
+        # Get Claude response
+        claude_result = claude_client.generate_financial_advice(context)
+        
+        if claude_result.get("success"):
+            response_text = claude_result.get("response", "")
+            # Stream the response character by character
+            for char in response_text:
+                yield char
+        else:
+            logger.warning(f"Claude advice generation failed: {claude_result.get('error')}")
+            # Fallback to OpenRouter
+            for chunk in get_llm_response_openrouter(message, search_results):
+                yield chunk
+                
+    except Exception as e:
+        logger.error(f"Error in Claude response generation: {e}")
+        # Fallback to OpenRouter
+        for chunk in get_llm_response_openrouter(message, search_results):
+            yield chunk
+
+def get_llm_response_openrouter(message, search_results=None):
+    """Fallback LLM response using OpenRouter when Claude is not available"""
     try:
         # Optimized system prompt focusing on key aspects
         system_prompt = f"""
@@ -236,7 +283,8 @@ def chat():
         #     return jsonify({"error": "Failed to get response"}), 500
         def generate():
             buffer = ""
-            for chunk in get_llm_response(user_message, search_results):
+            # Use Claude-enhanced response generation with OpenRouter fallback
+            for chunk in get_llm_response_with_claude(user_message, search_results):
                 # Replace actual newlines with the literal characters `\n`
                 chunk = chunk.replace("\n", "\\n")
 

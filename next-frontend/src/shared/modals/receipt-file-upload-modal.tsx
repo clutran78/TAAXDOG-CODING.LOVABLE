@@ -152,6 +152,7 @@ function ReceiptFileUploadModal({ loading = false }: { loading?: boolean }) {
                           id="photo-preview-wrapper"
                           className="position-relative d-none"
                         >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             id="photo-preview"
                             alt="photo-preview"

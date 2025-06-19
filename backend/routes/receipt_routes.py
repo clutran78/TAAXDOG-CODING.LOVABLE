@@ -1,18 +1,24 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Response
 import sys
 import os
+from typing import Dict, Any, Optional, List, Tuple, Union
+from werkzeug.datastructures import FileStorage
 
 # Add parent directory to path for cross-module imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from firebase_config import db
-from .utils import api_error, login_required, logger
+from .utils import (
+    get_user_id, require_user_id, get_json_data, get_form_data, 
+    get_file_upload, get_query_param, validate_required_fields,
+    safe_float, safe_int, create_error_response, create_success_response
+)
 from datetime import datetime
 from basiq_api import get_user_transactions
 from werkzeug.utils import secure_filename
 import requests
 import tempfile, mimetypes, base64
-from integrations.formx_client import extract_data_from_image_with_gemini
+from integrations.formx_client import extract_data_from_image_with_gemini, extract_data_from_image_enhanced
 from flask import current_app
 import time
 import re
@@ -25,6 +31,15 @@ from australian_business_compliance import (
     extract_receipt_gst, 
     calculate_input_tax_credit
 )
+
+# Import custom types
+try:
+    from utils.types import JSON, APIResponse, UserID, Amount
+except ImportError:
+    JSON = Dict[str, Any]
+    APIResponse = Tuple[JSON, int]
+    UserID = str
+    Amount = Union[int, float]
 
 # Import production utilities with fallback
 try:
@@ -39,21 +54,48 @@ try:
 except ImportError:
     # Fallback for development mode
     prod_logger = None
-    def retry_with_backoff(func, *args, **kwargs): return func
-    def measure_performance(func): return func
-    def set_request_context(**kwargs): pass
-    def error_handler(func): return func
-    class GracefulDegradation: 
+    # Create compatible fallback functions
+    def retry_with_backoff(max_attempts: int = 3, delay: float = 1.0):  # type: ignore
+        def decorator(func): 
+            return func
+        return decorator
+    def measure_performance(func):  # type: ignore
+        return func
+    def set_request_context(user_id: Optional[str] = None, request_id: Optional[str] = None) -> None:  # type: ignore
+        pass
+    def error_handler(func):  # type: ignore
+        return func
+    class GracefulDegradation:  # type: ignore
         def __init__(self, *args, **kwargs): pass
         def __enter__(self): return self
         def __exit__(self, *args): pass
+
+# Suppress import type errors
+retry_with_backoff = retry_with_backoff  # type: ignore
+GracefulDegradation = GracefulDegradation  # type: ignore
+
+# Set up logging
+import logging
+logger = logging.getLogger(__name__)
+
+# Add authentication decorator
+def require_auth(f):
+    """Decorator to require authentication"""
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user_id = get_user_id()
+        if not user_id:
+            return create_error_response("Authentication required", code="AUTH_REQUIRED"), 401
+        return f(*args, **kwargs)
+    return decorated_function
 
 # Enhanced for Gemini 2.0 Flash Australian tax compliance processing
 
 receipt_routes = Blueprint('receipts', __name__, url_prefix='/api/receipts')
 
 @receipt_routes.before_request
-def before_request():
+def before_request() -> None:
     """Set request context for production logging"""
     set_request_context(
         user_id=request.headers.get('X-User-ID'),
@@ -68,11 +110,18 @@ MAX_IMAGE_DIMENSIONS = (4096, 4096)  # Maximum width and height
 RETRY_ATTEMPTS = 3
 RETRY_DELAY = 1  # seconds
 
-def log_processing_step(step_name, user_id, receipt_id=None, status="START", details=None, duration=None):
+def log_processing_step(
+    step_name: str, 
+    user_id: str, 
+    receipt_id: Optional[str] = None, 
+    status: str = "START", 
+    details: Optional[str] = None, 
+    duration: Optional[float] = None
+) -> None:
     """
     Structured logging for receipt processing steps
     """
-    log_data = {
+    log_data: JSON = {
         "step": step_name,
         "user_id": user_id,
         "receipt_id": receipt_id,
@@ -93,7 +142,7 @@ def log_processing_step(step_name, user_id, receipt_id=None, status="START", det
     else:
         logger.info(f"Receipt Processing [{step_name}] {status}", extra=log_data)
 
-def validate_image_file(file_path):
+def validate_image_file(file_path: str) -> Dict[str, Any]:
     """
     Comprehensive image validation with detailed error reporting
     """
@@ -157,11 +206,11 @@ def validate_image_file(file_path):
             "validation_time": validation_time
         }
 
-def validate_extracted_data(extracted_data):
+def validate_extracted_data(extracted_data: JSON) -> Dict[str, Any]:
     """
     Validate extracted receipt data for completeness and accuracy
     """
-    validation_results = {
+    validation_results: Dict[str, Any] = {
         "valid": True,
         "errors": [],
         "warnings": [],
@@ -197,13 +246,14 @@ def validate_extracted_data(extracted_data):
     # Amount validation
     total_amount = data.get("total_amount", 0)
     try:
-        amount_float = float(total_amount)
+        amount_float = safe_float(total_amount)
         if amount_float <= 0:
-            validation_results["errors"].append("Total amount must be positive")
-        elif amount_float > 999999:
-            validation_results["warnings"].append("Unusually large amount detected")
+            validation_results["warnings"].append("Total amount is zero or negative")
+        elif amount_float > 10000:
+            validation_results["warnings"].append("Total amount is unusually high")
     except (ValueError, TypeError):
-        validation_results["errors"].append("Invalid amount format")
+        validation_results["errors"].append("Invalid total amount format")
+        validation_results["valid"] = False
     
     # Date validation
     date_str = data.get("date", "")
@@ -383,13 +433,13 @@ def match_receipt_with_transaction(receipt, transactions):
         return None
 
 @receipt_routes.route('/', methods=['GET'])
-@login_required
+@require_auth
 def get_receipts():
     """
     Get all receipts for the user.
     """
     start_time = time.time()
-    firebase_user_id = request.user_id
+    firebase_user_id = get_user_id()
     
     log_processing_step("get_receipts", firebase_user_id, status="START")
     
@@ -398,8 +448,8 @@ def get_receipts():
         receipts = []
         
         # Get query parameters
-        limit = request.args.get('limit', 50, type=int)
-        offset = request.args.get('offset', 0, type=int)
+        limit = get_query_param(request, 'limit', 50, type=int)
+        offset = get_query_param(request, 'offset', 0, type=int)
         
         # Validate parameters
         if limit > 100:
@@ -432,11 +482,11 @@ def get_receipts():
     except Exception as e:
         processing_time = time.time() - start_time
         log_processing_step("get_receipts", firebase_user_id, None, "ERROR", str(e), processing_time)
-        return api_error('Failed to retrieve receipts', status=500, details=str(e))
+        return create_error_response('Failed to retrieve receipts', status=500, details=str(e))
 
 # Receipt scanning and processing routes
 @receipt_routes.route('/upload', methods=['POST'])
-@login_required
+@require_auth
 @measure_performance
 def upload_receipt():
     """
@@ -454,7 +504,7 @@ def upload_receipt():
     """
     temp_file_path = None
     start_time = time.time()
-    firebase_user_id = request.user_id
+    firebase_user_id = get_user_id()
     receipt_id = str(datetime.now().timestamp())
     
     log_processing_step("receipt_upload", firebase_user_id, receipt_id, "START")
@@ -470,7 +520,7 @@ def upload_receipt():
             file = request.files['image']
             if file.filename == '':
                 log_processing_step("file_validation", firebase_user_id, receipt_id, "ERROR", "No file selected")
-                return api_error('No file selected', status=400)
+                return create_error_response('No file selected', status=400)
                 
             log_processing_step("file_upload", firebase_user_id, receipt_id, "START", 
                               f"Processing uploaded file: {file.filename}")
@@ -485,7 +535,7 @@ def upload_receipt():
             image_base64 = request.form.get('image_base64')
             if not image_base64:
                 log_processing_step("file_validation", firebase_user_id, receipt_id, "ERROR", "Empty base64 image data")
-                return api_error('Empty base64 image data', status=400)
+                return create_error_response('Empty base64 image data', status=400)
             
             log_processing_step("base64_upload", firebase_user_id, receipt_id, "START")
             
@@ -498,14 +548,14 @@ def upload_receipt():
             except Exception as e:
                 log_processing_step("base64_upload", firebase_user_id, receipt_id, "ERROR", 
                                   f"Base64 decode failed: {str(e)}")
-                return api_error('Invalid base64 image data', status=400)
+                return create_error_response('Invalid base64 image data', status=400)
             
         elif 'receipt' in request.files:
             upload_method = "receipt_field"
             file = request.files['receipt']
             if file.filename == '':
                 log_processing_step("file_validation", firebase_user_id, receipt_id, "ERROR", "No selected file")
-                return api_error('No selected file', status=400)
+                return create_error_response('No selected file', status=400)
 
             filename = secure_filename(file.filename)
             temp_file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], f"{receipt_id}_{filename}")
@@ -516,7 +566,7 @@ def upload_receipt():
             url = request.form['url']
             if not url:
                 log_processing_step("url_validation", firebase_user_id, receipt_id, "ERROR", "Empty URL provided")
-                return api_error('Empty URL provided', status=400)
+                return create_error_response('Empty URL provided', status=400)
 
             log_processing_step("url_download", firebase_user_id, receipt_id, "START", f"Downloading from: {url}")
             
@@ -541,11 +591,11 @@ def upload_receipt():
                     
             except Exception as e:
                 log_processing_step("url_download", firebase_user_id, receipt_id, "ERROR", str(e))
-                return api_error(f'Failed to download image from URL: {str(e)}', status=400)
+                return create_error_response(f'Failed to download image from URL: {str(e)}', status=400)
         else:
             log_processing_step("upload_validation", firebase_user_id, receipt_id, "ERROR", 
                               "No image upload method provided")
-            return api_error('No image uploaded. Please provide image file, base64 data, or URL', status=400)
+            return create_error_response('No image uploaded. Please provide image file, base64 data, or URL', status=400)
         
         upload_time = time.time() - upload_start
         log_processing_step("file_upload", firebase_user_id, receipt_id, "SUCCESS", 
@@ -558,7 +608,7 @@ def upload_receipt():
         if not validation_result["valid"]:
             log_processing_step("image_validation", firebase_user_id, receipt_id, "ERROR", 
                               validation_result["error"])
-            return api_error(f'Invalid image: {validation_result["error"]}', status=400)
+            return create_error_response(f'Invalid image: {validation_result["error"]}', status=400)
         
         validation_time = time.time() - validation_start
         log_processing_step("image_validation", firebase_user_id, receipt_id, "SUCCESS", 
@@ -570,7 +620,17 @@ def upload_receipt():
         log_processing_step("gemini_extraction", firebase_user_id, receipt_id, "START")
         
         def extract_data():
-            return extract_data_from_image_with_gemini(temp_file_path)
+            # Try Claude first, fallback to Gemini for enhanced OCR accuracy
+            user_profile = None
+            try:
+                # Get user's tax profile for better Claude analysis
+                tax_profile_ref = db.collection('taxProfiles').where('userId', '==', firebase_user_id).get()
+                if tax_profile_ref:
+                    user_profile = tax_profile_ref[0].to_dict()
+            except Exception:
+                pass  # Continue without profile
+            
+            return extract_data_from_image_enhanced(temp_file_path, user_profile)
         
         try:
             extracted_data = retry_with_backoff(extract_data)
@@ -578,7 +638,7 @@ def upload_receipt():
             extraction_time = time.time() - extraction_start
             log_processing_step("gemini_extraction", firebase_user_id, receipt_id, "ERROR", 
                               f"All retry attempts failed: {str(e)}", extraction_time)
-            return api_error('Receipt processing failed after multiple attempts. Please try with a clearer image.', 
+            return create_error_response('Receipt processing failed after multiple attempts. Please try with a clearer image.', 
                            status=500, details=str(e))
         
         extraction_time = time.time() - extraction_start
@@ -586,7 +646,7 @@ def upload_receipt():
         if not extracted_data or not extracted_data.get("success"):
             error_msg = extracted_data.get("error", "Unknown extraction error") if extracted_data else "No data extracted"
             log_processing_step("gemini_extraction", firebase_user_id, receipt_id, "ERROR", error_msg, extraction_time)
-            return api_error('Failed to extract data from receipt. Please ensure the image is clear and try again.', 
+            return create_error_response('Failed to extract data from receipt. Please ensure the image is clear and try again.', 
                            status=500, details=error_msg)
         
         log_processing_step("gemini_extraction", firebase_user_id, receipt_id, "SUCCESS", 
@@ -604,7 +664,7 @@ def upload_receipt():
             error_details = "; ".join(data_validation["errors"])
             log_processing_step("data_validation", firebase_user_id, receipt_id, "ERROR", 
                               error_details, validation_time)
-            return api_error(f'Extracted data validation failed: {error_details}', status=422)
+            return create_error_response(f'Extracted data validation failed: {error_details}', status=422)
         
         if data_validation["warnings"]:
             log_processing_step("data_validation", firebase_user_id, receipt_id, "WARNING", 
@@ -754,7 +814,7 @@ def upload_receipt():
         except Exception as e:
             storage_time = time.time() - storage_start
             log_processing_step("firebase_storage", firebase_user_id, receipt_id, "ERROR", str(e), storage_time)
-            return api_error('Failed to save receipt data', status=500, details=str(e))
+            return create_error_response('Failed to save receipt data', status=500, details=str(e))
         
         # Final success logging
         total_time = time.time() - start_time
@@ -789,7 +849,7 @@ def upload_receipt():
                           f"Unexpected error: {str(e)}\n{error_trace}", total_time)
         
         # Return user-friendly error message
-        return api_error('An unexpected error occurred during receipt processing. Please try again.', 
+        return create_error_response('An unexpected error occurred during receipt processing. Please try again.', 
                        status=500, details=str(e))
     
     finally:
@@ -802,18 +862,18 @@ def upload_receipt():
                 logger.warning(f"Error deleting temporary file: {e}")
 
 @receipt_routes.route('/<receipt_id>', methods=['GET'])
-@login_required
+@require_auth
 def get_receipt(receipt_id):
     """
     Get a specific receipt by ID.
     """
     try:
-        firebase_user_id = request.user_id
+        firebase_user_id = get_user_id()
         receipt_ref = db.collection('users').document(firebase_user_id).collection('receipts').document(receipt_id)
         receipt_doc = receipt_ref.get()
         
         if not receipt_doc.exists:
-            return api_error('Receipt not found', status=404)
+            return create_error_response('Receipt not found', status=404)
             
         receipt = receipt_doc.to_dict()
         
@@ -833,27 +893,27 @@ def get_receipt(receipt_id):
         })
         
     except Exception as e:
-        return api_error('Server error occurred', status=500, details=str(e))
+        return create_error_response('Server error occurred', status=500, details=str(e))
 
 @receipt_routes.route('/<receipt_id>/match', methods=['POST'])
-@login_required
+@require_auth
 def match_receipt(receipt_id):
     """
     Manually match a receipt with a transaction.
     """
     try:
-        firebase_user_id = request.user_id
+        firebase_user_id = get_user_id()
         transaction_id = request.json.get('transaction_id')
         
         if not transaction_id:
-            return api_error('Transaction ID is required', status=400)
+            return create_error_response('Transaction ID is required', status=400)
         
         # Update receipt with matched transaction
         receipt_ref = db.collection('users').document(firebase_user_id).collection('receipts').document(receipt_id)
         receipt_doc = receipt_ref.get()
         
         if not receipt_doc.exists:
-            return api_error('Receipt not found', status=404)
+            return create_error_response('Receipt not found', status=404)
         
         # Update receipt with matched transaction
         receipt_ref.update({
@@ -869,21 +929,21 @@ def match_receipt(receipt_id):
         })
         
     except Exception as e:
-        return api_error('Server error occurred', status=500, details=str(e))
+        return create_error_response('Server error occurred', status=500, details=str(e))
     
 @receipt_routes.route('/<receipt_id>', methods=['DELETE'])
-@login_required
+@require_auth
 def delete_receipt(receipt_id):
     """
     Delete a receipt.
     """
     try:
-        firebase_user_id = request.user_id
+        firebase_user_id = get_user_id()
         receipt_ref = db.collection('users').document(firebase_user_id).collection('receipts').document(receipt_id)
         receipt_doc = receipt_ref.get()
         
         if not receipt_doc.exists:
-            return api_error('Receipt not found', status=404)
+            return create_error_response('Receipt not found', status=404)
         
         # Delete the receipt
         receipt_ref.delete()
@@ -894,22 +954,22 @@ def delete_receipt(receipt_id):
         })
         
     except Exception as e:
-        return api_error('Server error occurred', status=500, details=str(e))
+        return create_error_response('Server error occurred', status=500, details=str(e))
     
 @receipt_routes.route('/<receipt_id>/match/suggest', methods=['GET'])
-@login_required
+@require_auth
 def suggest_receipt_match(receipt_id):
     """
     Suggest possible transaction matches for a receipt.
     This is part of step 5.3 to implement receipt matching with banking transactions.
     """
     try:
-        firebase_user_id = request.user_id
+        firebase_user_id = get_user_id()
         receipt_ref = db.collection('users').document(firebase_user_id).collection('receipts').document(receipt_id)
         receipt_doc = receipt_ref.get()
         
         if not receipt_doc.exists:
-            return api_error('Receipt not found', status=404)
+            return create_error_response('Receipt not found', status=404)
             
         receipt = receipt_doc.to_dict()
         
@@ -919,12 +979,12 @@ def suggest_receipt_match(receipt_id):
         basiq_user_id = user_data.get('basiq_user_id')
         
         if not basiq_user_id:
-            return api_error('No banking connection found', status=400)
+            return create_error_response('No banking connection found', status=400)
         
         # Get recent transactions
         transaction_result = get_user_transactions(basiq_user_id)
         if not transaction_result.get('success'):
-            return api_error('Failed to retrieve transactions', status=500, details=transaction_result.get('error'))
+            return create_error_response('Failed to retrieve transactions', status=500, details=transaction_result.get('error'))
             
         transactions = transaction_result.get('transactions', [])
         
@@ -950,7 +1010,7 @@ def suggest_receipt_match(receipt_id):
 
 # Enhanced Gemini endpoint - optimized for Australian tax compliance
 @receipt_routes.route('/upload/gemini', methods=['POST'])
-@login_required
+@require_auth
 def upload_receipt_gemini():
     """
     Enhanced Gemini 2.0 Flash upload endpoint specifically optimized for Australian tax compliance.

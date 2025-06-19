@@ -1,5 +1,5 @@
 import os
-from typing import Dict, Any
+from typing import Dict, Any, Optional, List
 import logging
 
 logger = logging.getLogger(__name__)
@@ -10,15 +10,21 @@ class BasiqConfig:
     Handles development and production environment configurations.
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize BASIQ configuration."""
-        self._environment = None
-        self._config_cache = {}
+        self._environment: str = 'development'
+        self._config_cache: Dict[str, Dict[str, Any]] = {}
+        self.api_key: Optional[str] = None
+        self.base_url: str = ''
+        self.environment_loaded: bool = False
         self.load_environment()
     
-    def load_environment(self):
+    def load_environment(self) -> None:
         """Load current environment from environment variables."""
         self._environment = os.getenv('BASIQ_ENVIRONMENT', 'development')
+        self.api_key = self.get_api_key()
+        self.base_url = self.get_base_url()
+        self.environment_loaded = True
         logger.info(f"🔧 BASIQ environment loaded: {self._environment}")
     
     @property
@@ -27,7 +33,7 @@ class BasiqConfig:
         return self._environment
     
     @environment.setter
-    def environment(self, env: str):
+    def environment(self, env: str) -> None:
         """
         Set environment and clear cache.
         
@@ -40,14 +46,26 @@ class BasiqConfig:
         self._environment = env
         self._config_cache.clear()
         os.environ['BASIQ_ENVIRONMENT'] = env
+        # Update cached attributes
+        self.api_key = self.get_api_key()
+        self.base_url = self.get_base_url()
         logger.info(f"🔄 BASIQ environment switched to: {env}")
     
-    def get_api_key(self) -> str:
+    def set_environment(self, env: str) -> None:
+        """
+        Set environment - alternative method name for compatibility.
+        
+        Args:
+            env: Environment name ('development' or 'production')
+        """
+        self.environment = env
+    
+    def get_api_key(self) -> Optional[str]:
         """
         Get API key for current environment.
         
         Returns:
-            str: BASIQ API key
+            BASIQ API key or None if not configured
         """
         if self._environment == 'production':
             key = os.getenv('BASIQ_API_KEY_PROD')
@@ -65,7 +83,7 @@ class BasiqConfig:
         Get base URL for current environment.
         
         Returns:
-            str: BASIQ API base URL
+            BASIQ API base URL
         """
         if self._environment == 'production':
             return os.getenv('BASIQ_BASE_URL_PROD', 'https://au-api.basiq.io')
@@ -76,7 +94,7 @@ class BasiqConfig:
         Get complete configuration for current environment.
         
         Returns:
-            dict: Configuration dictionary
+            Configuration dictionary
         """
         cache_key = f"config_{self._environment}"
         
@@ -117,11 +135,11 @@ class BasiqConfig:
         Validate current configuration.
         
         Returns:
-            dict: Validation results
+            Validation results
         """
         config = self.get_config()
-        issues = []
-        warnings = []
+        issues: List[str] = []
+        warnings: List[str] = []
         
         # Check required fields
         if not config['api_key']:
@@ -168,7 +186,7 @@ class BasiqConfig:
         Get detailed environment status.
         
         Returns:
-            dict: Environment status information
+            Environment status information
         """
         config = self.get_config()
         validation = self.validate_config()

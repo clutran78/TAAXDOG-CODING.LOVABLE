@@ -1,12 +1,14 @@
 import os
 import sys
-from flask import Flask, send_from_directory, render_template, g, request
+from flask import Flask, send_from_directory, render_template, g, request, jsonify, Response
 from flask_cors import CORS
 from dotenv import load_dotenv
 import logging
 import time
 import uuid
 from flask_restx import Api
+from typing import Dict, Any, Optional, Tuple, Union
+from datetime import datetime
 
 # Add project root and source directories to Python path
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -17,6 +19,15 @@ sys.path.insert(0, os.path.join(project_root, 'database'))
 
 # Load environment variables from project root
 load_dotenv(os.path.join(project_root, '.env'))
+
+# Import custom types
+try:
+    from utils.types import JSON, APIResponse, ExtendedRequest
+except ImportError:
+    # Fallback type definitions
+    JSON = Dict[str, Any]
+    APIResponse = Tuple[JSON, int]
+    ExtendedRequest = Any
 
 # Import production components
 try:
@@ -142,6 +153,7 @@ from routes.user_routes import user_routes
 from routes.banking_routes import banking_routes
 from routes.receipt_routes import receipt_routes
 from routes.financial_routes import financial_routes
+from routes.budget_routes import budget_routes  # Import budget prediction routes
 from routes.public_routes import public_bp
 from routes.health_routes import health_bp  # Import health monitoring routes
 from routes.enhanced_health_routes import health_bp as enhanced_health_bp  # Enhanced health monitoring
@@ -152,7 +164,6 @@ from routes.subscription_routes import subscription_bp  # Subscription managemen
 from routes.reports_routes import reports_bp  # Automated tax reports
 from routes.team_routes import team_bp  # Team collaboration
 from chatbot import chatbot_bp  # Import the chatbot blueprint
-from flask import  jsonify
 
 # Import BASIQ admin routes
 try:
@@ -168,7 +179,8 @@ try:
 except ImportError:
     prod_logger = None
     error_handler = None
-    def set_request_context(**kwargs): pass
+    def set_request_context(user_id: Optional[str] = None, request_id: Optional[str] = None) -> None: 
+        pass
 
 api.add_namespace(auth_routes)
 api.add_namespace(banking_routes)
@@ -176,6 +188,7 @@ api.add_namespace(banking_routes)
 app.register_blueprint(user_routes)
 app.register_blueprint(receipt_routes)
 app.register_blueprint(financial_routes)
+app.register_blueprint(budget_routes)  # Register budget prediction routes
 app.register_blueprint(public_bp)
 app.register_blueprint(health_bp, url_prefix='/api')  # Register health monitoring routes
 app.register_blueprint(enhanced_health_bp, url_prefix='/api')  # Enhanced health monitoring
@@ -188,17 +201,43 @@ app.register_blueprint(team_bp, url_prefix='/api')  # Team collaboration
 app.register_blueprint(chatbot_bp, url_prefix='/api/chatbot')  # Register chatbot blueprint
 
 # --- Error Handling Helpers (for blueprints to import) ---
-def api_error(message="An error occurred", status=500, details=None):
+def api_error(message: str = "An error occurred", status: int = 500, details: Optional[Any] = None) -> APIResponse:
+    """
+    Create standardized API error response.
+    
+    Args:
+        message: Error message for the user
+        status: HTTP status code
+        details: Additional error details
+        
+    Returns:
+        Tuple of (response_dict, status_code)
+    """
     logger.error(f"API Error: {message}" + (f" | Details: {details}" if details else ""))
-    response = {"success": False, "error": message}
+    response: JSON = {"success": False, "error": message}
     if details:
         response["details"] = str(details)
-    # from flask import jsonify
-    # return jsonify(response), status
     return response, status
 
+# Type-safe request context helpers
+def get_user_id_from_request() -> Optional[str]:
+    """Safely extract user_id from request object."""
+    return getattr(request, 'user_id', None)
+
+def set_user_id_on_request(user_id: str) -> None:
+    """Safely set user_id on request object."""
+    setattr(request, 'user_id', user_id)
+
+def get_correlation_id_from_request() -> Optional[str]:
+    """Safely extract correlation_id from request object."""
+    return getattr(request, 'correlation_id', None)
+
+def set_correlation_id_on_request(correlation_id: str) -> None:
+    """Safely set correlation_id on request object."""
+    setattr(request, 'correlation_id', correlation_id)
+
 @app.before_request
-def before_request():
+def before_request() -> None:
     """Set request context and start performance tracking"""
     # Generate request ID if not provided
     request_id = request.headers.get('X-Request-ID') or str(uuid.uuid4())
@@ -229,7 +268,7 @@ def before_request():
 
 
 @app.after_request
-def after_request(response):
+def after_request(response: Response) -> Response:
     """Complete performance tracking and add security headers"""
     # Complete performance monitoring
     if performance_monitor and hasattr(g, 'request_id'):
@@ -263,7 +302,7 @@ def after_request(response):
     return response
 
 @app.errorhandler(Exception)
-def handle_exception(e):
+def handle_exception(e: Exception) -> Tuple[Response, int]:
     """Enhanced error handling with user-friendly messages and monitoring"""
     error_id = str(uuid.uuid4())
     
@@ -292,7 +331,7 @@ def handle_exception(e):
                 )
             
             # Return user-friendly error response
-            response = {
+            response_data: JSON = {
                 "success": False,
                 "error": error_context.user_message,
                 "error_code": error_context.error_code,
@@ -302,12 +341,12 @@ def handle_exception(e):
             }
             
             if error_context.estimated_fix_time:
-                response["estimated_fix_time"] = error_context.estimated_fix_time
+                response_data["estimated_fix_time"] = error_context.estimated_fix_time
                 
             if error_context.contact_support:
-                response["contact_support"] = True
+                response_data["contact_support"] = True
             
-            return jsonify(response), 500
+            return jsonify(response_data), 500
         
         else:
             # Fallback when production error handler not available
@@ -348,7 +387,7 @@ def handle_exception(e):
 
 # Add specific error handlers for common HTTP errors
 @app.errorhandler(404)
-def not_found(error):
+def not_found(error: Any) -> Tuple[Response, int]:
     """Handle 404 errors"""
     return jsonify({
         "success": False,
@@ -364,7 +403,7 @@ def not_found(error):
 
 
 @app.errorhandler(429)
-def rate_limit_exceeded(error):
+def rate_limit_exceeded(error: Any) -> Tuple[Response, int]:
     """Handle rate limit errors"""
     return jsonify({
         "success": False,
@@ -375,7 +414,7 @@ def rate_limit_exceeded(error):
 
 
 @app.errorhandler(413)
-def payload_too_large(error):
+def payload_too_large(error: Any) -> Tuple[Response, int]:
     """Handle payload too large errors"""
     return jsonify({
         "success": False,
@@ -386,37 +425,40 @@ def payload_too_large(error):
 
 # --- Static and HTML Routes ---
 @app.route('/')
-def index():
+def index() -> str:
+    """Serve the main application page"""
     return render_template('index.html')
 
 @app.route('/login')
-def login_page():
+def login_page() -> str:
+    """Serve the login page"""
     return render_template('login.html')
 
 @app.route('/register')
-def register_page():
+def register_page() -> str:
+    """Serve the registration page"""
     return render_template('register.html')
 
 @app.route('/firebase-config.js')
-def serve_firebase_config():
-    """
-    Serve firebase-config.js from the frontend directory to fix 404 errors
-    """
-    return send_from_directory(app.static_folder, 'firebase-config.js')
+def serve_firebase_config() -> Response:
+    """Serve Firebase configuration as JavaScript"""
+    config_path = os.path.join(app.root_path, '..', 'static', 'firebase-config.js')
+    return send_from_directory(os.path.dirname(config_path), 'firebase-config.js', mimetype='application/javascript')
 
 @app.route('/<path:filename>')
-def serve_static(filename):
-    """
-    Serve static files from the frontend directory
-    """
-    return send_from_directory(app.static_folder, filename)
+def serve_static(filename: str) -> Response:
+    """Serve static files"""
+    static_folder = app.static_folder or os.path.join(app.root_path, 'static')
+    return send_from_directory(static_folder, filename)
 
 @app.route('/test')
-def test_server():
-    """
-    Test the Server
-    """
-    return jsonify({"message": "Test Successful"})
+def test_server() -> JSON:
+    """Test endpoint to verify server is running"""
+    return {
+        "status": "Server is running",
+        "timestamp": datetime.now().isoformat(),
+        "version": "1.0.0"
+    }
 
 if __name__ == "__main__":
     port = int(os.environ.get('FLASK_RUN_PORT', 8080))

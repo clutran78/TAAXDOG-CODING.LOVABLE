@@ -1,557 +1,548 @@
 """
-TAAXDOG Smart Insights Routes
-API endpoints for advanced financial insights and business intelligence.
+TAAXDOG Insights API Routes
+Provides comprehensive financial analysis and insights endpoints
 """
 
-from flask import Blueprint, request, jsonify
-import asyncio
-import logging
-from datetime import datetime, timedelta
 import sys
 import os
+from pathlib import Path
 
-# Add parent directory to path for cross-module imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+# Add project paths for imports
+project_root = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(project_root / "src"))
+sys.path.insert(0, str(project_root / "backend"))
+sys.path.insert(0, str(project_root / "database"))
 
+from flask import Blueprint, request, jsonify
+from flask_cors import cross_origin
+import logging
+from datetime import datetime
+from typing import Dict, Any
+
+# Import insights service
 try:
-    from smart_insights import smart_insights_engine, InsightType, InsightPriority
-    from subscription_manager import subscription_manager, FeatureAccess
-    from utils.auth_middleware import require_auth
-    from utils.validators import validate_json
-except ImportError:
-    # Fallback for development mode
-    smart_insights_engine = None
-    subscription_manager = None
-    class InsightType: pass
-    class InsightPriority: pass  
-    class FeatureAccess: pass
-    def require_auth(func): return func
-    def validate_json(*args): return lambda func: func
+    from backend.insights_service import FinancialInsightsService, InsightRequest
+    insights_service = FinancialInsightsService()
+except ImportError as e:
+    logging.warning(f"Could not import insights service: {e}")
+    insights_service = None
 
-# Configure logging
+# Import authentication middleware
+try:
+    from backend.utils.auth_middleware import require_auth
+except ImportError:
+    # Fallback for auth
+    def require_auth(f):
+        return f
+
+# Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Create blueprint
 insights_bp = Blueprint('insights', __name__)
 
-@insights_bp.route('/api/insights', methods=['GET'])
-@require_auth
-def get_user_insights():
-    """Get comprehensive financial insights for the user"""
+def handle_insights_request(func_name: str, user_id: str, **kwargs) -> Dict[str, Any]:
+    """
+    Generic handler for insights requests with error handling
+    """
     try:
-        user_id = request.user_id
-        period_months = int(request.args.get('period_months', 6))
+        if not insights_service:
+            return {
+                'success': False,
+                'error': 'Insights service not available',
+                'data': None
+            }
         
-        # Check feature access
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        # Get the function from insights service
+        func = getattr(insights_service, func_name, None)
+        if not func:
+            return {
+                'success': False,
+                'error': f'Function {func_name} not found',
+                'data': None
+            }
         
-        try:
-            has_access = loop.run_until_complete(
-                subscription_manager.check_feature_access(user_id, FeatureAccess.TAX_INSIGHTS)
-            )
-            
-            if not has_access:
-                return jsonify({
-                    'success': False,
-                    'error': 'Premium subscription required for advanced insights',
-                    'upgrade_required': True
-                }), 403
-            
-            # Generate insights
-            insights = loop.run_until_complete(
-                smart_insights_engine.generate_comprehensive_insights(user_id, period_months)
-            )
-            
-            # Convert insights to JSON-serializable format
-            insights_data = []
-            for insight in insights:
-                insight_dict = {
-                    'id': insight.id,
-                    'type': insight.type.value,
-                    'priority': insight.priority.value,
-                    'title': insight.title,
-                    'description': insight.description,
-                    'recommendation': insight.recommendation,
-                    'potential_savings': insight.potential_savings,
-                    'confidence_score': insight.confidence_score,
-                    'data': insight.data,
-                    'created_at': insight.created_at.isoformat(),
-                    'expires_at': insight.expires_at.isoformat() if insight.expires_at else None,
-                    'action_items': insight.action_items or []
-                }
-                insights_data.append(insight_dict)
-            
-            return jsonify({
-                'success': True,
-                'insights': insights_data,
-                'total_insights': len(insights_data),
-                'period_months': period_months,
-                'generated_at': datetime.now().isoformat()
-            })
-            
-        finally:
-            loop.close()
-            
+        # Call the function with provided kwargs
+        if 'user_id' in kwargs:
+            result = func(**kwargs)
+        else:
+            result = func(user_id, **kwargs)
+        
+        return {
+            'success': True,
+            'error': None,
+            'data': result
+        }
+        
     except Exception as e:
-        logger.error(f"Error getting insights for user {user_id}: {e}")
+        logger.error(f"Error in {func_name}: {e}")
+        return {
+            'success': False,
+            'error': str(e),
+            'data': None
+        }
+
+@insights_bp.route('/comprehensive', methods=['GET'])
+@cross_origin()
+@require_auth
+def get_comprehensive_insights():
+    """
+    Get comprehensive financial insights for a user
+    Combines AI analysis, smart insights, and ML predictions
+    """
+    try:
+        user_id = getattr(request, 'user_id', None)
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'error': 'User authentication required'
+            }), 401
+        
+        period = request.args.get('period', 'monthly')
+        include_receipts = request.args.get('include_receipts', 'true').lower() == 'true'
+        include_tax = request.args.get('include_tax_analysis', 'true').lower() == 'true'
+        include_ml = request.args.get('include_ml_predictions', 'true').lower() == 'true'
+        
+        # Create insight request
+        insight_request = InsightRequest(
+            user_id=user_id,
+            period=period,
+            include_receipts=include_receipts,
+            include_tax_analysis=include_tax,
+            include_ml_predictions=include_ml
+        )
+        
+        # Generate comprehensive insights
+        result = insights_service.generate_comprehensive_insights(insight_request)
+        
+        return jsonify({
+            'success': True,
+            'error': None,
+            'data': result.__dict__ if hasattr(result, '__dict__') else result
+        })
+        
+    except Exception as e:
+        logger.error(f"Error generating comprehensive insights: {e}")
         return jsonify({
             'success': False,
-            'error': 'Failed to generate insights'
+            'error': str(e)
         }), 500
 
-@insights_bp.route('/api/insights/spending-patterns', methods=['GET'])
+@insights_bp.route('/spending', methods=['GET'])
+@cross_origin()
 @require_auth
-def get_spending_patterns():
-    """Get detailed spending pattern analysis"""
+def get_spending_insights():
+    """
+    Get detailed spending pattern analysis
+    """
     try:
-        user_id = request.user_id
-        period_months = int(request.args.get('period_months', 6))
-        
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        try:
-            # Get user data
-            user_data = loop.run_until_complete(
-                smart_insights_engine._get_user_data(user_id, period_months)
-            )
-            
-            # Generate spending pattern insights specifically
-            pattern_insights = loop.run_until_complete(
-                smart_insights_engine._analyze_spending_patterns(user_id, user_data)
-            )
-            
-            patterns_data = []
-            for insight in pattern_insights:
-                insight_dict = {
-                    'id': insight.id,
-                    'title': insight.title,
-                    'description': insight.description,
-                    'recommendation': insight.recommendation,
-                    'potential_savings': insight.potential_savings,
-                    'confidence_score': insight.confidence_score,
-                    'data': insight.data,
-                    'action_items': insight.action_items or []
-                }
-                patterns_data.append(insight_dict)
-            
+        user_id = getattr(request, 'user_id', None)
+        if not user_id:
             return jsonify({
-                'success': True,
-                'spending_patterns': patterns_data,
-                'period_months': period_months
-            })
-            
-        finally:
-            loop.close()
-            
+                'success': False,
+                'error': 'User authentication required'
+            }), 401
+        
+        period = request.args.get('period', 'monthly')
+        
+        result = handle_insights_request('get_spending_insights', user_id, period=period)
+        return jsonify(result)
+        
     except Exception as e:
-        logger.error(f"Error getting spending patterns for user {user_id}: {e}")
+        logger.error(f"Error getting spending insights: {e}")
         return jsonify({
             'success': False,
-            'error': 'Failed to analyze spending patterns'
+            'error': str(e)
         }), 500
 
-@insights_bp.route('/api/insights/tax-optimization', methods=['GET'])
+@insights_bp.route('/tax-optimization', methods=['GET'])
+@cross_origin()
 @require_auth
 def get_tax_optimization():
-    """Get tax optimization recommendations"""
+    """
+    Get comprehensive tax optimization recommendations
+    """
     try:
-        user_id = request.user_id
-        period_months = int(request.args.get('period_months', 12))  # Tax insights need full year
-        
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        try:
-            # Check premium access
-            has_access = loop.run_until_complete(
-                subscription_manager.check_feature_access(user_id, FeatureAccess.TAX_INSIGHTS)
-            )
-            
-            if not has_access:
-                return jsonify({
-                    'success': False,
-                    'error': 'Premium subscription required for tax optimization insights',
-                    'upgrade_required': True
-                }), 403
-            
-            # Get user data
-            user_data = loop.run_until_complete(
-                smart_insights_engine._get_user_data(user_id, period_months)
-            )
-            
-            # Generate tax optimization insights
-            tax_insights = loop.run_until_complete(
-                smart_insights_engine._generate_tax_optimization_insights(user_id, user_data)
-            )
-            
-            tax_data = []
-            total_potential_savings = 0
-            
-            for insight in tax_insights:
-                insight_dict = {
-                    'id': insight.id,
-                    'title': insight.title,
-                    'description': insight.description,
-                    'recommendation': insight.recommendation,
-                    'potential_savings': insight.potential_savings,
-                    'confidence_score': insight.confidence_score,
-                    'data': insight.data,
-                    'action_items': insight.action_items or []
-                }
-                tax_data.append(insight_dict)
-                total_potential_savings += insight.potential_savings
-            
+        user_id = getattr(request, 'user_id', None)
+        if not user_id:
             return jsonify({
-                'success': True,
-                'tax_insights': tax_data,
-                'total_potential_savings': total_potential_savings,
-                'period_months': period_months
-            })
-            
-        finally:
-            loop.close()
-            
+                'success': False,
+                'error': 'User authentication required'
+            }), 401
+        
+        tax_year = request.args.get('tax_year')
+        
+        result = handle_insights_request('get_tax_optimization_insights', user_id, tax_year=tax_year)
+        return jsonify(result)
+        
     except Exception as e:
-        logger.error(f"Error getting tax optimization for user {user_id}: {e}")
+        logger.error(f"Error getting tax optimization: {e}")
         return jsonify({
             'success': False,
-            'error': 'Failed to generate tax optimization insights'
+            'error': str(e)
         }), 500
 
-@insights_bp.route('/api/insights/budget-recommendations', methods=['GET'])
+@insights_bp.route('/budget-recommendations', methods=['GET'])
+@cross_origin()
 @require_auth
 def get_budget_recommendations():
-    """Get intelligent budget recommendations"""
+    """
+    Generate personalized budget recommendations
+    """
     try:
-        user_id = request.user_id
-        period_months = int(request.args.get('period_months', 6))
-        
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        try:
-            # Get user data
-            user_data = loop.run_until_complete(
-                smart_insights_engine._get_user_data(user_id, period_months)
-            )
-            
-            # Generate budget recommendations
-            budget_insights = loop.run_until_complete(
-                smart_insights_engine._create_budget_recommendations(user_id, user_data)
-            )
-            
-            budget_data = []
-            for insight in budget_insights:
-                insight_dict = {
-                    'id': insight.id,
-                    'title': insight.title,
-                    'description': insight.description,
-                    'recommendation': insight.recommendation,
-                    'potential_savings': insight.potential_savings,
-                    'confidence_score': insight.confidence_score,
-                    'data': insight.data,
-                    'action_items': insight.action_items or []
-                }
-                budget_data.append(insight_dict)
-            
+        user_id = getattr(request, 'user_id', None)
+        if not user_id:
             return jsonify({
-                'success': True,
-                'budget_recommendations': budget_data,
-                'period_months': period_months
-            })
-            
-        finally:
-            loop.close()
-            
+                'success': False,
+                'error': 'User authentication required'
+            }), 401
+        
+        result = handle_insights_request('get_budget_recommendations', user_id)
+        return jsonify(result)
+        
     except Exception as e:
-        logger.error(f"Error getting budget recommendations for user {user_id}: {e}")
+        logger.error(f"Error getting budget recommendations: {e}")
         return jsonify({
             'success': False,
-            'error': 'Failed to generate budget recommendations'
+            'error': str(e)
         }), 500
 
-@insights_bp.route('/api/insights/cash-flow-prediction', methods=['GET'])
+@insights_bp.route('/financial-goals', methods=['GET'])
+@cross_origin()
 @require_auth
-def get_cash_flow_prediction():
-    """Get cash flow predictions and projections"""
+def get_financial_goals():
+    """
+    Generate SMART financial goals based on user's financial situation
+    """
     try:
-        user_id = request.user_id
-        period_months = int(request.args.get('period_months', 6))
-        prediction_months = int(request.args.get('prediction_months', 3))
-        
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        try:
-            # Check business feature access
-            has_access = loop.run_until_complete(
-                subscription_manager.check_feature_access(user_id, FeatureAccess.ADVANCED_REPORTS)
-            )
-            
-            if not has_access:
-                return jsonify({
-                    'success': False,
-                    'error': 'Business subscription required for cash flow predictions',
-                    'upgrade_required': True
-                }), 403
-            
-            # Get user data
-            user_data = loop.run_until_complete(
-                smart_insights_engine._get_user_data(user_id, period_months)
-            )
-            
-            # Generate cash flow predictions
-            cashflow_insights = loop.run_until_complete(
-                smart_insights_engine._predict_cash_flow(user_id, user_data)
-            )
-            
-            cashflow_data = []
-            for insight in cashflow_insights:
-                insight_dict = {
-                    'id': insight.id,
-                    'title': insight.title,
-                    'description': insight.description,
-                    'recommendation': insight.recommendation,
-                    'potential_savings': insight.potential_savings,
-                    'confidence_score': insight.confidence_score,
-                    'data': insight.data,
-                    'action_items': insight.action_items or []
-                }
-                cashflow_data.append(insight_dict)
-            
+        user_id = getattr(request, 'user_id', None)
+        if not user_id:
             return jsonify({
-                'success': True,
-                'cashflow_predictions': cashflow_data,
-                'period_months': period_months,
-                'prediction_months': prediction_months
-            })
-            
-        finally:
-            loop.close()
-            
+                'success': False,
+                'error': 'User authentication required'
+            }), 401
+        
+        result = handle_insights_request('get_financial_goals_suggestions', user_id)
+        return jsonify(result)
+        
     except Exception as e:
-        logger.error(f"Error getting cash flow prediction for user {user_id}: {e}")
+        logger.error(f"Error getting financial goals: {e}")
         return jsonify({
             'success': False,
-            'error': 'Failed to generate cash flow predictions'
+            'error': str(e)
         }), 500
 
-@insights_bp.route('/api/insights/savings-opportunities', methods=['GET'])
+@insights_bp.route('/risk-assessment', methods=['GET'])
+@cross_origin()
 @require_auth
-def get_savings_opportunities():
-    """Get personalized savings opportunities"""
+def get_risk_assessment():
+    """
+    Assess financial risks and provide alerts
+    """
     try:
-        user_id = request.user_id
-        period_months = int(request.args.get('period_months', 6))
-        
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        try:
-            # Get user data
-            user_data = loop.run_until_complete(
-                smart_insights_engine._get_user_data(user_id, period_months)
-            )
-            
-            # Generate savings opportunities
-            savings_insights = loop.run_until_complete(
-                smart_insights_engine._identify_savings_opportunities(user_id, user_data)
-            )
-            
-            # Also get subscription efficiency insights
-            subscription_insights = loop.run_until_complete(
-                smart_insights_engine._analyze_subscription_efficiency(user_id, user_data)
-            )
-            
-            all_savings = savings_insights + subscription_insights
-            
-            savings_data = []
-            total_savings_potential = 0
-            
-            for insight in all_savings:
-                insight_dict = {
-                    'id': insight.id,
-                    'type': insight.type.value,
-                    'title': insight.title,
-                    'description': insight.description,
-                    'recommendation': insight.recommendation,
-                    'potential_savings': insight.potential_savings,
-                    'confidence_score': insight.confidence_score,
-                    'data': insight.data,
-                    'action_items': insight.action_items or []
-                }
-                savings_data.append(insight_dict)
-                total_savings_potential += insight.potential_savings
-            
+        user_id = getattr(request, 'user_id', None)
+        if not user_id:
             return jsonify({
-                'success': True,
-                'savings_opportunities': savings_data,
-                'total_savings_potential': total_savings_potential,
-                'period_months': period_months
-            })
-            
-        finally:
-            loop.close()
-            
+                'success': False,
+                'error': 'User authentication required'
+            }), 401
+        
+        result = handle_insights_request('get_risk_assessment', user_id)
+        return jsonify(result)
+        
     except Exception as e:
-        logger.error(f"Error getting savings opportunities for user {user_id}: {e}")
+        logger.error(f"Error getting risk assessment: {e}")
         return jsonify({
             'success': False,
-            'error': 'Failed to identify savings opportunities'
+            'error': str(e)
         }), 500
 
-@insights_bp.route('/api/insights/audit-risk', methods=['GET'])
+@insights_bp.route('/claude-enhanced', methods=['GET'])
+@cross_origin()
 @require_auth
-def get_audit_risk_assessment():
-    """Get audit risk assessment and compliance insights"""
+def get_claude_enhanced_insights():
+    """
+    Get Claude 3.7 Sonnet powered financial insights with advanced AI analysis
+    This endpoint provides the most sophisticated financial analysis available in TAAXDOG
+    """
     try:
-        user_id = request.user_id
-        period_months = int(request.args.get('period_months', 12))
-        
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        try:
-            # Check business feature access
-            has_access = loop.run_until_complete(
-                subscription_manager.check_feature_access(user_id, FeatureAccess.ADVANCED_REPORTS)
-            )
-            
-            if not has_access:
-                return jsonify({
-                    'success': False,
-                    'error': 'Business subscription required for audit risk assessment',
-                    'upgrade_required': True
-                }), 403
-            
-            # Get user data
-            user_data = loop.run_until_complete(
-                smart_insights_engine._get_user_data(user_id, period_months)
-            )
-            
-            # Generate audit risk insights
-            audit_insights = loop.run_until_complete(
-                smart_insights_engine._assess_audit_risks(user_id, user_data)
-            )
-            
-            audit_data = []
-            max_risk_score = 0
-            
-            for insight in audit_insights:
-                insight_dict = {
-                    'id': insight.id,
-                    'title': insight.title,
-                    'description': insight.description,
-                    'recommendation': insight.recommendation,
-                    'confidence_score': insight.confidence_score,
-                    'data': insight.data,
-                    'action_items': insight.action_items or []
-                }
-                audit_data.append(insight_dict)
-                
-                # Track maximum risk score
-                risk_score = insight.data.get('risk_score', 0)
-                max_risk_score = max(max_risk_score, risk_score)
-            
-            # Determine overall risk level
-            if max_risk_score < 10:
-                risk_level = "low"
-            elif max_risk_score < 25:
-                risk_level = "medium"
-            else:
-                risk_level = "high"
-            
+        user_id = getattr(request, 'user_id', None)
+        if not user_id:
             return jsonify({
-                'success': True,
-                'audit_risk_assessment': audit_data,
-                'overall_risk_score': max_risk_score,
-                'risk_level': risk_level,
-                'period_months': period_months
+                'success': False,
+                'error': 'User authentication required'
+            }), 401
+        
+        if not insights_service:
+            return jsonify({
+                'success': False,
+                'error': 'Insights service not available'
+            }), 503
+        
+        # Get user data for Claude analysis
+        try:
+            # Import database and user data fetching (basic implementation)
+            from backend.firebase_config import db
+            
+            # Fetch user transactions (simplified - in production would use BASIQ API)
+            user_doc = db.collection('users').document(user_id).get()
+            user_data = user_doc.to_dict() if user_doc.exists else {}
+            
+            # Fetch user's receipts for analysis
+            receipts_ref = db.collection('users').document(user_id).collection('receipts')
+            receipts = [doc.to_dict() for doc in receipts_ref.stream()]
+            
+            # Convert receipts to transaction-like format for analysis
+            transactions = []
+            for receipt in receipts:
+                extracted_data = receipt.get('extracted_data', {})
+                transactions.append({
+                    'id': receipt.get('id'),
+                    'amount': abs(float(extracted_data.get('total_amount', 0))),
+                    'date': extracted_data.get('date', ''),
+                    'merchant': extracted_data.get('merchant_name', ''),
+                    'category': extracted_data.get('suggested_tax_category', 'Personal'),
+                    'description': f"Receipt from {extracted_data.get('merchant_name', 'Unknown')}",
+                    'type': 'expense'
+                })
+            
+            # Get user profile for better analysis
+            tax_profile_ref = db.collection('taxProfiles').where('userId', '==', user_id).get()
+            user_profile = tax_profile_ref[0].to_dict() if tax_profile_ref else {}
+            
+            # Add user basic data to profile
+            user_profile.update({
+                'user_id': user_id,
+                'total_receipts': len(receipts),
+                'account_created': user_data.get('created_at', ''),
+                'preferences': user_data.get('preferences', {})
             })
             
-        finally:
-            loop.close()
-            
+        except Exception as e:
+            logger.warning(f"Error fetching user data for Claude analysis: {e}")
+            transactions = []
+            user_profile = {'user_id': user_id}
+        
+        if not transactions:
+            return jsonify({
+                'success': True,
+                'data': {
+                    'insights_type': 'no_data',
+                    'message': 'No transaction data available for analysis. Upload some receipts to get AI-powered insights.',
+                    'user_id': user_id,
+                    'generated_at': datetime.now().isoformat()
+                }
+            })
+        
+        # Generate Claude-enhanced insights
+        logger.info(f"Generating Claude-enhanced insights for user: {user_id} with {len(transactions)} transactions")
+        
+        claude_insights = insights_service.generate_claude_enhanced_insights(
+            user_id=user_id,
+            transactions=transactions,
+            user_profile=user_profile
+        )
+        
+        return jsonify({
+            'success': True,
+            'error': None,
+            'data': claude_insights,
+            'metadata': {
+                'analysis_method': 'claude-3.7-sonnet',
+                'transactions_analyzed': len(transactions),
+                'enhanced_features': True,
+                'australian_tax_optimized': True
+            }
+        })
+        
     except Exception as e:
-        logger.error(f"Error getting audit risk assessment for user {user_id}: {e}")
+        logger.error(f"Error generating Claude-enhanced insights: {e}")
         return jsonify({
             'success': False,
-            'error': 'Failed to assess audit risk'
+            'error': f'Failed to generate Claude-enhanced insights: {str(e)}',
+            'fallback_available': True,
+            'fallback_endpoint': '/api/insights/comprehensive'
         }), 500
 
-@insights_bp.route('/api/insights/summary', methods=['GET'])
-@require_auth
-def get_insights_summary():
-    """Get a summary of all insights for dashboard display"""
+@insights_bp.route('/claude-status', methods=['GET'])
+@cross_origin()
+def get_claude_status():
+    """
+    Check Claude integration status and capabilities
+    """
     try:
-        user_id = request.user_id
+        from integrations.claude_client import get_claude_client, claude_available
         
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        claude_client = get_claude_client() if claude_available else None
         
-        try:
-            # Generate basic insights (available to all users)
-            user_data = loop.run_until_complete(
-                smart_insights_engine._get_user_data(user_id, 3)  # Last 3 months
-            )
-            
-            # Get different types of insights
-            spending_insights = loop.run_until_complete(
-                smart_insights_engine._analyze_spending_patterns(user_id, user_data)
-            )
-            
-            budget_insights = loop.run_until_complete(
-                smart_insights_engine._create_budget_recommendations(user_id, user_data)
-            )
-            
-            savings_insights = loop.run_until_complete(
-                smart_insights_engine._identify_savings_opportunities(user_id, user_data)
-            )
-            
-            # Calculate summary statistics
-            total_insights = len(spending_insights) + len(budget_insights) + len(savings_insights)
-            total_potential_savings = sum(i.potential_savings for i in spending_insights + budget_insights + savings_insights)
-            
-            high_priority_count = sum(1 for i in spending_insights + budget_insights + savings_insights 
-                                    if i.priority in [InsightPriority.HIGH, InsightPriority.URGENT])
-            
-            # Get top 3 insights by priority and savings potential
-            all_insights = spending_insights + budget_insights + savings_insights
-            all_insights.sort(key=lambda x: (x.priority.value, -x.potential_savings), reverse=True)
-            top_insights = all_insights[:3]
-            
-            top_insights_data = []
-            for insight in top_insights:
-                insight_dict = {
-                    'id': insight.id,
-                    'type': insight.type.value,
-                    'priority': insight.priority.value,
-                    'title': insight.title,
-                    'description': insight.description,
-                    'potential_savings': insight.potential_savings,
-                    'confidence_score': insight.confidence_score
-                }
-                top_insights_data.append(insight_dict)
-            
-            return jsonify({
-                'success': True,
-                'summary': {
-                    'total_insights': total_insights,
-                    'total_potential_savings': total_potential_savings,
-                    'high_priority_count': high_priority_count,
-                    'top_insights': top_insights_data
-                },
-                'generated_at': datetime.now().isoformat()
-            })
-            
-        finally:
-            loop.close()
-            
+        status = {
+            'claude_available': claude_available,
+            'client_initialized': claude_client is not None,
+            'capabilities': [
+                'Receipt OCR analysis',
+                'Financial data analysis', 
+                'Tax optimization advice',
+                'Budget recommendations',
+                'Risk assessment',
+                'Conversational financial advice'
+            ] if claude_client else [],
+            'model': 'claude-3.7-sonnet' if claude_client else 'not_available',
+            'australian_tax_optimized': True if claude_client else False,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        return jsonify({
+            'success': True,
+            'data': status
+        })
+        
     except Exception as e:
-        logger.error(f"Error getting insights summary for user {user_id}: {e}")
+        logger.error(f"Error checking Claude status: {e}")
         return jsonify({
             'success': False,
-            'error': 'Failed to generate insights summary'
-        }), 500 
+            'error': str(e),
+            'data': {
+                'claude_available': False,
+                'error_details': str(e)
+            }
+        })
+
+@insights_bp.route('/report', methods=['GET'])
+@cross_origin()
+@require_auth
+def generate_financial_report():
+    """
+    Generate comprehensive financial report
+    """
+    try:
+        user_id = getattr(request, 'user_id', None)
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'error': 'User authentication required'
+            }), 401
+        
+        period = request.args.get('period', 'monthly')
+        
+        # Generate comprehensive report combining all insights
+        insights_request = InsightRequest(
+            user_id=user_id,
+            period=period,
+            include_receipts=True,
+            include_tax_analysis=True,
+            include_ml_predictions=True
+        )
+        
+        comprehensive_insights = insights_service.generate_comprehensive_insights(insights_request)
+        spending_insights = insights_service.get_spending_insights(user_id, period)
+        tax_insights = insights_service.get_tax_optimization_insights(user_id)
+        budget_insights = insights_service.get_budget_recommendations(user_id)
+        goals_insights = insights_service.get_financial_goals_suggestions(user_id)
+        risk_assessment = insights_service.get_risk_assessment(user_id)
+        
+        # Combine all insights into comprehensive report
+        report = {
+            'user_id': user_id,
+            'period': period,
+            'generated_at': datetime.now().isoformat(),
+            'comprehensive_analysis': comprehensive_insights.__dict__ if hasattr(comprehensive_insights, '__dict__') else comprehensive_insights,
+            'spending_analysis': spending_insights,
+            'tax_optimization': tax_insights,
+            'budget_recommendations': budget_insights,
+            'financial_goals': goals_insights,
+            'risk_assessment': risk_assessment,
+            'summary': {
+                'total_insights': len(comprehensive_insights.insights) if hasattr(comprehensive_insights, 'insights') else 0,
+                'high_priority_insights': len([i for i in (comprehensive_insights.insights if hasattr(comprehensive_insights, 'insights') else []) if i.get('priority') == 'high']),
+                'potential_savings': sum([i.get('potential_savings', 0) for i in (comprehensive_insights.insights if hasattr(comprehensive_insights, 'insights') else [])]),
+                'data_quality_score': comprehensive_insights.summary.get('data_quality_score', 0) if hasattr(comprehensive_insights, 'summary') else 0
+            }
+        }
+        
+        return jsonify({
+            'success': True,
+            'error': None,
+            'data': report
+        })
+        
+    except Exception as e:
+        logger.error(f"Error generating report: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@insights_bp.route('/refresh', methods=['POST'])
+@cross_origin()
+@require_auth
+def refresh_insights():
+    """
+    Refresh all insights data for a user
+    """
+    try:
+        user_id = getattr(request, 'user_id', None)
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'error': 'User authentication required'
+            }), 401
+        
+        data = request.get_json() or {}
+        period = data.get('period', 'monthly')
+        
+        # Create insight request for refresh
+        insight_request = InsightRequest(
+            user_id=user_id,
+            period=period,
+            include_receipts=True,
+            include_tax_analysis=True,
+            include_ml_predictions=True
+        )
+        
+        # Generate fresh comprehensive insights
+        result = insights_service.generate_comprehensive_insights(insight_request)
+        
+        return jsonify({
+            'success': True,
+            'error': None,
+            'data': result.__dict__ if hasattr(result, '__dict__') else result
+        })
+        
+    except Exception as e:
+        logger.error(f"Error refreshing insights: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@insights_bp.route('/health', methods=['GET'])
+@cross_origin()
+def health_check():
+    """
+    Health check endpoint for insights service
+    """
+    service_status = "available" if insights_service else "unavailable"
+    
+    return jsonify({
+        'success': True,
+        'service': 'insights',
+        'status': service_status,
+        'timestamp': datetime.now().isoformat()
+    })
+
+# Error handlers
+@insights_bp.errorhandler(404)
+def not_found(error):
+    return jsonify({
+        'success': False,
+        'error': 'Insights endpoint not found'
+    }), 404
+
+@insights_bp.errorhandler(500)
+def internal_error(error):
+    return jsonify({
+        'success': False,
+        'error': 'Internal server error in insights service'
+    }), 500 

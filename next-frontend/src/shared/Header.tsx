@@ -12,7 +12,7 @@ const Header = () => {
   useEffect(() => {
     setupBankConnectionHandlers();
 
-    // @ts-expect-error
+    // @ts-expect-error - Bootstrap types not available for dynamic import
     import("bootstrap/dist/js/bootstrap.bundle.min")
       .then(() => console.log("Bootstrap loaded"))
       .catch((err) => console.error("Bootstrap failed to load", err));

@@ -113,6 +113,28 @@ export default function Sidebar({
           </li>
           <li className="nav-item">
             <Link
+              href="/budget-predictions"
+              className={`nav-link ${
+                isActive("/budget-predictions") ? "active fw-bold text-primary" : ""
+              }`}
+              id="budget-predictions-nav-link"
+            >
+              <i className="fas fa-chart-line me-2"></i> Budget Predictions
+            </Link>
+          </li>
+          <li className="nav-item">
+            <Link
+              href="/dashboard/insights"
+              className={`nav-link ${
+                isActive("/dashboard/insights") ? "active fw-bold text-primary" : ""
+              }`}
+              id="financial-insights-nav-link"
+            >
+              <i className="fas fa-trending-up me-2"></i> Financial Insights
+            </Link>
+          </li>
+          <li className="nav-item">
+            <Link
               href="/tax-profile"
               className={`nav-link ${
                 isActive("/tax-profile") ? "active fw-bold text-primary" : ""

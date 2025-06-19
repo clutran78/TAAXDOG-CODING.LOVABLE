@@ -1,0 +1,67 @@
+{
+  "include": [
+    "backend",
+    "ai",
+    "database", 
+    "src",
+    "tests"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/venv",
+    "**/next-frontend",
+    "**/uploads",
+    "**/logs"
+  ],
+  "pythonVersion": "3.13",
+  "pythonPlatform": "Darwin",
+  "executionEnvironments": [
+    {
+      "root": ".",
+      "pythonVersion": "3.13",
+      "pythonPlatform": "Darwin",
+      "extraPaths": [
+        "./backend",
+        "./ai", 
+        "./database",
+        "./src",
+        "."
+      ]
+    }
+  ],
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "warning",
+  "reportMissingTypeStubs": false,
+  "reportGeneralTypeIssues": "warning",
+  "reportOptionalMemberAccess": "warning",
+  "reportOptionalOperand": "warning",
+  "reportOptionalSubscript": "warning",
+  "reportPrivateImportUsage": "warning",
+  "reportUnnecessaryTypeIgnoreComment": "information",
+  "reportUnknownArgumentType": "none",
+  "reportUnknownMemberType": "none",
+  "reportUnknownParameterType": "none",
+  "reportUnknownVariableType": "none",
+  "reportAny": "none",
+  "strictListInference": false,
+  "strictDictionaryInference": false,
+  "strictSetInference": false,
+  "analyzeUnannotatedFunctions": false,
+  "strictParameterNoneValue": false,
+  "enableTypeIgnoreComments": true,
+  "reportImportCycles": "none",
+  "reportUntypedFunctionDecorator": "none",
+  "reportUntypedClassDecorator": "none",
+  "reportUntypedBaseClass": "none",
+  "reportUntypedNamedTuple": "none",
+  "reportCallInDefaultInitializer": "none",
+  "reportUnnecessaryIsInstance": "none",
+  "reportUnnecessaryCast": "none",
+  "reportAssertAlwaysTrue": "none",
+  "reportSelfClsParameterName": "warning",
+  "reportImplicitStringConcatenation": "none",
+  "reportInvalidStringEscapeSequence": "error",
+  "reportUnknownLambdaType": "none",
+  "reportImplicitOverride": "none"
+} 

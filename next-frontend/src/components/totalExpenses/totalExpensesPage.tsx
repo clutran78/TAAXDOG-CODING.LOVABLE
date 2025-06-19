@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   performExpenseSearch,
   setupFinancialFeatureHandlers,
@@ -20,35 +20,7 @@ const TotalExpensesPage = () => {
   const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  useEffect(() => {
-    loadDetailedExpenses();
-    setupFinancialFeatureHandlers();
-  }, []);
-
-  useEffect(() => {
-    const debounce = setTimeout(() => {
-      if (searchTerm.trim() === "") {
-        loadDetailedExpenses();
-      } else {
-        performExpenseSearch(searchTerm.trim(), setFilteredExpenses);
-      }
-    }, 400);
-
-    return () => clearTimeout(debounce);
-  }, [searchTerm]);
-
-  const currentExpenses = useMemo(() => {
-    const indexOfLastExpense = currentPage * expensesPerPage;
-    const indexOfFirstExpense = indexOfLastExpense - expensesPerPage;
-    return filteredExpenses.slice(indexOfFirstExpense, indexOfLastExpense);
-  }, [filteredExpenses, currentPage, expensesPerPage]);
-
-  const totalPages = useMemo(
-    () => Math.ceil(filteredExpenses.length / expensesPerPage),
-    [filteredExpenses, expensesPerPage]
-  );
-
-  async function loadDetailedExpenses() {
+  const loadDetailedExpenses = useCallback(async () => {
     try {
       const expenses = await fetchUserExpenses();
 
@@ -73,7 +45,35 @@ const TotalExpensesPage = () => {
       console.log(`Error loading detailed expenses: ${error.message}`);
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    loadDetailedExpenses();
+    setupFinancialFeatureHandlers();
+  }, [loadDetailedExpenses]);
+
+  useEffect(() => {
+    const debounce = setTimeout(() => {
+      if (searchTerm.trim() === "") {
+        loadDetailedExpenses();
+      } else {
+        performExpenseSearch(searchTerm.trim(), setFilteredExpenses);
+      }
+    }, 400);
+
+    return () => clearTimeout(debounce);
+  }, [searchTerm, loadDetailedExpenses]);
+
+  const currentExpenses = useMemo(() => {
+    const indexOfLastExpense = currentPage * expensesPerPage;
+    const indexOfFirstExpense = indexOfLastExpense - expensesPerPage;
+    return filteredExpenses.slice(indexOfFirstExpense, indexOfLastExpense);
+  }, [filteredExpenses, currentPage, expensesPerPage]);
+
+  const totalPages = useMemo(
+    () => Math.ceil(filteredExpenses.length / expensesPerPage),
+    [filteredExpenses, expensesPerPage]
+  );
 
   function formatCurrency(amount: number): string {
     return amount.toLocaleString("en-US", {

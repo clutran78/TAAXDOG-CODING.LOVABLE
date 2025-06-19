@@ -17,6 +17,15 @@ load_dotenv()
 # Enhanced logging configuration
 logger = logging.getLogger(__name__)
 
+# Import Claude client for enhanced OCR capabilities
+try:
+    from claude_client import get_claude_client
+    claude_available = True
+    logger.info("Claude client available for enhanced OCR analysis")
+except ImportError:
+    claude_available = False
+    logger.warning("Claude client not available - using Gemini only")
+
 # Retry configuration for API calls
 MAX_RETRIES = 3
 BACKOFF_FACTOR = 1
@@ -267,6 +276,152 @@ MERCHANT_TAX_CATEGORY_MAPPING = {
     "mcdonald": "Personal", "kfc": "Personal", "subway": "Personal", "domino": "Personal",
     "pharmacy": "Personal", "chemist": "Personal", "retail": "Personal", "shopping": "Personal"
 }
+
+def extract_data_from_image_with_claude(image_path: str, user_profile: dict = None) -> dict:
+    """
+    Extract receipt data using Claude 3.7 Sonnet API with enhanced Australian tax compliance.
+    This is the primary OCR method for TAAXDOG, with advanced tax categorization.
+    
+    Args:
+        image_path (str): Path to the receipt image file
+        user_profile (dict): User's tax profile for context
+        
+    Returns:
+        dict: Extracted receipt data with Australian tax compliance fields
+    """
+    start_time = time.time()
+    log_api_call("claude_extraction_start", "START", f"Processing image with Claude: {image_path}")
+    
+    if not claude_available:
+        log_api_call("claude_check", "ERROR", "Claude client not available")
+        return {
+            "success": False,
+            "error": "Claude API not available. Falling back to Gemini.",
+            "fallback_required": True,
+            "confidence": 0.0
+        }
+    
+    try:
+        # Get Claude client
+        claude_client = get_claude_client()
+        if not claude_client:
+            log_api_call("claude_client", "ERROR", "Failed to get Claude client instance")
+            return {
+                "success": False,
+                "error": "Claude client initialization failed",
+                "fallback_required": True,
+                "confidence": 0.0
+            }
+        
+        # Validate image
+        validation_result = validate_image_for_api(image_path)
+        if not validation_result["valid"]:
+            log_api_call("image_validation", "ERROR", validation_result["error"])
+            return {
+                "success": False,
+                "error": f"Image validation failed: {validation_result['error']}",
+                "confidence": 0.0,
+                "error_type": "validation"
+            }
+        
+        # Read and encode image
+        with open(image_path, 'rb') as image_file:
+            image_data = image_file.read()
+        
+        # Analyze with Claude
+        log_api_call("claude_analysis", "START", "Sending image to Claude for analysis")
+        result = claude_client.analyze_receipt(image_data, user_profile)
+        
+        processing_time = time.time() - start_time
+        
+        if result.get("success"):
+            log_api_call("claude_extraction_complete", "SUCCESS", 
+                        f"Claude extraction completed in {processing_time:.2f}s", processing_time)
+            
+            # Enhanced result with Claude-specific metadata
+            result["processing_metadata"]["claude_enhanced"] = True
+            result["processing_metadata"]["processing_time_total_ms"] = int(processing_time * 1000)
+            result["processing_metadata"]["ocr_method"] = "claude-primary"
+            
+            return result
+        else:
+            log_api_call("claude_extraction_failed", "ERROR", result.get("error", "Unknown error"))
+            return {
+                "success": False,
+                "error": result.get("error", "Claude analysis failed"),
+                "fallback_required": True,
+                "confidence": 0.0,
+                "processing_time": processing_time
+            }
+            
+    except Exception as e:
+        processing_time = time.time() - start_time
+        error_msg = f"Claude extraction error: {str(e)}"
+        log_api_call("claude_extraction_error", "ERROR", error_msg, processing_time)
+        
+        return {
+            "success": False,
+            "error": error_msg,
+            "fallback_required": True,
+            "confidence": 0.0,
+            "processing_time": processing_time
+        }
+
+def extract_data_from_image_enhanced(image_path: str, user_profile: dict = None) -> dict:
+    """
+    Enhanced receipt extraction that tries Claude first, then falls back to Gemini.
+    This provides the best possible OCR accuracy and Australian tax compliance.
+    
+    Args:
+        image_path (str): Path to the receipt image file
+        user_profile (dict): User's tax profile for context
+        
+    Returns:
+        dict: Extracted receipt data with comprehensive metadata
+    """
+    start_time = time.time()
+    log_api_call("enhanced_extraction_start", "START", f"Starting enhanced extraction: {image_path}")
+    
+    # Primary attempt: Claude 3.7 Sonnet
+    claude_result = extract_data_from_image_with_claude(image_path, user_profile)
+    
+    if claude_result.get("success"):
+        total_time = time.time() - start_time
+        log_api_call("enhanced_extraction_complete", "SUCCESS", 
+                    f"Primary Claude extraction successful in {total_time:.2f}s", total_time)
+        return claude_result
+    
+    # Fallback attempt: Gemini 2.0 Flash
+    if claude_result.get("fallback_required", False):
+        log_api_call("fallback_to_gemini", "INFO", "Falling back to Gemini extraction")
+        
+        gemini_result = extract_data_from_image_with_gemini(image_path)
+        
+        if gemini_result.get("success"):
+            # Add fallback metadata
+            if "processing_metadata" in gemini_result:
+                gemini_result["processing_metadata"]["ocr_method"] = "gemini-fallback"
+                gemini_result["processing_metadata"]["claude_attempted"] = True
+                gemini_result["processing_metadata"]["claude_error"] = claude_result.get("error")
+            
+            total_time = time.time() - start_time
+            log_api_call("enhanced_extraction_fallback_success", "SUCCESS", 
+                        f"Gemini fallback successful in {total_time:.2f}s", total_time)
+            return gemini_result
+    
+    # Both methods failed
+    total_time = time.time() - start_time
+    log_api_call("enhanced_extraction_failed", "ERROR", 
+                f"Both Claude and Gemini extraction failed in {total_time:.2f}s", total_time)
+    
+    return {
+        "success": False,
+        "error": "Both Claude and Gemini OCR methods failed",
+        "claude_error": claude_result.get("error"),
+        "gemini_error": gemini_result.get("error") if 'gemini_result' in locals() else "Not attempted",
+        "confidence": 0.0,
+        "processing_time": total_time
+    }
 
 def extract_data_from_image_with_gemini(image_path: str) -> dict:
     """
