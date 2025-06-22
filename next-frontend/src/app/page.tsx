@@ -1,31 +1,30 @@
+import Image from "next/image";
+
 export default function Home() {
   return (
-    <html>
-      <body>
-        <div style={{ padding: '50px', textAlign: 'center', fontFamily: 'Arial' }}>
-          <h1 style={{ color: '#2563eb', fontSize: '48px', marginBottom: '20px' }}>
-            TAAXDOG
-          </h1>
-          <p style={{ fontSize: '18px', color: '#666', marginBottom: '30px' }}>
-            Australian Tax Management Platform
-          </p>
-          <div style={{ marginTop: '40px' }}>
-            <a 
-              href="/login" 
-              style={{ 
-                backgroundColor: '#2563eb', 
-                color: 'white', 
-                padding: '12px 24px', 
-                textDecoration: 'none', 
-                borderRadius: '6px',
-                fontSize: '16px'
-              }}
-            >
-              Get Started
-            </a>
-          </div>
+    <main className="flex min-h-screen flex-col items-center justify-center p-24">
+      <div className="text-center">
+        <h1 className="text-6xl font-bold text-blue-600 mb-8">
+          TAAXDOG
+        </h1>
+        <p className="text-xl text-gray-600 mb-8">
+          Australian Tax Management Platform
+        </p>
+        <div className="space-x-4">
+          <a 
+            href="/login" 
+            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Get Started
+          </a>
+          <a 
+            href="/dashboard" 
+            className="border border-blue-600 text-blue-600 px-6 py-3 rounded-lg hover:bg-blue-50 transition-colors"
+          >
+            Dashboard
+          </a>
         </div>
-      </body>
-    </html>
+      </div>
+    </main>
   );
 }
