@@ -1,12 +1,24 @@
 {
-  "name": "taaxdog-receipt-scanner",
-  "version": "1.0.0",
-  "description": "TAAXDOG Receipt Scanner with OCR integration",
-  "main": "proxy-server.js",
+  "name": "taaxdog",
+  "version": "0.1.0",
+  "private": true,
   "scripts": {
-    "start": "node proxy-server.js"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
-    "formidable": "^2.1.2"
+    "next": "15.1.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^8",
+    "eslint-config-next": "15.1.3",
+    "typescript": "^5"
   }
 } 
