@@ -4,4 +4,4 @@ out
 build
 dist
 *.config.js
-*.config.ts 
+*.config.ts
