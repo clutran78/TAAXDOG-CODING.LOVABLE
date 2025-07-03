@@ -1,6 +1,6 @@
 """
-Security Middleware for TAAXDOG Production
-Implements rate limiting, CSRF protection, input validation, and security headers
+TAAXDOG Enhanced Security Middleware
+Prevents HTTP request smuggling, validates requests, and implements security headers
 """
 
 import os
@@ -9,7 +9,7 @@ import hashlib
 import secrets
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List, Callable
+from typing import Dict, Any, Optional, List, Callable, Tuple
 from functools import wraps
 from flask import Flask, request, jsonify, g, abort
 from werkzeug.exceptions import TooManyRequests
@@ -26,307 +26,317 @@ except ImportError:
     Limiter = None
     Talisman = None
 
+# Configure security logging
+security_logger = logging.getLogger('taaxdog.security')
+security_logger.setLevel(logging.INFO)
 
 class SecurityConfig:
-    """Security configuration settings"""
+    """Security configuration constants"""
     
-    # Rate limiting settings
-    DEFAULT_RATE_LIMIT = "60 per minute"
-    STRICT_RATE_LIMIT = "30 per minute"
-    PREMIUM_RATE_LIMIT = "200 per minute"
+    # Request limits to prevent smuggling
+    MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB
+    MAX_HEADER_COUNT = 50
+    MAX_HEADER_SIZE = 8192
+    MAX_URL_LENGTH = 2048
     
-    # Security patterns
-    SUSPICIOUS_PATTERNS = [
-        r'<script[^>]*>.*?</script>',  # XSS attempts
-        r'javascript:',  # JavaScript protocol
-        r'data:text/html',  # Data URI XSS
-        r'vbscript:',  # VBScript protocol
-        r'on\w+\s*=',  # Event handlers
-        r'(union|select|insert|update|delete|drop|create|alter)\s+',  # SQL injection
-        r'(\||&|;|\$\(|\`)',  # Command injection
-        r'\.\./',  # Directory traversal
-        r'file://',  # File protocol
-        r'php://filter',  # PHP filter
-    ]
+    # Rate limiting
+    RATE_LIMIT_MAX = 100  # requests per minute
+    RATE_LIMIT_WINDOW = 60  # seconds
+    
+    # Dangerous HTTP methods
+    DANGEROUS_METHODS = ['TRACE', 'TRACK', 'CONNECT']
     
     # Blocked user agents
     BLOCKED_USER_AGENTS = [
-        'sqlmap',
-        'nmap',
-        'nikto',
-        'w3af',
-        'acunetix',
-        'netsparker',
-        'masscan'
-    ]
-    
-    # Sensitive endpoints requiring extra protection
-    SENSITIVE_ENDPOINTS = [
-        '/api/auth',
-        '/api/upload',
-        '/api/banking',
-        '/api/financial',
-        '/api/user'
+        'sqlmap', 'nmap', 'nikto', 'w3af', 'acunetix', 'netsparker',
+        'masscan', 'zap', 'burp', 'vega'
     ]
 
+# In-memory rate limiting store (use Redis in production)
+rate_limit_store: Dict[str, Dict[str, List[float]]] = {}
 
-class RateLimiter:
-    """Advanced rate limiting with Redis backend"""
+def get_client_ip() -> str:
+    """Get client IP with proxy support"""
+    forwarded = request.headers.get('X-Forwarded-For')
+    if forwarded:
+        return forwarded.split(',')[0].strip()
     
-    def __init__(self, app: Optional[Flask] = None):
-        self.app = app
-        self.redis_client = None
-        self.logger = logging.getLogger('taaxdog.security')
-        
-        if app:
-            self.init_app(app)
+    real_ip = request.headers.get('X-Real-IP')
+    if real_ip:
+        return real_ip
     
-    def init_app(self, app: Flask):
-        """Initialize rate limiter with Flask app"""
-        self.app = app
-        
-        # Setup Redis connection
-        if redis:
-            try:
-                redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/1')  # Use DB 1 for rate limiting
-                self.redis_client = redis.from_url(redis_url)
-                self.redis_client.ping()
-                self.logger.info("Redis rate limiter initialized")
-            except Exception as e:
-                self.logger.warning(f"Redis unavailable for rate limiting: {e}")
-        
-        # Setup Flask-Limiter if available
-        if Limiter and self.redis_client:
-            self.limiter = Limiter(
-                app,
-                key_func=self._get_limiter_key,
-                storage_uri=os.environ.get('REDIS_URL', 'redis://localhost:6379/1'),
-                default_limits=["1000 per hour", "60 per minute"]
-            )
-        else:
-            self.limiter = None
-    
-    def _get_limiter_key(self) -> str:
-        """Get rate limiting key based on user or IP"""
-        # Try to get user ID first
-        user_id = getattr(g, 'user_id', None) or request.headers.get('X-User-ID')
-        if user_id:
-            return f"user:{user_id}"
-        
-        # Fall back to IP address
-        return f"ip:{get_remote_address()}"
-    
-    def is_rate_limited(self, key: str, limit: int, window: int) -> bool:
-        """Check if key is rate limited"""
-        if not self.redis_client:
-            return False  # No rate limiting if Redis unavailable
-        
-        try:
-            current_time = int(time.time())
-            window_start = current_time - window
-            
-            # Clean old entries
-            self.redis_client.zremrangebyscore(key, 0, window_start)
-            
-            # Count current requests
-            current_count = self.redis_client.zcard(key)
-            
-            if current_count >= limit:
-                return True
-            
-            # Add current request
-            self.redis_client.zadd(key, {str(current_time): current_time})
-            self.redis_client.expire(key, window)
-            
-            return False
-            
-        except Exception as e:
-            self.logger.error(f"Rate limiting check failed: {e}")
-            return False  # Fail open
-    
-    def apply_rate_limit(self, limit: str = None):
-        """Decorator to apply rate limiting to endpoints"""
-        def decorator(func):
-            @wraps(func)
-            def wrapper(*args, **kwargs):
-                if self.limiter and limit:
-                    # Use Flask-Limiter if available
-                    try:
-                        self.limiter.limit(limit)(func)(*args, **kwargs)
-                    except TooManyRequests:
-                        return jsonify({
-                            'error': 'Rate limit exceeded',
-                            'retry_after': 60
-                        }), 429
-                else:
-                    # Manual rate limiting
-                    key = self._get_limiter_key()
-                    if self.is_rate_limited(key, 60, 60):  # 60 requests per minute
-                        return jsonify({
-                            'error': 'Rate limit exceeded',
-                            'retry_after': 60
-                        }), 429
-                
-                return func(*args, **kwargs)
-            return wrapper
-        return decorator
+    return request.remote_addr or '127.0.0.1'
 
+def log_security_event(event: str, level: str, details: Optional[Dict] = None):
+    """Log security events with standardized format"""
+    log_data = {
+        'timestamp': time.time(),
+        'event': event,
+        'level': level,
+        'ip': get_client_ip(),
+        'user_agent': request.headers.get('User-Agent', ''),
+        'path': request.path,
+        'method': request.method,
+        'details': details or {}
+    }
+    
+    if level == 'error':
+        security_logger.error(f"Security Event: {event}", extra=log_data)
+    elif level == 'warn':
+        security_logger.warning(f"Security Event: {event}", extra=log_data)
+    else:
+        security_logger.info(f"Security Event: {event}", extra=log_data)
 
-class InputValidator:
-    """Input validation and sanitization"""
+def check_rate_limit(ip: str) -> bool:
+    """Check if IP is within rate limits"""
+    now = time.time()
+    window_start = now - SecurityConfig.RATE_LIMIT_WINDOW
     
-    def __init__(self):
-        self.logger = logging.getLogger('taaxdog.security')
-        self.suspicious_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in SecurityConfig.SUSPICIOUS_PATTERNS]
-    
-    def validate_input(self, data: Any, field_name: str = "input") -> bool:
-        """Validate input data for security threats"""
-        if isinstance(data, dict):
-            return all(self.validate_input(v, k) for k, v in data.items())
-        elif isinstance(data, list):
-            return all(self.validate_input(item, field_name) for item in data)
-        elif isinstance(data, str):
-            return self._validate_string(data, field_name)
-        else:
-            return True  # Other types are generally safe
-    
-    def _validate_string(self, text: str, field_name: str) -> bool:
-        """Validate string input"""
-        # Check for suspicious patterns
-        for pattern in self.suspicious_patterns:
-            if pattern.search(text):
-                self.logger.warning(f"Suspicious pattern detected in {field_name}: {pattern.pattern}")
-                return False
-        
-        # Check for excessively long input
-        if len(text) > 10000:  # 10KB limit
-            self.logger.warning(f"Oversized input detected in {field_name}: {len(text)} characters")
-            return False
-        
+    if ip not in rate_limit_store:
+        rate_limit_store[ip] = {'requests': [now]}
         return True
     
-    def sanitize_filename(self, filename: str) -> str:
-        """Sanitize filename to prevent directory traversal"""
-        # Remove directory separators and other dangerous characters
-        safe_filename = re.sub(r'[^\w\-_\.]', '', filename)
-        
-        # Prevent hidden files and relative paths
-        if safe_filename.startswith('.') or '..' in safe_filename:
-            safe_filename = 'file_' + safe_filename.replace('..', '').replace('.', '_')
-        
-        # Ensure filename is not empty
-        if not safe_filename:
-            safe_filename = f"file_{int(time.time())}"
-        
-        return safe_filename
+    # Clean old requests
+    requests_list = rate_limit_store[ip]['requests']
+    filtered_requests = [req_time for req_time in requests_list if req_time > window_start]
     
-    def validate_file_upload(self, file_data: bytes, filename: str, allowed_types: List[str]) -> Dict[str, Any]:
-        """Validate file upload"""
-        result = {
-            'valid': True,
-            'errors': [],
-            'sanitized_filename': self.sanitize_filename(filename)
-        }
-        
-        # Check file size (10MB limit)
-        if len(file_data) > 10 * 1024 * 1024:
-            result['valid'] = False
-            result['errors'].append('File too large (max 10MB)')
-        
-        # Check file type by extension
-        file_ext = filename.lower().split('.')[-1] if '.' in filename else ''
-        if file_ext not in allowed_types:
-            result['valid'] = False
-            result['errors'].append(f'File type not allowed: {file_ext}')
-        
-        # Basic magic number validation for images
-        if file_ext in ['jpg', 'jpeg', 'png', 'gif', 'pdf']:
-            if not self._validate_file_magic(file_data, file_ext):
-                result['valid'] = False
-                result['errors'].append('File content does not match extension')
-        
-        return result
+    if len(filtered_requests) >= SecurityConfig.RATE_LIMIT_MAX:
+        return False
     
-    def _validate_file_magic(self, file_data: bytes, file_ext: str) -> bool:
-        """Validate file magic numbers"""
-        if len(file_data) < 10:
-            return False
-        
-        magic_numbers = {
-            'jpg': [b'\xff\xd8\xff'],
-            'jpeg': [b'\xff\xd8\xff'],
-            'png': [b'\x89\x50\x4e\x47'],
-            'gif': [b'\x47\x49\x46\x38'],
-            'pdf': [b'\x25\x50\x44\x46']
-        }
-        
-        expected_magics = magic_numbers.get(file_ext, [])
-        return any(file_data.startswith(magic) for magic in expected_magics)
+    filtered_requests.append(now)
+    rate_limit_store[ip] = {'requests': filtered_requests}
+    return True
 
+def detect_request_smuggling() -> Tuple[bool, str]:
+    """
+    CRITICAL: Detect HTTP request smuggling attempts
+    Returns (is_smuggling, reason)
+    """
+    
+    # Check for multiple Content-Length headers
+    content_length_headers = request.headers.getlist('Content-Length')
+    if len(content_length_headers) > 1:
+        return True, "Multiple Content-Length headers detected"
+    
+    # Check for Transfer-Encoding and Content-Length conflict
+    transfer_encoding = request.headers.get('Transfer-Encoding')
+    content_length = request.headers.get('Content-Length')
+    if transfer_encoding and content_length:
+        return True, "Transfer-Encoding and Content-Length conflict"
+    
+    # Check for dangerous HTTP methods
+    if request.method in SecurityConfig.DANGEROUS_METHODS:
+        return True, f"Dangerous HTTP method: {request.method}"
+    
+    # Check header count
+    if len(request.headers) > SecurityConfig.MAX_HEADER_COUNT:
+        return True, f"Too many headers: {len(request.headers)}"
+    
+    # Check for header injection (CRLF injection)
+    for header_name, header_value in request.headers:
+        if any(char in str(header_value) for char in ['\r', '\n', '\x00']):
+            return True, f"Header injection detected in {header_name}"
+        
+        # Check header size
+        if len(header_name) + len(str(header_value)) > SecurityConfig.MAX_HEADER_SIZE:
+            return True, f"Header too large: {header_name}"
+    
+    # Check for folded headers (deprecated in HTTP/1.1)
+    for header_name, header_value in request.headers:
+        if str(header_value).startswith(' ') or str(header_value).startswith('\t'):
+            return True, f"Folded header detected: {header_name}"
+    
+    # Check URL length
+    if len(request.url) > SecurityConfig.MAX_URL_LENGTH:
+        return True, f"URL too long: {len(request.url)}"
+    
+    # Check for null bytes in URL
+    if '\x00' in request.url:
+        return True, "Null byte in URL"
+    
+    return False, ""
 
-class CSRFProtection:
-    """CSRF protection implementation"""
+def detect_malicious_patterns() -> Tuple[bool, str]:
+    """Detect common attack patterns"""
     
-    def __init__(self):
-        self.logger = logging.getLogger('taaxdog.security')
-        self.secret = os.environ.get('CSRF_SECRET', secrets.token_urlsafe(32))
+    patterns = [
+        (r'<script[^>]*>.*?</script>', 'XSS Script tag'),
+        (r'javascript:', 'JavaScript protocol'),
+        (r'vbscript:', 'VBScript protocol'),
+        (r'on\w+\s*=', 'Event handler'),
+        (r'(union|select|insert|update|delete|drop)\s+', 'SQL injection'),
+        (r'file://', 'File protocol'),
+        (r'\.\./|\.\.\/', 'Directory traversal'),
+        (r'\x00', 'Null byte'),
+        (r'%00', 'URL encoded null byte'),
+        (r'(?i)(exec|eval|system|shell_exec)', 'Code execution'),
+    ]
     
-    def generate_token(self, user_id: str = None) -> str:
-        """Generate CSRF token"""
-        timestamp = str(int(time.time()))
-        user_data = user_id or get_remote_address()
-        
-        # Create token with timestamp and user data
-        token_data = f"{timestamp}:{user_data}"
-        token_hash = hashlib.hmac.new(
-            self.secret.encode(),
-            token_data.encode(),
-            hashlib.sha256
-        ).hexdigest()
-        
-        return f"{timestamp}.{token_hash}"
+    # Check URL and query parameters
+    test_strings = [
+        request.url,
+        request.path,
+        str(request.args),
+        request.headers.get('User-Agent', ''),
+        request.headers.get('Referer', '')
+    ]
     
-    def validate_token(self, token: str, user_id: str = None, max_age: int = 3600) -> bool:
-        """Validate CSRF token"""
-        if not token or '.' not in token:
-            return False
-        
-        try:
-            timestamp_str, token_hash = token.split('.', 1)
-            timestamp = int(timestamp_str)
-            
-            # Check token age
-            if time.time() - timestamp > max_age:
-                return False
-            
-            # Verify token
-            user_data = user_id or get_remote_address()
-            expected_data = f"{timestamp_str}:{user_data}"
-            expected_hash = hashlib.hmac.new(
-                self.secret.encode(),
-                expected_data.encode(),
-                hashlib.sha256
-            ).hexdigest()
-            
-            return secrets.compare_digest(token_hash, expected_hash)
-            
-        except (ValueError, IndexError):
-            return False
+    for test_string in test_strings:
+        for pattern, description in patterns:
+            if re.search(pattern, test_string, re.IGNORECASE):
+                return True, f"{description} in {test_string[:100]}"
     
-    def require_csrf_token(self, func):
-        """Decorator to require CSRF token"""
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            if request.method in ['POST', 'PUT', 'DELETE', 'PATCH']:
-                token = request.headers.get('X-CSRF-Token') or request.form.get('csrf_token')
-                user_id = getattr(g, 'user_id', None)
-                
-                if not self.validate_token(token, user_id):
-                    return jsonify({'error': 'Invalid CSRF token'}), 403
-            
-            return func(*args, **kwargs)
-        return wrapper
+    return False, ""
 
+def validate_request_integrity() -> Tuple[bool, str]:
+    """Validate request integrity and structure"""
+    
+    # Check content length matches actual content
+    if request.method in ['POST', 'PUT', 'PATCH']:
+        content_length = request.headers.get('Content-Length')
+        if content_length:
+            try:
+                declared_length = int(content_length)
+                if hasattr(request, 'content_length') and request.content_length:
+                    if declared_length != request.content_length:
+                        return False, "Content-Length mismatch"
+            except ValueError:
+                return False, "Invalid Content-Length header"
+    
+    # Check for valid Content-Type for POST requests
+    if request.method in ['POST', 'PUT', 'PATCH']:
+        content_type = request.headers.get('Content-Type', '')
+        if not content_type:
+            return False, "Missing Content-Type header"
+    
+    return True, ""
+
+def security_middleware():
+    """Main security middleware function"""
+    
+    # Generate request ID for tracking
+    g.request_id = secrets.token_hex(16)
+    
+    client_ip = get_client_ip()
+    user_agent = request.headers.get('User-Agent', '')
+    
+    # 1. Block malicious user agents
+    for blocked_agent in SecurityConfig.BLOCKED_USER_AGENTS:
+        if blocked_agent.lower() in user_agent.lower():
+            log_security_event(
+                'blocked_user_agent', 
+                'warn', 
+                {'user_agent': user_agent, 'ip': client_ip}
+            )
+            return jsonify({'error': 'Access denied'}), 403
+    
+    # 2. Rate limiting
+    if not check_rate_limit(client_ip):
+        log_security_event(
+            'rate_limit_exceeded', 
+            'warn', 
+            {'ip': client_ip}
+        )
+        return jsonify({'error': 'Rate limit exceeded'}), 429
+    
+    # 3. CRITICAL: Detect HTTP request smuggling
+    is_smuggling, smuggling_reason = detect_request_smuggling()
+    if is_smuggling:
+        log_security_event(
+            'http_request_smuggling_detected', 
+            'error', 
+            {
+                'reason': smuggling_reason,
+                'headers': dict(request.headers),
+                'method': request.method,
+                'ip': client_ip
+            }
+        )
+        return jsonify({'error': 'Malformed request'}), 400
+    
+    # 4. Detect malicious patterns
+    is_malicious, malicious_reason = detect_malicious_patterns()
+    if is_malicious:
+        log_security_event(
+            'malicious_pattern_detected', 
+            'error', 
+            {
+                'reason': malicious_reason,
+                'ip': client_ip
+            }
+        )
+        return jsonify({'error': 'Bad request'}), 400
+    
+    # 5. Validate request integrity
+    is_valid, validation_reason = validate_request_integrity()
+    if not is_valid:
+        log_security_event(
+            'request_integrity_violation', 
+            'warn', 
+            {
+                'reason': validation_reason,
+                'ip': client_ip
+            }
+        )
+        return jsonify({'error': 'Invalid request format'}), 400
+    
+    # Log successful security check
+    log_security_event('security_check_passed', 'info')
+
+def add_security_headers(response):
+    """Add security headers to response"""
+    
+    # Prevent HTTP request smuggling
+    response.headers['Connection'] = 'close'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
+    
+    # Additional security headers
+    response.headers['X-Permitted-Cross-Domain-Policies'] = 'none'
+    response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
+    response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+    response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
+    
+    # Request tracking
+    if hasattr(g, 'request_id'):
+        response.headers['X-Request-ID'] = g.request_id
+    
+    # Remove server information
+    response.headers.pop('Server', None)
+    
+    return response
+
+def init_security_middleware(app: Flask):
+    """Initialize security middleware for Flask app"""
+    
+    # Set maximum content length
+    app.config['MAX_CONTENT_LENGTH'] = SecurityConfig.MAX_CONTENT_LENGTH
+    
+    # Add before_request middleware
+    app.before_request(security_middleware)
+    
+    # Add after_request middleware for headers
+    app.after_request(add_security_headers)
+    
+    security_logger.info("Security middleware initialized")
+
+# Decorator for additional endpoint security
+def require_security_validation(f):
+    """Decorator for endpoints requiring additional security validation"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Additional CSRF protection for sensitive endpoints
+        if request.method in ['POST', 'PUT', 'DELETE', 'PATCH']:
+            csrf_token = request.headers.get('X-CSRF-Token')
+            if not csrf_token:
+                log_security_event('missing_csrf_token', 'warn')
+                return jsonify({'error': 'CSRF token required'}), 403
+        
+        return f(*args, **kwargs)
+    return decorated_function
 
 class SecurityMiddleware:
     """Main security middleware class"""

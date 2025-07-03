@@ -1,0 +1,72 @@
+import { NextApiRequest, NextApiResponse } from 'next';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '../auth/[...nextauth]';
+import { taxConsultant } from '../../../lib/ai/services/tax-consultation';
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    res.status(405).end('Method Not Allowed');
+    return;
+  }
+
+  try {
+    const session = await getServerSession(req, res, authOptions);
+    
+    if (!session?.user?.id) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { query, context, operation } = req.body;
+
+    if (!query) {
+      return res.status(400).json({ error: 'Query is required' });
+    }
+
+    let result;
+
+    switch (operation) {
+      case 'consult':
+        result = await taxConsultant.consultTaxQuery(
+          session.user.id,
+          query,
+          context
+        );
+        break;
+
+      case 'analyzeDeductions':
+        if (!req.body.expenses) {
+          return res.status(400).json({ error: 'Expenses data required' });
+        }
+        result = await taxConsultant.analyzeDeductions(
+          session.user.id,
+          req.body.expenses
+        );
+        break;
+
+      case 'generateStrategy':
+        if (!req.body.financialData) {
+          return res.status(400).json({ error: 'Financial data required' });
+        }
+        result = await taxConsultant.generateTaxStrategy(
+          session.user.id,
+          req.body.financialData
+        );
+        break;
+
+      default:
+        return res.status(400).json({ error: 'Invalid operation' });
+    }
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Tax consultation error:', error);
+    res.status(500).json({ 
+      error: 'Tax consultation failed',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}

@@ -96,6 +96,10 @@ Thumbs.db
 # Firebase
 firebase-debug.log
 .firebase/
+firebase-adminsdk.json
+*firebase-adminsdk*.json
+backend/firebase-adminsdk.json
+config/firebase-adminsdk.json
 
 # Testing
 .coverage
@@ -119,3 +123,4 @@ backend/app_old.py
 backend/routes/auth_routes_v1.py
 backend/routes/banking_routes_v1.py
 backend/routes/financial_routes_v1.py
+/generated/prisma

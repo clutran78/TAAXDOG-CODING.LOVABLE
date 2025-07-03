@@ -1,0 +1,14 @@
+# Test database connection
+python -c "import psycopg2; conn = psycopg2.connect('postgresql://taaxdog-admin:AVNS_kp_8AWjX2AzlvWOqm_V@taaxdog-prod-do-user-18496803-0.h.db.ondigitalocean.com:25060/taaxdog_production?sslmode=require'); print('✅ Production database connected'); conn.close()"
+
+# Test all tables exist
+python -c "from database.models import *; print('✅ All models imported successfully')"
+
+
+# Test Stripe connection
+curl -H "Authorization: Bearer sk_test_51Re1oyLl1e8i03PEsk2iY3TBuHqYgzIACzU2ZGksCFZyoGEy2I7DJ991BsN08"
+https://api.stripe.com/v1/customers
+
+# Test BASIQ connection
+curl -H "Authorization: Bearer MThmYjA5ZWEtNzRhMi00Nzc5LTk0ZjAtYmRkOTExZDgwMGI4OjhjZjUzZWUzLTYxYmItNDlkMC"
+https://au-api.basiq.io/institutions

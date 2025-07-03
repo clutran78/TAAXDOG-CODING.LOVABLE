@@ -1,0 +1,47 @@
+{
+  "startTime": 1751452344623,
+  "endTime": 1751452368424,
+  "collections": {},
+  "errors": [
+    {
+      "collection": "users",
+      "error": "16 UNAUTHENTICATED: Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.",
+      "timestamp": "2025-07-02T10:32:28.583Z"
+    },
+    {
+      "collection": "bankAccounts",
+      "error": "16 UNAUTHENTICATED: Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.",
+      "timestamp": "2025-07-02T10:32:31.813Z"
+    },
+    {
+      "collection": "transactions",
+      "error": "16 UNAUTHENTICATED: Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.",
+      "timestamp": "2025-07-02T10:32:35.244Z"
+    },
+    {
+      "collection": "receipts",
+      "error": "16 UNAUTHENTICATED: Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.",
+      "timestamp": "2025-07-02T10:32:38.474Z"
+    },
+    {
+      "collection": "budgets",
+      "error": "16 UNAUTHENTICATED: Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.",
+      "timestamp": "2025-07-02T10:32:41.706Z"
+    },
+    {
+      "collection": "budgetTracking",
+      "error": "16 UNAUTHENTICATED: Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.",
+      "timestamp": "2025-07-02T10:32:44.963Z"
+    },
+    {
+      "collection": "financialInsights",
+      "error": "16 UNAUTHENTICATED: Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.",
+      "timestamp": "2025-07-02T10:32:48.424Z"
+    }
+  ],
+  "idMappings": {},
+  "exportDate": "2025-07-02T10:32:48.424Z",
+  "duration": 23801,
+  "totalDocuments": 0,
+  "totalSize": 0
+}

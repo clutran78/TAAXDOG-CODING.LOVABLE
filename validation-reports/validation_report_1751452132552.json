@@ -1,0 +1,149 @@
+{
+  "timestamp": "2025-07-02T10:28:52.334Z",
+  "summary": {
+    "totalCollections": 5,
+    "passedCollections": 5,
+    "failedCollections": 0,
+    "totalIssues": 5,
+    "criticalIssues": 0,
+    "overallStatus": "FAILED",
+    "successRate": "100.00%"
+  },
+  "recordCounts": {
+    "users": {
+      "collection": "users",
+      "tableName": "users",
+      "firebaseCount": 0,
+      "postgresCount": 0,
+      "difference": 0,
+      "match": true,
+      "hasDuplicates": false,
+      "status": "✅"
+    },
+    "receipts": {
+      "collection": "receipts",
+      "tableName": "receipts",
+      "firebaseCount": 0,
+      "postgresCount": 0,
+      "difference": 0,
+      "match": true,
+      "hasDuplicates": false,
+      "status": "✅"
+    },
+    "budgets": {
+      "collection": "budgets",
+      "tableName": "budgets",
+      "firebaseCount": 0,
+      "postgresCount": 0,
+      "difference": 0,
+      "match": true,
+      "hasDuplicates": false,
+      "status": "✅"
+    },
+    "budgetTracking": {
+      "collection": "budgetTracking",
+      "tableName": "budget_tracking",
+      "firebaseCount": 0,
+      "postgresCount": 0,
+      "difference": 0,
+      "match": true,
+      "hasDuplicates": false,
+      "status": "✅"
+    },
+    "financialInsights": {
+      "collection": "financialInsights",
+      "tableName": "financial_insights",
+      "firebaseCount": 0,
+      "postgresCount": 0,
+      "difference": 0,
+      "match": true,
+      "hasDuplicates": false,
+      "status": "✅"
+    }
+  },
+  "relationships": {
+    "Budget Tracking → Budgets": {
+      "relationship": "Budget Tracking → Budgets",
+      "orphanedRecords": 0,
+      "valid": true,
+      "status": "✅"
+    },
+    "Financial Insights → Users": {
+      "relationship": "Financial Insights → Users",
+      "orphanedRecords": 0,
+      "valid": true,
+      "status": "✅"
+    }
+  },
+  "dataIntegrity": {},
+  "australianCompliance": {
+    "phoneFormat": {
+      "check": "Phone number format (+61XXXXXXXXX)",
+      "invalidRecords": 0,
+      "valid": true,
+      "status": "✅"
+    },
+    "gstCalculations": {
+      "check": "GST calculations (10%)",
+      "invalidRecords": 0,
+      "valid": true,
+      "status": "✅"
+    }
+  },
+  "performance": {
+    "User lookup by email": {
+      "test": "User lookup by email",
+      "duration": 1,
+      "status": "✅",
+      "withinThreshold": true
+    },
+    "Budget tracking query": {
+      "test": "Budget tracking query",
+      "duration": 3,
+      "status": "✅",
+      "withinThreshold": true
+    },
+    "connectionPooling": {
+      "concurrentConnections": 10,
+      "duration": 113,
+      "status": "✅"
+    }
+  },
+  "issues": [
+    {
+      "type": "VALIDATION_ERROR",
+      "message": "Failed to validate basiqUsers",
+      "severity": "medium",
+      "timestamp": "2025-07-02T10:28:52.357Z",
+      "details": "relation \"basiq_users\" does not exist"
+    },
+    {
+      "type": "VALIDATION_ERROR",
+      "message": "Failed to validate bankAccounts",
+      "severity": "medium",
+      "timestamp": "2025-07-02T10:28:52.361Z",
+      "details": "relation \"bank_accounts\" does not exist"
+    },
+    {
+      "type": "VALIDATION_ERROR",
+      "message": "Failed to validate transactions",
+      "severity": "medium",
+      "timestamp": "2025-07-02T10:28:52.366Z",
+      "details": "relation \"bank_transactions\" does not exist"
+    },
+    {
+      "type": "VALIDATION_ERROR",
+      "message": "Failed to validate aiConversations",
+      "severity": "medium",
+      "timestamp": "2025-07-02T10:28:52.373Z",
+      "details": "relation \"ai_conversations\" does not exist"
+    },
+    {
+      "type": "VALIDATION_ERROR",
+      "message": "Failed to validate aiUsageTracking",
+      "severity": "medium",
+      "timestamp": "2025-07-02T10:28:52.376Z",
+      "details": "relation \"ai_usage_tracking\" does not exist"
+    }
+  ]
+}

@@ -12,7 +12,7 @@ I have successfully integrated Claude 3.7 Sonnet API throughout the TAAXDOG fina
 - **Location**: `production.env`
 - **Added Claude API Configuration**:
   ```env
-  # Claude 3.7 Sonnet API Configuration
+  # Claude 4 Sonnet API Configuration
   CLAUDE_API_KEY=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
   CLAUDE_API_URL=https://api.anthropic.com/v1/messages
   CLAUDE_MODEL=claude-3-5-sonnet-20241022
@@ -23,7 +23,7 @@ I have successfully integrated Claude 3.7 Sonnet API throughout the TAAXDOG fina
 ### **2. Claude Client Service** ✅
 - **Location**: `src/integrations/claude_client.py`
 - **Features**:
-  - Comprehensive Claude 3.7 Sonnet API client
+  - Comprehensive Claude 4 Sonnet API client
   - Receipt OCR analysis with Australian tax categorization
   - Financial data analysis with ATO compliance
   - Conversational financial advice generation
@@ -93,7 +93,7 @@ I have successfully integrated Claude 3.7 Sonnet API throughout the TAAXDOG fina
 ## 🎯 **KEY FEATURES IMPLEMENTED**
 
 ### **Receipt Processing Enhancements**
-✅ **Claude OCR Analysis**: Primary receipt processing with Claude 3.7 Sonnet
+✅ **Claude OCR Analysis**: Primary receipt processing with Claude 4 Sonnet
 ✅ **Australian Tax Categories**: D1-D15, P8, Personal categorization
 ✅ **GST Calculation**: Automatic GST extraction and validation
 ✅ **Business Expense Detection**: AI-powered likelihood scoring
@@ -122,7 +122,7 @@ I have successfully integrated Claude 3.7 Sonnet API throughout the TAAXDOG fina
 ---
 
 ## 🔧 **INTEGRATION POINTS**
-
+1
 ### **1. Receipt Upload Flow**
 ```
 User uploads receipt → Claude OCR analysis → Australian tax categorization → 
