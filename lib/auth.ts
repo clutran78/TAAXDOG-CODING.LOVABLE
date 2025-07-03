@@ -1,7 +1,6 @@
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "./prisma";
 import bcrypt from "bcryptjs";
 import { Role } from "../generated/prisma";
@@ -10,7 +9,7 @@ import { getAuthConfig } from "./config";
 const authConfig = getAuthConfig();
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  // adapter: PrismaAdapter(prisma), // Temporarily removed for compatibility
   providers: [
     // Google OAuth - configure in environment files to enable
     ...(authConfig.providers?.google?.clientId && authConfig.providers?.google?.clientSecret
@@ -235,6 +234,13 @@ export function validatePassword(password: string): { valid: boolean; errors: st
 // Hash password helper
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 12);
+}
+
+// Generate secure token helper
+function generateSecureToken(): string {
+  return Array.from({ length: 32 }, () => 
+    Math.random().toString(36)[2] || Math.random().toString(36)[3]
+  ).join('');
 }
 
 // Enhanced audit logging with request context

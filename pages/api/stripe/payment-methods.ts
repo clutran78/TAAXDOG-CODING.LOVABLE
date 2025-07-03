@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
+import authOptions from '../auth/[...nextauth]';
 import { getStripe } from '@/lib/stripe/config';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
@@ -144,73 +144,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(500).json({ 
       error: 'Failed to manage payment methods', 
       message: error.message 
-    });
-  }
-}
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
-import { PaymentService } from '../../../lib/stripe/payment-service';
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  const session = await getServerSession(req, res, authOptions);
-  
-  if (!session?.user?.id) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
-  const paymentService = new PaymentService();
-
-  try {
-    switch (req.method) {
-      case 'GET':
-        const paymentMethods = await paymentService.getPaymentMethods(session.user.id);
-        return res.status(200).json({ paymentMethods });
-
-      case 'POST':
-        const { paymentMethodId } = req.body;
-        if (!paymentMethodId) {
-          return res.status(400).json({ error: 'Payment method ID is required' });
-        }
-        
-        const result = await paymentService.addPaymentMethod(session.user.id, paymentMethodId);
-        return res.status(200).json(result);
-
-      case 'PUT':
-        const { paymentMethodId: defaultMethodId } = req.body;
-        if (!defaultMethodId) {
-          return res.status(400).json({ error: 'Payment method ID is required' });
-        }
-        
-        const setDefaultResult = await paymentService.setDefaultPaymentMethod(
-          session.user.id, 
-          defaultMethodId
-        );
-        return res.status(200).json(setDefaultResult);
-
-      case 'DELETE':
-        const { paymentMethodId: deleteMethodId } = req.query;
-        if (!deleteMethodId || typeof deleteMethodId !== 'string') {
-          return res.status(400).json({ error: 'Payment method ID is required' });
-        }
-        
-        const deleteResult = await paymentService.removePaymentMethod(
-          session.user.id, 
-          deleteMethodId
-        );
-        return res.status(200).json(deleteResult);
-
-      default:
-        res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
-        return res.status(405).end('Method Not Allowed');
-    }
-  } catch (error) {
-    console.error('Payment method error:', error);
-    return res.status(500).json({ 
-      error: 'Payment method operation failed',
-      message: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 }

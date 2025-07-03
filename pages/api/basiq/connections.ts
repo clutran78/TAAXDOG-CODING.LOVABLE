@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
+import authOptions from '../auth/[...nextauth]';
 import { basiqClient } from '@/lib/basiq/client';
 import { basiqDB } from '@/lib/basiq/database';
 import { CreateConnectionParams } from '@/lib/basiq/types';
@@ -96,8 +96,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       case 'PUT':
         // Refresh connection
-        const { connectionId } = req.body;
-        if (!connectionId) {
+        const { connectionId: refreshConnectionId } = req.body;
+        if (!refreshConnectionId) {
           responseStatus = 400;
           responseBody = { error: 'Connection ID is required' };
           return res.status(responseStatus).json(responseBody);
@@ -105,14 +105,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         const refreshJob = await basiqClient.refreshConnection({
           userId: basiqUser.basiq_user_id,
-          connectionId,
+          connectionId: refreshConnectionId,
         });
 
         // Wait for job to complete
         const refreshedJob = await basiqClient.waitForJob(refreshJob.id);
 
         if (refreshedJob.status === 'completed') {
-          await basiqDB.updateConnectionStatus(connectionId, 'success');
+          await basiqDB.updateConnectionStatus(refreshConnectionId, 'success');
         }
 
         responseBody = {
