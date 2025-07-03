@@ -11,6 +11,10 @@ export abstract class BaseAIProvider {
   abstract sendMessage(messages: AIMessage[]): Promise<AIResponse>;
   
   abstract estimateCost(tokensInput: number, tokensOutput: number): number;
+  
+  getConfig(): AIProviderConfig {
+    return this.config;
+  }
 
   async checkHealth(): Promise<boolean> {
     try {

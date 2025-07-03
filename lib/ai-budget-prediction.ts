@@ -175,7 +175,7 @@ function generateStatisticalPrediction(data: any): BudgetPrediction {
       category,
       predictedAmount: avg * (1 + trend * 0.1),
       historicalAverage: avg,
-      trend: trend > 0.05 ? 'increasing' : trend < -0.05 ? 'decreasing' : 'stable',
+      trend: (trend > 0.05 ? 'increasing' : trend < -0.05 ? 'decreasing' : 'stable') as 'increasing' | 'stable' | 'decreasing',
       confidence: 0.7,
     };
   });

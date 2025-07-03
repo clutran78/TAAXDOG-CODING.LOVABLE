@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Receipt } from '@prisma/client';
+import { Receipt } from '../../generated/prisma';
 import { ATO_TAX_CATEGORIES, calculateGST, validateABN, formatABN } from '../../lib/australian-tax-compliance';
 
 interface ManualReviewInterfaceProps {

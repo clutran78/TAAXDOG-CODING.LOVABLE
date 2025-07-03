@@ -374,40 +374,50 @@ export class ATOCompliance {
     const { startDate, endDate } = this.getTaxYear(new Date(`${taxYear}-07-01`));
     
     // Fetch transactions for tax year
-    const transactions = await prisma.transaction.findMany({
+    const transactions = await prisma.bank_transactions.findMany({
       where: {
-        userId,
-        date: { gte: startDate, lte: endDate },
+        bank_account: {
+          basiq_user: {
+            user_id: userId
+          }
+        },
+        transaction_date: { gte: startDate, lte: endDate },
       },
-      include: { category: true },
+      include: { 
+        bank_account: {
+          include: {
+            basiq_user: true
+          }
+        }
+      },
     });
     
-    // Calculate income
+    // Calculate income (credit transactions)
     const income = transactions
-      .filter(t => t.type === 'income')
+      .filter(t => t.direction === 'credit')
       .reduce((acc, t) => {
-        const category = t.category?.name || 'Other Income';
-        acc[category] = (acc[category] || 0) + t.amount;
+        const category = t.category || 'Other Income';
+        acc[category] = (acc[category] || 0) + Number(t.amount);
         return acc;
       }, {} as Record<string, number>);
     
-    // Calculate deductions
+    // Calculate deductions (debit transactions that are business expenses)
     const deductions = transactions
-      .filter(t => t.type === 'expense' && t.isDeductible)
+      .filter(t => t.direction === 'debit' && t.is_business_expense)
       .reduce((acc, t) => {
-        const category = t.taxCategory || 'Other Deductions';
-        acc[category] = (acc[category] || 0) + t.amount;
+        const category = t.tax_category || 'Other Deductions';
+        acc[category] = (acc[category] || 0) + Number(t.amount);
         return acc;
       }, {} as Record<string, number>);
     
     // Calculate GST
     const gstCollected = transactions
-      .filter(t => t.type === 'income' && t.gstAmount)
-      .reduce((sum, t) => sum + (t.gstAmount || 0), 0);
+      .filter(t => t.direction === 'credit' && t.gst_amount)
+      .reduce((sum, t) => sum + Number(t.gst_amount || 0), 0);
     
     const gstPaid = transactions
-      .filter(t => t.type === 'expense' && t.gstAmount)
-      .reduce((sum, t) => sum + (t.gstAmount || 0), 0);
+      .filter(t => t.direction === 'debit' && t.gst_amount)
+      .reduce((sum, t) => sum + Number(t.gst_amount || 0), 0);
     
     // Calculate totals
     const totalIncome = Object.values(income).reduce((sum, amount) => sum + amount, 0);

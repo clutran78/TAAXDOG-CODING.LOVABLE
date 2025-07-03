@@ -177,22 +177,22 @@ export class AIRoutingOptimizer {
     const usage = await prisma.aIUsageTracking.findMany({ where });
 
     // Aggregate costs
-    const totalCost = usage.reduce((sum, u) => sum + (u.costUsd || 0), 0);
+    const totalCost = usage.reduce((sum, u) => sum + Number(u.costUsd || 0), 0);
     
     const byProvider = usage.reduce((acc, u) => {
-      acc[u.provider] = (acc[u.provider] || 0) + (u.costUsd || 0);
+      acc[u.provider] = (acc[u.provider] || 0) + Number(u.costUsd || 0);
       return acc;
     }, {} as Record<string, number>);
 
     const byOperation = usage.reduce((acc, u) => {
-      acc[u.operationType] = (acc[u.operationType] || 0) + (u.costUsd || 0);
+      acc[u.operationType] = (acc[u.operationType] || 0) + Number(u.costUsd || 0);
       return acc;
     }, {} as Record<string, number>);
 
     // Get top users by cost
     const userCosts = usage.reduce((acc, u) => {
       if (u.userId) {
-        acc[u.userId] = (acc[u.userId] || 0) + (u.costUsd || 0);
+        acc[u.userId] = (acc[u.userId] || 0) + Number(u.costUsd || 0);
       }
       return acc;
     }, {} as Record<string, number>);
@@ -298,7 +298,7 @@ export class AIRoutingOptimizer {
     // Get user's subscription tier (simplified)
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: { subscription: true },
+      include: { subscriptions: true },
     });
 
     // Set limits based on subscription
@@ -308,15 +308,15 @@ export class AIRoutingOptimizer {
       pro: 200.0,     // $200 USD per month
     };
 
-    const plan = user?.subscription?.plan || 'free';
+    const plan = user?.subscriptions?.[0]?.plan || 'free';
     const limit = limits[plan] || limits.free;
 
     const resetDate = new Date(startOfMonth);
     resetDate.setMonth(resetDate.getMonth() + 1);
 
     return {
-      allowed: currentUsage + estimatedCost <= limit,
-      currentUsage,
+      allowed: Number(currentUsage) + estimatedCost <= limit,
+      currentUsage: Number(currentUsage),
       limit,
       resetDate,
     };

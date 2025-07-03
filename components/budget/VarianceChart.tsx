@@ -20,12 +20,15 @@ export const VarianceChart: React.FC<VarianceChartProps> = ({ tracking }) => {
       acc[key].predicted += parseFloat(t.predictedAmount.toString());
       acc[key].actual += parseFloat(t.actualAmount?.toString() || '0');
       return acc;
-    }, {} as Record<string, any>);
+    }, {} as Record<string, { month: number; year: number; predicted: number; actual: number }>);
 
     // Convert to array and sort by date
     return Object.entries(monthlyData)
-      .map(([key, data]) => ({
-        ...data,
+      .map(([key, data]: [string, { month: number; year: number; predicted: number; actual: number }]) => ({
+        month: data.month,
+        year: data.year,
+        predicted: data.predicted,
+        actual: data.actual,
         key,
         label: new Date(data.year, data.month - 1).toLocaleDateString('en-AU', {
           month: 'short',

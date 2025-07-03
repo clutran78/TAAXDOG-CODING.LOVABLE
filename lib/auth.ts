@@ -162,39 +162,6 @@ export const authOptions: NextAuthOptions = {
   debug: process.env.NODE_ENV === "development",
 };
 
-// Audit logging helper
-async function logAuthEvent({
-  event,
-  userId = null,
-  email = null,
-  success = true,
-  metadata = null
-}: {
-  event: string;
-  userId?: string | null;
-  email?: string | null;
-  success?: boolean;
-  metadata?: any;
-}) {
-  try {
-    // Get request context from somewhere (you'll need to pass this in)
-    const ipAddress = "0.0.0.0"; // This should come from the request
-    const userAgent = ""; // This should come from the request headers
-
-    await prisma.auditLog.create({
-      data: {
-        event: event as any,
-        userId,
-        ipAddress,
-        userAgent,
-        success,
-        metadata: metadata || undefined,
-      }
-    });
-  } catch (error) {
-    console.error("Failed to log auth event:", error);
-  }
-}
 
 // Australian standard compliant password validation
 export function validatePassword(password: string): { valid: boolean; errors: string[]; score: number } {

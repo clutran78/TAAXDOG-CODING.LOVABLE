@@ -52,6 +52,7 @@ export interface BasiqInstitution {
     secondary: string;
   };
   features: string[];
+  isPopular?: boolean;
 }
 
 export interface BasiqConnection {

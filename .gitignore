@@ -124,3 +124,13 @@ backend/routes/auth_routes_v1.py
 backend/routes/banking_routes_v1.py
 backend/routes/financial_routes_v1.py
 /generated/prisma
+
+# Environment files with sensitive data
+.env
+.env.local
+.env.development
+.env.production
+
+# Next.js build artifacts
+.next/
+

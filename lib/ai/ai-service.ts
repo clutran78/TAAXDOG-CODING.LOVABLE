@@ -118,7 +118,7 @@ export class AIService {
         await this.trackUsage(
           userId,
           providerName,
-          provider.config.model,
+          provider.getConfig().model,
           operationType,
           response.tokensUsed.input,
           response.tokensUsed.output,
@@ -138,7 +138,7 @@ export class AIService {
             userId,
             sessionId,
             providerName,
-            provider.config.model,
+            provider.getConfig().model,
             messages,
             response
           );
@@ -152,7 +152,7 @@ export class AIService {
         await this.trackUsage(
           userId,
           providerName,
-          provider.config.model,
+          provider.getConfig().model,
           operationType,
           0,
           0,
@@ -163,7 +163,7 @@ export class AIService {
         );
 
         // If not retryable, throw immediately
-        if (error instanceof AIError && !error.retryable) {
+        if ('retryable' in error && !error.retryable) {
           throw error;
         }
 
@@ -206,14 +206,12 @@ export class AIService {
   private getProviderOrder(operationType: AIOperationType): AIProvider[] {
     // Use AI_FEATURE_PROVIDERS mapping for intelligent routing
     const featureMapping = {
-      [AIOperationType.TAX_ANALYSIS]: AI_FEATURE_PROVIDERS.TAX_CONSULTATION,
-      [AIOperationType.RECEIPT_SCANNING]: AI_FEATURE_PROVIDERS.RECEIPT_PROCESSING,
-      [AIOperationType.DOCUMENT_EXTRACTION]: AI_FEATURE_PROVIDERS.RECEIPT_PROCESSING,
-      [AIOperationType.FINANCIAL_ADVICE]: AI_FEATURE_PROVIDERS.FINANCIAL_INSIGHTS,
-      [AIOperationType.BUDGET_PREDICTION]: AI_FEATURE_PROVIDERS.BUDGET_PREDICTION,
-      [AIOperationType.EXPENSE_CATEGORIZATION]: AI_FEATURE_PROVIDERS.TAX_CONSULTATION,
-      [AIOperationType.TAX_OPTIMIZATION]: AI_FEATURE_PROVIDERS.TAX_CONSULTATION,
-      [AIOperationType.COMPLIANCE_CHECK]: AI_FEATURE_PROVIDERS.TAX_CONSULTATION,
+      [AIOperationType.TAX_CONSULTATION]: AI_FEATURE_PROVIDERS.TAX_CONSULTATION,
+      [AIOperationType.RECEIPT_PROCESSING]: AI_FEATURE_PROVIDERS.RECEIPT_PROCESSING,
+      [AIOperationType.DOCUMENT_ANALYSIS]: AI_FEATURE_PROVIDERS.RECEIPT_PROCESSING,
+      [AIOperationType.FINANCIAL_INSIGHTS]: AI_FEATURE_PROVIDERS.FINANCIAL_INSIGHTS,
+      [AIOperationType.REPORT_COMMENTARY]: AI_FEATURE_PROVIDERS.REPORT_COMMENTARY,
+      [AIOperationType.CHAT_RESPONSE]: AI_FEATURE_PROVIDERS.FINANCIAL_INSIGHTS,
     };
 
     const preferredProvider = featureMapping[operationType] as AIProvider;

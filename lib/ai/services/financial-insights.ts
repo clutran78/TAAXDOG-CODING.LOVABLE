@@ -91,7 +91,7 @@ Provide response as JSON array of insights:
     // Track usage
     await this.trackUsage({
       userId,
-      operationType: AIOperationType.FINANCIAL_ADVICE,
+      operationType: AIOperationType.FINANCIAL_INSIGHTS,
       provider: response.provider,
       model: response.model,
       tokensUsed: response.tokensUsed.total,
@@ -177,7 +177,7 @@ Provide response as JSON array with same structure as before.`;
     // Track usage
     await this.trackUsage({
       userId,
-      operationType: AIOperationType.EXPENSE_CATEGORIZATION,
+      operationType: AIOperationType.FINANCIAL_INSIGHTS,
       provider: response.provider,
       model: response.model,
       tokensUsed: response.tokensUsed.total,
@@ -264,7 +264,7 @@ Provide actionable recommendations with estimated financial impact.`;
     // Track usage
     await this.trackUsage({
       userId,
-      operationType: AIOperationType.FINANCIAL_ADVICE,
+      operationType: AIOperationType.FINANCIAL_INSIGHTS,
       provider: response.provider,
       model: response.model,
       tokensUsed: response.tokensUsed.total,
@@ -323,7 +323,7 @@ Ensure all suggestions are ATO compliant and include:
     // Track usage
     await this.trackUsage({
       userId,
-      operationType: AIOperationType.TAX_OPTIMIZATION,
+      operationType: AIOperationType.TAX_CONSULTATION,
       provider: response.provider,
       model: response.model,
       tokensUsed: response.tokensUsed.total,
@@ -378,7 +378,7 @@ For each risk:
     // Track usage
     await this.trackUsage({
       userId,
-      operationType: AIOperationType.COMPLIANCE_CHECK,
+      operationType: AIOperationType.TAX_CONSULTATION,
       provider: response.provider,
       model: response.model,
       tokensUsed: response.tokensUsed.total,
@@ -466,7 +466,7 @@ For each risk:
       orderBy: { createdAt: 'desc' },
     });
 
-    return insights.map(insight => insight.content as FinancialInsight);
+    return insights.map(insight => insight.content as unknown as FinancialInsight);
   }
 
   private async trackUsage(data: {
@@ -484,16 +484,15 @@ For each risk:
     try {
       await prisma.aIUsageTracking.create({
         data: {
-          userId: data.userId,
-          businessId: data.businessId,
+          userId: data.userId || '',
           operationType: data.operationType,
           provider: data.provider,
           model: data.model,
-          tokensUsed: data.tokensUsed,
-          cost: data.cost,
+          tokensInput: Math.floor((data.tokensUsed || 0) / 2),
+          tokensOutput: Math.ceil((data.tokensUsed || 0) / 2),
+          costUsd: data.cost,
           responseTimeMs: data.responseTimeMs,
           success: data.success,
-          error: data.error,
         },
       });
     } catch (error) {
