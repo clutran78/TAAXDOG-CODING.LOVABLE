@@ -8,11 +8,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
-  experimental: {
-    serverComponentsExternalPackages: [],
-    // Disable potential smuggling vectors
-    appDir: true,
-  },
+  // Remove deprecated experimental options
   
   // Compression and performance
   compress: true,
