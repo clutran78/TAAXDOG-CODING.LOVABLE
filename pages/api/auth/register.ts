@@ -52,8 +52,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // Check rate limit
   if (!checkRateLimit(req)) {
-    await logAuthEvent(AuthEvent.REGISTER, req, undefined, false, {
-      reason: "Rate limit exceeded",
+    await logAuth({
+      event: "REGISTER",
+      success: false,
+      metadata: {
+        reason: "Rate limit exceeded",
+      },
+      req,
     });
     return res.status(429).json({ message: "Too many requests. Please try again later." });
   }
@@ -106,9 +111,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     if (existingUser) {
-      await logAuthEvent(AuthEvent.REGISTER, req, undefined, false, {
-        reason: "Email already exists",
-        email,
+      await logAuth({
+        event: "REGISTER",
+        success: false,
+        metadata: {
+          reason: "Email already exists",
+          email,
+        },
+        req,
       });
       return res.status(409).json({ message: "An account with this email already exists" });
     }

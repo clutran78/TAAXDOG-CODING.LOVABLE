@@ -297,7 +297,7 @@ Analyze the receipt image and provide the extracted data.`;
     try {
       const cached = await prisma.aICache.findFirst({
         where: {
-          key: cacheKey,
+          cacheKey: cacheKey,
           expiresAt: { gt: new Date() },
         },
       });
@@ -309,7 +309,10 @@ Analyze the receipt image and provide the extracted data.`;
           data: { hitCount: { increment: 1 } },
         });
 
-        return JSON.parse(cached.response);
+        if (typeof cached.response === 'string') {
+          return JSON.parse(cached.response);
+        }
+        return null;
       }
     } catch (error) {
       console.error('Cache check error:', error);
@@ -330,9 +333,9 @@ Analyze the receipt image and provide the extracted data.`;
 
       await prisma.aICache.create({
         data: {
-          key: cacheKey,
+          cacheKey: cacheKey,
+          inputHash: cacheKey,
           response: JSON.stringify(data),
-          cost,
           expiresAt,
           provider: 'gemini',
           model: 'gemini-pro-vision',
@@ -360,15 +363,15 @@ Analyze the receipt image and provide the extracted data.`;
       await prisma.aIUsageTracking.create({
         data: {
           userId: data.userId,
-          businessId: data.businessId,
           operationType: data.operationType,
           provider: data.provider,
           model: data.model,
-          tokensUsed: data.tokensUsed,
-          cost: data.cost,
+          tokensInput: 0,
+          tokensOutput: data.tokensUsed,
+          costUsd: data.cost,
           responseTimeMs: data.responseTimeMs,
           success: data.success,
-          error: data.error,
+          errorMessage: data.error,
         },
       });
     } catch (error) {
