@@ -360,6 +360,11 @@ Analyze the receipt image and provide the extracted data.`;
     error?: string;
   }): Promise<void> {
     try {
+      // Only track usage if we have a valid userId
+      if (!data.userId) {
+        return;
+      }
+
       await prisma.aIUsageTracking.create({
         data: {
           userId: data.userId,
@@ -371,7 +376,7 @@ Analyze the receipt image and provide the extracted data.`;
           costUsd: data.cost,
           responseTimeMs: data.responseTimeMs,
           success: data.success,
-          errorMessage: data.error,
+          errorMessage: data.error || undefined,
         },
       });
     } catch (error) {

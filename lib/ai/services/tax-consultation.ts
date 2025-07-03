@@ -1,8 +1,8 @@
 import { AIService } from '../ai-service';
 import { AnthropicProvider } from '../providers/anthropic';
-import { AIMessage, AIOperationType, ATO_TAX_CATEGORIES } from '../types';
+import { AIMessage, ATO_TAX_CATEGORIES } from '../types';
 import { getAIConfig } from '../../config';
-import { AI_MODELS, SYSTEM_PROMPTS, AI_PROVIDERS, AUSTRALIAN_TAX_CONFIG } from '../config';
+import { AI_MODELS, SYSTEM_PROMPTS, AI_PROVIDERS, AUSTRALIAN_TAX_CONFIG, AIOperationType } from '../config';
 import { prisma } from '../../prisma';
 
 export class TaxConsultationService {
@@ -379,18 +379,23 @@ Tax laws and interpretations can change.`;
     error?: string;
   }): Promise<void> {
     try {
+      // Only track usage if we have a valid userId
+      if (!data.userId) {
+        return;
+      }
+
       await prisma.aIUsageTracking.create({
         data: {
           userId: data.userId,
-          businessId: data.businessId,
           operationType: data.operationType,
           provider: data.provider,
           model: data.model,
-          tokensUsed: data.tokensUsed,
-          cost: data.cost,
+          tokensInput: 0,
+          tokensOutput: data.tokensUsed,
+          costUsd: data.cost,
           responseTimeMs: data.responseTimeMs,
           success: data.success,
-          error: data.error,
+          errorMessage: data.error || undefined,
         },
       });
     } catch (error) {
