@@ -1,0 +1,108 @@
+# CodeRabbit Configuration for TAAXDOG Project
+# This file configures automated code reviews for Australian tax compliance software
+
+# Review Settings
+reviews:
+  # Enable auto review for all pull requests
+  auto_review:
+    enabled: true
+    
+  # Review new code changes
+  review_status: "auto"
+  
+  # High-level review instructions
+  high_level_summary: true
+  
+  # Include poem/haiku in reviews (optional fun feature)
+  poem: false
+  
+  # Review language
+  language: "en-US"
+  
+  # Early access features
+  early_access: false
+
+# Language-specific settings
+language_specific:
+  # TypeScript/JavaScript settings
+  typescript:
+    # Enforce strict type checking reviews
+    strict_mode: true
+    
+  # Python settings for backend services
+  python:
+    # Review for Python best practices
+    style_guide: "PEP8"
+
+# File filters
+path_filters:
+  # Exclude from reviews
+  excluded:
+    - "node_modules/**"
+    - "dist/**"
+    - "build/**"
+    - ".next/**"
+    - "*.log"
+    - "package-lock.json"
+    - "yarn.lock"
+    - "pnpm-lock.yaml"
+    - "coverage/**"
+    - "*.min.js"
+    - "*.min.css"
+    - "public/assets/**"
+    
+  # Focus reviews on these paths
+  included:
+    - "src/**"
+    - "pages/**"
+    - "components/**"
+    - "lib/**"
+    - "backend/**"
+    - "prisma/**"
+    - "scripts/**"
+    - "*.ts"
+    - "*.tsx"
+    - "*.js"
+    - "*.jsx"
+    - "*.py"
+
+# Review focus areas for Australian tax compliance
+review_checklist:
+  - "Security: Check for exposed API keys, credentials, or sensitive data"
+  - "Compliance: Ensure Australian tax calculations follow ATO guidelines"
+  - "GST: Verify 10% GST calculations are correctly implemented"
+  - "Data Privacy: Check compliance with Australian Privacy Principles"
+  - "Performance: Review database queries and API calls for optimization"
+  - "Error Handling: Ensure proper error handling and user feedback"
+  - "Type Safety: Verify TypeScript types are properly defined"
+  - "Database: Check Prisma schema changes and migrations"
+  - "Authentication: Review auth flows and session management"
+  - "Payments: Verify Stripe integration handles Australian currency correctly"
+
+# Custom review instructions
+instructions: |
+  This is an Australian tax and financial management application. Please pay special attention to:
+  
+  1. **Australian Compliance**: All tax calculations must comply with ATO requirements
+  2. **GST Handling**: Ensure 10% GST is correctly calculated and included in prices
+  3. **Data Residency**: Verify data stays within Australian regions (Sydney)
+  4. **Security**: No hardcoded credentials or exposed sensitive data
+  5. **Financial Accuracy**: All monetary calculations must be precise
+  6. **Date Handling**: Australian tax year runs July 1 - June 30
+  7. **ABN Validation**: Ensure proper Australian Business Number validation
+  8. **Subscription Pricing**: Verify promotional and regular pricing logic
+  
+  Focus on code quality, security, and Australian regulatory compliance.
+
+# Chat commands (what users can ask CodeRabbit in PR comments)
+chat:
+  # Enable chat commands
+  auto_reply: true
+
+# Summary Settings
+summary:
+  # Generate PR summaries
+  enabled: true
+  
+  # Use bullet points for clarity
+  style: "bullet_points"
