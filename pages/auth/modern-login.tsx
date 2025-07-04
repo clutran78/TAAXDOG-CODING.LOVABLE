@@ -3,10 +3,11 @@ import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import Head from "next/head";
+import dynamic from "next/dynamic";
 
-export default function ModernLoginPage() {
+function ModernLoginPageContent() {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -14,10 +15,10 @@ export default function ModernLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    if (session) {
+    if (session && router.isReady) {
       router.push("/dashboard");
     }
-  }, [session, router]);
+  }, [session, router.isReady]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -226,3 +227,8 @@ export default function ModernLoginPage() {
     </>
   );
 }
+
+// Export with no SSR to avoid router issues during build
+export default dynamic(() => Promise.resolve(ModernLoginPageContent), {
+  ssr: false,
+});
