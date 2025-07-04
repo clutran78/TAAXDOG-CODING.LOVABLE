@@ -7,7 +7,7 @@ python -c "from database.models import *; print('✅ All models imported success
 
 # Test Stripe connection
 curl -H "Authorization: Bearer sk_test_51Re1oyLl1e8i03PEsk2iY3TBuHqYgzIACzU2ZGksCFZyoGEy2I7DJ991BsN08"
-https://api.stripe.com/v1/customers
+https://api.stripe.com/v1/customer
 
 # Test BASIQ connection
 curl -H "Authorization: Bearer MThmYjA5ZWEtNzRhMi00Nzc5LTk0ZjAtYmRkOTExZDgwMGI4OjhjZjUzZWUzLTYxYmItNDlkMC"

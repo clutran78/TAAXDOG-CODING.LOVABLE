@@ -1,3 +1,11 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## ⚠️ SECURITY NOTICE
+
+**IMPORTANT**: This file should NEVER contain actual credentials, API keys, passwords, or any sensitive information. All sensitive values must be stored in environment variables and referenced using placeholders like `[STORED IN ENVIRONMENT VARIABLES]` in this documentation.
+
 # TAAXDOG PROJECT CONFIGURATION
 
 ## Project Identity
@@ -12,18 +20,18 @@
 ### Droplets
 - Production Droplet: taxreturnpro-droplet (IP: 170.64.206.137)
 - Staging Droplet: taxreturnpro-staging-droplet (IP: 170.64.195.235)
-- Droplet Password: g!R9QdFXbYk$pH (same for both)
+- Droplet Password: [STORED SECURELY IN ENVIRONMENT VARIABLES]
 
 ## Database Configuration
 
 ### Development Database
-DATABASE_URL="postgresql://genesis@localhost:5432/taaxdog_development"
+DATABASE_URL="postgresql://[username]@localhost:5432/taaxdog_development"
 
 ### Production Databases
 
 #### Main Database (Port 25060)
 - Username: doadmin
-- Password: AVNS___ZoxHp7i5cnz64V8ms
+- Password: [STORED IN ENVIRONMENT VARIABLES]
 - Host: taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com
 - Port: 25060
 - Database: defaultdb
@@ -31,7 +39,7 @@ DATABASE_URL="postgresql://genesis@localhost:5432/taaxdog_development"
 
 #### Application Database (Port 25061)
 - Username: taaxdog-admin
-- Password: AVNS_kp_8AWjX2AzlvWOqm_V
+- Password: [STORED IN ENVIRONMENT VARIABLES]
 - Host: taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com
 - Port: 25061
 - Database: taaxdog-production
@@ -39,7 +47,7 @@ DATABASE_URL="postgresql://genesis@localhost:5432/taaxdog_development"
 
 #### Connection Pool Database (Port 25061)
 - Username: taaxdog-admin
-- Password: AVNS_kp_8AWjX2AzlvWOqm_V
+- Password: [STORED IN ENVIRONMENT VARIABLES]
 - Host: taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com
 - Port: 25061
 - Database: taaxdog-connection-pool
@@ -48,41 +56,41 @@ DATABASE_URL="postgresql://genesis@localhost:5432/taaxdog_development"
 ### Connection Strings
 
 #### Public Connection String
-DATABASE_URL="postgresql://taaxdog-admin:AVNS_kp_8AWjX2AzlvWOqm_V@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production?sslmode=require"
+DATABASE_URL="postgresql://taaxdog-admin:[PASSWORD]@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production?sslmode=require"
 
 #### VPC Connection String
-VPC_DATABASE_URL="postgresql://taaxdog-admin:AVNS_kp_8AWjX2AzlvWOqm_V@private-taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production?sslmode=require"
+VPC_DATABASE_URL="postgresql://taaxdog-admin:[PASSWORD]@private-taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production?sslmode=require"
 
 #### Database Restore Command
-PGPASSWORD=AVNS___ZoxHp7i5cnz64V8ms pg_restore -U doadmin -h taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com -p 25060 -d defaultdb
+PGPASSWORD=[DATABASE_PASSWORD] pg_restore -U doadmin -h taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com -p 25060 -d defaultdb
 
 ## Application Configuration
 
 ### Development
 NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="VqkUiUKy7SweRednCPtXooCmsnpoHc1wdXl5DBDmAR4="
+NEXTAUTH_SECRET="[STORED IN ENVIRONMENT VARIABLES]"
 NODE_ENV="development"
 
 ### Production
 NEXTAUTH_URL="https://taxreturnpro.com.au"
-NEXTAUTH_SECRET="VS5+e29Y/yEPy4wnqgDz04gT7PfCRkQR/iUS7tteTUI="
+NEXTAUTH_SECRET="[STORED IN ENVIRONMENT VARIABLES]"
 NODE_ENV="production"
 
 ## Stripe Configuration (Live Keys)
 
-STRIPE_PUBLISHABLE_KEY="pk_live_51Re1oyLl1e8i03PEfTJeJ6DBeX1T7gzcXRCPWDzePSJGTwBJZYwECtZbGBcYA3H8tl5gxZUobLY4bYmseontkiBj00s6SiBehE"
-STRIPE_SECRET_KEY="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"
-STRIPE_WEBHOOK_SECRET="whsec_z2rEeYEZBAbBjxMvCzfKc8Trs1wlTC9L"
+STRIPE_PUBLISHABLE_KEY="[STORED IN ENVIRONMENT VARIABLES]"
+STRIPE_SECRET_KEY="[STORED IN ENVIRONMENT VARIABLES]"
+STRIPE_WEBHOOK_SECRET="[STORED IN ENVIRONMENT VARIABLES]"
 
 ## AI Provider Keys
 
-ANTHROPIC_API_KEY="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"
-OPENROUTER_API_KEY="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"
-GEMINI_API_KEY="AIzaSyADSKfEEx1WISywXTw7V1CHqjM72bn7kEY"
+ANTHROPIC_API_KEY="[STORED IN ENVIRONMENT VARIABLES]"
+OPENROUTER_API_KEY="[STORED IN ENVIRONMENT VARIABLES]"
+GEMINI_API_KEY="[STORED IN ENVIRONMENT VARIABLES]"
 
 ## BASIQ Banking Integration
 
-BASIQ_API_KEY="MThmYjA5ZWEtNzRhMi00Nzc5LTk0ZjAtYmRkOTExZDgwMGI4OjhjZjUzZWUzLTYxYm"
+BASIQ_API_KEY="[STORED IN ENVIRONMENT VARIABLES]"
 
 ## Subscription Pricing (EXACT REQUIREMENTS)
 
@@ -118,3 +126,102 @@ TAAX Pro Plan:
 - Environment-aware configuration (dev/prod)
 - Comprehensive error handling and logging
 - Performance optimization for Australian users
+
+## Development Commands
+
+### Core Development
+```bash
+npm run dev          # Start development server (http://localhost:3000)
+npm run build        # Build for production
+npm run start        # Start production server
+npm run lint         # Run ESLint
+```
+
+### Database Management
+```bash
+npm run migrate      # Run database migrations
+npm run test-db      # Test database connection
+npx prisma generate  # Generate Prisma client
+npx prisma db push   # Push schema changes to database
+npx prisma studio    # Open Prisma Studio GUI
+```
+
+### Production Build
+```bash
+npm run build:production  # Full production build with Prisma generation
+```
+
+### Database Import/Migration
+```bash
+npm run db:import              # Import data using optimized orchestrator
+npm run postgres:import-batch  # Batch import for large datasets
+npm run migration:validate     # Validate migration integrity
+npm run migration:rollback     # Rollback migrations
+```
+
+### Verification Scripts
+```bash
+npm run verify:quick       # Quick database verification
+npm run verify:full        # Comprehensive migration verification
+npm run verify:counts      # Verify record counts
+npm run verify:compliance  # Check Australian compliance
+```
+
+## Project Architecture
+
+### High-Level Structure
+TAAXDOG is a full-stack Australian tax and financial management application:
+- **Frontend**: Next.js 14 with TypeScript, React 19
+- **Backend**: Hybrid architecture with Next.js API routes and Python Flask services
+- **Database**: PostgreSQL with Prisma ORM
+- **Authentication**: NextAuth.js with email/password and Google OAuth
+- **Payments**: Stripe integration with Australian GST compliance
+
+### Directory Organization
+```
+/
+├── pages/              # Next.js pages and API routes
+│   ├── api/           # API endpoints (auth, ai, banking, etc.)
+│   └── ...            # Frontend pages
+├── components/        # React components organized by feature
+├── lib/              # Core utilities and services
+├── backend/          # Python Flask application
+│   ├── api/          # Flask API endpoints
+│   ├── services/     # Business logic services
+│   └── middleware/   # Security and auth middleware
+├── prisma/           # Database schema and migrations
+├── scripts/          # Utility and maintenance scripts
+└── styles/           # Global CSS and Tailwind config
+```
+
+### Key API Routes
+- `/api/auth/*` - Authentication endpoints (NextAuth.js)
+- `/api/ai/*` - AI services (insights, predictions, receipt processing)
+- `/api/banking/*` - BASIQ banking integration
+- `/api/stripe/*` - Payment processing and subscriptions
+- `/api/admin/*` - Admin dashboard endpoints
+
+### Database Schema
+Prisma-managed PostgreSQL with models for:
+- User authentication and profiles (Australian-specific fields)
+- Subscriptions and billing (SMART/PRO plans)
+- Tax returns and deductions
+- Banking connections and transactions
+- AI conversations and insights
+- Receipts and expense tracking
+
+### Security Architecture
+- Multi-layered authentication with JWT tokens
+- Role-based access control (USER, ADMIN, ACCOUNTANT, SUPPORT)
+- Rate limiting (100 requests/minute)
+- CSRF protection on all state-changing operations
+- Request validation and sanitization
+- Audit logging for compliance
+
+### Australian Compliance Features
+- ATO-compliant tax calculations
+- GST handling (10% included in prices)
+- ABN validation
+- Tax invoice generation
+- Australian tax year support (July 1 - June 30)
+- Data residency in Sydney region

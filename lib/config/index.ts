@@ -97,7 +97,7 @@ function loadDevelopmentConfig(): Config {
   return {
     env: 'development',
     database: {
-      url: process.env.DATABASE_URL || 'postgresql://genesis@localhost:5432/taaxdog_development',
+      url: process.env.DATABASE_URL || '',
       poolMin: 2,
       poolMax: 10,
       enableLogging: true,
@@ -106,7 +106,7 @@ function loadDevelopmentConfig(): Config {
     },
     auth: {
       url: process.env.NEXTAUTH_URL || 'http://localhost:3000',
-      secret: process.env.NEXTAUTH_SECRET || 'VqkUiUKy7SweRednCPtXooCmsnpoHc1wdXl5DBDmAR4=',
+      secret: process.env.NEXTAUTH_SECRET || '',
       providers: {
         google: {
           clientId: process.env.GOOGLE_CLIENT_ID,
@@ -115,23 +115,23 @@ function loadDevelopmentConfig(): Config {
       },
     },
     stripe: {
-      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || 'pk_test_51Re1oyLl1e8i03PEQGOHSiAgNjWanYwx0fvIkSi5eY1RB4YPv',
-      secretKey: process.env.STRIPE_SECRET_KEY || 'sk_test_51Re1oyLl1e8i03PEsk2iY3TBuHqYgzIACzU2ZGksCFZyoGEy2I7DJ',
-      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || 'whsec_8049f1f9ead95d8933afc149782bfdf4b82c3aa940fcfe3c2e1f',
+      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || '',
+      secretKey: process.env.STRIPE_SECRET_KEY || '',
+      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
     },
     ai: {
       anthropic: {
-        apiKey: process.env.ANTHROPIC_API_KEY || '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',
+        apiKey: process.env.ANTHROPIC_API_KEY || '',
       },
       openrouter: {
-        apiKey: process.env.OPENROUTER_API_KEY || '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',
+        apiKey: process.env.OPENROUTER_API_KEY || '',
       },
       gemini: {
-        apiKey: process.env.GEMINI_API_KEY || 'AIzaSyADSKfEEx1WISywXTw7V1CHqjM72bn7kEY',
+        apiKey: process.env.GEMINI_API_KEY || '',
       },
     },
     basiq: {
-      apiKey: process.env.BASIQ_API_KEY || 'MThmYjA5ZWEtNzRhMi00Nzc5LTk0ZjAtYmRkOTExZDgwMGI4OjhjZjUzZWUzLTYxYm',
+      apiKey: process.env.BASIQ_API_KEY || '',
       serverUrl: 'https://au-api.basiq.io',
     },
     app: {
@@ -148,7 +148,7 @@ function loadDevelopmentConfig(): Config {
       enableRateLimiting: false,
       corsOrigin: 'http://localhost:3000',
       sessionCookieSecure: false,
-      healthCheckToken: process.env.HEALTH_CHECK_TOKEN || 'dev-health-check-token',
+      healthCheckToken: process.env.HEALTH_CHECK_TOKEN || '',
     },
     logging: {
       level: 'debug',
@@ -161,7 +161,7 @@ function loadProductionConfig(): Config {
   return {
     env: 'production',
     database: {
-      url: process.env.DATABASE_URL || 'postgresql://taaxdog-admin:AVNS_kp_8AWjX2AzlvWOqm_V@taaxdog-prod-do-user-18496803-0.h.db.ondigitalocean.com:25060/taaxdog_production?sslmode=require',
+      url: process.env.DATABASE_URL || '',
       poolMin: 5,
       poolMax: 20,
       enableLogging: false,
@@ -170,7 +170,7 @@ function loadProductionConfig(): Config {
     },
     auth: {
       url: process.env.NEXTAUTH_URL || 'https://taxreturnpro.com.au',
-      secret: process.env.NEXTAUTH_SECRET || 'VS5+e29Y/yEPy4wnqgDz04gT7PfCRkQR/iUS7tteTUI=',
+      secret: process.env.NEXTAUTH_SECRET || '',
       providers: {
         google: {
           clientId: process.env.GOOGLE_CLIENT_ID,
@@ -179,23 +179,23 @@ function loadProductionConfig(): Config {
       },
     },
     stripe: {
-      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || 'pk_live_51Re1oyLl1e8i03PEfTJeJ6DBeX1T7gzcXRCPWDzePSJGTwBJZYwECtZbGBcYA3H8tl5gxZUobLY4bYmseontkiBj00s6SiBehE',
-      secretKey: process.env.STRIPE_SECRET_KEY || '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',
-      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || 'whsec_z2rEeYEZBAbBjxMvCzfKc8Trs1wlTC9L',
+      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || '',
+      secretKey: process.env.STRIPE_SECRET_KEY || '',
+      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
     },
     ai: {
       anthropic: {
-        apiKey: process.env.ANTHROPIC_API_KEY || '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',
+        apiKey: process.env.ANTHROPIC_API_KEY || '',
       },
       openrouter: {
-        apiKey: process.env.OPENROUTER_API_KEY || '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',
+        apiKey: process.env.OPENROUTER_API_KEY || '',
       },
       gemini: {
-        apiKey: process.env.GEMINI_API_KEY || 'AIzaSyADSKfEEx1WISywXTw7V1CHqjM72bn7kEY',
+        apiKey: process.env.GEMINI_API_KEY || '',
       },
     },
     basiq: {
-      apiKey: process.env.BASIQ_API_KEY || 'MThmYjA5ZWEtNzRhMi00Nzc5LTk0ZjAtYmRkOTExZDgwMGI4OjhjZjUzZWUzLTYxYm',
+      apiKey: process.env.BASIQ_API_KEY || '',
       serverUrl: 'https://au-api.basiq.io',
     },
     app: {
@@ -212,7 +212,7 @@ function loadProductionConfig(): Config {
       enableRateLimiting: true,
       corsOrigin: 'https://taxreturnpro.com.au',
       sessionCookieSecure: true,
-      healthCheckToken: process.env.HEALTH_CHECK_TOKEN || 'prod-health-check-token-secure',
+      healthCheckToken: process.env.HEALTH_CHECK_TOKEN || '',
     },
     logging: {
       level: 'info',

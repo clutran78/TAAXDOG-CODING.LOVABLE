@@ -127,9 +127,21 @@ backend/routes/financial_routes_v1.py
 
 # Environment files with sensitive data
 .env
+.env.*
+*.env
 .env.local
 .env.development
 .env.production
+.env.test
+
+# Deployment configurations with credentials
+app.yaml
+app.yml
+deployment.yaml
+deployment.yml
+
+# Documentation files that may contain sensitive data
+# CLAUDE.md should not contain credentials - keep it for project guidance only
 
 # Next.js build artifacts
 .next/

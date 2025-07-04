@@ -1,0 +1,116 @@
+# DigitalOcean App Platform slug ignore file
+# Files and directories listed here will not be included in the deployment slug
+
+# Development and backup directories
+next-frontend/
+next-frontend-backup/
+*.backup
+auth.backup
+dashboard.backup
+unauth.backup
+browser-tools-mcp/
+
+# Documentation and non-essential files
+*.md
+docs/
+client_docs/
+*.docx
+suggestions.docx
+collection.json
+
+# Test and development files
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+__tests__/
+test/
+tests/
+coverage/
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Git and version control
+.git/
+.gitignore
+.gitattributes
+
+# Development configuration
+.env.development
+.env.test
+.env.local
+.env.example
+*.env.example
+*.yaml.example
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Build artifacts and caches
+.next/
+build/
+dist/
+out/
+.cache/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker files (if using App Platform, not Docker)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Python virtual environments
+venv/
+virtualenv/
+ENV/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Scripts not needed in production
+scripts/migration-*.js
+scripts/check-*.py
+scripts/firebase-*.js
+scripts/test-*.ts
+scripts/verify-*.py
+scripts/postgresql-import-*.js
+
+# Firebase files
+firebase-debug.log
+.firebase/
+*firebase-adminsdk*.json
+
+# Large data files
+*.sql
+*.dump
+*.csv
+*.xlsx
+*.xls
+
+# Monitoring and observability (if not used in production)
+prometheus/
+grafana/
+
+# Temporary and upload directories
+uploads/
+tmp/
+temp/
+
+# Package manager files (keep package.json and lock files)
+.npm/
+.yarn/
+.pnp/
+.pnp.js
+
+# Optional: Node modules (DigitalOcean will install these)
+# Uncomment if you want to exclude and let DigitalOcean install fresh
+# node_modules/

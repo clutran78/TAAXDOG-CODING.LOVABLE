@@ -1,14 +1,72 @@
 name: taaxdog-production
 region: syd
 services:
-- environment_slug: node-js
+- name: web
+  environment_slug: node-js
   github:
+    repo: TaaxDog/TAAXDOG-CODING
     branch: main
     deploy_on_push: true
-    repo: TaaxDog/TAAXDOG-CODING
+  source_dir: /
+  build_command: npm run build:production
+  run_command: npm start
   http_port: 3000
   instance_count: 1
   instance_size_slug: basic-xxs
-  name: taaxdog
-  run_command: npm start
-  source_dir: /
+  routes:
+  - path: /
+  envs:
+  # Application Configuration
+  - key: NODE_ENV
+    value: production
+  - key: PORT
+    scope: RUN_TIME
+    value: ${PORT}
+  
+  # NextAuth Configuration
+  - key: NEXTAUTH_URL
+    value: https://taxreturnpro.com.au
+  - key: NEXTAUTH_SECRET
+    type: SECRET
+    value: ${NEXTAUTH_SECRET}
+  
+  # Database Configuration
+  - key: DATABASE_URL
+    type: SECRET
+    value: ${DATABASE_URL}
+  
+  # Stripe Configuration
+  - key: STRIPE_PUBLISHABLE_KEY
+    type: SECRET
+    value: ${STRIPE_PUBLISHABLE_KEY}
+  - key: STRIPE_SECRET_KEY
+    type: SECRET
+    value: ${STRIPE_SECRET_KEY}
+  - key: STRIPE_WEBHOOK_SECRET
+    type: SECRET
+    value: ${STRIPE_WEBHOOK_SECRET}
+  
+  # AI Provider Keys
+  - key: ANTHROPIC_API_KEY
+    type: SECRET
+    value: ${ANTHROPIC_API_KEY}
+  - key: OPENROUTER_API_KEY
+    type: SECRET
+    value: ${OPENROUTER_API_KEY}
+  - key: GEMINI_API_KEY
+    type: SECRET
+    value: ${GEMINI_API_KEY}
+  
+  # Banking Integration
+  - key: BASIQ_API_KEY
+    type: SECRET
+    value: ${BASIQ_API_KEY}
+  
+  # Health Check Configuration
+  health_check:
+    http_path: /api/health
+    initial_delay_seconds: 30
+    period_seconds: 30
+    timeout_seconds: 10
+    success_threshold: 1
+    failure_threshold: 3
