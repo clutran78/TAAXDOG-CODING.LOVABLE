@@ -14,10 +14,10 @@ export default function SimpleLoginPage() {
 
   useEffect(() => {
     // If already logged in, redirect to dashboard
-    if (session) {
+    if (session && status === "authenticated") {
       router.push("/dashboard");
     }
-  }, [session, router]);
+  }, [session, status, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
