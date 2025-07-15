@@ -22,7 +22,7 @@
     "firebase": "^11.7.3",
     "formik": "^2.4.6",
     "js-cookie": "^3.0.5",
-    "next": "15.3.2",
+    "next": "15.3.4",
     "react": "^19.0.0",
     "react-bootstrap": "^2.10.9",
     "react-dom": "^19.0.0",
