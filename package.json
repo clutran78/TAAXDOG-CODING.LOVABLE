@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "node server.js",
     "build": "next build",
+    "build:do": "./scripts/build-prod.sh",
     "start": "NODE_ENV=production node server.js",
     "lint": "next lint",
     "build:production": "./scripts/build-production.sh",
@@ -26,7 +27,9 @@
     "verify:relationships": "python3 scripts/check-relationships.py",
     "verify:compliance": "python3 scripts/check-compliance.py",
     "verify:quick": "./scripts/quick-verify.sh",
-    "verify:full": "python3 scripts/verify-migration.py"
+    "verify:full": "python3 scripts/verify-migration.py",
+    "test-email": "ts-node --project tsconfig.node.json scripts/test-email.ts",
+    "test-password-reset": "ts-node --project tsconfig.node.json scripts/test-password-reset.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.55.1",
@@ -35,6 +38,7 @@
     "@headlessui/react": "^2.2.4",
     "@heroicons/react": "^2.2.0",
     "@prisma/client": "^6.10.1",
+    "@sendgrid/mail": "^8.1.5",
     "@stripe/mcp": "^0.2.3",
     "@stripe/react-stripe-js": "^3.7.0",
     "@stripe/stripe-js": "^7.4.0",
@@ -57,6 +61,7 @@
     "qrcode": "^1.5.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-icons": "^5.5.0",
     "side-channel": "^1.1.0",
     "speakeasy": "^2.0.0",
     "stripe": "^18.2.1",

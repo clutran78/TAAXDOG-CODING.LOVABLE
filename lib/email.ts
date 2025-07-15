@@ -1,39 +1,126 @@
 import nodemailer from 'nodemailer';
+import sgMail from '@sendgrid/mail';
 import { getConfig } from './config';
 
 // Email configuration
 const emailConfig = {
   from: {
     name: 'TaxReturnPro',
-    email: 'noreply@taxreturnpro.com.au',
+    email: process.env.EMAIL_FROM || 'noreply@taxreturnpro.com.au',
   },
   support: {
     email: 'support@taxreturnpro.com.au',
   },
 };
 
-// Create email transporter
-function createTransporter() {
+// Initialize SendGrid if API key is provided
+if (process.env.SENDGRID_API_KEY) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+}
+
+// Email provider type
+type EmailProvider = 'sendgrid' | 'smtp' | 'console';
+
+// Get the current email provider
+function getEmailProvider(): EmailProvider {
   const config = getConfig();
   
-  // In production, use proper SMTP settings
-  if (config.env === 'production') {
-    return nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
+  // Check if SendGrid is configured and preferred
+  if (process.env.EMAIL_PROVIDER === 'sendgrid' && process.env.SENDGRID_API_KEY) {
+    return 'sendgrid';
   }
   
-  // In development, use console output
+  // Fall back to SMTP in production if configured
+  if (config.env === 'production' && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    return 'smtp';
+  }
+  
+  // Default to console in development or if nothing is configured
+  return 'console';
+}
+
+// Send email using SendGrid
+async function sendWithSendGrid(options: any) {
+  const msg = {
+    to: options.to,
+    from: {
+      email: emailConfig.from.email,
+      name: emailConfig.from.name,
+    },
+    subject: options.subject,
+    text: options.text,
+    html: options.html,
+  };
+
+  try {
+    const [response] = await sgMail.send(msg);
+    return { 
+      messageId: response.headers['x-message-id'] || `sg-${Date.now()}`,
+      provider: 'sendgrid' 
+    };
+  } catch (error: any) {
+    console.error('SendGrid error:', error);
+    if (error.response) {
+      console.error('SendGrid response error:', error.response.body);
+    }
+    throw new Error(`Failed to send email via SendGrid: ${error.message}`);
+  }
+}
+
+// Create email transporter for SMTP
+function createSMTPTransporter() {
+  return nodemailer.createTransporter({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: process.env.SMTP_SECURE === 'true',
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+}
+
+// Universal email sending function
+async function sendEmail(options: any) {
+  const provider = getEmailProvider();
+  
+  switch (provider) {
+    case 'sendgrid':
+      return sendWithSendGrid(options);
+      
+    case 'smtp':
+      const transporter = createSMTPTransporter();
+      const result = await transporter.sendMail({
+        from: `${emailConfig.from.name} <${emailConfig.from.email}>`,
+        ...options,
+      });
+      return { ...result, provider: 'smtp' };
+      
+    case 'console':
+    default:
+      console.log('📧 Email would be sent:', {
+        from: `${emailConfig.from.name} <${emailConfig.from.email}>`,
+        ...options,
+      });
+      return { 
+        messageId: `dev-${Date.now()}`,
+        provider: 'console' 
+      };
+  }
+}
+
+// Legacy createTransporter function for backward compatibility
+function createTransporter() {
+  const provider = getEmailProvider();
+  
+  if (provider === 'smtp') {
+    return createSMTPTransporter();
+  }
+  
+  // Return a compatible interface for non-SMTP providers
   return {
     sendMail: async (options: any) => {
-      console.log('📧 Email would be sent:', options);
-      return { messageId: 'dev-message-id' };
+      return sendEmail(options);
     },
   };
 }

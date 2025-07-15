@@ -1,0 +1,97 @@
+alerts:
+  - rule: DEPLOYMENT_FAILED
+  - rule: DOMAIN_FAILED
+domains:
+  - domain: taxreturnpro.com.au
+    type: PRIMARY
+envs:
+  - key: NEXTAUTH_SECRET
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: EV[1:VQo70vHYMdEWZzYavBEFiAu8+teo0DUd:1ibPCme8UgTSsE7bCRB+ivRmtVTm/++kp+LFhMaldL7uDXcsiDcgYJnjdTeFQgRdsH64hJNluY+gakuI]
+  - key: DATABASE_URL
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: EV[1:YQTMCgDk11WZxpQgYFxsb06qZHgZ3dks:OL3r2WrgxMs+C+//PDoS7kDlRn5qAJhMU8mKP10TguWJmu1NPRKsFjgcYSCJVzRUdVzRYgf6rcsODlZ/5B5SfQxHsAyNOY1gE6QyM+xqTv5G+2oJJV7H9yq1dZTmsAGK435IzjI/BeziMitPD6pwgcGfodooOA1cqQGoC2LohJ882h+ErJ9ibhrNLeID/Y6N7y7RIvyoMQycPoh4LKcN4VuugJ4G7I4itjE=]
+  - key: STRIPE_PUBLISHABLE_KEY
+    scope: RUN_AND_BUILD_TIME
+    value: pk_live_51Re1oyLl1e8i03PE75CJ2hACMXObQQEPcw4hJnYVdhiQ3ywce2arz1ZNhbLA3XaQXmfhEMbyeTsPh3dTb305Qf6900tqTn58kh
+  - key: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+    scope: RUN_AND_BUILD_TIME
+    value: pk_live_51Re1oyLl1e8i03PE75CJ2hACMXObQQEPcw4hJnYVdhiQ3ywce2arz1ZNhbLA3XaQXmfhEMbyeTsPh3dTb305Qf6900tqTn58kh
+  - key: STRIPE_SECRET_KEY
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: EV[1:dMDGWRvXeTnz6DZiuwNSZiezyz0Xb9vx:TkPXjbTX+IULxrfG6cn3fjEOUOwohlSpfLjz07xypWhHaYUVTZMKNVttQbmLD3VCXHhl5JmFlk0I3I1XN5VQUYrhFFdcL/AnwyjEUN/3ADM3fLdu25wt7YotRycnmyIrLW+9IIORznrNOu0PL2rL5qTEUJ33s2mCqaH3]
+  - key: STRIPE_WEBHOOK_SECRET
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: EV[1:0yDzh8oot9or0PUogbS2dR018XJhziA1:T5B32ipev4/f0jW20qpIkHvt/Y/SjB3FKg7CLxRwKQUoFiCPWvreK9YS08Ss3b1h94ZdRZmN]
+  - key: ANTHROPIC_API_KEY
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: EV[1:n9iqVjERElGfahTIhOqmqgevMX5Bwfu9:wNMR0CIslaw88PzK1+VICZY2lsOZSwv/MoBBVsRlMbqNdchNUUSQo0p8EQiaHzSgP0fx4TSSP/ImHu7AY8+f8lYJ0wR9Z6xv1CunCSLI/25duv+h8hGTSLTN7AigBQ4iqAA2WkDDb15cF8Rxpgzin4ECXn6bEyEFcTNzgw==]
+  - key: OPENROUTER_API_KEY
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: EV[1:aBIWscrOTn5Bhpqf37609DSf4tc2x43Y:SMT1N2devTm1r3sCnSwzav4+FUHWclLN7fAtOxlu/5wrbARIoVBMg6WBt9WUqw1wvrI6Wac8hzKBr5bLzKMKPEAOFZ6T+On+lNd0Jk9oO2VQBPtuG53lP5k=]
+  - key: GEMINI_API_KEY
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: EV[1:C6Je411wF5KsgkvFeD54IG0y8EssAv4l:WPzGDtZtLPauCmG2Edar7I7zdvcH87zyFOg04yucVYQ/rn/a0iiRYxYGz5DyflQ4KTPDLqFutA==]
+  - key: BASIQ_API_KEY
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: EV[1:5q94V3cSfPwQ6Tqf8f2GXnM50ndSzYo3:hV21iXi6jsN5XQi1/8XSBFhumBSvsPfQwfH/dPoXFlBT5LUyPu0h52+fnCQt0ItXTVwMhZCvat/8mw8wi7hRsllcm48Pd3yoRBpb5xoQe4goResZNjmrfBQwNCTlz14PtKXMWz6IioBxtSzEziyEeZk+Eu8=]
+  - key: NODE_ENV
+    scope: RUN_AND_BUILD_TIME
+    value: production
+  - key: NEXTAUTH_URL
+    scope: RUN_AND_BUILD_TIME
+    value: https://taxreturnpro.com.au
+  - key: EMAIL_FROM
+    scope: RUN_AND_BUILD_TIME
+    value: noreply@taxreturnpro.com.au
+  - key: EMAIL_PROVIDER
+    scope: RUN_AND_BUILD_TIME
+    value: sendgrid
+  - key: SENDGRID_API_KEY
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: ${SENDGRID_API_KEY}
+  - key: SECRET_KEY
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: ${SECRET_KEY}
+  - key: JWT_SECRET_KEY
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: ${JWT_SECRET_KEY}
+  - key: CORS_ORIGINS
+    scope: RUN_AND_BUILD_TIME
+    value: https://taxreturnpro.com.au
+  - key: HEALTH_CHECK_TOKEN
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: ${HEALTH_CHECK_TOKEN}
+  - key: APP_URL
+    scope: RUN_AND_BUILD_TIME
+    value: https://taxreturnpro.com.au
+  - key: API_URL
+    scope: RUN_AND_BUILD_TIME
+    value: https://taxreturnpro.com.au/api
+name: taaxdog
+region: syd
+services:
+  - build_command: npm run build:do
+    environment_slug: node-js
+    github:
+      branch: main
+      deploy_on_push: true
+      repo: TaaxDog/TAAXDOG-CODING
+    http_port: 3000
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    name: web
+    run_command: npm start
+    source_dir: /

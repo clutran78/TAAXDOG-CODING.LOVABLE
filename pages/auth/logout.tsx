@@ -4,7 +4,7 @@ import Head from "next/head";
 
 export default function LogoutPage() {
   useEffect(() => {
-    signOut({ callbackUrl: "/auth/simple-login" });
+    signOut({ callbackUrl: "/auth/login" });
   }, []);
 
   return (

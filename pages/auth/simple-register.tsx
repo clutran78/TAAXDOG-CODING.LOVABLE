@@ -164,7 +164,7 @@ export default function SimpleRegisterPage() {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               Already have an account?{" "}
-              <Link href="/auth/simple-login" className="text-blue-600 hover:underline">
+              <Link href="/auth/login" className="text-blue-600 hover:underline">
                 Login
               </Link>
             </p>

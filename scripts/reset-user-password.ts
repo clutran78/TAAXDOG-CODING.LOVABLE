@@ -34,7 +34,7 @@ async function resetUserPassword() {
     console.log("\n📝 You can now login with:");
     console.log(`Email: ${email}`);
     console.log(`Password: ${newPassword}`);
-    console.log("\n🌐 Login at: http://localhost:3000/auth/simple-login");
+    console.log("\n🌐 Login at: http://localhost:3000/auth/login");
 
   } catch (error) {
     console.error("❌ Error resetting password:", error);
