@@ -4,19 +4,16 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "./prisma";
 import bcrypt from "bcryptjs";
 import { Role } from "../generated/prisma";
-import { getAuthConfig } from "./config";
-
-const authConfig = getAuthConfig();
 
 export const authOptions: NextAuthOptions = {
   // adapter: PrismaAdapter(prisma), // Temporarily removed for compatibility
   providers: [
     // Google OAuth - configure in environment files to enable
-    ...(authConfig.providers?.google?.clientId && authConfig.providers?.google?.clientSecret
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
       ? [
           GoogleProvider({
-            clientId: authConfig.providers.google.clientId,
-            clientSecret: authConfig.providers.google.clientSecret,
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
             allowDangerousEmailAccountLinking: true,
           }),
         ]
@@ -157,7 +154,7 @@ export const authOptions: NextAuthOptions = {
   jwt: {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  secret: authConfig.secret,
+  secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",
 };
 

@@ -1,6 +1,5 @@
 import nodemailer from 'nodemailer';
 import sgMail from '@sendgrid/mail';
-import { getConfig } from './config';
 
 // Email configuration
 const emailConfig = {
@@ -23,7 +22,7 @@ type EmailProvider = 'sendgrid' | 'smtp' | 'console';
 
 // Get the current email provider
 function getEmailProvider(): EmailProvider {
-  const config = getConfig();
+  const appUrl = process.env.APP_URL || 'https://taxreturnpro.com.au';
   
   // Check if SendGrid is configured and preferred
   if (process.env.EMAIL_PROVIDER === 'sendgrid' && process.env.SENDGRID_API_KEY) {
@@ -31,7 +30,7 @@ function getEmailProvider(): EmailProvider {
   }
   
   // Fall back to SMTP in production if configured
-  if (config.env === 'production' && process.env.SMTP_USER && process.env.SMTP_PASS) {
+  if (process.env.NODE_ENV === 'production' && process.env.SMTP_USER && process.env.SMTP_PASS) {
     return 'smtp';
   }
   
@@ -281,9 +280,9 @@ Need help? Contact us at ${emailConfig.support.email}
                 <p>Receive personalized recommendations to maximize your tax return.</p>
               </div>
               
-              <a href="${getConfig().app.url}/dashboard" class="button">Go to Dashboard</a>
+              <a href="${(process.env.APP_URL || 'https://taxreturnpro.com.au')}/dashboard" class="button">Go to Dashboard</a>
               
-              <p>Need help? Check out our <a href="${getConfig().app.url}/help">Help Center</a> or reply to this email.</p>
+              <p>Need help? Check out our <a href="${(process.env.APP_URL || 'https://taxreturnpro.com.au')}/help">Help Center</a> or reply to this email.</p>
             </div>
             <div class="footer">
               <p>© ${new Date().getFullYear()} TaxReturnPro. All rights reserved.</p>
@@ -303,9 +302,9 @@ Your email has been verified successfully! Here's how to get started:
 3. Start Tracking Receipts - Upload receipts with our AI-powered scanner for easy tax deductions.
 4. Get Tax Insights - Receive personalized recommendations to maximize your tax return.
 
-Go to Dashboard: ${getConfig().app.url}/dashboard
+Go to Dashboard: ${(process.env.APP_URL || 'https://taxreturnpro.com.au')}/dashboard
 
-Need help? Check out our Help Center at ${getConfig().app.url}/help or reply to this email.
+Need help? Check out our Help Center at ${(process.env.APP_URL || 'https://taxreturnpro.com.au')}/help or reply to this email.
 
 © ${new Date().getFullYear()} TaxReturnPro. All rights reserved.
 ABN: 12 345 678 901 | Sydney, Australia
@@ -362,8 +361,8 @@ If you didn't request this code, please secure your account immediately.
 
 // Send verification email
 export async function sendVerificationEmail(email: string, name: string, token: string): Promise<void> {
-  const config = getConfig();
-  const verificationUrl = `${config.app.url}/auth/verify-email?token=${token}`;
+  const appUrl = process.env.APP_URL || 'https://taxreturnpro.com.au';
+  const verificationUrl = `${appUrl}/auth/verify-email?token=${token}`;
   const template = templates.verification(name, verificationUrl);
   
   const transporter = createTransporter();
@@ -376,8 +375,8 @@ export async function sendVerificationEmail(email: string, name: string, token: 
 
 // Send password reset email
 export async function sendPasswordResetEmail(email: string, name: string, token: string): Promise<void> {
-  const config = getConfig();
-  const resetUrl = `${config.app.url}/auth/reset-password?token=${token}`;
+  const appUrl = process.env.APP_URL || 'https://taxreturnpro.com.au';
+  const resetUrl = `${appUrl}/auth/reset-password?token=${token}`;
   const template = templates.passwordReset(name, resetUrl);
   
   const transporter = createTransporter();
