@@ -37,8 +37,24 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    if (formData.password.length < 8) {
-      setError("Password must be at least 8 characters");
+    // Validate password requirements
+    if (formData.password.length < 12) {
+      setError("Password must be at least 12 characters");
+      return;
+    }
+    
+    if (!/[a-z]/.test(formData.password)) {
+      setError("Password must contain lowercase letters");
+      return;
+    }
+    
+    if (!/[A-Z]/.test(formData.password)) {
+      setError("Password must contain uppercase letters");
+      return;
+    }
+    
+    if (!/\d/.test(formData.password)) {
+      setError("Password must contain numbers");
       return;
     }
 
@@ -99,6 +115,15 @@ export default function ResetPasswordPage() {
             <p className="mt-2 text-center text-sm text-gray-600">
               Enter your new password below
             </p>
+            <div className="mt-4 text-xs text-gray-500 bg-gray-50 p-3 rounded">
+              <p className="font-semibold mb-1">Password requirements:</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>At least 12 characters long</li>
+                <li>Contains uppercase letters (A-Z)</li>
+                <li>Contains lowercase letters (a-z)</li>
+                <li>Contains numbers (0-9)</li>
+              </ul>
+            </div>
           </div>
           
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
