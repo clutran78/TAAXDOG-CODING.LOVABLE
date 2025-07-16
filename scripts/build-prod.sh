@@ -1,7 +1,9 @@
 #!/bin/bash
 # Production build script for DigitalOcean
+# Last updated: 2025-07-16 00:35 UTC
 
 echo "🚀 Starting production build..."
+echo "Build timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 
 # Install dependencies
 echo "📦 Installing dependencies..."
