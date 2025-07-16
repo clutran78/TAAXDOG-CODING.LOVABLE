@@ -31,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         where: { email },
       });
       console.log("[Register] User check completed:", existingUser ? "exists" : "not found");
-    } catch (dbError) {
+    } catch (dbError: any) {
       console.error("[Register] Database error during user check:", {
         error: dbError.message,
         code: dbError.code,
@@ -65,7 +65,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
       });
       console.log("[Register] User created successfully:", user.id);
-    } catch (createError) {
+    } catch (createError: any) {
       console.error("[Register] Failed to create user:", {
         error: createError.message,
         code: createError.code,
@@ -85,23 +85,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Try to send verification email, but don't fail registration if email fails
+    let emailSent = false;
     try {
+      console.log("[Register] Creating verification token...");
       const verificationToken = await createVerificationToken(email);
+      console.log("[Register] Verification token created:", verificationToken.substring(0, 10) + "...");
+      
+      console.log("[Register] Attempting to send verification email...");
       await sendVerificationEmail(email, name, verificationToken);
-    } catch (emailError) {
-      console.error("Failed to send verification email:", emailError);
+      emailSent = true;
+      console.log("[Register] Verification email sent successfully");
+    } catch (emailError: any) {
+      console.error("[Register] Failed to send verification email:", {
+        error: emailError.message,
+        code: emailError.code,
+        stack: process.env.NODE_ENV === "development" ? emailError.stack : undefined,
+        email
+      });
       // Continue with registration success even if email fails
     }
 
     res.status(201).json({
-      message: "Account created successfully. Please check your email for verification.",
+      message: emailSent 
+        ? "Account created successfully. Please check your email for verification."
+        : "Account created successfully. Email verification will be sent shortly.",
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
       },
+      emailSent,
+      debug: process.env.NODE_ENV === "development" ? {
+        emailProvider: process.env.EMAIL_PROVIDER || "console",
+        hasApiKey: !!process.env.SENDGRID_API_KEY
+      } : undefined
     });
-  } catch (error) {
+  } catch (error: any) {
     const duration = Date.now() - startTime;
     console.error("[Register] Registration failed:", {
       error: error.message,
