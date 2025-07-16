@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { prisma } from "../../../lib/prisma";
-import { hashPassword } from "../../../lib/auth";
+import { hashPassword, createVerificationToken } from "../../../lib/auth";
+import { sendVerificationEmail } from "../../../lib/email";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -44,8 +45,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
 
+    // Try to send verification email, but don't fail registration if email fails
+    try {
+      const verificationToken = await createVerificationToken(email);
+      await sendVerificationEmail(email, name, verificationToken);
+    } catch (emailError) {
+      console.error("Failed to send verification email:", emailError);
+      // Continue with registration success even if email fails
+    }
+
     res.status(201).json({
-      message: "Account created successfully",
+      message: "Account created successfully. Please check your email for verification.",
       user: {
         id: user.id,
         email: user.email,
