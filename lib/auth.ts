@@ -60,6 +60,13 @@ export const authOptions: NextAuthOptions = {
         }
 
         const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
+        
+        console.log("Password validation:", {
+          email: credentials.email,
+          passwordProvided: !!credentials.password,
+          storedPasswordExists: !!user.password,
+          isValid: isPasswordValid
+        });
 
         if (!isPasswordValid) {
           // Increment failed login attempts
