@@ -14,7 +14,10 @@ const emailConfig = {
 
 // Initialize SendGrid if API key is provided
 if (process.env.SENDGRID_API_KEY) {
+  console.log('Initializing SendGrid with API key:', process.env.SENDGRID_API_KEY.substring(0, 10) + '...');
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+} else {
+  console.log('SendGrid API key not found in environment variables');
 }
 
 // Email provider type
@@ -22,24 +25,41 @@ type EmailProvider = 'sendgrid' | 'smtp' | 'console';
 
 // Get the current email provider
 function getEmailProvider(): EmailProvider {
-  const appUrl = process.env.APP_URL || 'https://taxreturnpro.com.au';
+  console.log('Email provider selection:', {
+    EMAIL_PROVIDER: process.env.EMAIL_PROVIDER,
+    SENDGRID_API_KEY: process.env.SENDGRID_API_KEY ? 'Set' : 'Not set',
+    NODE_ENV: process.env.NODE_ENV,
+    SMTP_USER: process.env.SMTP_USER ? 'Set' : 'Not set',
+    SMTP_PASS: process.env.SMTP_PASS ? 'Set' : 'Not set',
+  });
   
   // Check if SendGrid is configured and preferred
   if (process.env.EMAIL_PROVIDER === 'sendgrid' && process.env.SENDGRID_API_KEY) {
+    console.log('Using SendGrid provider');
     return 'sendgrid';
   }
   
   // Fall back to SMTP in production if configured
   if (process.env.NODE_ENV === 'production' && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    console.log('Using SMTP provider');
     return 'smtp';
   }
   
   // Default to console in development or if nothing is configured
+  console.log('Using console provider (no email will be sent)');
   return 'console';
 }
 
 // Send email using SendGrid
 async function sendWithSendGrid(options: any) {
+  // Re-check and set API key in case it wasn't initialized
+  if (!process.env.SENDGRID_API_KEY) {
+    throw new Error('SendGrid API key is not configured');
+  }
+  
+  // Ensure SendGrid is initialized with the current API key
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  
   const msg = {
     to: options.to,
     from: {
@@ -52,7 +72,9 @@ async function sendWithSendGrid(options: any) {
   };
 
   try {
+    console.log('Attempting to send email via SendGrid to:', options.to);
     const [response] = await sgMail.send(msg);
+    console.log('SendGrid email sent successfully');
     return { 
       messageId: response.headers['x-message-id'] || `sg-${Date.now()}`,
       provider: 'sendgrid' 
@@ -119,7 +141,12 @@ function createTransporter() {
   // Return a compatible interface for non-SMTP providers
   return {
     sendMail: async (options: any) => {
-      return sendEmail(options);
+      try {
+        return await sendEmail(options);
+      } catch (error) {
+        console.error('Error in createTransporter sendMail:', error);
+        throw error;
+      }
     },
   };
 }
