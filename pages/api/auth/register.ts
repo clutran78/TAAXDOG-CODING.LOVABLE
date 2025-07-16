@@ -1,40 +1,19 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { prisma } from "../../../lib/prisma";
-import { hashPassword, validatePassword, createVerificationToken, logAuthEvent as logAuth } from "../../../lib/auth";
+import { 
+  hashPassword, 
+  generateEmailVerificationToken,
+  generateJWT,
+  sanitizeUser,
+  getClientIP,
+  getAuthCookieOptions,
+  validatePasswordStrength
+} from "../../../lib/auth/auth-utils";
+import { registerSchema, validateInput } from "../../../lib/auth/validation";
+import { authRateLimiter } from "../../../lib/auth/rate-limiter";
+import { sendVerificationEmail } from "../../../lib/email";
 import { TaxResidency, AuthEvent } from "../../../generated/prisma";
 import { InputValidator } from "../../../lib/security/middleware";
-import { sendVerificationEmail } from "../../../lib/email";
-
-// Rate limiting store (in production, use Redis)
-const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
-
-function getRateLimitKey(req: NextApiRequest): string {
-  const forwarded = req.headers["x-forwarded-for"];
-  const ip = typeof forwarded === "string" ? forwarded.split(",")[0] : req.socket.remoteAddress;
-  return `register:${ip || "unknown"}`;
-}
-
-function checkRateLimit(req: NextApiRequest): boolean {
-  const key = getRateLimitKey(req);
-  const now = Date.now();
-  const limit = rateLimitStore.get(key);
-
-  if (!limit || now > limit.resetTime) {
-    rateLimitStore.set(key, {
-      count: 1,
-      resetTime: now + 60 * 1000, // 1 minute window
-    });
-    return true;
-  }
-
-  if (limit.count >= 5) {
-    // Max 5 registration attempts per minute
-    return false;
-  }
-
-  limit.count++;
-  return true;
-}
 
 // Privacy consent tracking
 interface PrivacyConsent {
@@ -50,38 +29,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ message: "Method not allowed" });
   }
 
-  // Check rate limit
-  if (!checkRateLimit(req)) {
-    await logAuth({
-      event: "REGISTER",
-      success: false,
-      metadata: {
-        reason: "Rate limit exceeded",
-      },
-      req,
-    });
-    return res.status(429).json({ message: "Too many requests. Please try again later." });
-  }
+  // Apply rate limiting
+  const rateLimitOk = await authRateLimiter(req, res);
+  if (!rateLimitOk) return;
+
+  const startTime = Date.now();
+  const clientIp = getClientIP(req);
 
   try {
-    const { 
-      email, 
-      password, 
-      name, 
-      phone, 
-      abn, 
-      taxResidency,
-      privacyConsent,
-    } = req.body;
-
-    // Validate required fields
-    if (!email || !password || !name) {
-      return res.status(400).json({ message: "Email, password, and name are required" });
+    // Validate input with Zod schema
+    const validation = validateInput(registerSchema, req.body);
+    if (!validation.success) {
+      return res.status(400).json({ 
+        error: "Validation failed", 
+        errors: validation.errors 
+      });
     }
 
-    // Validate email format
-    if (!InputValidator.isValidEmail(email)) {
-      return res.status(400).json({ message: "Invalid email format" });
+    const { email, password, name } = validation.data;
+    const { phone, abn, taxResidency, privacyConsent } = req.body;
+
+    // Additional password strength check
+    const passwordValidation = validatePasswordStrength(password);
+    if (!passwordValidation.isValid) {
+      return res.status(400).json({
+        error: "Password does not meet requirements",
+        errors: { password: passwordValidation.errors }
+      });
     }
     
     // Validate phone if provided
@@ -96,118 +70,150 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    // Validate password strength
-    const passwordValidation = validatePassword(password);
-    if (!passwordValidation.valid) {
-      return res.status(400).json({
-        message: "Password does not meet requirements",
-        errors: passwordValidation.errors,
-      });
-    }
-
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (existingUser) {
-      await logAuth({
-        event: "REGISTER",
-        success: false,
-        metadata: {
-          reason: "Email already exists",
-          email,
-        },
-        req,
-      });
-      return res.status(409).json({ message: "An account with this email already exists" });
-    }
-
     // Validate ABN if provided
     if (abn && !InputValidator.isValidABN(abn)) {
       return res.status(400).json({ message: "Invalid ABN format" });
     }
-    
-    // Sanitize inputs
-    const sanitizedName = InputValidator.sanitizeInput(name);
-    const sanitizedPhone = phone ? phone.replace(/\s/g, '') : null;
 
-    // Hash password
-    const hashedPassword = await hashPassword(password);
+    // Start transaction for atomic operations
+    const result = await prisma.$transaction(async (tx) => {
+      // Check if user already exists
+      const existingUser = await tx.user.findUnique({
+        where: { email: email.toLowerCase() },
+        select: { id: true }
+      });
 
-    // Create user with privacy consent tracking
-    const user = await prisma.user.create({
-      data: {
-        email: email.toLowerCase(),
-        password: hashedPassword,
-        name: sanitizedName,
-        phone: sanitizedPhone,
-        abn: abn ? abn.replace(/\s/g, "") : null,
-        taxResidency: (taxResidency as TaxResidency) || TaxResidency.RESIDENT,
-        // Store privacy consent in audit log
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-      },
-    });
-    
-    // Create verification token
-    const verificationToken = await createVerificationToken(user.email);
-    
-    // Store privacy consent
-    await prisma.auditLog.create({
-      data: {
-        event: AuthEvent.REGISTER,
-        userId: user.id,
-        ipAddress: req.headers["x-forwarded-for"]?.toString() || req.socket.remoteAddress || "0.0.0.0",
-        userAgent: req.headers["user-agent"] || "",
-        success: true,
-        metadata: {
-          privacyConsent: {
-            ...privacyConsent,
-            timestamp: new Date(),
+      if (existingUser) {
+        throw new Error('EMAIL_EXISTS');
+      }
+
+      // Generate email verification token
+      const { token: verificationToken, expires: verificationExpires } = generateEmailVerificationToken();
+
+      // Hash password
+      const hashedPassword = await hashPassword(password);
+      
+      // Sanitize inputs
+      const sanitizedPhone = phone ? phone.replace(/\s/g, '') : null;
+
+      // Create user
+      const user = await tx.user.create({
+        data: {
+          email: email.toLowerCase(),
+          password: hashedPassword,
+          name,
+          phone: sanitizedPhone,
+          abn: abn ? abn.replace(/\s/g, "") : null,
+          taxResidency: (taxResidency as TaxResidency) || TaxResidency.RESIDENT,
+          emailVerificationToken: verificationToken,
+          emailVerificationExpires: verificationExpires,
+          lastLoginIp: clientIp,
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          createdAt: true,
+        },
+      });
+
+      // Create audit log
+      await tx.auditLog.create({
+        data: {
+          event: AuthEvent.REGISTER,
+          userId: user.id,
+          ipAddress: clientIp,
+          userAgent: req.headers["user-agent"] || "",
+          success: true,
+          metadata: {
+            email: user.email,
+            hasABN: !!abn,
+            taxResidency,
+            privacyConsent: privacyConsent ? {
+              ...privacyConsent,
+              timestamp: new Date(),
+            } : null,
           },
         },
-      },
+      });
+
+      return { user, verificationToken };
     });
+
+    // Send verification email (outside transaction)
+    try {
+      await sendVerificationEmail(
+        result.user.email,
+        result.user.name,
+        result.verificationToken
+      );
+    } catch (emailError) {
+      console.error('[Register] Failed to send verification email:', emailError);
+      // Don't fail registration if email fails
+    }
+
+    // Generate JWT token
+    const token = generateJWT({
+      userId: result.user.id,
+      email: result.user.email,
+      role: result.user.role,
+    });
+
+    // Set auth cookie
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    res.setHeader('Set-Cookie', [
+      `auth-token=${token}; ${Object.entries(getAuthCookieOptions(isDevelopment))
+        .map(([key, value]) => `${key}=${value}`)
+        .join('; ')}`,
+    ]);
 
     // Log successful registration
-    await logAuth({
-      event: "REGISTER",
-      userId: user.id,
-      success: true,
-      metadata: {
-        email: user.email,
-        hasABN: !!abn,
-        taxResidency,
-      },
-      req,
+    const duration = Date.now() - startTime;
+    console.log('[Register] User registered successfully:', {
+      userId: result.user.id,
+      email: result.user.email,
+      duration: `${duration}ms`,
+      ip: clientIp,
     });
 
-    // Send verification email
-    await sendVerificationEmail(user.email, user.name, verificationToken);
-
+    // Return success response
     res.status(201).json({
       message: "Account created successfully. Please check your email to verify your account.",
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-      },
+      user: sanitizeUser(result.user),
       requiresVerification: true,
     });
-  } catch (error) {
-    console.error("Registration error:", error);
-    await logAuth({
-      event: "REGISTER",
-      success: false,
-      metadata: {
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
-      req,
+  } catch (error: any) {
+    const duration = Date.now() - startTime;
+    
+    // Log error
+    console.error('[Register] Registration failed:', {
+      error: error.message,
+      code: error.code,
+      duration: `${duration}ms`,
+      ip: clientIp,
+      email: req.body.email,
     });
-    res.status(500).json({ message: "An error occurred during registration" });
+
+    // Handle specific errors
+    if (error.message === 'EMAIL_EXISTS') {
+      return res.status(409).json({
+        error: 'Registration failed',
+        message: 'An account with this email already exists.',
+      });
+    }
+
+    if (error.code === 'P2002') {
+      return res.status(409).json({
+        error: 'Registration failed',
+        message: 'An account with this email already exists.',
+      });
+    }
+
+    // Generic error response
+    return res.status(500).json({
+      error: 'Internal server error',
+      message: 'An unexpected error occurred. Please try again later.',
+    });
   }
 }

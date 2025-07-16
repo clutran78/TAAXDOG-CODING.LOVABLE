@@ -1,0 +1,105 @@
+import { z } from 'zod';
+
+// Custom password validation
+const passwordSchema = z.string()
+  .min(8, 'Password must be at least 8 characters')
+  .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+  .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+  .regex(/[0-9]/, 'Password must contain at least one number')
+  .regex(/[!@#$%^&*(),.?":{}|<>]/, 'Password must contain at least one special character');
+
+// Email validation with additional checks
+const emailSchema = z.string()
+  .email('Invalid email address')
+  .toLowerCase()
+  .trim()
+  .max(255, 'Email is too long');
+
+// Registration schema
+export const registerSchema = z.object({
+  email: emailSchema,
+  password: passwordSchema,
+  name: z.string()
+    .min(2, 'Name must be at least 2 characters')
+    .max(100, 'Name is too long')
+    .regex(/^[a-zA-Z\s'-]+$/, 'Name contains invalid characters')
+    .trim(),
+});
+
+// Login schema
+export const loginSchema = z.object({
+  email: emailSchema,
+  password: z.string().min(1, 'Password is required'),
+});
+
+// Forgot password schema
+export const forgotPasswordSchema = z.object({
+  email: emailSchema,
+});
+
+// Reset password schema
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, 'Reset token is required'),
+  password: passwordSchema,
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+// Verify email schema
+export const verifyEmailSchema = z.object({
+  token: z.string().min(1, 'Verification token is required'),
+});
+
+// Change password schema (for logged-in users)
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: passwordSchema,
+  confirmPassword: z.string(),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+}).refine((data) => data.currentPassword !== data.newPassword, {
+  message: "New password must be different from current password",
+  path: ["newPassword"],
+});
+
+// Type exports
+export type RegisterInput = z.infer<typeof registerSchema>;
+export type LoginInput = z.infer<typeof loginSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+// Validation error formatter
+export function formatZodError(error: z.ZodError): Record<string, string[]> {
+  const formatted: Record<string, string[]> = {};
+  
+  error.errors.forEach((err) => {
+    const path = err.path.join('.');
+    if (!formatted[path]) {
+      formatted[path] = [];
+    }
+    formatted[path].push(err.message);
+  });
+  
+  return formatted;
+}
+
+// Safe validation wrapper
+export function validateInput<T>(
+  schema: z.ZodSchema<T>,
+  data: unknown
+): { success: true; data: T } | { success: false; errors: Record<string, string[]> } {
+  try {
+    const validated = schema.parse(data);
+    return { success: true, data: validated };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return { success: false, errors: formatZodError(error) };
+    }
+    return { success: false, errors: { _general: ['Validation failed'] } };
+  }
+}

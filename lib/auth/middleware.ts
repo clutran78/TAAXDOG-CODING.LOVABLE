@@ -1,8 +1,11 @@
 import { NextApiRequest, NextApiResponse, NextApiHandler } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions, logAuthEvent } from '../auth';
-import { Role } from '../../generated/prisma';
+import { Role, AuthEvent } from '../../generated/prisma';
 import { prisma } from '../prisma';
+import { verifyJWT, getClientIP } from './auth-utils';
+import { csrfProtection } from './csrf-protection';
+import { apiRateLimiter } from './rate-limiter';
 
 // Type for authenticated request
 export interface AuthenticatedRequest extends NextApiRequest {

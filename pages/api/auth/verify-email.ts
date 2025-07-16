@@ -1,127 +1,157 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { prisma } from "../../../lib/prisma";
-import { logAuthEvent } from "../../../lib/auth";
+import { getClientIP } from "../../../lib/auth/auth-utils";
+import { verifyEmailSchema, validateInput } from "../../../lib/auth/validation";
+import { emailVerificationRateLimiter } from "../../../lib/auth/rate-limiter";
 import { sendWelcomeEmail } from "../../../lib/email";
+import { AuthEvent } from "../../../generated/prisma";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ message: "Method not allowed" });
   }
 
+  // Apply rate limiting
+  const rateLimitOk = await emailVerificationRateLimiter(req, res);
+  if (!rateLimitOk) return;
+
+  const startTime = Date.now();
+  const clientIp = getClientIP(req);
+
   try {
-    const { token } = req.body;
-
-    if (!token) {
-      return res.status(400).json({ message: "Verification token is required" });
-    }
-
-    // Find the verification token
-    const verificationToken = await prisma.verificationToken.findUnique({
-      where: { token },
-    });
-
-    if (!verificationToken) {
-      await logAuthEvent({
-        event: "EMAIL_VERIFICATION",
-        success: false,
-        metadata: { reason: "Invalid token" },
-        req,
-      });
-      return res.status(400).json({ 
-        message: "Invalid verification token. Please request a new verification email." 
+    // Validate input
+    const validation = validateInput(verifyEmailSchema, req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        errors: validation.errors,
       });
     }
 
-    // Check if token is expired
-    if (verificationToken.expires < new Date()) {
-      // Delete expired token
-      await prisma.verificationToken.delete({
-        where: { token },
-      });
-      
-      await logAuthEvent({
-        event: "EMAIL_VERIFICATION",
-        success: false,
-        metadata: { reason: "Expired token" },
-        req,
-      });
-      return res.status(400).json({ 
-        message: "Verification token has expired. Please request a new verification email." 
-      });
-    }
+    const { token } = validation.data;
 
-    // Find the user
-    const user = await prisma.user.findUnique({
-      where: { email: verificationToken.identifier },
+    // Find user with valid verification token
+    const user = await prisma.user.findFirst({
+      where: {
+        emailVerificationToken: token,
+        emailVerificationExpires: {
+          gt: new Date(), // Token must not be expired
+        },
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        emailVerified: true,
+      },
     });
 
     if (!user) {
-      await logAuthEvent({
-        event: "EMAIL_VERIFICATION",
-        success: false,
-        metadata: { reason: "User not found" },
-        req,
+      // Log failed attempt
+      await prisma.auditLog.create({
+        data: {
+          event: AuthEvent.EMAIL_VERIFICATION,
+          ipAddress: clientIp,
+          userAgent: req.headers['user-agent'] || '',
+          success: false,
+          metadata: {
+            reason: 'Invalid or expired token',
+            token: token.substring(0, 8) + '...', // Log partial token for debugging
+          },
+        },
       });
-      return res.status(400).json({ message: "Invalid verification token" });
+
+      return res.status(400).json({
+        error: 'Invalid or expired token',
+        message: 'This verification link is invalid or has expired. Please request a new one.',
+      });
     }
 
     // Check if already verified
     if (user.emailVerified) {
       // Clean up token
-      await prisma.verificationToken.delete({
-        where: { token },
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          emailVerificationToken: null,
+          emailVerificationExpires: null,
+        },
       });
       
       return res.status(200).json({ 
-        message: "Email already verified",
+        message: 'Email already verified',
         alreadyVerified: true,
       });
     }
 
-    // Update user as verified
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { 
-        emailVerified: new Date(),
-        // Clear any lockouts on verification
-        failedLoginAttempts: 0,
-        lockedUntil: null,
-      },
+    // Update user as verified in transaction
+    await prisma.$transaction(async (tx) => {
+      // Update user
+      await tx.user.update({
+        where: { id: user.id },
+        data: { 
+          emailVerified: new Date(),
+          emailVerificationToken: null,
+          emailVerificationExpires: null,
+          // Clear any lockouts on verification
+          failedLoginAttempts: 0,
+          lockedUntil: null,
+        },
+      });
+
+      // Log successful verification
+      await tx.auditLog.create({
+        data: {
+          event: AuthEvent.EMAIL_VERIFICATION,
+          userId: user.id,
+          ipAddress: clientIp,
+          userAgent: req.headers['user-agent'] || '',
+          success: true,
+          metadata: {
+            email: user.email,
+          },
+        },
+      });
     });
 
-    // Delete the used token
-    await prisma.verificationToken.delete({
-      where: { token },
-    });
-
-    // Log successful verification
-    await logAuthEvent({
-      event: "EMAIL_VERIFICATION",
-      userId: user.id,
-      success: true,
-      req,
-    });
-
-    // Send welcome email
+    // Send welcome email (outside transaction)
     try {
       await sendWelcomeEmail(user.email, user.name);
     } catch (emailError) {
-      console.error("Failed to send welcome email:", emailError);
+      console.error('[VerifyEmail] Failed to send welcome email:', emailError);
+      // Don't fail verification if welcome email fails
     }
 
-    res.status(200).json({ 
-      message: "Email verified successfully! You can now access all features.",
+    const duration = Date.now() - startTime;
+    console.log('[VerifyEmail] Email verified successfully:', {
+      userId: user.id,
+      email: user.email,
+      duration: `${duration}ms`,
+      ip: clientIp,
+    });
+
+    // Return success response
+    return res.status(200).json({ 
+      message: 'Email verified successfully! You can now access all features.',
       success: true,
     });
-  } catch (error) {
-    console.error("Email verification error:", error);
-    await logAuthEvent({
-      event: "EMAIL_VERIFICATION",
-      success: false,
-      metadata: { error: error instanceof Error ? error.message : "Unknown error" },
-      req,
+
+  } catch (error: any) {
+    const duration = Date.now() - startTime;
+
+    // Log error
+    console.error('[VerifyEmail] Email verification error:', {
+      error: error.message,
+      code: error.code,
+      duration: `${duration}ms`,
+      ip: clientIp,
     });
-    res.status(500).json({ message: "An error occurred during email verification" });
+
+    // Generic error response
+    return res.status(500).json({
+      error: 'Internal server error',
+      message: 'An unexpected error occurred. Please try again later.',
+    });
   }
 }
 
