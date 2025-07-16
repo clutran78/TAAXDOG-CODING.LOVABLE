@@ -69,6 +69,18 @@ async function sendWithSendGrid(options: any) {
     subject: options.subject,
     text: options.text,
     html: options.html,
+    trackingSettings: {
+      clickTracking: {
+        enable: false,
+        enableText: false
+      },
+      openTracking: {
+        enable: false
+      },
+      subscriptionTracking: {
+        enable: false
+      }
+    }
   };
 
   try {
