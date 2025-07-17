@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
-import { sendPasswordResetEmail } from "firebase/auth";
-import { auth } from "@/lib/firebase";
 import Link from "next/link";
 import { useDarkMode } from "@/providers/dark-mode-provider";
 
@@ -23,10 +21,21 @@ export default function ForgotPasswordPage() {
     setMessage("");
     setFirebaseError("");
     try {
-      await sendPasswordResetEmail(auth, values.email);
-      setMessage("Password reset email sent. Please check your inbox.");
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: values.email })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setMessage("Password reset email sent. Please check your inbox.");
+      } else {
+        setFirebaseError(data.error || "Failed to send reset email.");
+      }
     } catch (error: any) {
-      setFirebaseError(error.message || "Failed to send reset email.");
+      setFirebaseError("Failed to send reset email. Please try again.");
     }
   };
 

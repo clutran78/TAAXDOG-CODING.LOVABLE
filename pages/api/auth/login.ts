@@ -122,8 +122,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    // Check if email is verified
-    if (!user.emailVerified) {
+    // Check if email is verified (only if email provider is configured)
+    const { shouldRequireEmailVerification } = await import('../../../lib/auth/email-config');
+    if (shouldRequireEmailVerification() && !user.emailVerified) {
       return res.status(403).json({
         error: 'Email not verified',
         message: 'Please verify your email address before logging in.',

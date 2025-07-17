@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase";
 import Cookies from "js-cookie";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -28,30 +26,35 @@ export default function LoginPage() {
   const handleSubmit = async (values: any) => {
     setFirebaseError("");
     try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        values.email,
-        values.password
-      );
-      const token = await userCredential.user.getIdToken();
-      Cookies.set("auth-token", token, { expires: 7 }); // 7 days
-      router.push("/dashboard");
-    } catch (error: any) {
-      if (
-        error.code === "auth/user-not-found" ||
-        error.code === "auth/wrong-password" ||
-        error.code === "auth/invalid-credential"
-      ) {
-        setFirebaseError(
-          "Email and/or password not recognized. Please try again."
-        );
-      } else if (error.code === "auth/too-many-requests") {
-        setFirebaseError(
-          "Too many login attempts. Please wait and try again later."
-        );
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: values.email,
+          password: values.password 
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        Cookies.set("auth-token", data.token, { expires: 7 }); // 7 days
+        router.push("/dashboard");
       } else {
-        setFirebaseError("Login failed. Please try again.");
+        if (data.error === "Invalid credentials") {
+          setFirebaseError(
+            "Email and/or password not recognized. Please try again."
+          );
+        } else if (data.error === "Too many login attempts") {
+          setFirebaseError(
+            "Too many login attempts. Please wait and try again later."
+          );
+        } else {
+          setFirebaseError(data.error || "Login failed. Please try again.");
+        }
       }
+    } catch (error: any) {
+      setFirebaseError("Login failed. Please try again.");
     }
   };
 

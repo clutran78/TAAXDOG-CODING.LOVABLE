@@ -62,6 +62,15 @@ services:
     type: SECRET
     value: ${BASIQ_API_KEY}
   
+  # Email Configuration
+  - key: EMAIL_FROM
+    value: noreply@taxreturnpro.com.au
+  - key: EMAIL_PROVIDER
+    value: sendgrid
+  - key: SENDGRID_API_KEY
+    type: SECRET
+    value: ${SENDGRID_API_KEY}
+  
   # Health Check Configuration
   health_check:
     http_path: /api/health

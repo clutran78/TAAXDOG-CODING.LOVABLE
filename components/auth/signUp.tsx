@@ -2,12 +2,9 @@
 import { useState } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth, db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
-import { doc, setDoc } from "firebase/firestore";
 import { useDarkMode } from "@/providers/dark-mode-provider";
 
 const SignupSchema = Yup.object().shape({
@@ -37,31 +34,34 @@ export default function SignupPage() {
   const handleSubmit = async (values: any) => {
     setFirebaseError("");
     try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        values.email,
-        values.password
-      );
-      const user = userCredential.user;
-      // Store custom user data in Firestore
-      await setDoc(doc(db, "users", user.uid), {
-        email: values.email,
-        createdAt: new Date(),
-        userId: user.uid,
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: values.email,
+          password: values.password
+        })
       });
-      router.push("/login");
-    } catch (error: any) {
-      if (error.code === "auth/email-already-in-use") {
-        setFirebaseError(
-          "This email is already registered. Please log in or use a different email."
-        );
-      } else if (error.code === "auth/weak-password") {
-        setFirebaseError(
-          "The password is too weak. Please use a stronger password."
-        );
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        router.push("/login");
       } else {
-        setFirebaseError("Signup failed. Please try again.");
+        if (data.error === "Email already exists") {
+          setFirebaseError(
+            "This email is already registered. Please log in or use a different email."
+          );
+        } else if (data.error === "Weak password") {
+          setFirebaseError(
+            "The password is too weak. Please use a stronger password."
+          );
+        } else {
+          setFirebaseError(data.error || "Signup failed. Please try again.");
+        }
       }
+    } catch (error: any) {
+      setFirebaseError("Signup failed. Please try again.");
     }
   };
 

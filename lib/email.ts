@@ -13,9 +13,11 @@ const emailConfig = {
 };
 
 // Initialize SendGrid if API key is provided
-if (process.env.SENDGRID_API_KEY) {
+if (process.env.SENDGRID_API_KEY && process.env.SENDGRID_API_KEY.startsWith('SG.')) {
   console.log('Initializing SendGrid with API key:', process.env.SENDGRID_API_KEY.substring(0, 10) + '...');
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+} else if (process.env.SENDGRID_API_KEY) {
+  console.log('Warning: SendGrid API key does not start with "SG." - may be invalid');
 } else {
   console.log('SendGrid API key not found in environment variables');
 }
@@ -35,8 +37,14 @@ function getEmailProvider(): EmailProvider {
   
   // Check if SendGrid is configured and preferred
   if (process.env.EMAIL_PROVIDER === 'sendgrid' && process.env.SENDGRID_API_KEY) {
-    console.log('Using SendGrid provider');
-    return 'sendgrid';
+    // Validate SendGrid API key format
+    if (process.env.SENDGRID_API_KEY.startsWith('SG.')) {
+      console.log('Using SendGrid provider');
+      return 'sendgrid';
+    } else {
+      console.log('Invalid SendGrid API key format, falling back to console');
+      return 'console';
+    }
   }
   
   // Fall back to SMTP in production if configured
