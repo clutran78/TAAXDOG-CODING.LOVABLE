@@ -27,7 +27,7 @@ model User {
   
   // Australian compliance fields
   abn             String?         // Australian Business Number
-  tfn             String?         // Tax File Number (encrypted)
+  tfn             String?         // Tax File Number /// @encrypted
   taxResidency    TaxResidency    @default(RESIDENT)
   
   // Security fields
@@ -36,7 +36,7 @@ model User {
   lastLoginAt     DateTime?
   lastLoginIp     String?
   twoFactorEnabled Boolean        @default(false)
-  twoFactorSecret String?
+  twoFactorSecret String?         /// @encrypted
   
   // Email verification
   emailVerificationToken String?   @unique
@@ -66,7 +66,10 @@ model User {
   budgets         Budget[]
   budgetTracking  BudgetTracking[]
   financialInsights FinancialInsight[]
+  goals           Goal[]
   
+  @@index([email])
+  @@index([createdAt])
   @@map("users")
 }
 
@@ -417,7 +420,7 @@ model basiq_users {
   user_id             String    @unique
   basiq_user_id       String    @unique @db.VarChar(255)
   email               String    @db.VarChar(255)
-  mobile              String?   @db.VarChar(20)
+  mobile              String?   @db.VarChar(20) /// @encrypted
   connection_status   String?   @default("active") @db.VarChar(50)
   consent_id          String?   @db.VarChar(255)
   consent_status      String?   @db.VarChar(50)
@@ -455,8 +458,8 @@ model bank_accounts {
   connection_id         String    @db.Uuid
   basiq_account_id      String    @unique @db.VarChar(255)
   account_holder        String?   @db.VarChar(255)
-  account_number        String?   @db.VarChar(50)
-  bsb                   String?   @db.VarChar(10)
+  account_number        String?   @db.VarChar(50) /// @encrypted
+  bsb                   String?   @db.VarChar(10) /// @encrypted
   institution_name      String?   @db.VarChar(255)
   account_type          String?   @db.VarChar(100)
   account_name          String?   @db.VarChar(255)
@@ -500,6 +503,12 @@ model bank_transactions {
   
   // Relations
   bank_account          bank_accounts @relation(fields: [bank_account_id], references: [id], onDelete: Cascade)
+  
+  @@index([bank_account_id])
+  @@index([transaction_date])
+  @@index([category])
+  @@index([bank_account_id, transaction_date])
+  @@map("bank_transactions")
 }
 
 model basiq_webhooks {
@@ -568,6 +577,7 @@ model Receipt {
   @@index([date], map: "idx_receipts_date") 
   @@index([merchant], map: "idx_receipts_merchant")
   @@index([processingStatus], map: "idx_receipts_processing_status")
+  @@index([createdAt], map: "idx_receipts_processed_at")
   @@map("receipts")
 }
 
@@ -677,4 +687,36 @@ enum InsightPriority {
   HIGH
   MEDIUM
   LOW
+}
+
+// Goal model for tracking financial goals
+model Goal {
+  id              String      @id @default(uuid())
+  userId          String      @map("user_id")
+  title           String      @db.VarChar(255)
+  targetAmount    Decimal     @db.Decimal(15, 2) @map("target_amount")
+  currentAmount   Decimal     @default(0) @db.Decimal(15, 2) @map("current_amount")
+  targetDate      DateTime    @db.Date @map("target_date")
+  category        String?     @db.VarChar(100)
+  status          GoalStatus  @default(ACTIVE)
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+  
+  // Relations
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([status])
+  @@index([targetDate])
+  @@index([category])
+  @@index([userId, status])
+  @@map("goals")
+}
+
+// Goal Status enum
+enum GoalStatus {
+  ACTIVE
+  COMPLETED
+  PAUSED
+  CANCELLED
 }

@@ -24,7 +24,7 @@ export const VarianceChart: React.FC<VarianceChartProps> = ({ tracking }) => {
 
     // Convert to array and sort by date
     return Object.entries(monthlyData)
-      .map(([key, data]: [string, { month: number; year: number; predicted: number; actual: number }]) => ({
+      .map(([key, data]) => ({
         month: data.month,
         year: data.year,
         predicted: data.predicted,

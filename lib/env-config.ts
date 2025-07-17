@@ -126,6 +126,10 @@ class EnvironmentConfig {
   }
 
   public getDatabaseUrl(): string {
+    if (!this.config || !this.config.DATABASE_URL) {
+      // Fallback to process.env if config not loaded yet
+      return process.env.DATABASE_URL || '';
+    }
     return this.config.DATABASE_URL;
   }
 

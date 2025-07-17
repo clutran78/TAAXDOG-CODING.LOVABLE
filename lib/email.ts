@@ -122,7 +122,7 @@ function createSMTPTransporter() {
 }
 
 // Universal email sending function
-async function sendEmail(options: any) {
+export async function sendEmail(options: any) {
   const provider = getEmailProvider();
   
   switch (provider) {

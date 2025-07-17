@@ -3,8 +3,8 @@ Pytest configuration and shared fixtures for TAAXDOG receipt processing tests
 """
 
 import pytest
-import unittest
-from unittest.mock import Mock, patch, MagicMock
+import asyncio
+from unittest.mock import Mock, patch, MagicMock, AsyncMock
 import tempfile
 import os
 import json
@@ -20,7 +20,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from backend.app import create_app
-from firebase_config import db
+from prisma import Prisma
 from src.integrations.formx_client import initialize_gemini_api
 from backend.australian_tax_categorizer import AustralianTaxCategorizer, TaxCategory
 from backend.australian_business_compliance import AustralianBusinessCompliance
@@ -32,7 +32,7 @@ def test_app():
     """Create a test Flask application"""
     app = create_app()
     app.config['TESTING'] = True
-    app.config['FIREBASE_TESTING'] = True
+    app.config['DATABASE_URL'] = 'postgresql://test@localhost/test_taaxdog'
     app.config['WTF_CSRF_ENABLED'] = False
     
     with app.app_context():
@@ -40,30 +40,39 @@ def test_app():
 
 
 @pytest.fixture
-def mock_firebase():
-    """Mock Firebase database operations"""
-    with patch('firebase_config.db') as mock_db:
-        # Mock collection and document operations
-        mock_collection = Mock()
-        mock_doc_ref = Mock()
-        mock_doc = Mock()
+async def prisma():
+    """Create a test Prisma client"""
+    prisma_client = Prisma()
+    await prisma_client.connect()
+    yield prisma_client
+    await prisma_client.disconnect()
+
+
+@pytest.fixture
+async def mock_prisma():
+    """Mock Prisma database operations"""
+    with patch('prisma.Prisma') as MockPrisma:
+        # Create async mock client
+        mock_client = AsyncMock()
+        MockPrisma.return_value = mock_client
         
-        mock_doc.to_dict.return_value = {
-            'user_id': 'test_user_123',
+        # Mock receipt operations
+        mock_receipt = {
             'id': 'test_receipt_123',
-            'amount': 45.50,
+            'userId': 'test_user_123',
+            'totalAmount': Decimal('45.50'),
             'merchant': 'Test Merchant',
-            'date': '2024-01-15'
+            'date': datetime(2024, 1, 15).date(),
+            'processingStatus': 'PROCESSED'
         }
         
-        mock_doc_ref.get.return_value = mock_doc
-        mock_collection.document.return_value = mock_doc_ref
-        mock_collection.add.return_value = (mock_doc_ref, 'test_doc_id')
-        mock_collection.where.return_value.get.return_value = [mock_doc]
+        mock_client.receipt.find_first = AsyncMock(return_value=mock_receipt)
+        mock_client.receipt.find_many = AsyncMock(return_value=[mock_receipt])
+        mock_client.receipt.create = AsyncMock(return_value=mock_receipt)
+        mock_client.receipt.update = AsyncMock(return_value=mock_receipt)
+        mock_client.receipt.delete = AsyncMock(return_value=mock_receipt)
         
-        mock_db.collection.return_value = mock_collection
-        
-        yield mock_db
+        yield mock_client
 
 
 @pytest.fixture

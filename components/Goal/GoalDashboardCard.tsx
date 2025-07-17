@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Goal } from "@/lib/types/goal";
-import { fetchGoals } from "@/services/firebase-service";
+import { fetchGoals } from "@/services/goal-service";
 
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("en-US", {

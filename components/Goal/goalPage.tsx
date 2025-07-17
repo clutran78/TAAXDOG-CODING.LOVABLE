@@ -5,7 +5,7 @@ import { showToast } from "@/services/helperFunction";
 import UpdateProgressModal from "./UpdateProgress";
 import ConfirmModal from "./ConfirmModal";
 import GoalCard from "./goals-card";
-import { deleteGoal, fetchGoals } from "@/services/firebase-service";
+import { deleteGoal, fetchGoals } from "@/services/goal-service";
 import { Goal } from "@/lib/types/goal";
 import { useDarkMode } from "@/providers/dark-mode-provider";
 
@@ -96,6 +96,9 @@ const GoalPage: React.FC = () => {
     try {
       await deleteGoal(goalIdToDelete);
       showToast(`Goal "${goalNameToDelete}" deleted successfully.`, "success");
+      // Refresh goals list after deletion
+      const fetchedGoals = await fetchGoals();
+      setGoals(fetchedGoals);
     } catch (err) {
       console.error(err);
       showToast("Error deleting goal", "danger");
@@ -120,16 +123,31 @@ const GoalPage: React.FC = () => {
           setGoalToEdit({});
           setEditGoalId(null);
         }}
-        onAdd={() => console.log("Goal saved")}
+        onAdd={async () => {
+          console.log("Goal saved");
+          try {
+            const fetchedGoals = await fetchGoals();
+            setGoals(fetchedGoals);
+          } catch (error) {
+            console.error("Error refreshing goals:", error);
+          }
+        }}
         goalToEdit={goalToEdit}
         editGoalId={editGoalId}
       />
 
       <UpdateProgressModal
         show={showProgressModal}
-        onClose={() => {
+        onClose={async () => {
           setShowProgressModal(false);
           setSelectedGoal(null);
+          // Refresh goals list after progress update
+          try {
+            const fetchedGoals = await fetchGoals();
+            setGoals(fetchedGoals);
+          } catch (error) {
+            console.error("Error refreshing goals:", error);
+          }
         }}
         goal={selectedGoal}
       />

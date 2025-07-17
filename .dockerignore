@@ -1,0 +1,174 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Testing
+coverage
+.nyc_output
+jest.config.*
+__tests__
+__mocks__
+*.test.*
+*.spec.*
+*.snap
+
+# Next.js
+.next
+out
+build
+dist
+.swc
+
+# Production
+.env*.local
+.env.production
+.env.development
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+lerna-debug.log*
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Version control
+.git
+.gitignore
+.gitattributes
+.svn
+.hg
+
+# Documentation
+*.md
+!README.md
+docs
+LICENSE
+CHANGELOG*
+
+# CI/CD
+.github
+.gitlab
+.circleci
+.travis.yml
+.gitlab-ci.yml
+Jenkinsfile
+azure-pipelines.yml
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Development files
+.editorconfig
+.eslintrc*
+.prettierrc*
+.stylelintrc*
+.babelrc*
+tsconfig.tsbuildinfo
+.husky
+.commitlintrc*
+.lintstagedrc*
+
+# Temporary files
+tmp
+temp
+*.tmp
+*.temp
+*.log
+logs
+
+# Backup files
+*.backup
+*.bak
+*.orig
+
+# Python remnants
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv
+pip-log.txt
+.pytest_cache/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+prisma/migrations/dev
+prisma/seed.*
+
+# Static files that will be copied separately
+public/uploads
+uploads/
+
+# Storybook
+.storybook
+storybook-static
+
+# Scripts that aren't needed in production
+scripts/
+!scripts/docker-entrypoint.sh
+
+# Config files not needed in container
+.npmrc
+.yarnrc
+renovate.json
+netlify.toml
+vercel.json
+
+# Cache directories
+.cache
+.parcel-cache
+.turbo
+
+# Mac specific
+**/.DS_Store
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDouble
+.LSOverride
+
+# Windows specific
+[Dd]esktop.ini
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# Keep only essential config files
+!next.config.js
+!package.json
+!package-lock.json
+!yarn.lock
+!pnpm-lock.yaml
+!tsconfig.json

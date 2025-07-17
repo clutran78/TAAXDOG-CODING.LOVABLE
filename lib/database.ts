@@ -228,16 +228,22 @@ class DatabaseConnection {
     
     try {
       if (!this.pool) {
-        return {
-          status: 'unhealthy',
-          details: {
-            connected: false,
-            poolSize: 0,
-            idleConnections: 0,
-            waitingClients: 0,
-            lastError: 'Pool not initialized',
-          },
-        };
+        // Try to connect if not connected
+        try {
+          await this.connect('health-check');
+        } catch (connectError) {
+          return {
+            status: 'unhealthy',
+            details: {
+              connected: false,
+              poolSize: 0,
+              idleConnections: 0,
+              waitingClients: 0,
+              lastError: 'Failed to initialize connection pool',
+              responseTime: performance.now() - start,
+            },
+          };
+        }
       }
 
       await this.pool.query('SELECT 1');

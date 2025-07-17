@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Goal } from "@/lib/types/goal";
-import { fetchGoals } from "@/services/firebase-service";
+import { fetchGoals } from "@/services/goal-service";
 
 interface Props {
   onClose: () => void;

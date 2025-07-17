@@ -2,46 +2,74 @@
 Integration Tests for Database Operations
 =======================================
 
-Tests receipt storage, retrieval, transaction matching, and Firebase integration.
+Tests receipt storage, retrieval, transaction matching, and PostgreSQL/Prisma integration.
 """
 
 import pytest
-import unittest
-from unittest.mock import Mock, patch, MagicMock
+import asyncio
+from unittest.mock import Mock, AsyncMock, MagicMock
 import json
 from datetime import datetime, timedelta
 from decimal import Decimal
+from typing import Optional, List
 
-from firebase_config import db
-from database.models import Receipt
+from prisma import Prisma
+from prisma.models import User, ReceiptStatus
 from backend.routes.receipt_routes import match_receipt_with_transaction
 
 
-class TestDatabaseIntegration(unittest.TestCase):
-    """Test database integration functionality"""
+@pytest.fixture
+async def prisma_client():
+    """Create a test Prisma client"""
+    prisma = Prisma()
+    await prisma.connect()
+    yield prisma
+    await prisma.disconnect()
+
+
+@pytest.fixture
+async def test_user(prisma_client: Prisma):
+    """Create a test user for receipts"""
+    user = await prisma_client.user.create(
+        data={
+            'email': 'test@example.com',
+            'name': 'Test User',
+            'role': 'USER',
+            'taxResidency': 'RESIDENT'
+        }
+    )
+    yield user
+    # Cleanup
+    await prisma_client.user.delete(where={'id': user.id})
+
+
+@pytest.mark.asyncio
+class TestDatabaseIntegration:
+    """Test database integration functionality with Prisma"""
     
-    def setUp(self):
+    async def setup_method(self, method):
         """Set up test database environment"""
-        self.test_user_id = "test_user_123"
         self.test_receipt_id = "test_receipt_456"
         
-        # Sample receipt data
+        # Sample receipt data for Prisma
         self.sample_receipt_data = {
-            'id': self.test_receipt_id,
-            'user_id': self.test_user_id,
             'merchant': 'OFFICEWORKS',
-            'amount': 118.50,
-            'date': '2024-01-15',
-            'category': 'D5',
-            'extracted_data': {
+            'totalAmount': Decimal('118.50'),
+            'gstAmount': Decimal('10.77'),
+            'date': datetime(2024, 1, 15),
+            'taxCategory': 'D5',
+            'aiProcessed': True,
+            'aiConfidence': Decimal('0.90'),
+            'aiProvider': 'gemini',
+            'aiModel': 'gemini-2.0-flash-enhanced',
+            'processingStatus': ReceiptStatus.PROCESSED,
+            'items': {
                 'merchant_name': 'OFFICEWORKS',
                 'total_amount': 118.50,
                 'gst_amount': 10.77,
                 'suggested_tax_category': 'D5',
                 'confidence_score': 0.9
-            },
-            'created_at': datetime.now().isoformat(),
-            'processed_with': 'gemini-2.0-flash-enhanced'
+            }
         }
         
         # Sample transaction data
@@ -56,168 +84,190 @@ class TestDatabaseIntegration(unittest.TestCase):
             }
         ]
     
-    @patch('firebase_config.db')
-    def test_receipt_storage(self, mock_db):
+    async def test_receipt_storage(self, prisma_client: Prisma, test_user: User):
         """Test receipt data insertion into database"""
-        # Mock Firestore collection and document operations
-        mock_collection = Mock()
-        mock_doc_ref = Mock()
+        # Create receipt data with user relationship
+        receipt_data = {
+            **self.sample_receipt_data,
+            'userId': test_user.id
+        }
         
-        mock_db.collection.return_value = mock_collection
-        mock_collection.document.return_value = mock_doc_ref
-        mock_doc_ref.set.return_value = None
+        # Store receipt using Prisma
+        created_receipt = await prisma_client.receipt.create(
+            data=receipt_data
+        )
         
-        # Simulate storing receipt
-        receipts_collection = mock_db.collection('receipts')
-        doc_ref = receipts_collection.document(self.test_receipt_id)
-        doc_ref.set(self.sample_receipt_data)
+        # Verify receipt was created correctly
+        assert created_receipt.merchant == 'OFFICEWORKS'
+        assert created_receipt.totalAmount == Decimal('118.50')
+        assert created_receipt.gstAmount == Decimal('10.77')
+        assert created_receipt.userId == test_user.id
+        assert created_receipt.processingStatus == ReceiptStatus.PROCESSED
         
-        # Verify database operations were called correctly
-        mock_db.collection.assert_called_with('receipts')
-        mock_collection.document.assert_called_with(self.test_receipt_id)
-        mock_doc_ref.set.assert_called_with(self.sample_receipt_data)
+        # Cleanup
+        await prisma_client.receipt.delete(where={'id': created_receipt.id})
     
-    @patch('firebase_config.db')
-    def test_receipt_retrieval(self, mock_db):
+    async def test_receipt_retrieval(self, prisma_client: Prisma, test_user: User):
         """Test receipt data retrieval from database"""
-        # Mock Firestore operations
-        mock_collection = Mock()
-        mock_doc_ref = Mock()
-        mock_doc = Mock()
+        # First create a receipt
+        receipt_data = {
+            **self.sample_receipt_data,
+            'userId': test_user.id
+        }
+        created_receipt = await prisma_client.receipt.create(
+            data=receipt_data
+        )
         
-        mock_doc.exists = True
-        mock_doc.to_dict.return_value = self.sample_receipt_data
-        mock_doc_ref.get.return_value = mock_doc
-        mock_collection.document.return_value = mock_doc_ref
-        mock_db.collection.return_value = mock_collection
-        
-        # Simulate retrieving receipt
-        receipts_collection = mock_db.collection('receipts')
-        doc_ref = receipts_collection.document(self.test_receipt_id)
-        receipt_doc = doc_ref.get()
+        # Retrieve the receipt
+        retrieved_receipt = await prisma_client.receipt.find_first(
+            where={'id': created_receipt.id}
+        )
         
         # Verify retrieval
-        self.assertTrue(receipt_doc.exists)
-        receipt_data = receipt_doc.to_dict()
-        self.assertEqual(receipt_data['id'], self.test_receipt_id)
-        self.assertEqual(receipt_data['merchant'], 'OFFICEWORKS')
-        self.assertEqual(receipt_data['amount'], 118.50)
-    
-    @patch('firebase_config.db')
-    def test_receipt_update_operations(self, mock_db):
-        """Test receipt update operations"""
-        # Mock Firestore operations
-        mock_collection = Mock()
-        mock_doc_ref = Mock()
+        assert retrieved_receipt is not None
+        assert retrieved_receipt.id == created_receipt.id
+        assert retrieved_receipt.merchant == 'OFFICEWORKS'
+        assert retrieved_receipt.totalAmount == Decimal('118.50')
+        assert retrieved_receipt.gstAmount == Decimal('10.77')
         
-        mock_db.collection.return_value = mock_collection
-        mock_collection.document.return_value = mock_doc_ref
-        mock_doc_ref.update.return_value = None
+        # Cleanup
+        await prisma_client.receipt.delete(where={'id': created_receipt.id})
+    
+    async def test_receipt_update_operations(self, prisma_client: Prisma, test_user: User):
+        """Test receipt update operations"""
+        # First create a receipt
+        receipt_data = {
+            **self.sample_receipt_data,
+            'userId': test_user.id
+        }
+        created_receipt = await prisma_client.receipt.create(
+            data=receipt_data
+        )
         
         # Update data
         update_data = {
-            'category': 'D6',
-            'manually_categorized': True,
-            'updated_at': datetime.now().isoformat()
+            'taxCategory': 'D6',
+            'processingStatus': ReceiptStatus.MANUAL_REVIEW,
+            'matchedTransactionId': 'txn_123',
+            'matchConfidence': Decimal('0.95')
         }
         
-        # Simulate update
-        receipts_collection = mock_db.collection('receipts')
-        doc_ref = receipts_collection.document(self.test_receipt_id)
-        doc_ref.update(update_data)
+        # Update the receipt
+        updated_receipt = await prisma_client.receipt.update(
+            where={'id': created_receipt.id},
+            data=update_data
+        )
         
-        # Verify update operation
-        mock_doc_ref.update.assert_called_with(update_data)
+        # Verify update
+        assert updated_receipt.taxCategory == 'D6'
+        assert updated_receipt.processingStatus == ReceiptStatus.MANUAL_REVIEW
+        assert updated_receipt.matchedTransactionId == 'txn_123'
+        assert updated_receipt.matchConfidence == Decimal('0.95')
+        
+        # Cleanup
+        await prisma_client.receipt.delete(where={'id': created_receipt.id})
     
-    @patch('firebase_config.db')
-    def test_receipt_deletion(self, mock_db):
+    async def test_receipt_deletion(self, prisma_client: Prisma, test_user: User):
         """Test receipt deletion and cleanup"""
-        # Mock Firestore operations
-        mock_collection = Mock()
-        mock_doc_ref = Mock()
+        # First create a receipt
+        receipt_data = {
+            **self.sample_receipt_data,
+            'userId': test_user.id
+        }
+        created_receipt = await prisma_client.receipt.create(
+            data=receipt_data
+        )
         
-        mock_db.collection.return_value = mock_collection
-        mock_collection.document.return_value = mock_doc_ref
-        mock_doc_ref.delete.return_value = None
-        
-        # Simulate deletion
-        receipts_collection = mock_db.collection('receipts')
-        doc_ref = receipts_collection.document(self.test_receipt_id)
-        doc_ref.delete()
+        # Delete the receipt
+        await prisma_client.receipt.delete(
+            where={'id': created_receipt.id}
+        )
         
         # Verify deletion
-        mock_doc_ref.delete.assert_called_once()
+        deleted_receipt = await prisma_client.receipt.find_first(
+            where={'id': created_receipt.id}
+        )
+        assert deleted_receipt is None
     
-    @patch('firebase_config.db')
-    def test_user_receipts_query(self, mock_db):
+    async def test_user_receipts_query(self, prisma_client: Prisma, test_user: User):
         """Test querying receipts by user"""
-        # Mock query operations
-        mock_collection = Mock()
-        mock_query = Mock()
-        mock_docs = [Mock() for _ in range(3)]
-        
-        # Set up mock document data
-        for i, doc in enumerate(mock_docs):
-            doc.to_dict.return_value = {
-                'id': f'receipt_{i}',
-                'user_id': self.test_user_id,
+        # Create multiple receipts for the user
+        receipts_created = []
+        for i in range(3):
+            receipt_data = {
+                'userId': test_user.id,
                 'merchant': f'Merchant {i}',
-                'amount': 50.00 + i * 10
+                'totalAmount': Decimal(f'{50.00 + i * 10}'),
+                'date': datetime(2024, 1, 15 + i),
+                'processingStatus': ReceiptStatus.PROCESSED
             }
+            receipt = await prisma_client.receipt.create(data=receipt_data)
+            receipts_created.append(receipt)
         
-        mock_query.get.return_value = mock_docs
-        mock_collection.where.return_value = mock_query
-        mock_db.collection.return_value = mock_collection
-        
-        # Simulate query
-        receipts_collection = mock_db.collection('receipts')
-        query = receipts_collection.where('user_id', '==', self.test_user_id)
-        results = query.get()
+        # Query receipts by user
+        user_receipts = await prisma_client.receipt.find_many(
+            where={'userId': test_user.id},
+            order_by={'createdAt': 'desc'}
+        )
         
         # Verify query results
-        self.assertEqual(len(results), 3)
-        mock_collection.where.assert_called_with('user_id', '==', self.test_user_id)
+        assert len(user_receipts) == 3
+        assert all(receipt.userId == test_user.id for receipt in user_receipts)
+        
+        # Cleanup
+        for receipt in receipts_created:
+            await prisma_client.receipt.delete(where={'id': receipt.id})
     
-    @patch('firebase_config.db')
-    def test_receipt_pagination(self, mock_db):
+    async def test_receipt_pagination(self, prisma_client: Prisma, test_user: User):
         """Test paginated receipt queries"""
-        # Mock pagination operations
-        mock_collection = Mock()
-        mock_query = Mock()
-        mock_ordered_query = Mock()
-        mock_limited_query = Mock()
-        mock_docs = [Mock() for _ in range(10)]
-        
-        for i, doc in enumerate(mock_docs):
-            doc.to_dict.return_value = {
-                'id': f'receipt_{i}',
-                'created_at': (datetime.now() - timedelta(days=i)).isoformat()
+        # Create 15 receipts for pagination testing
+        receipts_created = []
+        for i in range(15):
+            receipt_data = {
+                'userId': test_user.id,
+                'merchant': f'Merchant {i}',
+                'totalAmount': Decimal('50.00'),
+                'date': datetime(2024, 1, 1) + timedelta(days=i),
+                'processingStatus': ReceiptStatus.PROCESSED
             }
+            receipt = await prisma_client.receipt.create(data=receipt_data)
+            receipts_created.append(receipt)
         
-        mock_limited_query.get.return_value = mock_docs
-        mock_ordered_query.limit.return_value = mock_limited_query
-        mock_query.order_by.return_value = mock_ordered_query
-        mock_collection.where.return_value = mock_query
-        mock_db.collection.return_value = mock_collection
+        # Test pagination - first page
+        page_size = 10
+        first_page = await prisma_client.receipt.find_many(
+            where={'userId': test_user.id},
+            order_by={'createdAt': 'desc'},
+            take=page_size
+        )
         
-        # Simulate paginated query
-        receipts_collection = mock_db.collection('receipts')
-        query = (receipts_collection
-                .where('user_id', '==', self.test_user_id)
-                .order_by('created_at', direction='DESCENDING')
-                .limit(10))
-        
-        results = query.get()
+        # Test pagination - second page
+        second_page = await prisma_client.receipt.find_many(
+            where={'userId': test_user.id},
+            order_by={'createdAt': 'desc'},
+            skip=page_size,
+            take=page_size
+        )
         
         # Verify pagination
-        self.assertEqual(len(results), 10)
-        mock_ordered_query.limit.assert_called_with(10)
+        assert len(first_page) == 10
+        assert len(second_page) == 5  # Remaining receipts
+        
+        # Verify no overlap between pages
+        first_page_ids = {r.id for r in first_page}
+        second_page_ids = {r.id for r in second_page}
+        assert len(first_page_ids.intersection(second_page_ids)) == 0
+        
+        # Cleanup
+        for receipt in receipts_created:
+            await prisma_client.receipt.delete(where={'id': receipt.id})
 
 
-class TestTransactionMatching(unittest.TestCase):
+@pytest.mark.asyncio
+class TestTransactionMatching:
     """Test receipt-transaction matching algorithms"""
     
-    def setUp(self):
+    async def setup_method(self, method):
         """Set up test data for transaction matching"""
         self.receipt_data = {
             'merchant': 'OFFICEWORKS',
@@ -251,18 +301,18 @@ class TestTransactionMatching(unittest.TestCase):
             }
         ]
     
-    def test_exact_amount_matching(self):
+    async def test_exact_amount_matching(self):
         """Test matching with exact amount"""
         match_result = match_receipt_with_transaction(
             self.receipt_data, 
             self.transactions
         )
         
-        self.assertIsNotNone(match_result)
-        self.assertEqual(match_result['transaction_id'], 'txn_exact_match')
-        self.assertGreater(match_result['confidence'], 0.9)
+        assert match_result is not None
+        assert match_result['transaction_id'] == 'txn_exact_match'
+        assert match_result['confidence'] > 0.9
     
-    def test_approximate_amount_matching(self):
+    async def test_approximate_amount_matching(self):
         """Test matching with approximate amounts (small differences)"""
         # Test with receipt amount slightly different from transaction
         receipt_with_rounding = self.receipt_data.copy()
@@ -274,10 +324,10 @@ class TestTransactionMatching(unittest.TestCase):
         )
         
         # Should match the close amount transaction
-        self.assertIsNotNone(match_result)
-        self.assertGreater(match_result['confidence'], 0.7)
+        assert match_result is not None
+        assert match_result['confidence'] > 0.7
     
-    def test_merchant_name_matching(self):
+    async def test_merchant_name_matching(self):
         """Test matching based on merchant name patterns"""
         # Transaction with partial merchant name
         transactions_partial = [
@@ -295,10 +345,10 @@ class TestTransactionMatching(unittest.TestCase):
         )
         
         # Should still match based on partial name similarity
-        self.assertIsNotNone(match_result)
-        self.assertGreater(match_result['confidence'], 0.6)
+        assert match_result is not None
+        assert match_result['confidence'] > 0.6
     
-    def test_date_range_matching(self):
+    async def test_date_range_matching(self):
         """Test matching within reasonable date ranges"""
         # Transaction one day after receipt
         transactions_date_diff = [
@@ -316,10 +366,10 @@ class TestTransactionMatching(unittest.TestCase):
         )
         
         # Should match within reasonable date range
-        self.assertIsNotNone(match_result)
-        self.assertGreater(match_result['confidence'], 0.5)
+        assert match_result is not None
+        assert match_result['confidence'] > 0.5
     
-    def test_no_matching_transaction(self):
+    async def test_no_matching_transaction(self):
         """Test behavior when no matching transaction exists"""
         non_matching_transactions = [
             {
@@ -336,12 +386,9 @@ class TestTransactionMatching(unittest.TestCase):
         )
         
         # Should return None or low confidence match
-        self.assertTrue(
-            match_result is None or 
-            match_result['confidence'] < 0.3
-        )
+        assert match_result is None or match_result['confidence'] < 0.3
     
-    def test_multiple_potential_matches(self):
+    async def test_multiple_potential_matches(self):
         """Test handling of multiple potential matches"""
         duplicate_transactions = [
             {
@@ -364,136 +411,202 @@ class TestTransactionMatching(unittest.TestCase):
         )
         
         # Should pick the best match (closest time or best description match)
-        self.assertIsNotNone(match_result)
-        self.assertIn(match_result['transaction_id'], ['txn_duplicate_1', 'txn_duplicate_2'])
+        assert match_result is not None
+        assert match_result['transaction_id'] in ['txn_duplicate_1', 'txn_duplicate_2']
 
 
-class TestDataConsistency(unittest.TestCase):
+@pytest.mark.asyncio
+class TestDataConsistency:
     """Test data consistency and integrity"""
     
-    @patch('firebase_config.db')
-    def test_concurrent_receipt_updates(self, mock_db):
+    async def test_concurrent_receipt_updates(self, prisma_client: Prisma, test_user: User):
         """Test handling of concurrent receipt updates"""
-        # Mock Firestore transaction operations
-        mock_transaction = Mock()
-        mock_doc_ref = Mock()
-        mock_collection = Mock()
-        
-        mock_db.collection.return_value = mock_collection
-        mock_collection.document.return_value = mock_doc_ref
-        mock_db.transaction.return_value = mock_transaction
-        
-        # Simulate concurrent update scenario
-        update_data_1 = {'category': 'D5', 'updated_by': 'user'}
-        update_data_2 = {'matched_transaction': 'txn_123', 'updated_by': 'system'}
-        
-        # Both updates should be handled atomically
-        # This test ensures transaction safety
-        self.assertTrue(True)  # Placeholder for actual transaction testing
-    
-    @patch('firebase_config.db')
-    def test_data_validation_on_storage(self, mock_db):
-        """Test data validation before storage"""
-        # Invalid receipt data
-        invalid_receipt = {
-            'id': 'test_receipt',
-            'user_id': None,  # Invalid: missing user_id
-            'amount': -50.00,  # Invalid: negative amount
-            'date': 'invalid-date'  # Invalid: bad date format
-        }
-        
-        # Mock validation (would be implemented in actual storage logic)
-        def validate_receipt_data(data):
-            errors = []
-            if not data.get('user_id'):
-                errors.append('user_id is required')
-            if data.get('amount', 0) <= 0:
-                errors.append('amount must be positive')
-            return errors
-        
-        validation_errors = validate_receipt_data(invalid_receipt)
-        
-        # Should detect validation errors
-        self.assertGreater(len(validation_errors), 0)
-        self.assertIn('user_id is required', validation_errors)
-        self.assertIn('amount must be positive', validation_errors)
-    
-    def test_receipt_model_serialization(self):
-        """Test Receipt model serialization/deserialization"""
-        # Create Receipt object
-        receipt = Receipt(
-            receipt_id='test_123',
-            user_id='user_456',
-            merchant='OFFICEWORKS',
-            total_amount=118.50,
-            date='2024-01-15',
-            items=[{'name': 'Paper', 'price': 15.95}],
-            tax_amount=10.77
+        # Create a receipt
+        receipt = await prisma_client.receipt.create(
+            data={
+                'userId': test_user.id,
+                'merchant': 'Test Merchant',
+                'totalAmount': Decimal('100.00'),
+                'date': datetime(2024, 1, 15),
+                'processingStatus': ReceiptStatus.PROCESSED
+            }
         )
         
-        # Test serialization
-        receipt_dict = receipt.to_dict()
-        self.assertEqual(receipt_dict['receipt_id'], 'test_123')
-        self.assertEqual(receipt_dict['merchant'], 'OFFICEWORKS')
-        self.assertEqual(receipt_dict['total_amount'], 118.50)
+        # Simulate concurrent updates using transactions
+        async def update_category():
+            async with prisma_client.tx() as tx:
+                await tx.receipt.update(
+                    where={'id': receipt.id},
+                    data={'taxCategory': 'D5'}
+                )
         
-        # Test deserialization
-        restored_receipt = Receipt.from_dict(receipt_dict)
-        self.assertEqual(restored_receipt.receipt_id, 'test_123')
-        self.assertEqual(restored_receipt.merchant, 'OFFICEWORKS')
+        async def update_transaction():
+            async with prisma_client.tx() as tx:
+                await tx.receipt.update(
+                    where={'id': receipt.id},
+                    data={
+                        'matchedTransactionId': 'txn_123',
+                        'matchConfidence': Decimal('0.95')
+                    }
+                )
+        
+        # Run updates concurrently
+        await asyncio.gather(update_category(), update_transaction())
+        
+        # Verify both updates were applied
+        updated_receipt = await prisma_client.receipt.find_first(
+            where={'id': receipt.id}
+        )
+        assert updated_receipt.taxCategory == 'D5'
+        assert updated_receipt.matchedTransactionId == 'txn_123'
+        
+        # Cleanup
+        await prisma_client.receipt.delete(where={'id': receipt.id})
+    
+    async def test_data_validation_on_storage(self, prisma_client: Prisma):
+        """Test data validation before storage"""
+        # Test invalid receipt data scenarios
+        
+        # Test 1: Missing required fields
+        with pytest.raises(Exception) as exc_info:
+            await prisma_client.receipt.create(
+                data={
+                    # Missing userId - should fail
+                    'merchant': 'Test',
+                    'totalAmount': Decimal('50.00'),
+                    'date': datetime(2024, 1, 15)
+                }
+            )
+        assert 'userId' in str(exc_info.value).lower()
+        
+        # Test 2: Invalid data types
+        with pytest.raises(Exception) as exc_info:
+            await prisma_client.receipt.create(
+                data={
+                    'userId': 'test_user',
+                    'merchant': 'Test',
+                    'totalAmount': 'invalid_amount',  # Should be Decimal
+                    'date': datetime(2024, 1, 15)
+                }
+            )
+        
+        # Test 3: Custom validation for business rules
+        def validate_receipt_data(data):
+            errors = []
+            if not data.get('userId'):
+                errors.append('userId is required')
+            if data.get('totalAmount', 0) <= 0:
+                errors.append('totalAmount must be positive')
+            if data.get('gstAmount', 0) > data.get('totalAmount', 0):
+                errors.append('gstAmount cannot exceed totalAmount')
+            return errors
+        
+        # Test custom validation
+        invalid_data = {
+            'userId': None,
+            'totalAmount': Decimal('-50.00'),
+            'gstAmount': Decimal('100.00')
+        }
+        
+        validation_errors = validate_receipt_data(invalid_data)
+        assert len(validation_errors) > 0
+        assert 'userId is required' in validation_errors
+        assert 'totalAmount must be positive' in validation_errors
+    
+    async def test_receipt_model_serialization(self, prisma_client: Prisma, test_user: User):
+        """Test Receipt model serialization/deserialization"""
+        # Create Receipt using Prisma
+        receipt_data = {
+            'userId': test_user.id,
+            'merchant': 'OFFICEWORKS',
+            'totalAmount': Decimal('118.50'),
+            'gstAmount': Decimal('10.77'),
+            'date': datetime(2024, 1, 15),
+            'items': [
+                {'name': 'Paper', 'price': 15.95},
+                {'name': 'Pens', 'price': 12.50}
+            ],
+            'processingStatus': ReceiptStatus.PROCESSED
+        }
+        
+        receipt = await prisma_client.receipt.create(data=receipt_data)
+        
+        # Test model fields
+        assert receipt.merchant == 'OFFICEWORKS'
+        assert receipt.totalAmount == Decimal('118.50')
+        assert receipt.gstAmount == Decimal('10.77')
+        assert isinstance(receipt.items, list)
+        assert len(receipt.items) == 2
+        
+        # Test JSON serialization of items field
+        assert receipt.items[0]['name'] == 'Paper'
+        assert receipt.items[0]['price'] == 15.95
+        
+        # Cleanup
+        await prisma_client.receipt.delete(where={'id': receipt.id})
 
 
-class TestFirebaseConnectivity(unittest.TestCase):
+@pytest.mark.asyncio
+class TestPrismaConnectivity:
     """Test Firebase connection and error handling"""
     
-    @patch('firebase_config.db')
-    def test_firebase_connection_success(self, mock_db):
-        """Test successful Firebase connection"""
-        # Mock successful connection
-        mock_collection = Mock()
-        mock_db.collection.return_value = mock_collection
-        
+    async def test_prisma_connection_success(self, prisma_client: Prisma):
+        """Test successful Prisma connection"""
         # Test basic connection
         try:
-            receipts_collection = mock_db.collection('receipts')
-            self.assertIsNotNone(receipts_collection)
+            # Simple query to test connection
+            user_count = await prisma_client.user.count()
+            assert isinstance(user_count, int)
+            assert user_count >= 0
         except Exception as e:
-            self.fail(f"Firebase connection failed: {e}")
+            pytest.fail(f"Prisma connection failed: {e}")
     
-    @patch('firebase_config.db')
-    def test_firebase_connection_failure(self, mock_db):
-        """Test Firebase connection failure handling"""
+    async def test_prisma_connection_failure(self):
+        """Test Prisma connection failure handling"""
+        # Create a client with invalid connection string
+        invalid_prisma = Prisma()
+        
         # Mock connection failure
-        mock_db.collection.side_effect = Exception("Firebase connection failed")
+        with pytest.raises(Exception) as exc_info:
+            # This would fail if database is unreachable
+            invalid_prisma._client_generator = Mock(side_effect=Exception("Connection failed"))
+            await invalid_prisma.connect()
         
-        # Should handle connection gracefully
-        with self.assertRaises(Exception):
-            mock_db.collection('receipts')
+        assert "Connection failed" in str(exc_info.value)
     
-    @patch('firebase_config.db')
-    def test_firebase_permission_errors(self, mock_db):
-        """Test handling of Firebase permission errors"""
-        # Mock permission error
-        mock_collection = Mock()
-        mock_collection.add.side_effect = Exception("Permission denied")
-        mock_db.collection.return_value = mock_collection
+    async def test_prisma_permission_errors(self, prisma_client: Prisma):
+        """Test handling of Prisma permission errors"""
+        # Test unauthorized access scenario
+        # In a real scenario, this would test with different user permissions
         
-        # Should handle permission errors appropriately
-        with self.assertRaises(Exception):
-            receipts_collection = mock_db.collection('receipts')
-            receipts_collection.add({'test': 'data'})
+        # Mock a permission error by trying to access non-existent relation
+        with pytest.raises(Exception) as exc_info:
+            # This simulates accessing data without proper permissions
+            await prisma_client.receipt.find_first(
+                where={'userId': 'unauthorized_user_id'},
+                include={'nonexistent_relation': True}  # This will cause an error
+            )
+        
+        # The error should indicate the issue
+        assert 'nonexistent_relation' in str(exc_info.value).lower() or 'unknown' in str(exc_info.value).lower()
     
-    def test_offline_mode_handling(self):
-        """Test behavior when Firebase is offline"""
-        # This would test offline caching and synchronization
-        # For now, we ensure graceful degradation
+    async def test_offline_mode_handling(self):
+        """Test behavior when database is offline"""
+        # Test handling of network/database unavailability
         
         # Mock offline scenario
-        offline_error = Exception("Network unavailable")
+        offline_prisma = Prisma()
+        offline_prisma._client = Mock()
+        offline_prisma._client.receipt.find_many = AsyncMock(
+            side_effect=Exception("Network unavailable")
+        )
         
-        # Should provide appropriate user feedback
-        self.assertIn("network", str(offline_error).lower())
+        # Should handle offline errors gracefully
+        with pytest.raises(Exception) as exc_info:
+            await offline_prisma._client.receipt.find_many()
+        
+        assert "network unavailable" in str(exc_info.value).lower()
 
 
 if __name__ == '__main__':
-    unittest.main() 
+    pytest.main([__file__, '-v']) 

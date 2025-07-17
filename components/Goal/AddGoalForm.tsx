@@ -1,9 +1,7 @@
 "use client";
-import { auth, db } from "@/lib/firebase";
 import { Goal } from "@/lib/types/goal";
 import { showToast } from "@/services/helperFunction";
-import { onAuthStateChanged } from "firebase/auth";
-import { addDoc, collection, doc, updateDoc } from "firebase/firestore";
+import { createGoal, updateGoal } from "@/services/goal-service";
 import { useEffect, useState } from "react";
 import { Modal, Button } from "react-bootstrap";
 import { 
@@ -214,48 +212,39 @@ const AddGoalModal = ({
     setLoading(true);
 
     try {
-      onAuthStateChanged(auth, async (user) => {
-        if (!user) {
-          showToast("User not authenticated", "danger");
-          return;
-        }
+      // Build direct debit configuration if enabled
+      const directDebitConfig = directDebitEnabled ? {
+        isEnabled: true,
+        sourceAccountId,
+        transferType,
+        transferAmount: parseFloat(transferAmount),
+        frequency,
+        startDate,
+        nextTransferDate: calculateNextTransferDate(startDate, frequency),
+        lastTransferDate: goalToEdit?.directDebit?.lastTransferDate || undefined
+      } : undefined;
 
-        // Build direct debit configuration if enabled
-        const directDebitConfig = directDebitEnabled ? {
-          isEnabled: true,
-          sourceAccountId,
-          transferType,
-          transferAmount: parseFloat(transferAmount),
-          frequency,
-          startDate,
-          nextTransferDate: calculateNextTransferDate(startDate, frequency),
-          lastTransferDate: goalToEdit?.directDebit?.lastTransferDate || undefined
-        } : undefined;
-
-        const goal = {
-          ...goalToEdit,
-          name,
-          description,
-          category,
-          currentAmount: parseFloat(currentAmount || "0"),
-          targetAmount: parseFloat(targetAmount || "0"),
-          dueDate,
-          userId: user.uid,
-          updatedAt: new Date().toISOString(),
-          createdAt: goalToEdit?.createdAt || new Date().toISOString(),
-          directDebit: directDebitConfig,
-        };
-        if (editGoalId) {
-          await updateDoc(doc(db, "goals", editGoalId), goal);
-          showToast("Goal updated successfully", "success");
-        } else {
-          await addDoc(collection(db, "goals"), goal);
-          showToast("Goal added successfully", "success");
-        }
-        onAdd();
-        onClose();
-        resetForm();
-      });
+      const goal = {
+        ...goalToEdit,
+        name,
+        description,
+        category,
+        currentAmount: parseFloat(currentAmount || "0"),
+        targetAmount: parseFloat(targetAmount || "0"),
+        dueDate,
+        directDebit: directDebitConfig,
+      };
+      
+      if (editGoalId) {
+        await updateGoal(editGoalId, goal);
+        showToast("Goal updated successfully", "success");
+      } else {
+        await createGoal(goal);
+        showToast("Goal added successfully", "success");
+      }
+      onAdd();
+      onClose();
+      resetForm();
     } catch (err) {
       console.error(err);
       showToast("Error adding goal", "danger");

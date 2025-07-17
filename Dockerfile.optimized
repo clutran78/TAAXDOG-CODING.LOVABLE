@@ -1,0 +1,149 @@
+# Ultra-optimized Multi-stage Dockerfile for Next.js Application
+# This version includes additional optimizations for production
+
+# Stage 1: Dependencies
+FROM node:18-alpine AS deps
+# Install only production dependencies
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json* ./
+COPY yarn.lock* pnpm-lock.yaml* ./
+
+# Install production dependencies only
+RUN \
+  if [ -f yarn.lock ]; then yarn install --production --frozen-lockfile && yarn cache clean; \
+  elif [ -f package-lock.json ]; then npm ci --production && npm cache clean --force; \
+  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm install --prod --frozen-lockfile; \
+  else echo "Lockfile not found." && exit 1; \
+  fi
+
+# Stage 2: Dev Dependencies (for building)
+FROM node:18-alpine AS dev-deps
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json* ./
+COPY yarn.lock* pnpm-lock.yaml* ./
+
+# Install all dependencies (including dev)
+RUN \
+  if [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
+  elif [ -f package-lock.json ]; then npm ci; \
+  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm install --frozen-lockfile; \
+  else echo "Lockfile not found." && exit 1; \
+  fi
+
+# Stage 3: Builder
+FROM node:18-alpine AS builder
+WORKDIR /app
+
+# Copy all dependencies from dev-deps
+COPY --from=dev-deps /app/node_modules ./node_modules
+
+# Copy source files
+COPY . .
+
+# Generate Prisma Client
+RUN npx prisma generate
+
+# Set build-time environment variables
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+ENV NEXT_SHARP_PATH=/app/node_modules/sharp
+
+# Build application with standalone output
+RUN npm run build && \
+    # Remove source maps in production
+    find .next -name "*.map" -delete && \
+    # Remove unnecessary files
+    rm -rf .next/cache
+
+# Stage 4: Production Runtime
+FROM node:18-alpine AS runner
+WORKDIR /app
+
+# Install runtime dependencies only
+RUN apk add --no-cache dumb-init && \
+    # Create non-root user
+    addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Set production environment
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Copy production dependencies
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+
+# Copy built application
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Copy public assets if they exist
+COPY --chown=nextjs:nodejs public ./public 2>/dev/null || true
+
+# Copy Prisma runtime files
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder --chown=nextjs:nodejs /app/prisma/schema.prisma ./prisma/schema.prisma
+
+# Copy health check script
+COPY --chown=nextjs:nodejs healthcheck.js ./
+
+# Create writable directories
+RUN mkdir -p logs uploads tmp && \
+    chown -R nextjs:nodejs logs uploads tmp
+
+# Security: Set read-only root filesystem
+# Writable directories are explicitly defined above
+USER nextjs
+
+# Expose port
+EXPOSE 3000
+
+# Runtime configuration
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+# Optimize Node.js for production
+ENV NODE_OPTIONS="--max-old-space-size=1024"
+
+# Health check with timeout
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD ["node", "healthcheck.js"]
+
+# Signal handling with dumb-init
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start application
+CMD ["node", "server.js"]
+
+# Stage 5: Development (optional)
+FROM node:18-alpine AS development
+WORKDIR /app
+
+# Install dev tools
+RUN apk add --no-cache git python3 make g++
+
+# Copy package files
+COPY package*.json ./
+COPY yarn.lock* pnpm-lock.yaml* ./
+
+# Install all dependencies
+RUN npm install
+
+# Copy source
+COPY . .
+
+# Generate Prisma client
+RUN npx prisma generate
+
+# Expose ports
+EXPOSE 3000 9229
+
+# Enable Node.js debugging
+ENV NODE_OPTIONS="--inspect=0.0.0.0:9229"
+
+# Development command with hot reload
+CMD ["npm", "run", "dev"]
