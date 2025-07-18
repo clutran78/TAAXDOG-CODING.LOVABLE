@@ -3,9 +3,10 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { basiqClient } from '@/lib/basiq/client';
 import { basiqDB } from '@/lib/basiq/database';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db/monitoredPrisma';
+import { withApiMonitoring, withPerformanceMonitoring } from '@/lib/monitoring';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
 
   if (!session || !session.user) {
@@ -42,15 +43,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         // Get transactions from BASIQ
-        const transactions = await basiqClient.getTransactions({
-          accountId,
-          fromDate: fromDate as string,
-          toDate: toDate as string,
-          limit: 100,
+        const transactions = await withPerformanceMonitoring('basiq-get-transactions', async () => {
+          return await basiqClient.getTransactions({
+            accountId,
+            fromDate: fromDate as string,
+            toDate: toDate as string,
+            limit: 100,
+          });
         });
 
         // Sync to database
-        await basiqDB.syncTransactions(accountId, transactions.data);
+        await withPerformanceMonitoring('basiq-sync-transactions', async () => {
+          await basiqDB.syncTransactions(accountId, transactions.data);
+        });
 
         // Add tax categorization to response
         const categorizedTransactions = transactions.data.map(transaction => {
@@ -137,3 +142,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     );
   }
 }
+
+export default withApiMonitoring(handler);

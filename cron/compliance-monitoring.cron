@@ -1,0 +1,65 @@
+# TAAXDOG Compliance Monitoring Cron Jobs
+# 
+# This file contains the cron job configurations for automated compliance monitoring.
+# To install these cron jobs, run: crontab cron/compliance-monitoring.cron
+#
+# Format: minute hour day month day-of-week command
+
+# Environment setup
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+NODE_ENV=production
+
+# Change to application directory for all jobs
+# Update this path to match your deployment directory
+APP_DIR=/home/taaxdog/app
+
+#########################
+# DAILY MONITORING JOBS #
+#########################
+
+# AML/CTF Transaction Monitoring
+# Runs every 4 hours to catch suspicious transactions quickly
+0 */4 * * * cd $APP_DIR && npm run compliance:aml >> logs/aml-monitoring.log 2>&1
+
+# Privacy Compliance Monitoring  
+# Runs daily at 2 AM to check consent expiry and data requests
+0 2 * * * cd $APP_DIR && npm run compliance:privacy >> logs/privacy-monitoring.log 2>&1
+
+# APRA Compliance Monitoring
+# Runs twice daily at 6 AM and 6 PM for critical system checks
+0 6,18 * * * cd $APP_DIR && npm run compliance:apra >> logs/apra-monitoring.log 2>&1
+
+# Comprehensive Daily Monitoring
+# Runs all compliance checks at 3 AM
+0 3 * * * cd $APP_DIR && npm run compliance:all >> logs/compliance-all.log 2>&1
+
+##########################
+# MONTHLY REPORTING JOBS #
+##########################
+
+# Monthly Compliance Report Generation
+# Runs on the 1st of each month at 12:05 AM
+5 0 1 * * cd $APP_DIR && npm run compliance:monthly-report >> logs/monthly-report.log 2>&1
+
+########################
+# ALERTING & CLEANUP   #
+########################
+
+# Check for critical compliance alerts
+# Runs every hour to ensure timely response
+0 * * * * cd $APP_DIR && npm run compliance:check-alerts >> logs/compliance-alerts.log 2>&1
+
+# Clean up old compliance logs (keep 90 days)
+0 4 * * 0 find $APP_DIR/logs -name "*.log" -mtime +90 -delete
+
+# Backup compliance reports to secure storage
+# Runs weekly on Sunday at 1 AM
+0 1 * * 0 cd $APP_DIR && npm run compliance:backup-reports >> logs/backup-reports.log 2>&1
+
+#######################
+# MONITORING HEALTH   #
+#######################
+
+# Health check for cron jobs - creates a timestamp file
+*/30 * * * * echo "Compliance monitoring healthy at $(date)" > $APP_DIR/logs/cron-health.txt

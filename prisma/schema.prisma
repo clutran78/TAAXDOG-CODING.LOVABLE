@@ -67,6 +67,10 @@ model User {
   budgetTracking  BudgetTracking[]
   financialInsights FinancialInsight[]
   goals           Goal[]
+  financialAuditLogs FinancialAuditLog[]
+  amlMonitoring   AMLTransactionMonitoring[]
+  privacyConsents PrivacyConsent[]
+  dataAccessRequests DataAccessRequest[]
   
   @@index([email])
   @@index([createdAt])
@@ -137,6 +141,53 @@ model AuditLog {
   @@index([event])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// Financial Audit Log for Australian compliance
+model FinancialAuditLog {
+  id                String              @id @default(uuid())
+  userId            String
+  sessionId         String?             @db.Uuid
+  operationType     FinancialOperation
+  resourceType      String              @db.VarChar(100)
+  resourceId        String?             @db.Uuid
+  ipAddress         String              @db.VarChar(45)
+  userAgent         String?             @db.Text
+  httpMethod        String?             @db.VarChar(10)
+  endpoint          String?             @db.VarChar(500)
+  
+  // Data changes tracking
+  previousData      Json?               @map("previous_data")
+  currentData       Json?               @map("current_data")
+  changedFields     String[]            @map("changed_fields")
+  
+  // Financial compliance fields
+  amount            Decimal?            @db.Decimal(15, 2)
+  gstAmount         Decimal?            @db.Decimal(15, 2) @map("gst_amount")
+  currency          String?             @default("AUD") @db.VarChar(3)
+  taxYear           String?             @db.VarChar(10) @map("tax_year")
+  
+  // Security and integrity
+  success           Boolean             @default(true)
+  errorMessage      String?             @map("error_message")
+  hashChain         String?             @db.VarChar(64) @map("hash_chain")
+  previousHash      String?             @db.VarChar(64) @map("previous_hash")
+  
+  // Timestamps
+  createdAt         DateTime            @default(now()) @map("created_at")
+  timezone          String              @default("Australia/Sydney") @db.VarChar(50)
+  
+  // Relations
+  user              User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  
+  @@index([userId])
+  @@index([operationType])
+  @@index([resourceType])
+  @@index([resourceId])
+  @@index([createdAt])
+  @@index([taxYear])
+  @@index([sessionId])
+  @@map("financial_audit_logs")
 }
 
 // Subscription model (existing)
@@ -719,4 +770,384 @@ enum GoalStatus {
   COMPLETED
   PAUSED
   CANCELLED
+}
+
+// Financial Operation enum for audit logging
+enum FinancialOperation {
+  // Goal operations
+  GOAL_CREATE
+  GOAL_UPDATE
+  GOAL_DELETE
+  GOAL_COMPLETE
+  
+  // Transaction operations
+  TRANSACTION_CREATE
+  TRANSACTION_UPDATE
+  TRANSACTION_DELETE
+  TRANSACTION_CATEGORIZE
+  
+  // Receipt operations
+  RECEIPT_UPLOAD
+  RECEIPT_PROCESS
+  RECEIPT_UPDATE
+  RECEIPT_DELETE
+  RECEIPT_MATCH
+  
+  // Banking operations
+  BANK_CONNECT
+  BANK_DISCONNECT
+  BANK_SYNC
+  BANK_ACCOUNT_ADD
+  BANK_ACCOUNT_REMOVE
+  
+  // Budget operations
+  BUDGET_CREATE
+  BUDGET_UPDATE
+  BUDGET_DELETE
+  
+  // Subscription operations
+  SUBSCRIPTION_CREATE
+  SUBSCRIPTION_UPDATE
+  SUBSCRIPTION_CANCEL
+  
+  // Report operations
+  REPORT_GENERATE
+  REPORT_EXPORT
+  
+  // Tax operations
+  TAX_RETURN_CREATE
+  TAX_RETURN_UPDATE
+  TAX_RETURN_SUBMIT
+  
+  // Data export operations
+  DATA_EXPORT
+  DATA_IMPORT
+  
+  // Compliance operations
+  COMPLIANCE_CONSENT_GRANTED
+  COMPLIANCE_CONSENT_REVOKED
+  COMPLIANCE_DATA_ACCESS
+  COMPLIANCE_DATA_DELETION
+  COMPLIANCE_REPORT_GENERATED
+  AML_TRANSACTION_FLAGGED
+  AML_REPORT_SUBMITTED
+}
+
+// AML/CTF Transaction Monitoring model
+model AMLTransactionMonitoring {
+  id                  String              @id @default(uuid())
+  userId              String
+  transactionId       String?             @db.Uuid
+  monitoringType      AMLMonitoringType
+  riskScore           Decimal             @db.Decimal(3, 2)
+  riskFactors         String[]
+  amount              Decimal             @db.Decimal(15, 2)
+  currency            String              @default("AUD") @db.VarChar(3)
+  
+  // Pattern detection
+  patternType         String?             @db.VarChar(100)
+  patternDetails      Json?
+  velocityScore       Decimal?            @db.Decimal(3, 2)
+  
+  // Compliance actions
+  requiresReview      Boolean             @default(false)
+  reviewedBy          String?
+  reviewedAt          DateTime?
+  reportedToAUSTRAC   Boolean             @default(false)
+  reportReference     String?             @db.VarChar(255)
+  reportedAt          DateTime?
+  
+  // Metadata
+  falsePositive       Boolean             @default(false)
+  notes               String?             @db.Text
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  
+  // Relations
+  user                User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  
+  @@index([userId])
+  @@index([transactionId])
+  @@index([requiresReview])
+  @@index([riskScore])
+  @@index([createdAt])
+  @@map("aml_transaction_monitoring")
+}
+
+// Privacy Consent Management model
+model PrivacyConsent {
+  id                  String              @id @default(uuid())
+  userId              String
+  consentType         ConsentType
+  consentVersion      String              @db.VarChar(20)
+  consentStatus       ConsentStatus       @default(PENDING)
+  consentDate         DateTime?
+  expiryDate          DateTime?
+  
+  // Consent details
+  purposes            String[]
+  dataCategories      String[]
+  thirdParties        String[]
+  
+  // Withdrawal tracking
+  withdrawnAt         DateTime?
+  withdrawalReason    String?             @db.Text
+  
+  // Legal basis
+  legalBasis          String              @db.VarChar(100)
+  jurisdiction        String              @default("AU") @db.VarChar(10)
+  
+  // Audit
+  ipAddress           String              @db.VarChar(45)
+  userAgent           String?             @db.Text
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  
+  // Relations
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, consentType, consentVersion])
+  @@index([userId])
+  @@index([consentType])
+  @@index([consentStatus])
+  @@index([expiryDate])
+  @@map("privacy_consents")
+}
+
+// Data Access Requests (Privacy Act compliance)
+model DataAccessRequest {
+  id                  String              @id @default(uuid())
+  userId              String
+  requestType         DataRequestType
+  requestStatus       DataRequestStatus   @default(PENDING)
+  
+  // Request details
+  requestDate         DateTime            @default(now())
+  requestDetails      Json?
+  verificationMethod  String?             @db.VarChar(100)
+  verifiedAt          DateTime?
+  
+  // Processing
+  processedBy         String?
+  processedAt         DateTime?
+  completedAt         DateTime?
+  
+  // Response
+  responseMethod      String?             @db.VarChar(100)
+  responseUrl         String?             @db.Text
+  responseExpiryDate  DateTime?
+  
+  // Compliance
+  dueDate             DateTime            // 30 days from request
+  extensionReason     String?             @db.Text
+  extendedDueDate     DateTime?
+  
+  // Audit
+  notes               String?             @db.Text
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  
+  // Relations
+  user                User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  
+  @@index([userId])
+  @@index([requestType])
+  @@index([requestStatus])
+  @@index([dueDate])
+  @@map("data_access_requests")
+}
+
+// APRA Incident Reporting model
+model APRAIncidentReport {
+  id                  String              @id @default(uuid())
+  incidentType        IncidentType
+  severity            IncidentSeverity
+  status              IncidentStatus      @default(OPEN)
+  
+  // Incident details
+  title               String              @db.VarChar(500)
+  description         String              @db.Text
+  detectedAt          DateTime
+  reportedAt          DateTime?
+  resolvedAt          DateTime?
+  
+  // Impact assessment
+  affectedUsers       Int                 @default(0)
+  affectedSystems     String[]
+  dataCompromised     Boolean             @default(false)
+  financialImpact     Decimal?            @db.Decimal(15, 2)
+  
+  // Response actions
+  immediateActions    Json?
+  rootCause           String?             @db.Text
+  remediation         Json?
+  preventiveMeasures  Json?
+  
+  // Regulatory reporting
+  reportedToAPRA      Boolean             @default(false)
+  apraReference       String?             @db.VarChar(255)
+  reportedToOAIC      Boolean             @default(false)
+  oaicReference       String?             @db.VarChar(255)
+  
+  // Business continuity
+  bcpActivated        Boolean             @default(false)
+  serviceDowntime     Int?                // minutes
+  dataRecoveryTime    Int?                // minutes
+  
+  // Metadata
+  reportedBy          String?
+  responsibleTeam     String?             @db.VarChar(100)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  
+  @@index([incidentType])
+  @@index([severity])
+  @@index([status])
+  @@index([detectedAt])
+  @@map("apra_incident_reports")
+}
+
+// GST Transaction Details model
+model GSTTransactionDetail {
+  id                  String              @id @default(uuid())
+  transactionId       String              @db.Uuid
+  invoiceId           String?             @db.Uuid
+  
+  // GST calculation details
+  baseAmount          Decimal             @db.Decimal(15, 2)
+  gstRate             Decimal             @default(10.00) @db.Decimal(5, 2)
+  gstAmount           Decimal             @db.Decimal(15, 2)
+  totalAmount         Decimal             @db.Decimal(15, 2)
+  
+  // Tax categorization
+  taxCategory         String              @db.VarChar(100)
+  gstTreatment        GSTTreatment
+  inputTaxCredit      Boolean             @default(false)
+  
+  // Business details
+  supplierABN         String?             @db.VarChar(20)
+  supplierName        String?             @db.VarChar(255)
+  isGSTRegistered     Boolean             @default(true)
+  
+  // ATO reporting
+  basReportingCode    String?             @db.VarChar(10)
+  taxPeriod           String              @db.VarChar(10) // YYYY-MM
+  reportedInBAS       Boolean             @default(false)
+  basReference        String?             @db.VarChar(255)
+  
+  // Validation
+  validated           Boolean             @default(false)
+  validationErrors    String[]
+  
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  
+  @@index([transactionId])
+  @@index([invoiceId])
+  @@index([taxPeriod])
+  @@index([taxCategory])
+  @@map("gst_transaction_details")
+}
+
+// Compliance Configuration model
+model ComplianceConfiguration {
+  id                  String              @id @default(uuid())
+  configType          String              @unique @db.VarChar(100)
+  configData          Json
+  isActive            Boolean             @default(true)
+  
+  // AML/CTF thresholds
+  amlThresholds       Json?
+  
+  // Privacy settings
+  dataRetentionDays   Int?
+  consentExpireDays   Int?
+  
+  // APRA requirements
+  incidentReportHours Int?                @default(72)
+  backupFrequency     String?             @db.VarChar(50)
+  
+  // GST settings
+  gstRate             Decimal?            @default(10.00) @db.Decimal(5, 2)
+  basReportingCodes   Json?
+  
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  
+  @@map("compliance_configuration")
+}
+
+// Enums for compliance models
+enum AMLMonitoringType {
+  THRESHOLD_EXCEEDED
+  VELOCITY_CHECK
+  PATTERN_DETECTION
+  SUSPICIOUS_ACTIVITY
+  CUSTOMER_RISK_PROFILE
+  SANCTIONS_SCREENING
+}
+
+enum ConsentType {
+  PRIVACY_POLICY
+  TERMS_OF_SERVICE
+  MARKETING_COMMUNICATIONS
+  DATA_SHARING
+  THIRD_PARTY_INTEGRATION
+  BIOMETRIC_DATA
+}
+
+enum ConsentStatus {
+  PENDING
+  GRANTED
+  DENIED
+  WITHDRAWN
+  EXPIRED
+}
+
+enum DataRequestType {
+  ACCESS_REQUEST
+  PORTABILITY_REQUEST
+  DELETION_REQUEST
+  CORRECTION_REQUEST
+  RESTRICTION_REQUEST
+}
+
+enum DataRequestStatus {
+  PENDING
+  VERIFIED
+  PROCESSING
+  COMPLETED
+  REJECTED
+  EXPIRED
+}
+
+enum IncidentType {
+  DATA_BREACH
+  SYSTEM_OUTAGE
+  SECURITY_INCIDENT
+  COMPLIANCE_BREACH
+  OPERATIONAL_FAILURE
+  THIRD_PARTY_FAILURE
+}
+
+enum IncidentSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum IncidentStatus {
+  OPEN
+  INVESTIGATING
+  CONTAINED
+  RESOLVED
+  CLOSED
+}
+
+enum GSTTreatment {
+  TAXABLE_SUPPLY
+  GST_FREE
+  INPUT_TAXED
+  OUT_OF_SCOPE
 }

@@ -1,6 +1,6 @@
-// Re-export everything from the optimized Prisma client
-export * from "./prisma-optimized";
+// Re-export everything from the unified monitored Prisma client
+export * from "./db/unifiedMonitoredPrisma";
 
 // For backward compatibility, also export prisma as default
-import { prisma } from "./prisma-optimized";
+import { prisma } from "./db/unifiedMonitoredPrisma";
 export default prisma;

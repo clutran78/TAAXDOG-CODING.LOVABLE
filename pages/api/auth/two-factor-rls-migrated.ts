@@ -122,7 +122,7 @@ async function enableTwoFactor(req: NextApiRequest, res: NextApiResponse, userId
         data: {
           identifier: user.email,
           token: `2fa_${code}`,
-          expires: new Date(Date.now();
+          expires: new Date(Date.now()
     }) + 10 * 60 * 1000),
         },
       });

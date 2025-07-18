@@ -109,7 +109,7 @@ async function handlePut(
         monthlyIncome,
         categoryLimits,
         status,
-        updatedAt: new Date();
+        updatedAt: new Date(),
     }),
       },
     });

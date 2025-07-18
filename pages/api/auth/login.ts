@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { prisma } from '../../../lib/prisma';
+import { prisma } from '../../../lib/db/monitoredPrisma';
+import { withApiMonitoring } from '../../../lib/monitoring';
 import {
   verifyPassword,
   generateJWT,
@@ -14,7 +15,7 @@ import { loginSchema, validateInput } from '../../../lib/auth/validation';
 import { authRateLimiter } from '../../../lib/auth/rate-limiter';
 import { AuthEvent } from '../../../generated/prisma';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Only allow POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -223,3 +224,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 }
+
+export default withApiMonitoring(handler);

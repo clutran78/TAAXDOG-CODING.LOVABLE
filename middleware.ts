@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withAuth, rateLimit, validateCSRFToken, securityHeaders } from "./lib/middleware/auth";
+import { withAuth, validateCSRFToken } from "./lib/middleware/auth";
 import { Role } from "./generated/prisma";
 
 // Routes that require authentication
@@ -41,12 +41,40 @@ const csrfProtectedRoutes = [
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const response = NextResponse.next();
 
-  // Apply rate limiting
-  const rateLimiter = rateLimit(60000, 100); // 100 requests per minute
-  if (!rateLimiter(request)) {
-    return new NextResponse("Too Many Requests", { status: 429 });
+  // Apply security headers globally
+  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('X-XSS-Protection', '1; mode=block');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  response.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  
+  // HSTS header for production
+  if (process.env.NODE_ENV === 'production') {
+    response.headers.set(
+      'Strict-Transport-Security',
+      'max-age=31536000; includeSubDomains; preload'
+    );
   }
+  
+  // CSP header
+  const cspDirectives = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: https: blob:",
+    "connect-src 'self' https://api.stripe.com https://api.openai.com https://api.anthropic.com https://au-api.basiq.io",
+    "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    process.env.NODE_ENV === 'production' ? "upgrade-insecure-requests" : "",
+  ].filter(Boolean).join('; ');
+  
+  response.headers.set('Content-Security-Policy', cspDirectives);
 
   // Check CSRF for protected API routes
   if (csrfProtectedRoutes.some(route => pathname.startsWith(route))) {
@@ -57,8 +85,7 @@ export async function middleware(request: NextRequest) {
 
   // Skip auth for public routes
   if (publicRoutes.some(route => pathname === route)) {
-    const response = NextResponse.next();
-    return securityHeaders(response);
+    return response;
   }
 
   // Skip auth for static files and API routes (except protected ones)
@@ -68,15 +95,18 @@ export async function middleware(request: NextRequest) {
     pathname.includes(".") ||
     (pathname.startsWith("/api") && !pathname.startsWith("/api/protected"))
   ) {
-    const response = NextResponse.next();
-    return securityHeaders(response);
+    return response;
   }
 
   // Check authentication for protected routes
   if (protectedRoutes.some(route => pathname.startsWith(route))) {
     const authResponse = await withAuth(request);
     if (authResponse) {
-      return securityHeaders(authResponse);
+      // Copy security headers to auth response
+      response.headers.forEach((value, key) => {
+        authResponse.headers.set(key, value);
+      });
+      return authResponse;
     }
   }
 
@@ -85,13 +115,16 @@ export async function middleware(request: NextRequest) {
     if (pathname.startsWith(route)) {
       const authResponse = await withAuth(request, requiredRole);
       if (authResponse) {
-        return securityHeaders(authResponse);
+        // Copy security headers to auth response
+        response.headers.forEach((value, key) => {
+          authResponse.headers.set(key, value);
+        });
+        return authResponse;
       }
     }
   }
 
-  const response = NextResponse.next();
-  return securityHeaders(response);
+  return response;
 }
 
 export const config = {

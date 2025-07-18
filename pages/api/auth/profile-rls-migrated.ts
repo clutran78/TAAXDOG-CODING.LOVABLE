@@ -178,7 +178,7 @@ async function updateProfile(req: NextApiRequest, res: NextApiResponse, userId: 
 }
 
 // Delete account (GDPR/APP compliance)
-async function deleteAccount(req: NextApiRequest, res: NextApiResponse, userId: string) {
+async function deleteAccount(req: NextApiRequestWithRLS, res: NextApiResponse, userId: string) {
   try {
     const { password, reason } = req.body;
 
@@ -259,9 +259,9 @@ async function deleteAccount(req: NextApiRequest, res: NextApiResponse, userId: 
       },
       data: {
         status: 'canceled',
-        cancelledAt: new Date();
-    }),
-      },
+        cancelledAt: new Date()
+      }
+    });
     });
 
     res.status(200).json({
@@ -361,3 +361,5 @@ export async function exportUserData(req: NextApiRequest, res: NextApiResponse) 
     res.status(500).json({ message: "Failed to export user data" });
   }
 }
+
+export default withRLSMiddleware(handler);

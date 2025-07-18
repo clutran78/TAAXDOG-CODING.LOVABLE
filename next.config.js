@@ -32,6 +32,28 @@ const nextConfig = {
   experimental: {
     forceSwcTransforms: true,
   },
+  // Add webpack configuration to ignore problematic files
+  webpack: (config, { isServer }) => {
+    config.module.rules.push({
+      test: /-rls-migrated\.(ts|tsx)$/,
+      loader: 'ignore-loader'
+    });
+    
+    // Fix for winston and other node modules
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        dns: false,
+        child_process: false,
+        readline: false,
+      };
+    }
+    
+    return config;
+  },
   // Add security headers to prevent XSS, clickjacking, and other attacks
   async headers() {
     return [

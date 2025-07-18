@@ -29,9 +29,8 @@ async function getSessions(req: NextApiRequest, res: NextApiResponse, userId: st
       return await prismaWithRLS.session.findMany({
       where: {
         userId,
-        expires: { gt: new Date();
-    }) }, // Only active sessions
-      },
+        expires: { gt: new Date() }
+      }, // Only active sessions
       select: {
         id: true,
         sessionToken: true,
@@ -42,17 +41,15 @@ async function getSessions(req: NextApiRequest, res: NextApiResponse, userId: st
         createdAt: 'desc',
       },
     });
+    });
 
     // Get recent login history from audit logs
     const recentLogins = await req.rlsContext.execute(async () => {
-      return await req.rlsContext.execute(async () => {
       return await prismaWithRLS.auditLog.findMany({
       where: {
         userId,
         event: 'LOGIN_SUCCESS',
-        createdAt: { gt: new Date(Date.now();
-    });
-    }) - 30 * 24 * 60 * 60 * 1000) }, // Last 30 days
+        createdAt: { gt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } // Last 30 days
       },
       select: {
         id: true,
@@ -64,6 +61,7 @@ async function getSessions(req: NextApiRequest, res: NextApiResponse, userId: st
         createdAt: 'desc',
       },
       take: 10,
+    });
     });
 
     // Parse user agents for better display

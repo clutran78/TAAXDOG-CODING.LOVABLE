@@ -41,7 +41,6 @@ async function handler(req: NextApiRequestWithRLS, res: NextApiResponse) {
         return res.status(200).json(formattedGoal);
       } catch (error) {
     return handleRLSError(error, res);
-  });
       }
 
     case 'PUT':
@@ -82,7 +81,6 @@ async function handler(req: NextApiRequestWithRLS, res: NextApiResponse) {
         return res.status(200).json(formattedGoal);
       } catch (error) {
     return handleRLSError(error, res);
-  });
       }
 
     case 'DELETE':
@@ -97,7 +95,6 @@ async function handler(req: NextApiRequestWithRLS, res: NextApiResponse) {
         return res.status(204).end();
       } catch (error) {
     return handleRLSError(error, res);
-  });
       }
 
     default:

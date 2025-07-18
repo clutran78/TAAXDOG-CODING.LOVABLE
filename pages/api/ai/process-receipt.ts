@@ -2,7 +2,8 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { receiptProcessor, ReceiptData } from '../../../lib/ai/services/receipt-processing';
-import { prisma } from '../../../lib/prisma';
+import { prisma } from '../../../lib/db/monitoredPrisma';
+import { withApiMonitoring, withPerformanceMonitoring } from '../../../lib/monitoring';
 
 export const config = {
   api: {
@@ -12,7 +13,7 @@ export const config = {
   },
 };
 
-export default async function handler(
+async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
@@ -38,12 +39,14 @@ export default async function handler(
     const startTime = Date.now();
 
     // Process receipt with Gemini AI using enhanced multi-provider system
-    const processedReceipt = await receiptProcessor.processReceipt({
-      imageData,
-      mimeType,
-      userId: session.user.id,
-      businessId,
-      additionalContext,
+    const processedReceipt = await withPerformanceMonitoring('ai-process-receipt', async () => {
+      return await receiptProcessor.processReceipt({
+        imageData,
+        mimeType,
+        userId: session.user.id,
+        businessId,
+        additionalContext,
+      });
     });
     
     // Validate receipt data with Australian compliance
@@ -56,23 +59,25 @@ export default async function handler(
     );
 
     // Save receipt to database with AI metadata
-    const receipt = await prisma.receipt.create({
-      data: {
-        userId: session.user.id,
-        merchant: processedReceipt.merchantName,
-        totalAmount: processedReceipt.totalAmount,
-        gstAmount: processedReceipt.gstAmount,
-        date: processedReceipt.date,
-        items: processedReceipt.lineItems as any,
-        abn: processedReceipt.abn,
-        taxInvoiceNumber: processedReceipt.taxInvoiceNumber,
-        isGstRegistered: processedReceipt.isGstCompliant,
-        aiProcessed: true,
-        aiConfidence: processedReceipt.confidence,
-        aiProvider: 'gemini',
-        aiModel: 'gemini-pro-vision',
-        processingStatus: validation.isValid ? 'PROCESSED' : 'MANUAL_REVIEW',
-      },
+    const receipt = await withPerformanceMonitoring('ai-save-receipt', async () => {
+      return await prisma.receipt.create({
+        data: {
+          userId: session.user.id,
+          merchant: processedReceipt.merchantName,
+          totalAmount: processedReceipt.totalAmount,
+          gstAmount: processedReceipt.gstAmount,
+          date: processedReceipt.date,
+          items: processedReceipt.lineItems as any,
+          abn: processedReceipt.abn,
+          taxInvoiceNumber: processedReceipt.taxInvoiceNumber,
+          isGstRegistered: processedReceipt.isGstCompliant,
+          aiProcessed: true,
+          aiConfidence: processedReceipt.confidence,
+          aiProvider: 'gemini',
+          aiModel: 'gemini-pro-vision',
+          processingStatus: validation.isValid ? 'PROCESSED' : 'MANUAL_REVIEW',
+        },
+      });
     });
 
     const processingTimeMs = Date.now() - startTime;
@@ -95,3 +100,5 @@ export default async function handler(
     });
   }
 }
+
+export default withApiMonitoring(handler);

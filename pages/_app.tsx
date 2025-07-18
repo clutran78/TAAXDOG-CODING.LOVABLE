@@ -3,13 +3,17 @@ import type { AppProps } from "next/app";
 import { SessionProvider } from "next-auth/react";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { useEffect } from "react";
+import { ClientMonitor } from "../lib/monitoring/client";
 
 export default function App({
   Component,
   pageProps: { session, ...pageProps },
 }: AppProps) {
   useEffect(() => {
-    // Log client-side errors
+    // Initialize client monitoring
+    const monitor = ClientMonitor.getInstance();
+    
+    // Log client-side errors (existing functionality)
     const handleError = (event: ErrorEvent) => {
       console.error('[Client Error]', {
         message: event.message,

@@ -52,6 +52,5 @@ async function handler(req: NextApiRequestWithRLS, res: NextApiResponse) {
     return res.status(200).json(formattedGoal);
   } catch (error) {
     return handleRLSError(error, res);
-  });
   }
 }

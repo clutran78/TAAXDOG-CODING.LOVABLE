@@ -1,0 +1,342 @@
+{
+  "timestamp": "2025-07-18T12:15:50.757Z",
+  "environment": "development",
+  "overallStatus": "not_ready",
+  "results": [
+    {
+      "category": "Environment Variables",
+      "check": "Required: NODE_ENV",
+      "status": "fail",
+      "details": "Variable is missing or empty",
+      "required": true
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Required: NEXTAUTH_URL",
+      "status": "pass",
+      "details": "Variable is set",
+      "required": true
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Required: NEXTAUTH_SECRET",
+      "status": "pass",
+      "details": "Variable is set",
+      "required": true
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Required: DATABASE_URL",
+      "status": "pass",
+      "details": "Variable is set",
+      "required": true
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Required: GOOGLE_CLIENT_ID",
+      "status": "fail",
+      "details": "Variable is missing or empty",
+      "required": true
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Required: GOOGLE_CLIENT_SECRET",
+      "status": "fail",
+      "details": "Variable is missing or empty",
+      "required": true
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Required: STRIPE_PUBLISHABLE_KEY",
+      "status": "pass",
+      "details": "Variable is set",
+      "required": true
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Required: STRIPE_SECRET_KEY",
+      "status": "pass",
+      "details": "Variable is set",
+      "required": true
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Required: STRIPE_WEBHOOK_SECRET",
+      "status": "pass",
+      "details": "Variable is set",
+      "required": true
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Required: SENDGRID_API_KEY",
+      "status": "fail",
+      "details": "Variable is missing or empty",
+      "required": true
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Required: EMAIL_FROM",
+      "status": "pass",
+      "details": "Variable is set",
+      "required": true
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Required: ANTHROPIC_API_KEY",
+      "status": "pass",
+      "details": "Variable is set",
+      "required": true
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Required: OPENROUTER_API_KEY",
+      "status": "pass",
+      "details": "Variable is set",
+      "required": true
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Required: GEMINI_API_KEY",
+      "status": "pass",
+      "details": "Variable is set",
+      "required": true
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Required: BASIQ_API_KEY",
+      "status": "pass",
+      "details": "Variable is set",
+      "required": true
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Required: ENCRYPTION_KEY",
+      "status": "fail",
+      "details": "Variable is missing or empty",
+      "required": true
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Required: JWT_SECRET",
+      "status": "fail",
+      "details": "Variable is missing or empty",
+      "required": true
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Required: AWS_ACCESS_KEY_ID",
+      "status": "fail",
+      "details": "Variable is missing or empty",
+      "required": true
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Required: AWS_SECRET_ACCESS_KEY",
+      "status": "fail",
+      "details": "Variable is missing or empty",
+      "required": true
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Required: AWS_REGION",
+      "status": "pass",
+      "details": "Variable is set",
+      "required": true
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Required: BACKUP_BUCKET",
+      "status": "fail",
+      "details": "Variable is missing or empty",
+      "required": true
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Required: BACKUP_ENCRYPTION_KEY",
+      "status": "fail",
+      "details": "Variable is missing or empty",
+      "required": true
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Optional: RATE_LIMIT_WINDOW",
+      "status": "warning",
+      "details": "Using default value",
+      "required": false
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Optional: RATE_LIMIT_MAX",
+      "status": "warning",
+      "details": "Using default value",
+      "required": false
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Optional: SESSION_TIMEOUT",
+      "status": "warning",
+      "details": "Using default value",
+      "required": false
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Optional: LOG_LEVEL",
+      "status": "warning",
+      "details": "Using default value",
+      "required": false
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Optional: MONITORING_ENABLED",
+      "status": "warning",
+      "details": "Using default value",
+      "required": false
+    },
+    {
+      "category": "Environment Variables",
+      "check": "Optional: SENTRY_DSN",
+      "status": "warning",
+      "details": "Using default value",
+      "required": false
+    },
+    {
+      "category": "Database",
+      "check": "Connection test",
+      "status": "fail",
+      "details": "Connection failed: self-signed certificate in certificate chain",
+      "required": true
+    },
+    {
+      "category": "Stripe",
+      "check": "API connection",
+      "status": "pass",
+      "details": "Connected to account: a.stroe.3022@gmail.com",
+      "required": true
+    },
+    {
+      "category": "Stripe",
+      "check": "Webhook secret",
+      "status": "pass",
+      "details": "Webhook secret configured",
+      "required": true
+    },
+    {
+      "category": "Stripe",
+      "check": "Products configured",
+      "status": "warning",
+      "details": "0 products found",
+      "required": false
+    },
+    {
+      "category": "SendGrid",
+      "check": "API configuration",
+      "status": "fail",
+      "details": "SendGrid API key not configured",
+      "required": true
+    },
+    {
+      "category": "BASIQ",
+      "check": "API authentication",
+      "status": "fail",
+      "details": "Auth failed: 400",
+      "required": false
+    },
+    {
+      "category": "AI Services",
+      "check": "Anthropic API key",
+      "status": "pass",
+      "details": "API key configured",
+      "required": false
+    },
+    {
+      "category": "AI Services",
+      "check": "OpenRouter API key",
+      "status": "pass",
+      "details": "API key configured",
+      "required": false
+    },
+    {
+      "category": "AI Services",
+      "check": "Gemini API key",
+      "status": "pass",
+      "details": "API key configured",
+      "required": false
+    },
+    {
+      "category": "AI Services",
+      "check": "At least one AI service",
+      "status": "pass",
+      "details": "AI services available",
+      "required": true
+    },
+    {
+      "category": "SSL",
+      "check": "SSL certificates",
+      "status": "warning",
+      "details": "SSL validation skipped (non-production)",
+      "required": false
+    },
+    {
+      "category": "File System",
+      "check": "Directory: logs",
+      "status": "pass",
+      "details": "Directory exists with write permissions",
+      "required": true
+    },
+    {
+      "category": "File System",
+      "check": "Directory: uploads",
+      "status": "pass",
+      "details": "Directory exists with write permissions",
+      "required": true
+    },
+    {
+      "category": "File System",
+      "check": "Directory: public",
+      "status": "fail",
+      "details": "Directory does not exist",
+      "required": true
+    },
+    {
+      "category": "File System",
+      "check": "Directory: .next",
+      "status": "pass",
+      "details": "Directory exists with write permissions",
+      "required": true
+    },
+    {
+      "category": "File System",
+      "check": "Disk space",
+      "status": "fail",
+      "details": "90% disk usage",
+      "required": true
+    },
+    {
+      "category": "System",
+      "check": "Node.js version",
+      "status": "pass",
+      "details": "Node.js v22.14.0 (required: >= 18)",
+      "required": true
+    },
+    {
+      "category": "System",
+      "check": "Memory usage",
+      "status": "fail",
+      "details": "98.8% memory used",
+      "required": true
+    },
+    {
+      "category": "System",
+      "check": "CPU load",
+      "status": "fail",
+      "details": "Load average: 16.25 (8 CPUs)",
+      "required": false
+    }
+  ],
+  "summary": {
+    "total": 47,
+    "passed": 22,
+    "failed": 17,
+    "warnings": 8
+  }
+}
