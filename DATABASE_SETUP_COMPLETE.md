@@ -1,5 +1,9 @@
 # PostgreSQL Database Setup Complete
 
+## ⚠️ SECURITY NOTICE
+
+**IMPORTANT**: All database credentials in this document have been replaced with placeholders. Never expose actual passwords in documentation. Store all sensitive values securely in environment variables.
+
 ## Overview
 I've successfully created a comprehensive PostgreSQL database setup for your Taaxdog-coding project with environment-aware configuration, security features, and monitoring capabilities.
 
@@ -71,7 +75,7 @@ DATABASE_SSL_REQUIRED=false
 ### `.env.production`
 ```env
 NODE_ENV=production
-DATABASE_URL_PRODUCTION=postgresql://taaxdog-admin:AVNS_kp_8AWjX2AzlvWOqm_V@taaxdog-prod-do-user-18496803-0.h.db.ondigitalocean.com:25060/taaxdog_production?sslmode=require
+DATABASE_URL_PRODUCTION=postgresql://taaxdog-admin:[DATABASE_PASSWORD]@taaxdog-prod-do-user-18496803-0.h.db.ondigitalocean.com:25060/taaxdog_production?sslmode=require
 DATABASE_POOL_MIN=5
 DATABASE_POOL_MAX=20
 DATABASE_ENABLE_LOGGING=false

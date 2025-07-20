@@ -22,6 +22,36 @@ export function validateRequest(rules: ValidationChain[]) {
   };
 }
 
+/**
+ * Validates an Australian Business Number (ABN) checksum
+ * @param abn - The ABN to validate (as a string of 11 digits)
+ * @returns true if the ABN checksum is valid, false otherwise
+ */
+function validateABNChecksum(abn: string): boolean {
+  // ABN must be exactly 11 digits
+  if (!/^\d{11}$/.test(abn)) {
+    return false;
+  }
+
+  // Convert string to array of numbers
+  const digits = abn.split('').map(Number);
+  
+  // Subtract 1 from the first digit
+  digits[0] -= 1;
+  
+  // Apply weighting factors
+  const weights = [10, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19];
+  
+  // Calculate the sum of (digit * weight) for each position
+  let sum = 0;
+  for (let i = 0; i < 11; i++) {
+    sum += digits[i] * weights[i];
+  }
+  
+  // Check if sum is divisible by 89
+  return sum % 89 === 0;
+}
+
 export const commonValidations = {
   email: body('email')
     .isEmail()
@@ -46,7 +76,14 @@ export const commonValidations = {
   abn: body('abn')
     .optional()
     .matches(/^\d{11}$/)
-    .withMessage('ABN must be 11 digits'),
+    .withMessage('ABN must be 11 digits')
+    .custom((value) => {
+      if (!value) return true; // Optional field
+      if (!validateABNChecksum(value)) {
+        throw new Error('Invalid ABN - checksum verification failed');
+      }
+      return true;
+    }),
     
   phoneNumber: body('phoneNumber')
     .optional()

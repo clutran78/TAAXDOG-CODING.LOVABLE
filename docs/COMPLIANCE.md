@@ -111,10 +111,51 @@ TAAXDOG implements full compliance with Australian financial regulations includi
 
 ## 5. Automated Monitoring Scripts
 
+### ⚠️ SECURITY WARNING
+
+**NEVER run these TypeScript scripts directly in production environments using ts-node!**
+
+Running TypeScript files with `ts-node` in production poses significant security risks:
+- Potential code injection vulnerabilities
+- Unvalidated script execution
+- Performance overhead from runtime compilation
+- Exposure of source code and sensitive logic
+
+#### Recommended Security Practices:
+
+1. **Development/Testing Only**: Use `ts-node` commands only in controlled development or testing environments
+2. **Production Execution**: 
+   - Compile TypeScript to JavaScript: `npm run build`
+   - Run compiled JavaScript files: `node dist/scripts/compliance/script-name.js`
+   - Use proper process managers (PM2, systemd) with restricted permissions
+3. **Script Validation**:
+   - Review all scripts before execution
+   - Implement code signing for production scripts
+   - Use environment-specific configuration files
+   - Run scripts with minimal required permissions
+4. **Security Checklist Before Execution**:
+   - [ ] Verify script source and integrity
+   - [ ] Review for hardcoded credentials or sensitive data
+   - [ ] Ensure proper environment variable usage
+   - [ ] Confirm script runs with least privilege
+   - [ ] Check for external dependencies and vulnerabilities
+
 ### Daily Monitoring
 Run all compliance checks daily:
+
+**Development/Testing:**
 ```bash
+# Only in secure, non-production environments
 ts-node scripts/compliance/run-all-monitoring.ts
+```
+
+**Production (Recommended):**
+```bash
+# First compile TypeScript
+npm run build
+
+# Then run compiled JavaScript
+node dist/scripts/compliance/run-all-monitoring.js
 ```
 
 Individual monitoring scripts:
@@ -124,8 +165,17 @@ Individual monitoring scripts:
 
 ### Monthly Reporting
 Automatic generation on the 1st of each month:
+
+**Development/Testing:**
 ```bash
+# Only in secure, non-production environments
 ts-node scripts/compliance/generate-monthly-report.ts
+```
+
+**Production (Recommended):**
+```bash
+# Use compiled version
+node dist/scripts/compliance/generate-monthly-report.js
 ```
 
 Reports include:

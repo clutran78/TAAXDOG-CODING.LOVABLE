@@ -119,10 +119,10 @@ async function testRLSPolicies() {
     });
 
     // Test with user context
-    const result = await prisma.$queryRawUnsafe(`
-      SET LOCAL app.current_user_id = '${user1.id}';
-      SELECT COUNT(*) as count FROM "Goal";
-    `);
+    // First set the user context
+    await prisma.$executeRaw`SET LOCAL app.current_user_id = ${user1.id}`;
+    // Then query with RLS active
+    const result = await prisma.$queryRaw`SELECT COUNT(*) as count FROM "Goal"`;
 
     // User 1 should only see their own goal
     return true; // This is a placeholder - actual RLS testing requires DB connection with RLS enabled
@@ -131,10 +131,10 @@ async function testRLSPolicies() {
   // Test 2: Admin bypass
   await runTest('Admin can see all data', async () => {
     // Set admin context and verify they can see all goals
-    const result = await prisma.$queryRawUnsafe(`
-      SET LOCAL app.current_user_id = '${admin.id}';
-      SELECT COUNT(*) as count FROM "Goal";
-    `);
+    // First set the admin context
+    await prisma.$executeRaw`SET LOCAL app.current_user_id = ${admin.id}`;
+    // Then query with RLS active
+    const result = await prisma.$queryRaw`SELECT COUNT(*) as count FROM "Goal"`;
 
     return true; // Placeholder
   });

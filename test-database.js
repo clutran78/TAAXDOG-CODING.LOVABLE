@@ -6,8 +6,14 @@ async function testConnection(env) {
 
   const isDevelopment = env === 'development';
   const connectionString = isDevelopment
-    ? 'postgresql://genesis@localhost:5432/taaxdog_development'
-    : 'postgresql://taaxdog-admin:AVNS_kp_8AWjX2AzlvWOqm_V@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production?sslmode=require';
+    ? process.env.DEV_DATABASE_URL || 'postgresql://genesis@localhost:5432/taaxdog_development'
+    : process.env.DATABASE_URL;
+    
+  if (!isDevelopment && !connectionString) {
+    console.error('❌ Error: DATABASE_URL environment variable is not set for production');
+    console.error('Please set DATABASE_URL with your PostgreSQL connection string');
+    process.exit(1);
+  }
 
   const poolConfig = {
     connectionString,

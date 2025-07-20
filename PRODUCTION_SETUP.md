@@ -1,5 +1,9 @@
 # TaxReturnPro Production Setup Guide
 
+## ⚠️ SECURITY NOTICE
+
+**IMPORTANT**: Never commit actual credentials to version control. All sensitive values in this document have been replaced with placeholders. Store actual values in secure environment variables.
+
 ## Issue: Client-side error on www.taxreturnpro.com.au
 
 The application is experiencing a client-side error that prevents login/signup. This is likely due to missing environment variables in the DigitalOcean deployment.
@@ -14,30 +18,30 @@ Add these environment variables to your DigitalOcean App Platform settings:
 # Application Configuration
 NODE_ENV=production
 NEXTAUTH_URL=https://taxreturnpro.com.au
-NEXTAUTH_SECRET=VS5+e29Y/yEPy4wnqgDz04gT7PfCRkQR/iUS7tteTUI=
+NEXTAUTH_SECRET=[REDACTED - Generate with: openssl rand -base64 32]
 
 # Database Configuration
-DATABASE_URL=postgresql://taaxdog-admin:AVNS_sOOnNB63elYEvJLTVuy@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production?sslmode=require
+DATABASE_URL=postgresql://taaxdog-admin:[DATABASE_PASSWORD]@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production?sslmode=require
 
 # Stripe Configuration (IMPORTANT: Must include NEXT_PUBLIC_ prefix for client-side)
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_51Re1oyLl1e8i03PEfTJeJ6DBeX1T7gzcXRCPWDzePSJGTwBJZYwECtZbGBcYA3H8tl5gxZUobLY4bYmseontkiBj00s6SiBehE
-STRIPE_SECRET_KEY=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
-STRIPE_WEBHOOK_SECRET=whsec_z2rEeYEZBAbBjxMvCzfKc8Trs1wlTC9L
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=[STRIPE_PUBLISHABLE_KEY]
+STRIPE_SECRET_KEY=[STRIPE_SECRET_KEY]
+STRIPE_WEBHOOK_SECRET=[STRIPE_WEBHOOK_SECRET]
 
 # AI Services
-ANTHROPIC_API_KEY=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
-OPENROUTER_API_KEY=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
-GEMINI_API_KEY=AIzaSyADSKfEEx1WISywXTw7V1CHqjM72bn7kEY
+ANTHROPIC_API_KEY=[ANTHROPIC_API_KEY]
+OPENROUTER_API_KEY=[OPENROUTER_API_KEY]
+GEMINI_API_KEY=[GEMINI_API_KEY]
 
 # Banking Integration
-BASIQ_API_KEY=MThmYjA5ZWEtNzRhMi00Nzc5LTk0ZjAtYmRkOTExZDgwMGI4OjhjZjUzZWUzLTYxYmItNDlkMC04YTM2LTRmYWE5NmNkYmY2Nw==
+BASIQ_API_KEY=[BASIQ_API_KEY]
 
 # Email Configuration (Update with your actual email credentials)
 EMAIL_FROM=noreply@taxreturnpro.com.au
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASS=your-app-specific-password
+SMTP_USER=[YOUR_EMAIL_ADDRESS]
+SMTP_PASS=[EMAIL_APP_PASSWORD]
 SMTP_SECURE=false
 ```
 
@@ -82,7 +86,7 @@ To test the production build locally:
 
 ```bash
 # Build with production environment
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_51Re1oyLl1e8i03PEfTJeJ6DBeX1T7gzcXRCPWDzePSJGTwBJZYwECtZbGBcYA3H8tl5gxZUobLY4bYmseontkiBj00s6SiBehE npm run build
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=[STRIPE_PUBLISHABLE_KEY] npm run build
 
 # Start production server
 npm start

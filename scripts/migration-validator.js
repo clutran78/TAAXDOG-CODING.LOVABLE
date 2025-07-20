@@ -1219,8 +1219,16 @@ ${Object.values(VALIDATION_CONFIG.collectionMapping).map(table =>
 // CLI interface
 async function main() {
   const firebaseDir = process.argv[2] || path.join(__dirname, '../firebase-exports');
-  const connectionString = process.argv[3] || process.env.DATABASE_URL || 
-    'postgresql://taaxdog-admin:AVNS_kp_8AWjX2AzlvWOqm_V@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production?sslmode=require';
+  const connectionString = process.argv[3] || process.env.DATABASE_URL;
+  
+  if (!connectionString) {
+    console.error('❌ Error: DATABASE_URL environment variable is not set');
+    console.error('Please provide connection string as argument or set DATABASE_URL');
+    console.log('\nUsage:');
+    console.log('  node migration-validator.js [firebase-dir] [connection-string] [output-dir]');
+    console.log('  DATABASE_URL=... node migration-validator.js');
+    process.exit(1);
+  }
   const outputDir = process.argv[4] || path.join(__dirname, '../validation-reports');
   
   console.log('Firebase Directory:', firebaseDir);

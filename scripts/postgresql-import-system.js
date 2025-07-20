@@ -766,7 +766,7 @@ async function importToPostgreSQL(dataDir, connectionString) {
   console.log('🚀 PostgreSQL Data Import System');
   console.log('================================\n');
   
-  const importer = new PostgreSQLImporter(connectionString || process.env.DATABASE_URL);
+  const importer = new PostgreSQLImporter(connectionString);
   
   try {
     // Test connection
@@ -833,8 +833,16 @@ async function importToPostgreSQL(dataDir, connectionString) {
 // CLI interface
 if (require.main === module) {
   const dataDir = process.argv[2] || path.join(__dirname, '../firebase-transformed');
-  const connectionString = process.argv[3] || process.env.DATABASE_URL || 
-    'postgresql://taaxdog-admin:AVNS_kp_8AWjX2AzlvWOqm_V@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production?sslmode=require';
+  const connectionString = process.argv[3] || process.env.DATABASE_URL;
+  
+  if (!connectionString) {
+    console.error('❌ Error: DATABASE_URL environment variable is not set');
+    console.error('Please provide connection string as argument or set DATABASE_URL');
+    console.log('\nUsage:');
+    console.log('  node postgresql-import-system.js [data-dir] [connection-string]');
+    console.log('  DATABASE_URL=... node postgresql-import-system.js');
+    process.exit(1);
+  }
   
   console.log(`Data directory: ${dataDir}`);
   console.log(`Connecting to: ${connectionString.split('@')[1]?.split('/')[0] || 'database'}\n`);

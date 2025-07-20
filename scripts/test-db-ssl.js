@@ -3,8 +3,14 @@
 const { Client } = require('pg');
 
 async function testDatabaseConnection() {
-  const connectionString = process.env.DATABASE_URL || 
-    'postgresql://taaxdog-admin:AVNS_sOOnNB63elYEvJLTVuy@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production?sslmode=require';
+  const connectionString = process.env.DATABASE_URL;
+  
+  if (!connectionString) {
+    console.error('ERROR: DATABASE_URL environment variable is not set.');
+    console.error('Please set the DATABASE_URL environment variable before running this script.');
+    console.error('Example: DATABASE_URL="postgresql://..." npm run test-db');
+    process.exit(1);
+  }
   
   console.log('Testing database connection with SSL...\n');
   

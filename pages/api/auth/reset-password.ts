@@ -9,8 +9,9 @@ import {
 import { resetPasswordSchema, validateInput } from "../../../lib/auth/validation";
 import { passwordResetRateLimiter } from "../../../lib/auth/rate-limiter";
 import { AuthEvent } from "../../../generated/prisma";
+import { withSecurity } from "../../../lib/middleware/security";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ message: "Method not allowed" });
   }
@@ -157,3 +158,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 }
+
+// Export with CSRF protection
+export default withSecurity(handler, {
+  requireAuth: false,
+  csrf: true,
+  rateLimit: 'auth',
+  allowedMethods: ['POST']
+});

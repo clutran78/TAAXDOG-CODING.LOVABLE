@@ -59,7 +59,7 @@ async function unlockAndResetPassword() {
     
     console.log("\n📝 You can now login with:");
     console.log(`Email: ${email}`);
-    console.log(`Password: ${newPassword}`);
+    console.log(`Password: [Password has been reset - check secure output]`);
     console.log("\n🌐 Login at any of these pages:");
     console.log("- http://localhost:3000/auth/modern-login");
     console.log("- http://localhost:3000/auth/login");

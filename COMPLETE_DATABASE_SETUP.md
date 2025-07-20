@@ -1,5 +1,9 @@
 # ✅ Complete Database Setup for Taaxdog
 
+## ⚠️ SECURITY NOTICE
+
+**IMPORTANT**: All credentials in this document have been replaced with placeholders for security. Never commit actual database passwords to version control. Store them securely in environment variables or secret management systems.
+
 ## Database Status
 - **Database**: Successfully created and configured
 - **Tables**: All tables created with proper relationships
@@ -17,7 +21,7 @@ const pool = new Pool({
   host: 'taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com',
   port: 25060,  // Direct connection port
   user: 'taaxdog-admin',
-  password: 'AVNS_kp_8AWjX2AzlvWOqm_V',
+  password: '[DATABASE_PASSWORD]',  // Store in environment variable
   database: 'taaxdog-production',
   ssl: {
     rejectUnauthorized: false
@@ -30,7 +34,7 @@ const pool = new Pool({
 ### Environment Variables
 ```env
 # .env.production
-DATABASE_URL=postgresql://taaxdog-admin:AVNS_kp_8AWjX2AzlvWOqm_V@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production
+DATABASE_URL=postgresql://taaxdog-admin:[DATABASE_PASSWORD]@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production
 DATABASE_SSL_REQUIRED=true
 
 # .env.development  

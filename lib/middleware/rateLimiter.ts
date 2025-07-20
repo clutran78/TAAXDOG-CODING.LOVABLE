@@ -57,6 +57,20 @@ const rateLimiters = {
              'unknown';
     },
   }),
+
+  compliance: rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 10, // 10 requests per minute for compliance endpoints
+    message: 'Too many compliance requests, please try again later',
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => {
+      return req.headers['x-real-ip'] as string || 
+             req.headers['x-forwarded-for'] as string || 
+             req.socket.remoteAddress || 
+             'unknown';
+    },
+  }),
 };
 
 export function withRateLimit(

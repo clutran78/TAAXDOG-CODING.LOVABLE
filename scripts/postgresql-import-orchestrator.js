@@ -9,7 +9,7 @@ const readline = require('readline');
 // Configuration
 const ORCHESTRATOR_CONFIG = {
   defaultDataDir: path.join(__dirname, '../firebase-transformed'),
-  defaultConnectionString: 'postgresql://taaxdog-admin:AVNS_kp_8AWjX2AzlvWOqm_V@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production?sslmode=require',
+  defaultConnectionString: process.env.DATABASE_URL,
   
   // Performance thresholds
   largeDatasetThreshold: 10000, // Use optimized importer for datasets larger than this
@@ -440,11 +440,20 @@ async function main() {
     const args = process.argv.slice(2);
     const options = {
       dataDir: args[0] || ORCHESTRATOR_CONFIG.defaultDataDir,
-      connectionString: args[1] || process.env.DATABASE_URL || ORCHESTRATOR_CONFIG.defaultConnectionString,
+      connectionString: args[1] || process.env.DATABASE_URL,
       interactive: !args.includes('--batch'),
       skipChecks: args.includes('--skip-checks'),
       testMode: args.includes('--test')
     };
+    
+    if (!options.connectionString) {
+      colorLog('❌ Error: DATABASE_URL environment variable is not set', 'red');
+      colorLog('Please provide connection string as argument or set DATABASE_URL', 'red');
+      console.log('\nUsage:');
+      console.log('  node postgresql-import-orchestrator.js [data-dir] [connection-string]');
+      console.log('  DATABASE_URL=... node postgresql-import-orchestrator.js');
+      process.exit(1);
+    }
     
     const orchestrator = new ImportOrchestrator(options);
     

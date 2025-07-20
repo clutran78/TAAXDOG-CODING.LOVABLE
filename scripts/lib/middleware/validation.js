@@ -26,7 +26,7 @@ exports.commonValidations = {
         .escape(),
     password: (0, express_validator_1.body)('password')
         .isLength({ min: 8 })
-        .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+        .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]+$/)
         .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
     amount: (0, express_validator_1.body)('amount')
         .isFloat({ min: 0 })

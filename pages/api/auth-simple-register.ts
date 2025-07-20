@@ -4,6 +4,10 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  // Block this test endpoint in production
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ message: "Not found" });
+  }
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }

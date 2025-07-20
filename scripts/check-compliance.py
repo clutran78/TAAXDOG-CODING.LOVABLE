@@ -4,9 +4,12 @@ import os
 import re
 import psycopg2
 
-DATABASE_URL = os.environ.get('DATABASE_URL', 
-    'postgresql://taaxdog-admin:AVNS_kp_8AWjX2AzlvWOqm_V@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production?sslmode=require'
-)
+DATABASE_URL = os.environ.get('DATABASE_URL')
+
+if not DATABASE_URL:
+    print("ERROR: DATABASE_URL environment variable is not set.")
+    print("Please set the DATABASE_URL before running this script.")
+    exit(1)
 
 try:
     conn = psycopg2.connect(DATABASE_URL)

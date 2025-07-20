@@ -243,25 +243,43 @@ export class ViewQueries {
     limit = 10,
     deductibleOnly = false
   ): Promise<{ category: string; totalAmount: number; percentage: number }[]> {
-    const amountColumn = deductibleOnly ? 'deductible_amount' : 'total_amount';
-    
-    const result = await this.prisma.$queryRawUnsafe<any[]>(`
-      WITH user_total AS (
-        SELECT SUM(${amountColumn}) as total
-        FROM monthly_spending_summary
-        WHERE "userId" = $1
-      )
-      SELECT 
-        category,
-        SUM(${amountColumn}) as "totalAmount",
-        (SUM(${amountColumn}) / ut.total * 100) as percentage
-      FROM monthly_spending_summary mss, user_total ut
-      WHERE mss."userId" = $1
-      GROUP BY category, ut.total
-      ORDER BY "totalAmount" DESC
-      LIMIT $2
-    `, userId, limit);
-
-    return result;
+    // Use separate queries for deductible vs total to avoid SQL injection
+    if (deductibleOnly) {
+      const result = await this.prisma.$queryRaw<any[]>`
+        WITH user_total AS (
+          SELECT SUM(deductible_amount) as total
+          FROM monthly_spending_summary
+          WHERE "userId" = ${userId}
+        )
+        SELECT 
+          category,
+          SUM(deductible_amount) as "totalAmount",
+          (SUM(deductible_amount) / ut.total * 100) as percentage
+        FROM monthly_spending_summary mss, user_total ut
+        WHERE mss."userId" = ${userId}
+        GROUP BY category, ut.total
+        ORDER BY "totalAmount" DESC
+        LIMIT ${limit}
+      `;
+      return result;
+    } else {
+      const result = await this.prisma.$queryRaw<any[]>`
+        WITH user_total AS (
+          SELECT SUM(total_amount) as total
+          FROM monthly_spending_summary
+          WHERE "userId" = ${userId}
+        )
+        SELECT 
+          category,
+          SUM(total_amount) as "totalAmount",
+          (SUM(total_amount) / ut.total * 100) as percentage
+        FROM monthly_spending_summary mss, user_total ut
+        WHERE mss."userId" = ${userId}
+        GROUP BY category, ut.total
+        ORDER BY "totalAmount" DESC
+        LIMIT ${limit}
+      `;
+      return result;
+    }
   }
 }

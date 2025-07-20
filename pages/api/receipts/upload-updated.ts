@@ -44,10 +44,28 @@ async function handler(req: NextApiRequestWithRLS, res: NextApiResponse) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    // Generate unique filename
-    const fileExt = path.extname(file.originalFilename || '');
+    // Generate unique filename with additional validation
+    const originalFilename = file.originalFilename || '';
+    const fileExt = path.extname(originalFilename).toLowerCase();
+    
+    // Validate file extension
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'];
+    if (!allowedExtensions.includes(fileExt)) {
+      await fs.unlink(file.filepath); // Clean up temp file
+      return res.status(400).json({ error: 'Invalid file type' });
+    }
+    
+    // Sanitize filename to prevent path traversal
     const fileName = `${crypto.randomBytes(16).toString('hex')}${fileExt}`;
     const newPath = path.join(uploadDir, fileName);
+    
+    // Ensure the path stays within upload directory
+    const resolvedPath = path.resolve(newPath);
+    const resolvedUploadDir = path.resolve(uploadDir);
+    if (!resolvedPath.startsWith(resolvedUploadDir)) {
+      await fs.unlink(file.filepath); // Clean up temp file
+      return res.status(400).json({ error: 'Invalid file path' });
+    }
 
     // Move file to final location
     await fs.rename(file.filepath, newPath);

@@ -3,11 +3,31 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { GoalService } from '@/lib/goals/goal-service';
 import { UpdateGoalRequest } from '@/lib/types/goal';
+import { z } from 'zod';
+import { createValidatedHandler, validators } from '@/lib/validation/api-validator';
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+// Define validation schemas
+const querySchema = z.object({
+  id: validators.uuid,
+});
+
+const updateGoalSchema = z.object({
+  title: validators.safeString.min(1).max(100).optional(),
+  targetAmount: validators.amount.optional(),
+  currentAmount: validators.amount.optional(),
+  targetDate: validators.date.optional(),
+  description: validators.safeString.max(500).optional(),
+  category: validators.safeString.max(50).optional(),
+  status: z.enum(['ACTIVE', 'COMPLETED', 'CANCELLED']).optional(),
+});
+
+export default createValidatedHandler(
+  {
+    querySchema,
+    bodySchema: updateGoalSchema.optional(),
+    allowedMethods: ['GET', 'PUT', 'DELETE'],
+  },
+  async (req, res) => {
   const session = await getServerSession(req, res, authOptions);
 
   if (!session || !session.user) {
@@ -15,7 +35,7 @@ export default async function handler(
   }
 
   const userId = session.user.id;
-  const goalId = req.query.id as string;
+  const goalId = req.validatedQuery!.id;
 
   switch (req.method) {
     case 'GET':
@@ -48,7 +68,7 @@ export default async function handler(
 
     case 'PUT':
       try {
-        const data: UpdateGoalRequest = req.body;
+        const data = req.validatedBody as UpdateGoalRequest;
 
         // Verify the goal belongs to the user
         const existingGoal = await GoalService.getGoal(goalId, userId);
@@ -106,4 +126,5 @@ export default async function handler(
       res.setHeader('Allow', ['GET', 'PUT', 'DELETE']);
       return res.status(405).json({ error: 'Method not allowed' });
   }
-}
+  }
+);

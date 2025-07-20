@@ -45,12 +45,12 @@ async function testLogin() {
     // Test password
     if (user.password) {
       const isValid = await bcrypt.compare(testPassword, user.password);
-      console.log(`\nPassword test with "${testPassword}":`, isValid ? "✅ VALID" : "❌ INVALID");
+      console.log(`\nPassword test result:`, isValid ? "✅ VALID" : "❌ INVALID");
       
       // Try with simpler password
       const simplePassword = "password123";
       const isSimpleValid = await bcrypt.compare(simplePassword, user.password);
-      console.log(`Password test with "${simplePassword}":`, isSimpleValid ? "✅ VALID" : "❌ INVALID");
+      console.log(`Simple password test result:`, isSimpleValid ? "✅ VALID" : "❌ INVALID");
     }
 
   } catch (error) {

@@ -1,15 +1,24 @@
 const { Client } = require('pg');
+require('dotenv').config();
 
 async function testPostgresDatabase() {
   // First, try connecting to the default postgres database
-  const postgresClient = new Client({
-    host: 'taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com',
-    port: 25060,
-    user: 'taaxdog-admin',
-    password: 'AVNS_kp_8AWjX2AzlvWOqm_V',
+  const postgresConfig = {
+    host: process.env.DB_HOST || 'taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com',
+    port: parseInt(process.env.DB_PORT || '25060'),
+    user: process.env.DB_USER || 'taaxdog-admin',
+    password: process.env.DB_PASSWORD,
     database: 'postgres', // Default database
     ssl: { rejectUnauthorized: false }
-  });
+  };
+
+  if (!postgresConfig.password) {
+    console.error('❌ Database password not found in environment variables.');
+    console.error('Please set DB_PASSWORD environment variable.');
+    process.exit(1);
+  }
+
+  const postgresClient = new Client(postgresConfig);
 
   try {
     console.log('=== Testing connection to postgres database ===\n');
@@ -43,11 +52,11 @@ async function testPostgresDatabase() {
     console.log('\n=== Connecting to taaxdog-production database ===\n');
     
     const client = new Client({
-      host: 'taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com',
-      port: 25060,
-      user: 'taaxdog-admin',
-      password: 'AVNS_kp_8AWjX2AzlvWOqm_V',
-      database: 'taaxdog-production',
+      host: process.env.DB_HOST || 'taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com',
+      port: parseInt(process.env.DB_PORT || '25060'),
+      user: process.env.DB_USER || 'taaxdog-admin',
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME || 'taaxdog-production',
       ssl: { rejectUnauthorized: false }
     });
 

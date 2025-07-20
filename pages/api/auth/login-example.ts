@@ -19,7 +19,5 @@ const handler = secureAuthEndpoint(async (req: NextApiRequest, res: NextApiRespo
   });
 });
 
-// Apply validation rules
-export default secureAuthEndpoint(async (req: NextApiRequest, res: NextApiResponse) => {
-  await handler(req, res);
-});
+// Export the already wrapped handler
+export default handler;

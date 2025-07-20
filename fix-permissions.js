@@ -1,15 +1,24 @@
 const { Client } = require('pg');
+require('dotenv').config();
 
 async function fixPermissions() {
   // Connect as doadmin to fix permissions
-  const adminClient = new Client({
-    host: 'taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com',
-    port: 25060,
-    user: 'doadmin',
-    password: 'AVNS___ZoxHp7i5cnz64V8ms',
-    database: 'taaxdog-production', // Connect to the target database
+  const adminConfig = {
+    host: process.env.DB_HOST || 'taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com',
+    port: parseInt(process.env.DB_PORT || '25060'),
+    user: process.env.DB_ADMIN_USER || 'doadmin',
+    password: process.env.DB_ADMIN_PASSWORD,
+    database: process.env.DB_NAME || 'taaxdog-production', // Connect to the target database
     ssl: { rejectUnauthorized: false }
-  });
+  };
+
+  if (!adminConfig.password) {
+    console.error('❌ Admin database password not found in environment variables.');
+    console.error('Please set DB_ADMIN_PASSWORD environment variable.');
+    process.exit(1);
+  }
+
+  const adminClient = new Client(adminConfig);
 
   try {
     console.log('=== Fixing Database Permissions ===\n');
@@ -42,14 +51,22 @@ async function fixPermissions() {
     // Now test with taaxdog-admin user
     console.log('=== Testing Permissions ===\n');
     
-    const userClient = new Client({
-      host: 'taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com',
-      port: 25060,
-      user: 'taaxdog-admin',
-      password: 'AVNS_kp_8AWjX2AzlvWOqm_V',
-      database: 'taaxdog-production',
+    const userConfig = {
+      host: process.env.DB_HOST || 'taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com',
+      port: parseInt(process.env.DB_PORT || '25060'),
+      user: process.env.DB_USER || 'taaxdog-admin',
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME || 'taaxdog-production',
       ssl: { rejectUnauthorized: false }
-    });
+    };
+
+    if (!userConfig.password) {
+      console.error('❌ User database password not found in environment variables.');
+      console.error('Please set DB_PASSWORD environment variable.');
+      process.exit(1);
+    }
+
+    const userClient = new Client(userConfig);
 
     await userClient.connect();
     console.log('✅ Connected as taaxdog-admin\n');

@@ -776,24 +776,37 @@ class ComplianceVerificationService {
 
   private async checkAuditCoverage(report: ComplianceReport): Promise<void> {
     try {
-      const criticalActions = [
-        'login', 'logout', 'payment', 'data_export', 
-        'permission_change', 'password_change', 'profile_update'
+      // Map critical actions to AuthEvent enum values
+      const criticalActionsMap = [
+        { action: 'login', events: ['LOGIN', 'LOGIN_SUCCESS', 'LOGIN_FAILED'] },
+        { action: 'logout', events: ['LOGOUT'] },
+        { action: 'password_change', events: ['PASSWORD_CHANGE', 'PASSWORD_RESET_SUCCESS'] },
+        { action: 'two_factor', events: ['TWO_FACTOR_ENABLED', 'TWO_FACTOR_DISABLED'] },
+        { action: 'account_security', events: ['ACCOUNT_LOCKED', 'ACCOUNT_UNLOCKED', 'SUSPICIOUS_ACTIVITY'] }
       ];
 
+      // Calculate date 7 days ago
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
       const coverage = [];
-      for (const action of criticalActions) {
-        const count = await this.prisma.$queryRaw`
-          SELECT COUNT(*) as count
-          FROM audit_logs
-          WHERE action ILIKE ${'%' + action + '%'}
-          AND created_at > NOW() - INTERVAL '7 days'
-        `;
-        coverage.push({ action, logged: count[0].count > 0 });
+      for (const { action, events } of criticalActionsMap) {
+        // Use Prisma's safe query builder
+        const count = await this.prisma.auditLog.count({
+          where: {
+            event: {
+              in: events as any[]
+            },
+            createdAt: {
+              gte: sevenDaysAgo
+            }
+          }
+        });
+        coverage.push({ action, logged: count > 0 });
       }
 
       const coveredActions = coverage.filter(c => c.logged).length;
-      const coveragePercent = (coveredActions / criticalActions.length) * 100;
+      const coveragePercent = (coveredActions / criticalActionsMap.length) * 100;
 
       report.checks.push({
         requirement: 'Audit Coverage',

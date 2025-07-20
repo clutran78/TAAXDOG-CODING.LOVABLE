@@ -14,9 +14,12 @@ from psycopg2.extras import RealDictCursor
 import json
 
 # Database configuration
-DATABASE_URL = os.environ.get('DATABASE_URL', 
-    'postgresql://taaxdog-admin:AVNS_kp_8AWjX2AzlvWOqm_V@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production?sslmode=require'
-)
+DATABASE_URL = os.environ.get('DATABASE_URL')
+
+if not DATABASE_URL:
+    print("ERROR: DATABASE_URL environment variable is not set.")
+    print("Please set the DATABASE_URL before running this script.")
+    sys.exit(1)
 
 class MigrationVerifier:
     def __init__(self):

@@ -9,7 +9,7 @@ export const DATABASE_CONFIGS = {
       host: 'taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com',
       port: 25060,
       user: 'taaxdog-admin',
-      password: 'AVNS_kp_8AWjX2AzlvWOqm_V',
+      password: process.env.DB_PASSWORD || '',
       database: 'taaxdog-production',
       ssl: {
         rejectUnauthorized: false
@@ -20,7 +20,7 @@ export const DATABASE_CONFIGS = {
       host: 'taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com',
       port: 25061,
       user: 'taaxdog-admin',
-      password: 'AVNS_kp_8AWjX2AzlvWOqm_V',
+      password: process.env.DB_PASSWORD || '',
       database: 'taaxdog-production',
       ssl: {
         rejectUnauthorized: false
@@ -31,7 +31,7 @@ export const DATABASE_CONFIGS = {
       host: 'taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com',
       port: 25060,
       user: 'doadmin',
-      password: 'AVNS___ZoxHp7i5cnz64V8ms',
+      password: process.env.DB_ADMIN_PASSWORD || '',
       database: 'taaxdog-production',
       ssl: {
         rejectUnauthorized: false
@@ -42,7 +42,7 @@ export const DATABASE_CONFIGS = {
       host: 'taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com',
       port: 25061,
       user: 'doadmin',
-      password: 'AVNS___ZoxHp7i5cnz64V8ms',
+      password: process.env.DB_ADMIN_PASSWORD || '',
       database: 'defaultdb-connection-pool',
       ssl: {
         rejectUnauthorized: false
@@ -75,6 +75,11 @@ export function getDatabaseConfig(
 ): PoolConfig {
   const config = DATABASE_CONFIGS[environment][connectionType];
   
+  // Check if we have necessary environment variables for production
+  if (environment === 'production' && !process.env.DB_PASSWORD) {
+    throw new Error('DB_PASSWORD environment variable is required for production');
+  }
+  
   return {
     ...config,
     // Pool-specific settings
@@ -89,10 +94,10 @@ export function getDatabaseConfig(
 // Connection strings for different scenarios
 export const CONNECTION_STRINGS = {
   production: {
-    direct: 'postgresql://taaxdog-admin:AVNS_kp_8AWjX2AzlvWOqm_V@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production',
-    pool: 'postgresql://taaxdog-admin:AVNS_kp_8AWjX2AzlvWOqm_V@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25061/taaxdog-production',
-    admin: 'postgresql://doadmin:AVNS___ZoxHp7i5cnz64V8ms@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production',
-    adminPool: 'postgresql://doadmin:AVNS___ZoxHp7i5cnz64V8ms@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25061/defaultdb-connection-pool'
+    direct: process.env.DATABASE_URL || '',
+    pool: process.env.DATABASE_POOL_URL || '',
+    admin: process.env.DATABASE_ADMIN_URL || '',
+    adminPool: process.env.DATABASE_ADMIN_POOL_URL || ''
   },
   development: {
     direct: 'postgresql://genesis@localhost:5432/taaxdog_development',
@@ -105,5 +110,11 @@ export function getConnectionString(
   environment: 'production' | 'development' = process.env.NODE_ENV === 'production' ? 'production' : 'development',
   connectionType: 'direct' | 'pool' | 'admin' | 'adminPool' = 'pool'
 ): string {
-  return CONNECTION_STRINGS[environment][connectionType as keyof typeof CONNECTION_STRINGS.production];
+  const connectionString = CONNECTION_STRINGS[environment][connectionType as keyof typeof CONNECTION_STRINGS.production];
+  
+  if (!connectionString && environment === 'production') {
+    throw new Error(`${connectionType.toUpperCase()} connection string not configured. Please set the appropriate environment variable.`);
+  }
+  
+  return connectionString;
 }

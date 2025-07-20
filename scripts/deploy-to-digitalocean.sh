@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 echo "🚀 TAAXDOG DEPLOYMENT TO DIGITALOCEAN"
 echo "======================================"

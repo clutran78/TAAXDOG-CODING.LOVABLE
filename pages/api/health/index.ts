@@ -1,10 +1,14 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { healthCheck } from '../../../lib/health-check';
+import { publicApiRateLimiter } from '../../../lib/auth/rate-limiter';
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  // Apply rate limiting to prevent abuse
+  const rateLimitOk = await publicApiRateLimiter(req, res);
+  if (!rateLimitOk) return;
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }

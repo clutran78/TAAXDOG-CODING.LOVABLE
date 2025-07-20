@@ -3,6 +3,7 @@ import { withRLSMiddleware, NextApiRequestWithRLS, handleRLSError } from '@/lib/
 import { getServerSession } from "next-auth";
 import { authOptions, logAuthEvent } from "../../../lib/auth";
 import { prisma } from "../../../lib/prisma";
+import prismaWithRLS from '@/lib/prisma-rls';
 
 async function handler(req: NextApiRequestWithRLS, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);

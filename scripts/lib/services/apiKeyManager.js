@@ -8,7 +8,29 @@ const crypto_1 = __importDefault(require("crypto"));
 class ApiKeyManager {
     constructor() {
         this.algorithm = 'aes-256-gcm';
-        this.encryptionKey = process.env.API_KEY_ENCRYPTION_SECRET || crypto_1.default.randomBytes(32).toString('hex');
+        
+        // Require encryption key from environment variable
+        const encryptionSecret = process.env.API_KEY_ENCRYPTION_SECRET;
+        
+        if (!encryptionSecret) {
+            throw new Error(
+                'CRITICAL: API_KEY_ENCRYPTION_SECRET environment variable is not set. ' +
+                'This is required for persistent encryption of API keys. ' +
+                'Please set this variable to a 64-character hex string (32 bytes). ' +
+                'You can generate one using: openssl rand -hex 32'
+            );
+        }
+        
+        // Validate the encryption key format
+        if (!/^[0-9a-fA-F]{64}$/.test(encryptionSecret)) {
+            throw new Error(
+                'CRITICAL: API_KEY_ENCRYPTION_SECRET must be a 64-character hexadecimal string (32 bytes). ' +
+                'Current value has incorrect format. ' +
+                'Generate a valid key using: openssl rand -hex 32'
+            );
+        }
+        
+        this.encryptionKey = encryptionSecret;
     }
     encrypt(text) {
         const iv = crypto_1.default.randomBytes(16);

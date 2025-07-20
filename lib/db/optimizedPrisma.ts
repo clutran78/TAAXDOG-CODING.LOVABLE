@@ -199,13 +199,14 @@ export const connectionPoolUtils = {
    */
   async killIdleConnections(idleMinutes = 5) {
     try {
+      // Use parameterized query to prevent SQL injection
       const result = await prisma.$executeRaw`
         SELECT pg_terminate_backend(pid)
         FROM pg_stat_activity
         WHERE datname = current_database()
           AND pid != pg_backend_pid()
           AND state = 'idle'
-          AND state_change < now() - interval '${idleMinutes} minutes'
+          AND state_change < now() - INTERVAL '1 minute' * ${idleMinutes}
       `;
       
       return result;

@@ -534,8 +534,13 @@ async function main() {
   const args = process.argv.slice(2);
   const command = args[0];
   
-  const connectionString = process.env.DATABASE_URL || 
-    'postgresql://taaxdog-admin:AVNS_kp_8AWjX2AzlvWOqm_V@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production?sslmode=require';
+  const connectionString = process.env.DATABASE_URL;
+  
+  if (!connectionString) {
+    console.error('❌ Error: DATABASE_URL environment variable is not set');
+    console.error('Please set DATABASE_URL with your PostgreSQL connection string');
+    process.exit(1);
+  }
   
   console.log('🔧 Migration Rollback Tool');
   console.log('========================\n');

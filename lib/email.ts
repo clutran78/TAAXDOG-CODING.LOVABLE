@@ -14,12 +14,12 @@ const emailConfig = {
 
 // Initialize SendGrid if API key is provided
 if (process.env.SENDGRID_API_KEY && process.env.SENDGRID_API_KEY.startsWith('SG.')) {
-  console.log('Initializing SendGrid with API key:', process.env.SENDGRID_API_KEY.substring(0, 10) + '...');
+  console.log('Initializing SendGrid with valid API key');
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 } else if (process.env.SENDGRID_API_KEY) {
-  console.log('Warning: SendGrid API key does not start with "SG." - may be invalid');
+  console.log('Warning: SendGrid API key format may be invalid');
 } else {
-  console.log('SendGrid API key not found in environment variables');
+  console.log('SendGrid API key not configured');
 }
 
 // Email provider type
@@ -42,7 +42,7 @@ function getEmailProvider(): EmailProvider {
       console.log('Using SendGrid provider');
       return 'sendgrid';
     } else {
-      console.log('Invalid SendGrid API key format, falling back to console');
+      console.log('Invalid API key format, falling back to console');
       return 'console';
     }
   }

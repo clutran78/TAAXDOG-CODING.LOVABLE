@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 
-import { PrismaClient } from '../generated/prisma';
+import { PrismaClient, Prisma } from '../generated/prisma';
 
 const prisma = new PrismaClient();
 
@@ -35,9 +35,10 @@ async function checkTables() {
     console.log('\nRow counts:');
     for (const table of existingTables) {
       try {
-        const count = await prisma.$queryRawUnsafe<Array<{ count: bigint }>>(
-          `SELECT COUNT(*) as count FROM "${table}"`
-        );
+        // Use parameterized query to prevent SQL injection
+        const count = await prisma.$queryRaw<Array<{ count: bigint }>>`
+          SELECT COUNT(*) as count FROM ${Prisma.raw(`"${table}"`)}
+        `;
         console.log(`  ${table}: ${count[0].count} rows`);
       } catch (error) {
         // Skip if table doesn't exist or error

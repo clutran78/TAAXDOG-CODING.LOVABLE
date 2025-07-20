@@ -13,10 +13,45 @@ class ApiKeyManager {
   private algorithm = 'aes-256-gcm';
 
   constructor() {
-    this.encryptionKey = process.env.API_KEY_ENCRYPTION_SECRET || crypto.randomBytes(32).toString('hex');
+    const encryptionSecret = process.env.API_KEY_ENCRYPTION_SECRET;
+    
+    if (!encryptionSecret) {
+      throw new Error(
+        'CRITICAL: API_KEY_ENCRYPTION_SECRET environment variable is not set. ' +
+        'This is required for persistent encryption of API keys. ' +
+        'Please set this variable to a 64-character hex string (32 bytes). ' +
+        'You can generate one using: openssl rand -hex 32'
+      );
+    }
+    
+    // Validate the encryption key format
+    if (!/^[0-9a-fA-F]{64}$/.test(encryptionSecret)) {
+      throw new Error(
+        'CRITICAL: API_KEY_ENCRYPTION_SECRET must be a 64-character hexadecimal string (32 bytes). ' +
+        'Current value has incorrect format. ' +
+        'Generate a valid key using: openssl rand -hex 32'
+      );
+    }
+    
+    this.encryptionKey = encryptionSecret;
+  }
+
+  private validateEncryptionKey(): void {
+    if (!this.encryptionKey) {
+      throw new Error('Encryption key is not set');
+    }
+    
+    if (!/^[0-9a-fA-F]{64}$/.test(this.encryptionKey)) {
+      throw new Error(
+        'Invalid encryption key format. Expected 64-character hexadecimal string (32 bytes).'
+      );
+    }
   }
 
   private encrypt(text: string): { encrypted: string; iv: string; authTag: string } {
+    // Validate encryption key before use
+    this.validateEncryptionKey();
+    
     const iv = crypto.randomBytes(16);
     const cipher = crypto.createCipheriv(this.algorithm, Buffer.from(this.encryptionKey, 'hex'), iv) as crypto.CipherGCM;
     
@@ -33,6 +68,9 @@ class ApiKeyManager {
   }
 
   private decrypt(encrypted: string, iv: string, authTag: string): string {
+    // Validate encryption key before use
+    this.validateEncryptionKey();
+    
     const decipher = crypto.createDecipheriv(
       this.algorithm, 
       Buffer.from(this.encryptionKey, 'hex'), 
@@ -66,11 +104,18 @@ class ApiKeyManager {
       return false;
     }
     
-    // Use timing-safe comparison
-    return crypto.timingSafeEqual(
-      Buffer.from(providedKey),
-      Buffer.from(storedKey)
-    );
+    // Convert keys to buffers
+    const providedKeyBuffer = Buffer.from(providedKey);
+    const storedKeyBuffer = Buffer.from(storedKey);
+    
+    // Check if lengths are equal to prevent timing attacks
+    // timingSafeEqual requires buffers of equal length
+    if (providedKeyBuffer.length !== storedKeyBuffer.length) {
+      return false;
+    }
+    
+    // Use timing-safe comparison for equal-length buffers
+    return crypto.timingSafeEqual(providedKeyBuffer, storedKeyBuffer);
   }
 
   public rotateApiKey(service: string): string {
@@ -104,7 +149,8 @@ class ApiKeyManager {
         
       case 'openrouter':
         headers['Authorization'] = `Bearer ${apiKey}`;
-        headers['HTTP-Referer'] = process.env.NEXTAUTH_URL || 'https://taxreturnpro.com.au';
+        // Use public-facing URL to avoid exposing internal URLs
+        headers['HTTP-Referer'] = 'https://taxreturnpro.com.au';
         headers['X-Title'] = 'TaxReturnPro';
         headers['Content-Type'] = 'application/json';
         break;

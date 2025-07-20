@@ -25,15 +25,18 @@ DEPLOYMENT_READY=true
 WARNINGS=0
 ERRORS=0
 
-# Function to run a check
+# Function to run a check safely without eval
+# Usage: run_check "Check Name" command_function [critical]
+#   where command_function is a function that executes the check
 run_check() {
     local name=$1
-    local command=$2
+    local command_function=$2
     local critical=${3:-true}
     
     echo -n "Running $name... "
     
-    if eval $command > /tmp/deployment-check.log 2>&1; then
+    # Execute the command function directly
+    if $command_function > /tmp/deployment-check.log 2>&1; then
         echo -e "${GREEN}✅ PASSED${NC}"
         return 0
     else
@@ -50,43 +53,132 @@ run_check() {
     fi
 }
 
+# Helper functions for each check to avoid eval
+check_env_vars() {
+    npx tsx scripts/deployment/environment-validation.ts
+}
+
+check_node_version() {
+    node -v | grep -E 'v(18|19|20)'
+}
+
+check_npm_deps() {
+    npm ls --depth=0
+}
+
+check_build() {
+    npm run build
+}
+
+check_performance() {
+    npx tsx scripts/deployment/performance-validation.ts
+}
+
+check_db_indexes() {
+    npx tsx scripts/check-pg-stats.ts
+}
+
+check_query_optimization() {
+    npx tsx scripts/apply-query-optimizations.ts --dry-run
+}
+
+check_security_checklist() {
+    npx tsx scripts/deployment/security-checklist.ts
+}
+
+check_security_validation() {
+    npx tsx scripts/security/security-validation.ts
+}
+
+check_compliance() {
+    npx tsx scripts/security/compliance-verification.ts
+}
+
+check_vulnerability_scan() {
+    npm audit --production
+}
+
+check_operational_readiness() {
+    npx tsx scripts/deployment/operational-readiness.ts
+}
+
+check_documentation() {
+    test -f README.md && test -f docs/DEPLOYMENT.md
+}
+
+check_backup_verification() {
+    npx tsx scripts/backup/backup-verification.ts --latest
+}
+
+check_monitoring_setup() {
+    test -f scripts/security/security-monitoring.ts
+}
+
+check_go_live() {
+    npx tsx scripts/deployment/go-live-validation.ts "$PRODUCTION_URL"
+}
+
+check_db_connection() {
+    npx tsx scripts/test-db-connection.ts
+}
+
+check_migration_status() {
+    npx prisma migrate status
+}
+
+check_db_backup() {
+    test -f logs/backup-metadata.json
+}
+
+check_stripe_config() {
+    test -n "$STRIPE_SECRET_KEY"
+}
+
+check_sendgrid_config() {
+    test -n "$SENDGRID_API_KEY"
+}
+
+check_ai_service_config() {
+    test -n "$ANTHROPIC_API_KEY" -o -n "$OPENROUTER_API_KEY"
+}
+
 echo "======================================================================"
 echo "1. ENVIRONMENT CONFIGURATION"
 echo "======================================================================"
 
-run_check "Environment Variables" "npx tsx scripts/deployment/environment-validation.ts" true
-run_check "Node.js Version" "node -v | grep -E 'v(18|19|20)'" true
-run_check "NPM Dependencies" "npm ls --depth=0" true
-run_check "Build Process" "npm run build" true
+run_check "Environment Variables" check_env_vars true
+run_check "Node.js Version" check_node_version true
+run_check "NPM Dependencies" check_npm_deps true
+run_check "Build Process" check_build true
 
 echo ""
 echo "======================================================================"
 echo "2. PERFORMANCE VALIDATION"
 echo "======================================================================"
 
-run_check "Performance Tests" "npx tsx scripts/deployment/performance-validation.ts" false
-run_check "Database Indexes" "npx tsx scripts/check-pg-stats.ts" false
-run_check "Query Optimization" "npx tsx scripts/apply-query-optimizations.ts --dry-run" false
+run_check "Performance Tests" check_performance false
+run_check "Database Indexes" check_db_indexes false
+run_check "Query Optimization" check_query_optimization false
 
 echo ""
 echo "======================================================================"
 echo "3. SECURITY VERIFICATION"
 echo "======================================================================"
 
-run_check "Security Checklist" "npx tsx scripts/deployment/security-checklist.ts" true
-run_check "Security Validation" "npx tsx scripts/security/security-validation.ts" true
-run_check "Compliance Check" "npx tsx scripts/security/compliance-verification.ts" true
-run_check "Vulnerability Scan" "npm audit --production" false
+run_check "Security Checklist" check_security_checklist true
+run_check "Security Validation" check_security_validation true
+run_check "Compliance Check" check_compliance true
+run_check "Vulnerability Scan" check_vulnerability_scan false
 
 echo ""
 echo "======================================================================"
 echo "4. OPERATIONAL READINESS"
 echo "======================================================================"
 
-run_check "Operational Readiness" "npx tsx scripts/deployment/operational-readiness.ts" false
-run_check "Documentation Check" "test -f README.md && test -f docs/DEPLOYMENT.md" true
-run_check "Backup Verification" "npx tsx scripts/backup/backup-verification.ts --latest" true
-run_check "Monitoring Setup" "test -f scripts/security/security-monitoring.ts" true
+run_check "Operational Readiness" check_operational_readiness false
+run_check "Documentation Check" check_documentation true
+run_check "Backup Verification" check_backup_verification true
+run_check "Monitoring Setup" check_monitoring_setup true
 
 echo ""
 echo "======================================================================"
@@ -96,7 +188,7 @@ echo "======================================================================"
 if [ -z "$PRODUCTION_URL" ]; then
     echo -e "${YELLOW}⚠️  Skipping go-live validation (PRODUCTION_URL not set)${NC}"
 else
-    run_check "Go-Live Tests" "npx tsx scripts/deployment/go-live-validation.ts $PRODUCTION_URL" true
+    run_check "Go-Live Tests" check_go_live true
 fi
 
 echo ""
@@ -104,18 +196,18 @@ echo "======================================================================"
 echo "6. DATABASE CHECKS"
 echo "======================================================================"
 
-run_check "Database Connection" "npx tsx scripts/test-db-connection.ts" true
-run_check "Migration Status" "npx prisma migrate status" true
-run_check "Database Backup" "test -f logs/backup-metadata.json" true
+run_check "Database Connection" check_db_connection true
+run_check "Migration Status" check_migration_status true
+run_check "Database Backup" check_db_backup true
 
 echo ""
 echo "======================================================================"
 echo "7. INTEGRATION CHECKS"
 echo "======================================================================"
 
-run_check "Stripe Configuration" "test -n \"$STRIPE_SECRET_KEY\"" true
-run_check "SendGrid Configuration" "test -n \"$SENDGRID_API_KEY\"" true
-run_check "AI Service Configuration" "test -n \"$ANTHROPIC_API_KEY\" -o -n \"$OPENROUTER_API_KEY\"" true
+run_check "Stripe Configuration" check_stripe_config true
+run_check "SendGrid Configuration" check_sendgrid_config true
+run_check "AI Service Configuration" check_ai_service_config true
 
 echo ""
 echo "======================================================================"

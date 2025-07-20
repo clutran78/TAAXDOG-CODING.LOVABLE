@@ -1,8 +1,7 @@
-import { PrismaClient, FinancialOperation } from '@prisma/client';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-
-const prisma = new PrismaClient();
+import prisma from '../prisma';
+import { FinancialOperation } from '../../generated/prisma';
 
 export interface AuditReportFilter {
   userId?: string;

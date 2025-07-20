@@ -1,7 +1,13 @@
 const { Pool } = require('pg');
 
 // Create connection URL without sslmode parameter (we'll handle SSL in config)
-const connectionString = 'postgresql://taaxdog-admin:AVNS_kp_8AWjX2AzlvWOqm_V@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production';
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  console.error('❌ Error: DATABASE_URL environment variable is not set');
+  console.error('Please set DATABASE_URL with your PostgreSQL connection string');
+  process.exit(1);
+}
 
 const pool = new Pool({
   connectionString,

@@ -1,5 +1,9 @@
 # DigitalOcean Database Connection Status
 
+## ⚠️ SECURITY NOTICE
+
+**IMPORTANT**: All credentials in this document have been replaced with placeholders for security. Never expose actual database passwords in documentation or commit them to version control.
+
 ## ✅ Connection Successful!
 
 The PostgreSQL database connection to DigitalOcean is working properly with SSL encryption.
@@ -47,7 +51,7 @@ const pool = new Pool({
   host: 'taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com',
   port: 25060,
   user: 'taaxdog-admin',
-  password: 'AVNS_kp_8AWjX2AzlvWOqm_V',
+  password: '[DATABASE_PASSWORD]',  // Store in environment variable
   database: 'taaxdog-production',
   ssl: {
     rejectUnauthorized: false // Required for DigitalOcean
@@ -57,7 +61,7 @@ const pool = new Pool({
 
 Or using connection string:
 ```javascript
-const connectionString = 'postgresql://taaxdog-admin:AVNS_kp_8AWjX2AzlvWOqm_V@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production';
+const connectionString = 'postgresql://taaxdog-admin:[DATABASE_PASSWORD]@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production';
 
 const pool = new Pool({
   connectionString,

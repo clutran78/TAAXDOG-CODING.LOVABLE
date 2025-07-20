@@ -11,7 +11,7 @@ async function testAuthFlow() {
   console.log('=====================================\n');
   console.log('Test credentials:');
   console.log(`📧 Email: ${testEmail}`);
-  console.log(`🔑 Password: ${testPassword}`);
+  console.log(`🔑 Password: [REDACTED]`);
   console.log(`👤 Name: ${testName}\n`);
 
   // Test 1: Registration

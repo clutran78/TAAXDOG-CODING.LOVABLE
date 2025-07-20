@@ -118,7 +118,7 @@ async function testDatabase() {
     host: 'taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com',
     port: 25060,
     user: 'taaxdog-admin',
-    password: 'AVNS_kp_8AWjX2AzlvWOqm_V',
+    password: '[STORED IN ENVIRONMENT VARIABLES]',
     database: 'taaxdog-production',
     ssl: { rejectUnauthorized: false }
   });

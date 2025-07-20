@@ -581,12 +581,24 @@ class GoLiveValidator {
   }
 
   private async saveReport(): Promise<void> {
-    const reportPath = path.join(process.cwd(), 'logs', 'go-live-validation.json');
+    const logsDir = path.join(process.cwd(), 'logs');
+    const reportPath = path.join(logsDir, 'go-live-validation.json');
     
+    // Ensure the logs directory exists
+    try {
+      await fs.promises.mkdir(logsDir, { recursive: true });
+    } catch (error) {
+      console.error('Failed to create logs directory:', error);
+      throw error;
+    }
+    
+    // Write the report file
     await fs.promises.writeFile(
       reportPath,
       JSON.stringify(this.report, null, 2)
     );
+    
+    console.log(`\n📄 Report saved to: ${reportPath}`);
   }
 
   private displayResults(): void {

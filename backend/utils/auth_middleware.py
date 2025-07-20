@@ -13,6 +13,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 import redis
 import os
+import json
 
 # Setup logging with security event formatting
 logging.basicConfig(
@@ -159,7 +160,7 @@ def validate_firebase_token(token: str) -> Optional[Dict[str, Any]]:
     if cached_result:
         try:
             # Return cached user data if valid
-            user_data = eval(cached_result)  # In production, use json.loads
+            user_data = json.loads(cached_result)
             return user_data
         except Exception:
             pass
@@ -181,7 +182,7 @@ def validate_firebase_token(token: str) -> Optional[Dict[str, Any]]:
         }
         
         # Cache valid token for performance
-        set_cache(cache_key, str(user_data), SecurityConfig.TOKEN_CACHE_TTL)
+        set_cache(cache_key, json.dumps(user_data), SecurityConfig.TOKEN_CACHE_TTL)
         
         log_security_event('token_validated', 'info', {
             'user_id': user_id,

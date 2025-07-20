@@ -1,21 +1,28 @@
 const { Pool } = require('pg');
+require('dotenv').config();
 
 async function testConnectionPool() {
   console.log('=== Testing DigitalOcean Connection Pool ===\n');
 
   // Test connection pool (port 25061)
   const poolConfig = {
-    host: 'taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com',
-    port: 25061,
-    user: 'taaxdog-admin',
-    password: 'AVNS_kp_8AWjX2AzlvWOqm_V',
-    database: 'taaxdog-production',
+    host: process.env.DB_HOST || 'taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com',
+    port: parseInt(process.env.DB_PORT_POOL || '25061'),
+    user: process.env.DB_USER || 'taaxdog-admin',
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME || 'taaxdog-production',
     ssl: {
       rejectUnauthorized: false
     },
     min: 5,
     max: 20
   };
+
+  if (!poolConfig.password) {
+    console.error('❌ Database password not found in environment variables.');
+    console.error('Please set DB_PASSWORD environment variable.');
+    process.exit(1);
+  }
 
   const pool = new Pool(poolConfig);
 

@@ -84,11 +84,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
   } catch (error: any) {
-    console.error('Cancel subscription error:', error);
+    // Log sanitized error information
+    console.error('[Cancel Subscription] Error occurred:', {
+      error: error?.message || 'Unknown error',
+      code: error?.code,
+      type: error?.type,
+      statusCode: error?.statusCode,
+      timestamp: new Date().toISOString()
+    });
     
+    // Send generic error response to client
     res.status(500).json({ 
       error: 'Failed to cancel subscription', 
-      message: error.message 
+      message: 'An error occurred while cancelling your subscription. Please try again or contact support.'
     });
   }
 }

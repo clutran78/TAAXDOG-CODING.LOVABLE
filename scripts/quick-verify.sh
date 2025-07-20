@@ -7,7 +7,9 @@ echo
 
 # Set database URL if not already set
 if [ -z "$DATABASE_URL" ]; then
-    export DATABASE_URL="postgresql://taaxdog-admin:AVNS_kp_8AWjX2AzlvWOqm_V@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production?sslmode=require"
+    echo "❌ Error: DATABASE_URL environment variable is not set"
+    echo "Please set DATABASE_URL with your PostgreSQL connection string"
+    exit 1
 fi
 
 # Run Python checks

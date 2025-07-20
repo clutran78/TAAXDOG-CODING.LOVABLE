@@ -3,6 +3,10 @@ import { prisma } from "../../lib/prisma";
 import bcrypt from "bcryptjs";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Block this endpoint in production
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ message: "Not found" });
+  }
   if (req.method !== "POST") {
     return res.status(405).json({ message: "Method not allowed" });
   }

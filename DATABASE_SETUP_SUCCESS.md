@@ -1,5 +1,9 @@
 # 🎉 Database Setup Complete!
 
+## ⚠️ SECURITY NOTICE
+
+**IMPORTANT**: All credentials in this document have been replaced with placeholders. Never expose actual database passwords in documentation. Store them securely in environment variables or secret management systems.
+
 Your PostgreSQL database on DigitalOcean is now fully configured and operational.
 
 ## ✅ What's Been Done
@@ -34,7 +38,7 @@ const pool = new Pool({
   host: 'taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com',
   port: 25060,
   user: 'taaxdog-admin',
-  password: 'AVNS_kp_8AWjX2AzlvWOqm_V',
+  password: '[DATABASE_PASSWORD]',  // Store in environment variable
   database: 'taaxdog-production',
   ssl: {
     rejectUnauthorized: false  // Required for DigitalOcean
@@ -46,7 +50,7 @@ const pool = new Pool({
 
 ```env
 # Production
-DATABASE_URL=postgresql://taaxdog-admin:AVNS_kp_8AWjX2AzlvWOqm_V@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production
+DATABASE_URL=postgresql://taaxdog-admin:[DATABASE_PASSWORD]@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production
 
 # Development
 DATABASE_URL_DEVELOPMENT=postgresql://genesis@localhost:5432/taaxdog_development

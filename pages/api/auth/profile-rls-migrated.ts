@@ -194,7 +194,7 @@ async function deleteAccount(req: NextApiRequestWithRLS, res: NextApiResponse, u
     });
     });
 
-    if (!user || !user.password) {
+    if (!user || !user.password) {1
       return res.status(400).json({ message: "Cannot delete this account type" });
     }
 

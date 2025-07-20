@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { APRAComplianceService } from '@/lib/services/compliance';
 import { IncidentType, IncidentSeverity, IncidentStatus } from '@prisma/client';
 import { z } from 'zod';
+import { withRateLimit } from '@/lib/middleware/rateLimiter';
 
 // Validation schemas
 const createIncidentSchema = z.object({
@@ -30,7 +31,7 @@ const submitToAPRASchema = z.object({
   incidentId: z.string().uuid(),
 });
 
-export default async function handler(
+async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
@@ -105,7 +106,7 @@ async function handleCreateIncident(
       });
     }
 
-    console.error('Error creating incident:', error);
+    console.error('Error creating incident:', error instanceof Error ? error.message : 'Unknown error occurred');
     return res.status(500).json({
       error: 'Failed to create incident report',
     });
@@ -144,7 +145,7 @@ async function handleUpdateIncident(
       });
     }
 
-    console.error('Error updating incident:', error);
+    console.error('Error updating incident:', error instanceof Error ? error.message : 'Unknown error occurred');
     return res.status(500).json({
       error: 'Failed to update incident',
     });
@@ -182,9 +183,12 @@ async function handleSubmitToAPRA(
       });
     }
 
-    console.error('Error submitting to APRA:', error);
+    console.error('Error submitting to APRA:', error instanceof Error ? error.message : 'Unknown error occurred');
     return res.status(500).json({
       error: 'Failed to submit to APRA',
     });
   }
 }
+
+// Export the handler wrapped with rate limiting
+export default withRateLimit(handler, 'compliance');

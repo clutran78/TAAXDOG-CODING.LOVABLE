@@ -9,14 +9,22 @@ echo "============================================="
 echo
 echo "To install the cron jobs manually, follow these steps:"
 echo
-echo "1. Open your crontab for editing:"
+echo "1. First, determine your TAAXDOG application directory:"
+echo "   - If you cloned to your home directory: $HOME/TAAXDOG-CODING"
+echo "   - Or use your actual installation path"
+echo
+echo "2. Open your crontab for editing:"
 echo "   crontab -e"
 echo
-echo "2. Add these lines to your crontab:"
+echo "3. Add these lines to your crontab, replacing [YOUR_APP_DIR] with your actual path:"
 echo
 cat << 'EOF'
 # TAAXDOG Compliance Monitoring
-APP_DIR=/Users/genesis/TAAXDOG-CODING
+# IMPORTANT: Replace [YOUR_APP_DIR] with your actual TAAXDOG installation path
+# Example: APP_DIR=$HOME/TAAXDOG-CODING
+# Example: APP_DIR=/opt/taaxdog
+# Example: APP_DIR=/var/www/taaxdog
+APP_DIR=[YOUR_APP_DIR]
 
 # AML/CTF Transaction Monitoring (every 4 hours)
 0 */4 * * * cd $APP_DIR && npm run compliance:aml >> logs/aml-monitoring.log 2>&1
@@ -47,9 +55,19 @@ APP_DIR=/Users/genesis/TAAXDOG-CODING
 EOF
 
 echo
-echo "3. Save and exit the crontab editor"
+echo "4. Important Notes:"
+echo "   - Remember to replace [YOUR_APP_DIR] with your actual path"
+echo "   - Ensure the logs directory exists: mkdir -p [YOUR_APP_DIR]/logs"
+echo "   - Verify npm scripts exist: npm run | grep compliance"
 echo
-echo "4. Verify the cron jobs were added:"
+echo "5. Save and exit the crontab editor"
+echo
+echo "Alternative: Set APP_DIR as an environment variable"
+echo "You can also add this to your shell profile (.bashrc, .zshrc, etc.):"
+echo "   export TAAXDOG_DIR=\"$HOME/TAAXDOG-CODING\""
+echo "Then use \$TAAXDOG_DIR in your crontab instead"
+echo
+echo "6. Verify the cron jobs were added:"
 echo "   crontab -l | grep compliance"
 echo
 echo "Alternative: Use a process manager like PM2"

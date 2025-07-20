@@ -47,12 +47,24 @@ async function validateProduction() {
   console.log('\n2️⃣  DATABASE CONNECTION\n');
   totalChecks++;
   try {
-    // Use Prisma to test the connection
-    const { PrismaClient } = require('../generated/prisma');
-    const prisma = new PrismaClient();
+    // Use the project's standard Prisma import
+    const { prisma } = require('../lib/db/unifiedMonitoredPrisma');
     
-    const result = await prisma.$queryRaw`SELECT NOW() as current_time`;
-    await prisma.$disconnect();
+    // Create a timeout promise
+    const timeoutMs = 10000; // 10 second timeout
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Database connection timeout after 10 seconds')), timeoutMs);
+    });
+    
+    // Create the database query promise
+    const queryPromise = async () => {
+      const result = await prisma.$queryRaw`SELECT NOW() as current_time`;
+      await prisma.$disconnect();
+      return result;
+    };
+    
+    // Race the query against the timeout
+    const result = await Promise.race([queryPromise(), timeoutPromise]);
     
     console.log('✅ Database connection: Working');
     console.log(`   Current time: ${result[0].current_time}`);
@@ -62,6 +74,14 @@ async function validateProduction() {
     console.log(`   Error: ${error.message}`);
     failedChecks++;
     issues.push('Database connection failed');
+    
+    // Ensure disconnection even on error
+    try {
+      const { prisma } = require('../lib/db/unifiedMonitoredPrisma');
+      await prisma.$disconnect();
+    } catch (disconnectError) {
+      // Ignore disconnect errors
+    }
   }
   
   // 3. Email Service

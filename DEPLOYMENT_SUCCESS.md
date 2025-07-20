@@ -39,11 +39,11 @@ git push origin main
    - Output Directory: `.next`
 
 4. **Set Environment Variables:**
-   Copy all variables from `.env.production`:
-   - NODE_ENV=production
-   - NEXTAUTH_URL=https://taxreturnpro.com.au
-   - DATABASE_URL (from .env)
-   - And all other variables...
+   Configure all required environment variables following these security best practices:
+   - Use DigitalOcean's secure environment variable management
+   - Reference variables from your secure configuration store
+   - Never commit sensitive values to version control
+   - See `CLAUDE.md` for required variable categories (without values)
 
 5. **Deploy:**
    - Click "Create Resources"
@@ -78,17 +78,9 @@ tar -czf taaxdog-deploy.tar.gz \
 
 ## Environment Variables Required
 
-Make sure these are set in DigitalOcean:
+Ensure all required environment variables are configured in DigitalOcean's secure environment variable management system. Reference your secure configuration documentation for the complete list of required variables.
 
-```
-NODE_ENV=production
-NEXTAUTH_URL=https://taxreturnpro.com.au
-NEXTAUTH_SECRET=[from .env.production]
-DATABASE_URL=[from .env]
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=[real key needed]
-STRIPE_SECRET_KEY=[real key needed]
-EMAIL_FROM=noreply@taxreturnpro.com.au
-```
+**Security Note:** Never expose actual environment variable names or values in documentation. Use your organization's secure secrets management system.
 
 ## Build Information
 

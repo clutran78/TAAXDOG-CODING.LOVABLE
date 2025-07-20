@@ -3,6 +3,10 @@
 **Date:** July 2, 2025  
 **Analyst:** Claude
 
+## ⚠️ SECURITY NOTICE
+
+**IMPORTANT**: All credentials in this document have been replaced with placeholders. Never commit actual database passwords or connection strings to version control.
+
 ## Executive Summary
 
 After examining the TAAXDOG database setup, I've identified several areas for optimization and improvements. The system currently has a solid foundation with connection pooling, but there are opportunities to enhance performance, monitoring, and reliability.
@@ -79,7 +83,7 @@ After examining the TAAXDOG database setup, I've identified several areas for op
 Update the production database URL to use port 25061:
 ```typescript
 // Update in .env.production
-DATABASE_URL="postgresql://taaxdog-admin:AVNS_kp_8AWjX2AzlvWOqm_V@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25061/taaxdog-production?sslmode=require"
+DATABASE_URL="postgresql://taaxdog-admin:[DATABASE_PASSWORD]@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25061/taaxdog-production?sslmode=require"
 ```
 
 #### B. Add Missing Database Indexes
@@ -336,6 +340,7 @@ setInterval(async () => {
 ```bash
 # Use pgbench for PostgreSQL load testing
 pgbench -c 20 -j 4 -t 1000 -h taaxdog-production.db.com -p 25061 -U taaxdog-admin taaxdog-production
+# Note: You'll need to set PGPASSWORD environment variable with the actual password
 
 # Monitor during test
 watch -n 1 'psql -c "SELECT count(*) FROM pg_stat_activity WHERE state = '\''active'\'';"'

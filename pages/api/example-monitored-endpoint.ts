@@ -2,12 +2,24 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { withApiMonitoring } from '@/lib/monitoring';
 import { createPrismaWithMonitoring } from '@/lib/monitoring';
 import { withPerformanceMonitoring } from '@/lib/monitoring';
+import { getServerSession } from 'next-auth';
+import { authOptions } from './auth/[...nextauth]';
 
 // Example of a monitored API endpoint
 async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  // Block this example endpoint in production
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ message: "Not found" });
+  }
+
+  // Check authentication in non-production environments
+  const session = await getServerSession(req, res, authOptions);
+  if (!session?.user) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
   // Initialize Prisma with monitoring
   const prisma = createPrismaWithMonitoring();
 
@@ -36,11 +48,34 @@ async function handler(
       message: 'Data fetched successfully'
     });
   } catch (error) {
-    console.error('API error:', error);
-    return res.status(500).json({ 
-      error: 'Internal server error',
-      message: error.message 
+    // Log detailed error internally for debugging
+    console.error('[example-monitored-endpoint] API error:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString(),
+      requestMethod: req.method,
+      requestUrl: req.url
     });
+
+    // Determine if we're in production
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    // Return sanitized error response
+    const errorResponse: any = {
+      error: 'Internal server error',
+      requestId: res.getHeader('x-request-id') || 'unknown'
+    };
+
+    // Only include detailed error information in non-production environments
+    if (!isProduction && error instanceof Error) {
+      errorResponse.message = error.message;
+      errorResponse.stack = error.stack;
+    } else {
+      // Generic message for production
+      errorResponse.message = 'An error occurred while processing your request. Please try again later.';
+    }
+
+    return res.status(500).json(errorResponse);
   }
 }
 

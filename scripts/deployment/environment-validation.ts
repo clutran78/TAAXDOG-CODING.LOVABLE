@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
 import axios from 'axios';
-import { Client } from 'pg';
+import { Pool } from 'pg';
 import Stripe from 'stripe';
 import sgMail from '@sendgrid/mail';
 
@@ -135,6 +135,19 @@ class EnvironmentValidator {
     return this.report;
   }
 
+  private formatBytes(bytes: number): string {
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let size = bytes;
+    let unitIndex = 0;
+    
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
+    }
+    
+    return `${size.toFixed(1)} ${units[unitIndex]}`;
+  }
+
   private async validateEnvironmentVariables(): Promise<void> {
     console.log('📋 Validating Environment Variables...');
 
@@ -206,12 +219,18 @@ class EnvironmentValidator {
   private async validateDatabaseConnection(): Promise<void> {
     console.log('🗄️  Validating Database Connection...');
 
-    const client = new Client({
-      connectionString: process.env.DATABASE_URL
+    // Use connection pool for efficient connection management
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      max: 3, // Limit connections for validation
+      idleTimeoutMillis: 30000, // 30 seconds
+      connectionTimeoutMillis: 5000, // 5 seconds
     });
 
+    let client;
     try {
-      await client.connect();
+      // Get a client from the pool
+      client = await pool.connect();
       
       // Test basic query
       const result = await client.query('SELECT NOW()');
@@ -228,11 +247,33 @@ class EnvironmentValidator {
       const versionResult = await client.query('SELECT version()');
       const version = versionResult.rows[0].version;
       
+      // Parse PostgreSQL major version number
+      // Version string format: "PostgreSQL 14.5 on x86_64-pc-linux-gnu..."
+      const versionMatch = version.match(/PostgreSQL (\d+)\.(\d+)/);
+      let majorVersion = 0;
+      let versionStatus: 'pass' | 'fail' | 'warning' = 'warning';
+      let versionDetails = version;
+      
+      if (versionMatch) {
+        majorVersion = parseInt(versionMatch[1], 10);
+        const minorVersion = parseInt(versionMatch[2], 10);
+        
+        if (majorVersion >= 14) {
+          versionStatus = 'pass';
+          versionDetails = `PostgreSQL ${majorVersion}.${minorVersion} (minimum required: 14.x)`;
+        } else {
+          versionStatus = 'fail';
+          versionDetails = `PostgreSQL ${majorVersion}.${minorVersion} is below minimum required version 14.x`;
+        }
+      } else {
+        versionDetails = `Could not parse version from: ${version}`;
+      }
+      
       this.addResult({
         category: 'Database',
         check: 'PostgreSQL version',
-        status: version.includes('14.') || version.includes('15.') ? 'pass' : 'warning',
-        details: version,
+        status: versionStatus,
+        details: versionDetails,
         required: false
       });
 
@@ -269,7 +310,6 @@ class EnvironmentValidator {
         });
       }
 
-      await client.end();
     } catch (error: any) {
       this.addResult({
         category: 'Database',
@@ -278,6 +318,13 @@ class EnvironmentValidator {
         details: `Connection failed: ${error.message}`,
         required: true
       });
+    } finally {
+      // Properly release the client back to the pool
+      if (client) {
+        client.release();
+      }
+      // End the pool to clean up all connections
+      await pool.end();
     }
   }
 
@@ -361,15 +408,46 @@ class EnvironmentValidator {
     try {
       sgMail.setApiKey(process.env.SENDGRID_API_KEY);
       
-      // Test API key validity (SendGrid doesn't have a direct test endpoint)
-      // We'll validate the key format
-      const keyValid = process.env.SENDGRID_API_KEY.startsWith('SG.');
+      // Test API key validity by making an actual API call to SendGrid
+      let keyValid = false;
+      let apiDetails = '';
+      
+      try {
+        // Make a test API call to SendGrid to verify the key
+        // Using axios to call SendGrid's user profile endpoint
+        const response = await axios.get('https://api.sendgrid.com/v3/user/profile', {
+          headers: {
+            'Authorization': `Bearer ${process.env.SENDGRID_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 10000 // 10 second timeout
+        });
+        
+        if (response.status === 200) {
+          keyValid = true;
+          apiDetails = `Valid API key (Account: ${response.data.email || 'verified'})`;
+        }
+      } catch (apiError: any) {
+        if (apiError.response) {
+          if (apiError.response.status === 401) {
+            apiDetails = 'Invalid API key - Authentication failed';
+          } else if (apiError.response.status === 403) {
+            apiDetails = 'API key lacks required permissions';
+          } else {
+            apiDetails = `API validation failed: ${apiError.response.status} ${apiError.response.statusText}`;
+          }
+        } else if (apiError.request) {
+          apiDetails = 'Could not reach SendGrid API - network error';
+        } else {
+          apiDetails = `API validation error: ${apiError.message}`;
+        }
+      }
       
       this.addResult({
         category: 'SendGrid',
-        check: 'API key format',
+        check: 'API key validation',
         status: keyValid ? 'pass' : 'fail',
-        details: keyValid ? 'Valid API key format' : 'Invalid API key format',
+        details: apiDetails,
         required: true
       });
 
@@ -419,7 +497,8 @@ class EnvironmentValidator {
           'Authorization': `Basic ${Buffer.from(process.env.BASIQ_API_KEY + ':').toString('base64')}`,
           'Content-Type': 'application/x-www-form-urlencoded'
         },
-        validateStatus: () => true
+        validateStatus: () => true,
+        timeout: 10000 // 10 second timeout
       });
 
       this.addResult({
@@ -591,27 +670,55 @@ class EnvironmentValidator {
       }
     }
 
-    // Check disk space
+    // Check disk space using Node.js built-in fs.statfs
     try {
-      const { execSync } = require('child_process');
-      const dfOutput = execSync('df -h .').toString();
-      const lines = dfOutput.split('\n');
-      const dataLine = lines[1];
-      const usage = parseInt(dataLine.split(/\s+/)[4]);
+      const fs = require('fs').promises;
+      
+      // Get the current working directory
+      const cwd = process.cwd();
+      
+      // Use fs.statfs to get file system statistics
+      const stats = await fs.statfs(cwd);
+      
+      // Calculate disk usage percentage
+      // stats.blocks = total blocks
+      // stats.bfree = free blocks
+      // stats.bavail = available blocks for non-root users
+      const totalSpace = stats.blocks * stats.bsize;
+      const availableSpace = stats.bavail * stats.bsize;
+      const usedSpace = totalSpace - availableSpace;
+      const usagePercent = Math.round((usedSpace / totalSpace) * 100);
+      
+      // Format sizes for display
+      const formatBytes = (bytes: number): string => {
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        let size = bytes;
+        let unitIndex = 0;
+        
+        while (size >= 1024 && unitIndex < units.length - 1) {
+          size /= 1024;
+          unitIndex++;
+        }
+        
+        return `${size.toFixed(1)} ${units[unitIndex]}`;
+      };
       
       this.addResult({
         category: 'File System',
         check: 'Disk space',
-        status: usage < 80 ? 'pass' : usage < 90 ? 'warning' : 'fail',
-        details: `${usage}% disk usage`,
+        status: usagePercent < 80 ? 'pass' : usagePercent < 90 ? 'warning' : 'fail',
+        details: `${usagePercent}% disk usage (${formatBytes(usedSpace)} / ${formatBytes(totalSpace)})`,
         required: true
       });
-    } catch {
+    } catch (error) {
+      // Handle errors gracefully
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
       this.addResult({
         category: 'File System',
         check: 'Disk space',
         status: 'warning',
-        details: 'Could not check disk space',
+        details: `Could not check disk space: ${errorMessage}`,
         required: false
       });
     }
@@ -632,16 +739,40 @@ class EnvironmentValidator {
       required: true
     });
 
-    // Check memory
+    // Check memory with enhanced thresholds
     const totalMemory = require('os').totalmem();
     const freeMemory = require('os').freemem();
-    const usedPercent = ((totalMemory - freeMemory) / totalMemory) * 100;
+    const usedMemory = totalMemory - freeMemory;
+    const usedPercent = (usedMemory / totalMemory) * 100;
+    
+    // More strict thresholds for production
+    const memoryThresholds = {
+      pass: 70,     // Was 80
+      warning: 80,  // Was 90
+      critical: 90  // New critical level
+    };
+    
+    let memoryStatus: 'pass' | 'warning' | 'fail';
+    let memoryDetails = `${usedPercent.toFixed(1)}% memory used (${this.formatBytes(usedMemory)} / ${this.formatBytes(totalMemory)})`;
+    
+    if (usedPercent < memoryThresholds.pass) {
+      memoryStatus = 'pass';
+    } else if (usedPercent < memoryThresholds.warning) {
+      memoryStatus = 'warning';
+      memoryDetails += ' - Consider monitoring memory usage';
+    } else if (usedPercent < memoryThresholds.critical) {
+      memoryStatus = 'warning';
+      memoryDetails += ' - High memory usage detected, investigate potential leaks';
+    } else {
+      memoryStatus = 'fail';
+      memoryDetails += ' - CRITICAL: Immediate action required!';
+    }
     
     this.addResult({
       category: 'System',
       check: 'Memory usage',
-      status: usedPercent < 80 ? 'pass' : usedPercent < 90 ? 'warning' : 'fail',
-      details: `${usedPercent.toFixed(1)}% memory used`,
+      status: memoryStatus,
+      details: memoryDetails,
       required: true
     });
 
@@ -684,10 +815,45 @@ class EnvironmentValidator {
   private async saveReport(): Promise<void> {
     const reportPath = path.join(process.cwd(), 'logs', 'environment-validation.json');
     
-    await fs.promises.writeFile(
-      reportPath,
-      JSON.stringify(this.report, null, 2)
-    );
+    try {
+      // Ensure the logs directory exists
+      const logsDir = path.dirname(reportPath);
+      await fs.promises.mkdir(logsDir, { recursive: true });
+      
+      // Write the report file
+      await fs.promises.writeFile(
+        reportPath,
+        JSON.stringify(this.report, null, 2)
+      );
+      
+      console.log(`\n✅ Report saved successfully to: ${reportPath}`);
+    } catch (error) {
+      // Handle the error appropriately
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`\n❌ Failed to save report: ${errorMessage}`);
+      
+      // Add a warning to the report about the save failure
+      this.addResult({
+        category: 'System',
+        check: 'Report save',
+        status: 'warning',
+        details: `Could not save report to file: ${errorMessage}`,
+        required: false
+      });
+      
+      // Try to save to an alternative location if the primary fails
+      try {
+        const fallbackPath = path.join(process.cwd(), `environment-validation-${Date.now()}.json`);
+        await fs.promises.writeFile(
+          fallbackPath,
+          JSON.stringify(this.report, null, 2)
+        );
+        console.log(`\n⚠️  Report saved to fallback location: ${fallbackPath}`);
+      } catch (fallbackError) {
+        console.error('\n❌ Failed to save report to fallback location');
+        console.error('Report content:', JSON.stringify(this.report, null, 2));
+      }
+    }
   }
 
   private displayResults(): void {

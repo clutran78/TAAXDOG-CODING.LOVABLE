@@ -16,7 +16,7 @@ export default async function handler(
   try {
     // Check if user is authenticated and is admin
     const session = await getServerSession(req, res, authOptions);
-    if (!session || session.user.role !== 'ADMIN') {
+    if (!session || !session.user || session.user.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 

@@ -1,5 +1,9 @@
 # Complete TaxReturnPro Setup Guide
 
+## ⚠️ SECURITY NOTICE
+
+**IMPORTANT**: Never commit actual credentials to version control. All sensitive values in this document have been replaced with placeholders. Store actual values in secure environment variables.
+
 Since your app includes AI functionality for financial advice and tax claims, you'll need both email and backend configuration.
 
 ## Required Environment Variables
@@ -49,41 +53,41 @@ SMTP_SECURE=false
 
 # Application
 NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=NGajSj1kFOuhgHw6pE6ErVDWrY1rGfVNllf6XJEk07k=
+NEXTAUTH_SECRET=[REDACTED - Generate with: openssl rand -base64 32]
 
 # Database (Already configured)
-DATABASE_URL=postgresql://taaxdog-admin:AVNS_sOOnNB63elYEvJLTVuy@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production?sslmode=require
+DATABASE_URL=postgresql://taaxdog-admin:[DATABASE_PASSWORD]@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production?sslmode=require
 
 # Stripe (Already configured)
-STRIPE_PUBLISHABLE_KEY=pk_test_51Re1p5Q9NPu52BBJ73SbAmHhscSxbC2zUkbnm5ZhSv3JVyqj7SMpH3FzAbhxahZXlXbLz8g29VUzbELwaurCmMyM00eD2TZj24
-STRIPE_SECRET_KEY=sk_test_51Re1p5Q9NPu52BBJyvEXIWch7vEEKkVaiiwqbHgTtmTOHpULNAU7zgFh75d6pGtrA7JVvW5LkBmXzASSAcrUfwN000LpnkaHUm
-STRIPE_WEBHOOK_SECRET=whsec_ReF2BwG3c0NUFaxAmPjSPnbZdzhADnGp
+STRIPE_PUBLISHABLE_KEY=[STRIPE_TEST_PUBLISHABLE_KEY]
+STRIPE_SECRET_KEY=[STRIPE_TEST_SECRET_KEY]
+STRIPE_WEBHOOK_SECRET=[STRIPE_TEST_WEBHOOK_SECRET]
 
 # AI Services (Already configured)
-ANTHROPIC_API_KEY=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
-OPENROUTER_API_KEY=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
-GEMINI_API_KEY=AIzaSyDLm3ZrbamQTN05Yc_OLuYOc47YIgKvSa0
+ANTHROPIC_API_KEY=[ANTHROPIC_API_KEY]
+OPENROUTER_API_KEY=[OPENROUTER_API_KEY]
+GEMINI_API_KEY=[GEMINI_API_KEY]
 
 # Banking Integration (Already configured)
-BASIQ_API_KEY=MThmYjA5ZWEtNzRhMi00Nzc5LTk0ZjAtYmRkOTExZDgwMGI4Ojg5MDcxY2FjLTY3MmUtNDBkNy04OTY4LWRjZjdhYTY0YjYyYw==
+BASIQ_API_KEY=[BASIQ_API_KEY]
 
 # Email Configuration (NEEDED)
 EMAIL_FROM=noreply@taxreturnpro.com.au
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
-EMAIL_USER=your-gmail@gmail.com
-EMAIL_PASSWORD=your-app-password
+EMAIL_USER=[YOUR_EMAIL_ADDRESS]
+EMAIL_PASSWORD=[EMAIL_APP_PASSWORD]
 
 # SMTP Configuration (NEEDED - Same values as email)
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
-SMTP_USER=your-gmail@gmail.com
-SMTP_PASS=your-app-password
+SMTP_USER=[YOUR_EMAIL_ADDRESS]
+SMTP_PASS=[EMAIL_APP_PASSWORD]
 SMTP_SECURE=false
 
 # Flask Backend Configuration (NEEDED)
-SECRET_KEY=generate-secure-key-for-production
-JWT_SECRET_KEY=generate-secure-jwt-key-for-production
+SECRET_KEY=[GENERATE_WITH_OPENSSL]
+JWT_SECRET_KEY=[GENERATE_WITH_OPENSSL]
 CORS_ORIGINS=http://localhost:3000,https://taxreturnpro.com.au
 ```
 
