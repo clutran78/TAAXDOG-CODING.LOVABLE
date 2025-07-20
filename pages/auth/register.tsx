@@ -88,9 +88,6 @@ export default function RegisterPage() {
           email: formData.email,
           password: formData.password,
           name: formData.name,
-          phone: formData.phone,
-          abn: formData.abn,
-          taxResidency: formData.taxResidency,
         }),
       });
 
@@ -109,7 +106,10 @@ export default function RegisterPage() {
       });
 
       if (result?.ok) {
-        router.push("/auth/welcome");
+        router.push("/dashboard");
+      } else {
+        // Registration succeeded but login failed - redirect to login
+        router.push("/auth/login?message=Registration successful. Please log in.");
       }
     } catch (error) {
       setErrors({ submit: "An unexpected error occurred" });

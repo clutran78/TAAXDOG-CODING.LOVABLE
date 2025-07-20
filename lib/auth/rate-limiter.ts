@@ -203,3 +203,12 @@ export function createIPRateLimiter(action: string, maxAttempts: number, windowM
     },
   };
 }
+
+// Add this export at the end of the file after the existing exports
+export const publicApiRateLimiter = createRateLimiter('publicApi', {
+  interval: 60 * 1000, // 1 minute
+  maxRequests: 100, // 100 requests per minute for public APIs
+});
+
+// Also add a general rate limiter for other endpoints
+export const generalRateLimiter = createRateLimiter('general', rateLimitConfigs.api);

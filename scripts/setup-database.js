@@ -1,91 +1,59 @@
-const { Client } = require('pg');
-require('dotenv').config();
-
-const PRODUCTION_CONFIG = {
-  host: process.env.DB_HOST || 'taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com',
-  port: parseInt(process.env.DB_PORT || '25060'),
-  user: process.env.DB_USER || 'taaxdog-admin',
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME || 'taaxdog-production',
-  ssl: { rejectUnauthorized: false }
-};
+const { PrismaClient } = require('../generated/prisma');
 
 async function setupDatabase() {
-  if (!PRODUCTION_CONFIG.password) {
-    console.error('❌ Database password not found in environment variables.');
-    console.error('Please set DB_PASSWORD environment variable.');
+  console.log('🔧 Setting up TAAXDOG database...\n');
+
+  // Check if DATABASE_URL is set
+  if (!process.env.DATABASE_URL) {
+    console.error('❌ DATABASE_URL environment variable is not set');
+    console.error('Please create a .env.local file with your PostgreSQL connection string');
+    console.error('Example: DATABASE_URL="postgresql://username:password@localhost:5432/taaxdog_db"');
     process.exit(1);
   }
 
-  const client = new Client(PRODUCTION_CONFIG);
-  
+  const prisma = new PrismaClient();
+
   try {
-    await client.connect();
-    console.log('Connected to DigitalOcean PostgreSQL\n');
+    // Test database connection
+    console.log('1. Testing database connection...');
+    await prisma.$connect();
+    console.log('✅ Database connected successfully\n');
+
+    // Check if tables exist
+    console.log('2. Checking database schema...');
+    const tables = await prisma.$queryRaw`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public'
+    `;
     
-    // Check current permissions
-    const permResult = await client.query(`
-      SELECT 
-        has_schema_privilege($1, 'public', 'CREATE') as can_create,
-        has_schema_privilege($1, 'public', 'USAGE') as can_use
-    `, ['taaxdog-admin']);
-    
-    const perms = permResult.rows[0];
-    console.log('Current permissions:');
-    console.log('- Can use public schema:', perms.can_use ? '✅' : '❌');
-    console.log('- Can create in public schema:', perms.can_create ? '✅' : '❌');
-    
-    if (!perms.can_create) {
-      console.log('\n⚠️  Cannot create tables in public schema.');
-      console.log('Please run the following commands as the database superuser:');
-      console.log('');
-      console.log('GRANT CREATE ON SCHEMA public TO "taaxdog-admin";');
-      console.log('GRANT ALL ON SCHEMA public TO "taaxdog-admin";');
-      console.log('');
-      console.log('Or in DigitalOcean control panel, ensure the user has full permissions.');
+    if (tables.length === 0) {
+      console.log('⚠️  No tables found. Please run: npx prisma migrate dev');
     } else {
-      console.log('\n✅ Database permissions are correctly configured!');
-      
-      // Create initial tables
-      console.log('\nCreating initial tables...');
-      
-      // Create migrations table
-      await client.query(`
-        CREATE TABLE IF NOT EXISTS schema_migrations (
-          id VARCHAR(255) PRIMARY KEY,
-          name VARCHAR(255) NOT NULL,
-          checksum VARCHAR(64) NOT NULL,
-          applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          execution_time INTEGER
-        )
-      `);
-      console.log('✅ Created schema_migrations table');
-      
-      // Create audit logs table
-      await client.query(`
-        CREATE TABLE IF NOT EXISTS audit_logs (
-          id SERIAL PRIMARY KEY,
-          operation VARCHAR(255) NOT NULL,
-          user_id VARCHAR(255) NOT NULL,
-          timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          details JSONB,
-          ip_address VARCHAR(45)
-        )
-      `);
-      console.log('✅ Created audit_logs table');
-      
-      console.log('\n✅ Database setup completed successfully!');
+      console.log(`✅ Found ${tables.length} tables in database\n`);
     }
-    
+
+    // Test user operations
+    console.log('3. Testing user operations...');
+    const userCount = await prisma.user.count();
+    console.log(`✅ User table accessible. Current users: ${userCount}\n`);
+
+    console.log('🎉 Database setup verification complete!');
+    console.log('\nNext steps:');
+    console.log('1. Run: npm run build');
+    console.log('2. Run: npm run dev');
+    console.log('3. Test registration at: http://localhost:3000/auth/register');
+
   } catch (error) {
-    console.error('❌ Setup failed:', error.message);
-    if (error.code === '42501') {
-      console.log('\n⚠️  Permission denied. Please ensure the database user has appropriate privileges.');
-    }
+    console.error('❌ Database setup failed:', error.message);
+    console.error('\nTroubleshooting:');
+    console.error('1. Ensure PostgreSQL is running');
+    console.error('2. Check your DATABASE_URL in .env.local');
+    console.error('3. Run: npx prisma migrate dev');
+    console.error('4. Run: npx prisma generate');
   } finally {
-    await client.end();
+    await prisma.$disconnect();
   }
 }
 
-console.log('=== Taaxdog Database Setup ===\n');
 setupDatabase();
