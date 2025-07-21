@@ -3,7 +3,6 @@
 
 const http = require('http');
 const https = require('https');
-const url = require('url');
 const querystring = require('querystring');
 const fs = require('fs');
 
@@ -25,7 +24,7 @@ const server = http.createServer((req, res) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   
   // Parse the request URL
-  const parsedUrl = url.parse(req.url, true);
+  const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost:3001'}`);
   
   // Check if it's a proxy request - TabScanner proxy functionality removed
   if (parsedUrl.pathname.startsWith('/proxy')) {
