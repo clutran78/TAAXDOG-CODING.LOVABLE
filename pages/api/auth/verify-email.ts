@@ -4,7 +4,8 @@ import { getClientIP } from "../../../lib/auth/auth-utils";
 import { verifyEmailSchema, validateInput } from "../../../lib/auth/validation";
 import { emailVerificationRateLimiter } from "../../../lib/auth/rate-limiter";
 import { sendWelcomeEmail } from "../../../lib/email";
-import { AuthEvent } from "../../../generated/prisma";
+import { AuthEvent } from "@prisma/client";
+import { logAuthEvent } from "../../../lib/auth";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {

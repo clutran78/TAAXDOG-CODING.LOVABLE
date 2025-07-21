@@ -5,7 +5,7 @@ import { authOptions, logAuthEvent } from "../../../lib/auth";
 import { prisma } from "../../../lib/prisma";
 import { InputValidator } from "../../../lib/security/middleware";
 import { encryptTFN, decryptTFN, maskSensitiveData } from "../../../lib/security/encryption";
-import { TaxResidency } from "../../../generated/prisma";
+import { TaxResidency } from "@prisma/client";
 
 async function handler(req: NextApiRequestWithRLS, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);

@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, validatePassword, hashPassword, logAuthEvent as logAuth } from "../../../lib/auth";
 import { prisma } from "../../../lib/prisma";
 import bcrypt from "bcryptjs";
-import { AuthEvent } from "../../../generated/prisma";
+import { AuthEvent } from "@prisma/client";
 import { sendPasswordChangeNotification } from "../../../lib/email";
 
 // Security configuration
