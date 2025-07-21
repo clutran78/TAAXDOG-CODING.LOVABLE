@@ -8,10 +8,11 @@
   },
   "scripts": {
     "dev": "node server.js",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "build:do": "./scripts/build-prod.sh",
     "start": "NODE_ENV=production node server.js",
     "lint": "next lint",
+    "postinstall": "prisma generate",
     "build:production": "./scripts/build-production.sh",
     "migrate": "ts-node --project tsconfig.node.json scripts/migrate.ts",
     "test-db": "ts-node --project tsconfig.node.json scripts/test-db-connection.ts",

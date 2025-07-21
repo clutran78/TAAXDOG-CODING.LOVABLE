@@ -103,8 +103,38 @@ class ApiKeyManager {
     if (!storedKey) {
       return false;
     }
+
     
-    // Convert keys to buffers
+    // Convert keys to buffersBump @eslint/plugin-kit and eslint in /next-frontend-backup
+Merging this pull request would fix 1 Dependabot alert on @eslint/plugin-kit in next-frontend-backup/package-lock.json.
+
+Transitive dependency @eslint/plugin-kit 0.2.8 is introduced via
+eslint 9.26.0  @eslint/plugin-kit 0.2.8
+Package
+Affected versions
+Patched version
+@eslint/plugin-kit
+(npm)
+< 0.3.3
+0.3.3
+Summary
+The ConfigCommentParser#parseJSONLikeConfig API is vulnerable to a Regular Expression Denial of Service (ReDoS) attack in its only argument.
+
+Details
+The regular expression at packages/plugin-kit/src/config-comment-parser.js:158 is vulnerable to a quadratic runtime attack because the grouped expression is not anchored. This can be solved by prepending the regular expression with [^-a-zA-Z0-9/].
+
+PoC
+const { ConfigCommentParser } = require("@eslint/plugin-kit");
+
+const str = `${"A".repeat(1000000)}?: 1 B: 2`;
+
+console.log("start")
+var parser = new ConfigCommentParser();
+console.log(parser.parseJSONLikeConfig(str));
+console.log("end")
+
+// run `npm i @eslint/plugin-kit@0.3.3` and `node attack.js`
+// then the program will stuck forever with high CPU usage
     const providedKeyBuffer = Buffer.from(providedKey);
     const storedKeyBuffer = Buffer.from(storedKey);
     

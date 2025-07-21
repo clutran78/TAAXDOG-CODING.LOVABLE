@@ -3,6 +3,14 @@ import { prisma } from "../../../lib/prisma";
 import bcrypt from "bcryptjs";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  console.log("📝 Registration request received:", {
+    method: req.method,
+    email: req.body?.email,
+    hasPassword: !!req.body?.password,
+    hasName: !!req.body?.name,
+    timestamp: new Date().toISOString()
+  });
+
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -68,7 +76,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
   } catch (error: any) {
-    console.error("❌ Registration error:", error);
+    console.error("❌ Registration error:", {
+      message: error.message,
+      code: error.code,
+      stack: error.stack,
+      meta: error.meta,
+      email: req.body.email,
+      timestamp: new Date().toISOString()
+    });
     
     if (error.code === 'P2002') {
       return res.status(409).json({
@@ -77,9 +92,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
+    if (error.code === 'P2025') {
+      console.error("Database schema issue - required fields might be missing");
+      return res.status(500).json({
+        error: "Database configuration error",
+        message: "Unable to create account due to database configuration. Please contact support.",
+      });
+    }
+
+    if (error.message?.includes('prisma') || error.message?.includes('database')) {
+      console.error("Database connection error during registration");
+      return res.status(500).json({
+        error: "Database connection error",
+        message: "Unable to connect to database. Please try again later.",
+      });
+    }
+
     return res.status(500).json({
       error: "Internal server error",
       message: "Failed to create account. Please try again.",
+      debug: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 }

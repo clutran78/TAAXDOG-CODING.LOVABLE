@@ -18,8 +18,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Enable standalone output for Docker
-  output: 'standalone',
+  // Removed standalone output for standard deployment
   
   // Enable security checks - CRITICAL SECURITY FIX
   eslint: {
