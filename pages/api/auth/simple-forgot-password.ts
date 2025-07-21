@@ -52,12 +52,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Continue anyway for testing
     }
 
+    const baseUrl = process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://taxreturnpro.com.au';
+    
     return res.status(200).json({ 
       message: successMessage,
       // Include token in development for testing
       debug: process.env.NODE_ENV === "development" ? {
         resetToken,
-        resetUrl: `http://localhost:3000/auth/reset-password?token=${resetToken}`
+        resetUrl: `${baseUrl}/auth/reset-password?token=${resetToken}`
       } : undefined
     });
 

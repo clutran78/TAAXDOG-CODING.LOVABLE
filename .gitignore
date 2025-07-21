@@ -1,5 +1,12 @@
 # Environment variables
 # .env
+.env.local
+.env.production
+.env.development
+
+# Deployment files with secrets
+digitalocean-app-spec.yaml
+*.yaml.backup
 
 # Uploads (temporary files)
 uploads/
