@@ -2,6 +2,8 @@
 
 A comprehensive SaaS financial management platform with Australian tax compliance, AI-powered insights, and automated banking integration. Built with Next.js, PostgreSQL, and enterprise-grade security features.
 
+<!-- Last deployment test: 2025-07-21 -->
+
 🌐 **Website**: [taxreturnpro.com.au](https://taaxdog-landing-page.vercel.app)  
 📊 **Repository**: [github.com/TaaxDog/TAAXDOG-CODING](https://github.com/TaaxDog/TAAXDOG-CODING)
 

@@ -51,11 +51,15 @@ class DatabaseConnection {
     };
 
     // SSL configuration for production
-    if (isProduction || connectionString.includes('sslmode=require')) {
+    if (isProduction || connectionString.includes('sslmode=require') || connectionString.includes('ondigitalocean.com')) {
       baseConfig.ssl = {
-        rejectUnauthorized: false, // Required for DigitalOcean managed databases
-        require: true,
+        rejectUnauthorized: false // Required for DigitalOcean managed databases with self-signed certificates
       };
+      
+      // Set environment variable for Node.js SSL handling
+      if (!process.env.NODE_TLS_REJECT_UNAUTHORIZED) {
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+      }
     }
 
     return baseConfig;

@@ -167,6 +167,20 @@ npm run verify:counts      # Verify record counts
 npm run verify:compliance  # Check Australian compliance
 ```
 
+## Deployment Process
+
+### Quick Deployment Steps
+1. Ensure on main branch: `git branch --show-current`
+2. Commit changes: `git add . && git commit -m "your message"`
+3. Push to trigger auto-deploy: `git push origin main`
+4. Monitor at: https://cloud.digitalocean.com/apps
+
+### Important Notes
+- Use `app.yaml` for deployment (NOT `digitalocean-app-spec.yaml`)
+- All secrets must be in DigitalOcean environment variables
+- Auto-deploy is enabled for main branch
+- See `DEPLOYMENT-CHECKLIST.md` for detailed steps
+
 ## Project Architecture
 
 ### High-Level Structure
