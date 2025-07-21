@@ -1,6 +1,6 @@
 import { prisma } from '../prisma';
 import { getStripe, SUBSCRIPTION_PLANS, GST_CONFIG, calculateGSTFromTotal } from './config';
-import type { User, Subscription, Plan } from '../../generated/prisma';
+import type { User, Subscription, Plan } from "@prisma/client";
 import Stripe from 'stripe';
 
 export class StripeService {

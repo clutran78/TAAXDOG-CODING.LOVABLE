@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from "../generated/prisma";
+import { PrismaClient, Prisma } from "@prisma/client";
 import { createEncryptionMiddleware } from "./prisma-encryption-middleware";
 
 // Type definitions

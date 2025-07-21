@@ -1,5 +1,5 @@
 import prismaWithRLS from '@/lib/prisma-rls';
-import { Goal, GoalStatus, Prisma } from '@/generated/prisma';
+import { Goal, GoalStatus, Prisma } from '@prisma/client';
 
 export interface CreateGoalData {
   title: string;

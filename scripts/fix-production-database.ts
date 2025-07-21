@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 
-import { PrismaClient } from '../generated/prisma';
+import { PrismaClient } from "@prisma/client";
 import dotenv from 'dotenv';
 
 // Load environment variables

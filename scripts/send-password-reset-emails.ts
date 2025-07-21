@@ -1,4 +1,4 @@
-import { PrismaClient } from '../generated/prisma';
+import { PrismaClient } from "@prisma/client";
 import { sendPasswordResetEmail } from '../lib/email';
 import * as dotenv from 'dotenv';
 import { resolve } from 'path';

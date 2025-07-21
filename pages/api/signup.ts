@@ -12,7 +12,7 @@ import {
 import { registerSchema, validateInput } from "../../lib/auth/validation";
 import { authRateLimiter } from "../../lib/auth/rate-limiter";
 import { sendVerificationEmail } from "../../lib/email";
-import { TaxResidency, AuthEvent } from "../../generated/prisma";
+import { TaxResidency, AuthEvent } from "@prisma/client";
 import { InputValidator } from "../../lib/security/middleware";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

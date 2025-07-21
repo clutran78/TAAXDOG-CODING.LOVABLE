@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 
-import { PrismaClient } from '../generated/prisma';
+import { PrismaClient } from "@prisma/client";
 import * as fs from 'fs';
 import * as path from 'path';
 

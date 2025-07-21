@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { User } from '../../generated/prisma';
+import { User } from "@prisma/client";
 
 // Environment variables with defaults for development
 const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || 'your-development-secret-key';

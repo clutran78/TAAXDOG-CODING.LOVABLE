@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { Role } from "../../generated/prisma";
+import { Role } from "@prisma/client";
 
 export interface AuthUser {
   id: string;

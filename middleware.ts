@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAuth, validateCSRFToken } from "./lib/middleware/auth";
-import { Role } from "./generated/prisma";
+import { Role } from "@prisma/client";
 
 // Routes that require authentication
 const protectedRoutes = [

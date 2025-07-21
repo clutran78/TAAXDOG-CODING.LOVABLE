@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 
-import { PrismaClient } from '../generated/prisma';
+import { PrismaClient } from "@prisma/client";
 import { encrypt, isEncrypted, generateEncryptionKey } from '../lib/encryption';
 import { encryptionConfig } from '../lib/prisma-encryption-middleware';
 import { config } from 'dotenv';

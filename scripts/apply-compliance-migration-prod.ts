@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 
-import { PrismaClient } from '../generated/prisma';
+import { PrismaClient } from "@prisma/client";
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs/promises';

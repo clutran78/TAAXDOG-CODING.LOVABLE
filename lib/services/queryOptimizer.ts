@@ -1,4 +1,4 @@
-import { PrismaClient } from '../../generated/prisma';
+import { PrismaClient } from "@prisma/client";
 import { cache } from 'react';
 
 // Optimized query functions with proper relation loading to prevent N+1 queries

@@ -1,4 +1,4 @@
-import { PrismaClient } from '../../generated/prisma';
+import { PrismaClient } from "@prisma/client";
 import { DatabaseMonitor } from '../monitoring/database';
 import { getDatabaseUrl } from './sslConfig';
 

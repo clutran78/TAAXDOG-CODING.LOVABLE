@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { Goal, GoalStatus, Prisma } from '@/generated/prisma';
+import { Goal, GoalStatus, Prisma } from '@prisma/client';
 
 export interface CreateGoalData {
   title: string;

@@ -1,5 +1,5 @@
 import admin from 'firebase-admin';
-import { PrismaClient } from '../generated/prisma';
+import { PrismaClient } from "@prisma/client";
 import { hashPassword } from '../lib/auth/auth-utils';
 import * as dotenv from 'dotenv';
 import { resolve } from 'path';
