@@ -3,12 +3,15 @@ import { prisma } from "../../../lib/prisma";
 import bcrypt from "bcryptjs";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  console.log(`[ResetPassword] Request received - Method: ${req.method}, Time: ${new Date().toISOString()}`);
+  
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
     const { token, password } = req.body;
+    console.log(`[ResetPassword] Reset attempt with token: ${token?.substring(0, 10)}...`);
 
     if (!token || !password) {
       return res.status(400).json({
@@ -35,11 +38,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     if (!user) {
+      console.log(`[ResetPassword] No user found with valid token: ${token?.substring(0, 10)}...`);
       return res.status(400).json({
         error: "Invalid token",
         message: "Password reset token is invalid or has expired",
       });
     }
+    
+    console.log(`[ResetPassword] Found user for password reset: ${user.email}`);
 
     // Hash new password
     const hashedPassword = await bcrypt.hash(password, 12);
