@@ -78,7 +78,12 @@
     "deploy:check:operations": "tsx scripts/deployment/operational-readiness.ts",
     "deploy:check:golive": "tsx scripts/deployment/go-live-validation.ts",
     "deploy:checklist": "bash scripts/deployment/deployment-checklist.sh",
-    "deploy:validate": "npm run deploy:checklist"
+    "deploy:validate": "npm run deploy:checklist",
+    "env:dev": "node scripts/env-manager.js set development",
+    "env:prod": "node scripts/env-manager.js set production",
+    "env:staging": "node scripts/env-manager.js set staging",
+    "env:status": "node scripts/env-manager.js status",
+    "env:help": "node scripts/env-manager.js help"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.55.1",

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import envConfig from './environment';
 
 // Environment enum
 export const Environment = {
