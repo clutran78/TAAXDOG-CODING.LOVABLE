@@ -1,5 +1,5 @@
-import { PrismaClient, AMLMonitoringType } from '../../../generated/prisma';
-import { Decimal } from '../../../generated/prisma/runtime/library';
+import { PrismaClient, AMLMonitoringType } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 
 const prisma = new PrismaClient();
 

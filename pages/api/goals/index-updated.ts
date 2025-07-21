@@ -3,7 +3,7 @@ import { withRLSMiddleware, NextApiRequestWithRLS, handleRLSError } from '@/lib/
 import prismaWithRLS from '@/lib/prisma-rls';
 import { GoalServiceRLS } from '@/lib/goals/goal-service-rls';
 import { CreateGoalRequest } from '@/lib/types/goal';
-import { Prisma } from '@/generated/prisma';
+import { Prisma } from '@prisma/client';
 
 async function handler(
   req: NextApiRequestWithRLS,

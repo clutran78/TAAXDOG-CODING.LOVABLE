@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { GoalService } from '@/lib/goals/goal-service';
 import { CreateGoalRequest } from '@/lib/types/goal';
-import { Prisma } from '@/generated/prisma';
+import { Prisma } from '@prisma/client';
 
 async function handler(req: NextApiRequestWithRLS, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);

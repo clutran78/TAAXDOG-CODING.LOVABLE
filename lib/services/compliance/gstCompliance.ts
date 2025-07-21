@@ -1,5 +1,5 @@
-import { PrismaClient, GSTTreatment } from '../../../generated/prisma';
-import { Decimal } from '../../../generated/prisma/runtime/library';
+import { PrismaClient, GSTTreatment } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 
 const prisma = new PrismaClient();
 

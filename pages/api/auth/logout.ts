@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '../../../lib/prisma';
 import { verifyJWT, getClientIP } from '../../../lib/auth/auth-utils';
-import { AuthEvent } from '../../../generated/prisma';
+import { AuthEvent } from '@prisma/client';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Only allow POST requests

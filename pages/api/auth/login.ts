@@ -13,7 +13,7 @@ import {
 } from '../../../lib/auth/auth-utils';
 import { loginSchema, validateInput } from '../../../lib/auth/validation';
 import { authRateLimiter } from '../../../lib/auth/rate-limiter';
-import { AuthEvent } from '../../../generated/prisma';
+import { AuthEvent } from '@prisma/client';
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Only allow POST requests

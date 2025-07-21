@@ -1,4 +1,4 @@
-import { GoalStatus } from '@/generated/prisma';
+import { GoalStatus } from '@prisma/client';
 
 export interface Goal {
   id: string;

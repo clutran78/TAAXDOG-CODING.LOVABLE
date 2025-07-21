@@ -1,4 +1,4 @@
-import { PrismaClient, ConsentType, ConsentStatus, DataRequestType, DataRequestStatus } from '../../../generated/prisma';
+import { PrismaClient, ConsentType, ConsentStatus, DataRequestType, DataRequestStatus } from '@prisma/client';
 import crypto from 'crypto';
 
 const prisma = new PrismaClient();

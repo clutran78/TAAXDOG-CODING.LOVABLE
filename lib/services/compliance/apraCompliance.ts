@@ -1,5 +1,5 @@
-import { PrismaClient, IncidentType, IncidentSeverity, IncidentStatus } from '../../../generated/prisma';
-import { Decimal } from '../../../generated/prisma/runtime/library';
+import { PrismaClient, IncidentType, IncidentSeverity, IncidentStatus } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 
 const prisma = new PrismaClient();
 
