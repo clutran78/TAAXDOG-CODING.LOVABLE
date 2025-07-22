@@ -30,10 +30,10 @@ async function handler(req: NextApiRequestWithRLS, res: NextApiResponse) {
 }
 
 // Get two-factor authentication status
-async function getTwoFactorStatus(req: NextApiRequest, res: NextApiResponse, userId: string) {
+async function getTwoFactorStatus(req: NextApiRequestWithRLS, res: NextApiResponse, userId: string) {
   try {
     const user = await req.rlsContext.execute(async () => {
-      return await prismaWithRLS.user.findUnique({
+      return await req.rlsContext.prisma.user.findUnique({
       where: { id: userId },
       select: {
         twoFactorEnabled: true,
@@ -57,12 +57,12 @@ async function getTwoFactorStatus(req: NextApiRequest, res: NextApiResponse, use
 }
 
 // Enable two-factor authentication
-async function enableTwoFactor(req: NextApiRequest, res: NextApiResponse, userId: string) {
+async function enableTwoFactor(req: NextApiRequestWithRLS, res: NextApiResponse, userId: string) {
   try {
     const { method = 'authenticator' } = req.body;
 
     const user = await req.rlsContext.execute(async () => {
-      return await prismaWithRLS.user.findUnique({
+      return await req.rlsContext.prisma.user.findUnique({
       where: { id: userId },
       select: {
         email: true,
@@ -97,7 +97,7 @@ async function enableTwoFactor(req: NextApiRequest, res: NextApiResponse, userId
 
       // Store the secret temporarily (encrypted)
       await req.rlsContext.execute(async () => {
-      return await prismaWithRLS.user.update({
+      return await req.rlsContext.prisma.user.update({
         where: { id: userId },
         data: {
           twoFactorSecret: secret.base32, // In production, encrypt this
@@ -118,13 +118,13 @@ async function enableTwoFactor(req: NextApiRequest, res: NextApiResponse, userId
       
       // Store code temporarily (expires in 10 minutes)
       await req.rlsContext.execute(async () => {
-      return await prismaWithRLS.verificationToken.create({
+      return await req.rlsContext.prisma.verificationToken.create({
         data: {
           identifier: user.email,
           token: `2fa_${code}`,
-          expires: new Date(Date.now()
-    }) + 10 * 60 * 1000),
+          expires: new Date(Date.now() + 10 * 60 * 1000),
         },
+      });
       });
 
       // Send email
@@ -153,7 +153,7 @@ async function enableTwoFactor(req: NextApiRequest, res: NextApiResponse, userId
 }
 
 // Verify two-factor code
-async function verifyTwoFactor(req: NextApiRequest, res: NextApiResponse, userId: string) {
+async function verifyTwoFactor(req: NextApiRequestWithRLS, res: NextApiResponse, userId: string) {
   try {
     const { code, method = 'authenticator' } = req.body;
 
@@ -162,7 +162,7 @@ async function verifyTwoFactor(req: NextApiRequest, res: NextApiResponse, userId
     }
 
     const user = await req.rlsContext.execute(async () => {
-      return await prismaWithRLS.user.findUnique({
+      return await req.rlsContext.prisma.user.findUnique({
       where: { id: userId },
       select: {
         email: true,
@@ -193,20 +193,20 @@ async function verifyTwoFactor(req: NextApiRequest, res: NextApiResponse, userId
     } else if (method === 'email') {
       // Verify email code
       const verificationToken = await req.rlsContext.execute(async () => {
-      return await prismaWithRLS.verificationToken.findFirst({
+      return await req.rlsContext.prisma.verificationToken.findFirst({
         where: {
           identifier: user.email,
           token: `2fa_${code}`,
-          expires: { gt: new Date();
-    }) },
+          expires: { gt: new Date() }
         },
+      });
       });
 
       if (verificationToken) {
         isValid = true;
         // Delete used token
         await req.rlsContext.execute(async () => {
-      return await prismaWithRLS.verificationToken.delete({
+      return await req.rlsContext.prisma.verificationToken.delete({
           where: { 
             identifier_token: {
               identifier: user.email,
@@ -214,9 +214,8 @@ async function verifyTwoFactor(req: NextApiRequest, res: NextApiResponse, userId
             },
           },
         });
-    });
+        });
       }
-    }
 
     if (!isValid) {
       await logAuthEvent({
@@ -232,11 +231,11 @@ async function verifyTwoFactor(req: NextApiRequest, res: NextApiResponse, userId
     // Enable 2FA if not already enabled
     if (!user.twoFactorEnabled) {
       await req.rlsContext.execute(async () => {
-      return await prismaWithRLS.user.update({
+      return await req.rlsContext.prisma.user.update({
         where: { id: userId },
         data: { twoFactorEnabled: true },
       });
-    });
+      });
 
       // Generate backup codes
       const backupCodes = Array.from({ length: 8 }, () => 
@@ -282,7 +281,7 @@ async function verifyTwoFactor(req: NextApiRequest, res: NextApiResponse, userId
 }
 
 // Disable two-factor authentication
-async function disableTwoFactor(req: NextApiRequest, res: NextApiResponse, userId: string) {
+async function disableTwoFactor(req: NextApiRequestWithRLS, res: NextApiResponse, userId: string) {
   try {
     const { password } = req.body;
 
@@ -291,7 +290,7 @@ async function disableTwoFactor(req: NextApiRequest, res: NextApiResponse, userI
     }
 
     const user = await req.rlsContext.execute(async () => {
-      return await prismaWithRLS.user.findUnique({
+      return await req.rlsContext.prisma.user.findUnique({
       where: { id: userId },
       select: {
         password: true,
@@ -328,7 +327,7 @@ async function disableTwoFactor(req: NextApiRequest, res: NextApiResponse, userI
 
     // Disable 2FA
     await req.rlsContext.execute(async () => {
-      return await prismaWithRLS.user.update({
+      return await req.rlsContext.prisma.user.update({
       where: { id: userId },
       data: {
         twoFactorEnabled: false,
@@ -355,7 +354,7 @@ async function disableTwoFactor(req: NextApiRequest, res: NextApiResponse, userI
 }
 
 // Challenge endpoint for login with 2FA
-export async function challengeTwoFactor(req: NextApiRequest, res: NextApiResponse) {
+export async function challengeTwoFactor(req: NextApiRequestWithRLS, res: NextApiResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ message: "Method not allowed" });
   }
@@ -368,14 +367,14 @@ export async function challengeTwoFactor(req: NextApiRequest, res: NextApiRespon
     }
 
     const user = await req.rlsContext.execute(async () => {
-      return await prismaWithRLS.user.findUnique({
-      where: { email: email.toLowerCase();
-    }) },
+      return await req.rlsContext.prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
       select: {
         id: true,
         twoFactorEnabled: true,
         twoFactorSecret: true,
       },
+    });
     });
 
     if (!user || !user.twoFactorEnabled) {
@@ -421,3 +420,5 @@ export async function challengeTwoFactor(req: NextApiRequest, res: NextApiRespon
     res.status(500).json({ message: "Failed to verify 2FA" });
   }
 }
+
+export default withRLSMiddleware(handler);

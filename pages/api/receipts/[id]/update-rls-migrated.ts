@@ -25,7 +25,7 @@ async function handler(req: NextApiRequestWithRLS, res: NextApiResponse) {
 
     // Get existing receipt
     const receipt = await req.rlsContext.execute(async () => {
-      return await prismaWithRLS.receipt.findUnique({
+      return await req.rlsContext.prisma.receipt.findUnique({
       where: { id },
     });
     });
@@ -57,12 +57,12 @@ async function handler(req: NextApiRequestWithRLS, res: NextApiResponse) {
 
     // Check for duplicates
     const existingReceipts = await req.rlsContext.execute(async () => {
-      return await prismaWithRLS.receipt.findMany({
+      return await req.rlsContext.prisma.receipt.findMany({
       where: {
         id: { not: id },
-        date: new Date(date);
-    }),
+        date: new Date(date)
       },
+    });
     });
 
     const duplicateCheck = detectDuplicateReceipt(
@@ -89,14 +89,13 @@ async function handler(req: NextApiRequestWithRLS, res: NextApiResponse) {
 
     // Update receipt
     const updatedReceipt = await req.rlsContext.execute(async () => {
-      return await prismaWithRLS.receipt.update({
+      return await req.rlsContext.prisma.receipt.update({
       where: { id },
       data: {
         merchant,
         totalAmount,
         gstAmount,
-        date: new Date(date);
-    }),
+        date: new Date(date),
         abn,
         taxInvoiceNumber,
         taxCategory: category,
@@ -106,6 +105,7 @@ async function handler(req: NextApiRequestWithRLS, res: NextApiResponse) {
         isGstRegistered: !!abn,
         updatedAt: new Date(),
       },
+    });
     });
 
     res.status(200).json({
@@ -119,6 +119,8 @@ async function handler(req: NextApiRequestWithRLS, res: NextApiResponse) {
     console.error('Receipt update error:', error);
     res.status(500).json({ error: 'Failed to update receipt' });
   } finally {
-    await prismaWithRLS.$disconnect();
+    await req.rlsContext.prisma.$disconnect();
   }
 }
+
+export default withRLSMiddleware(handler);
