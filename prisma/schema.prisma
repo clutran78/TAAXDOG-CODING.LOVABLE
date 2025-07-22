@@ -1150,3 +1150,14 @@ enum GSTTreatment {
   INPUT_TAXED
   OUT_OF_SCOPE
 }
+
+// Password Reset Token Model
+model PasswordResetToken {
+  id      String   @id @default(uuid())
+  email   String
+  token   String   @unique
+  expires DateTime
+  
+  @@unique([email, token])
+  @@map("password_reset_tokens")
+}
