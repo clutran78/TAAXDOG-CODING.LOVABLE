@@ -1,4 +1,4 @@
-import { Pool, PoolConfig, QueryResult } from 'pg';
+import { Pool, PoolConfig, QueryResult, QueryResultRow } from 'pg';
 import { performance } from 'perf_hooks';
 
 interface DatabaseConfig {
@@ -136,7 +136,7 @@ class DatabaseConnection {
     }
   }
 
-  async query<T = any>(
+  async query<T extends QueryResultRow = any>(
     text: string,
     params?: any[],
     clientId: string = 'default'
@@ -250,6 +250,11 @@ class DatabaseConnection {
         }
       }
 
+      // Additional null check to satisfy TypeScript
+      if (!this.pool) {
+        throw new Error('Pool initialization failed');
+      }
+
       await this.pool.query('SELECT 1');
       const responseTime = performance.now() - start;
 
@@ -330,4 +335,5 @@ class DatabaseConnection {
 const db = new DatabaseConnection();
 
 export default db;
-export { DatabaseConnection, QueryLog };
+export { DatabaseConnection };
+export type { QueryLog };
