@@ -3,6 +3,16 @@ import { prisma } from "../../../lib/prisma";
 import bcrypt from "bcryptjs";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  console.log("\n========== REGISTRATION ENDPOINT START ==========");
+  console.log("Timestamp:", new Date().toISOString());
+  console.log("Method:", req.method);
+  console.log("Headers:", {
+    "content-type": req.headers["content-type"],
+    "user-agent": req.headers["user-agent"],
+    "origin": req.headers.origin,
+    "referer": req.headers.referer
+  });
+  
   // Test database connection first
   try {
     await prisma.$queryRaw`SELECT 1`;
@@ -154,5 +164,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       message: "Failed to create account. Please try again.",
       debug: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
+  } finally {
+    console.log("========== REGISTRATION ENDPOINT END ==========\n");
   }
 }

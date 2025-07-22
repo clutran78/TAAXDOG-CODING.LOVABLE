@@ -408,8 +408,10 @@ If you didn't request this code, please secure your account immediately.
 
 // Send verification email
 export async function sendVerificationEmail(email: string, name: string, token: string): Promise<void> {
-  const appUrl = process.env.APP_URL || 'https://taxreturnpro.com.au';
+  // Use NEXTAUTH_URL as primary, APP_URL as secondary fallback
+  const appUrl = process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://dev.taxreturnpro.com.au';
   const verificationUrl = `${appUrl}/auth/verify-email?token=${token}`;
+  console.log("[Email] Generating verification URL:", { appUrl, verificationUrl });
   const template = templates.verification(name, verificationUrl);
   
   const transporter = createTransporter();
@@ -422,8 +424,10 @@ export async function sendVerificationEmail(email: string, name: string, token: 
 
 // Send password reset email
 export async function sendPasswordResetEmail(email: string, name: string, token: string): Promise<void> {
-  const appUrl = process.env.APP_URL || 'https://taxreturnpro.com.au';
+  // Use NEXTAUTH_URL as primary, APP_URL as secondary fallback
+  const appUrl = process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://dev.taxreturnpro.com.au';
   const resetUrl = `${appUrl}/auth/reset-password?token=${token}`;
+  console.log("[Email] Generating password reset URL:", { appUrl, resetUrl });
   const template = templates.passwordReset(name, resetUrl);
   
   const transporter = createTransporter();

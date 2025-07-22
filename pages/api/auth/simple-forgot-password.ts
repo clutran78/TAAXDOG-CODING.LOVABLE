@@ -46,10 +46,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Try to send email
     try {
       await sendPasswordResetEmail(user.email, user.name, resetToken);
-      console.log("[ForgotPassword] Reset email sent to:", user.email);
-    } catch (emailError) {
-      console.error("[ForgotPassword] Failed to send email:", emailError);
-      // Continue anyway for testing
+      console.log("[ForgotPassword] ✅ Reset email sent successfully to:", user.email);
+    } catch (emailError: any) {
+      console.error("[ForgotPassword] ❌ Failed to send email:", {
+        error: emailError.message,
+        code: emailError.code,
+        response: emailError.response?.body,
+        to: user.email,
+        stack: emailError.stack
+      });
+      
+      // In production, we still return success to prevent email enumeration
+      // but log the full error for debugging
+      if (process.env.NODE_ENV === "development") {
+        return res.status(500).json({ 
+          message: "Failed to send reset email",
+          error: emailError.message 
+        });
+      }
     }
 
     const baseUrl = process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://taxreturnpro.com.au';
