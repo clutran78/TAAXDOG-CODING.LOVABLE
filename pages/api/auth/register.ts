@@ -3,12 +3,28 @@ import { prisma } from "../../../lib/prisma";
 import bcrypt from "bcryptjs";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Test database connection first
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    console.log("✅ Database connection successful");
+  } catch (dbError) {
+    console.error("❌ Database connection failed:", dbError);
+    return res.status(500).json({
+      error: "Database connection error",
+      message: "Unable to connect to database. Please try again later."
+    });
+  }
   console.log("📝 Registration request received:", {
     method: req.method,
     email: req.body?.email,
     hasPassword: !!req.body?.password,
     hasName: !!req.body?.name,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    headers: {
+      contentType: req.headers['content-type'],
+      origin: req.headers.origin,
+      referer: req.headers.referer
+    }
   });
 
   if (req.method !== "POST") {
@@ -17,6 +33,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const { email, password, name } = req.body;
+    
+    console.log("🔍 Registration data validation:", {
+      email: email || 'MISSING',
+      emailType: typeof email,
+      passwordLength: password?.length || 0,
+      name: name || 'MISSING',
+      nameType: typeof name,
+      bodyKeys: Object.keys(req.body || {})
+    });
 
     // Basic validation
     if (!email || !password || !name) {
@@ -34,21 +59,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Check if user already exists
+    console.log("🔍 Checking for existing user:", email.toLowerCase());
     const existingUser = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
     });
 
     if (existingUser) {
+      console.log("⚠️ User already exists:", {
+        email: existingUser.email,
+        id: existingUser.id,
+        emailVerified: !!existingUser.emailVerified
+      });
       return res.status(409).json({
         error: "User already exists",
         message: "An account with this email already exists",
       });
     }
+    
+    console.log("✅ Email is available for registration");
 
     // Hash password
+    console.log("🔐 Hashing password...");
     const hashedPassword = await bcrypt.hash(password, 12);
+    console.log("✅ Password hashed successfully");
 
     // Create user
+    console.log("📝 Creating user in database...");
     const user = await prisma.user.create({
       data: {
         email: email.toLowerCase(),
@@ -64,7 +100,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
 
-    console.log("✅ User registered successfully:", user.email);
+    console.log("✅ User registered successfully:", {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role
+    });
 
     res.status(201).json({
       message: "Account created successfully",

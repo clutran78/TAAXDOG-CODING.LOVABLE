@@ -83,7 +83,8 @@
     "env:prod": "node scripts/env-manager.js set production",
     "env:staging": "node scripts/env-manager.js set staging",
     "env:status": "node scripts/env-manager.js status",
-    "env:help": "node scripts/env-manager.js help"
+    "env:help": "node scripts/env-manager.js help",
+    "manage-accounts": "ts-node --project tsconfig.node.json scripts/manage-test-accounts.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.55.1",
