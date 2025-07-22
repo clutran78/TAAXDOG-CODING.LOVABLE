@@ -27,9 +27,10 @@ type EmailProvider = 'sendgrid' | 'smtp' | 'console';
 
 // Get the current email provider
 function getEmailProvider(): EmailProvider {
-  console.log('Email provider selection:', {
+  console.log('[Email] Provider selection check:', {
     EMAIL_PROVIDER: process.env.EMAIL_PROVIDER,
-    SENDGRID_API_KEY: process.env.SENDGRID_API_KEY ? 'Set' : 'Not set',
+    SENDGRID_API_KEY: process.env.SENDGRID_API_KEY ? `Set (${process.env.SENDGRID_API_KEY.substring(0, 10)}...)` : 'Not set',
+    EMAIL_FROM: process.env.EMAIL_FROM || 'Not set (using default)',
     NODE_ENV: process.env.NODE_ENV,
     SMTP_USER: process.env.SMTP_USER ? 'Set' : 'Not set',
     SMTP_PASS: process.env.SMTP_PASS ? 'Set' : 'Not set',
@@ -39,22 +40,22 @@ function getEmailProvider(): EmailProvider {
   if (process.env.EMAIL_PROVIDER === 'sendgrid' && process.env.SENDGRID_API_KEY) {
     // Validate SendGrid API key format
     if (process.env.SENDGRID_API_KEY.startsWith('SG.')) {
-      console.log('Using SendGrid provider');
+      console.log('[Email] ✅ Using SendGrid provider');
       return 'sendgrid';
     } else {
-      console.log('Invalid API key format, falling back to console');
+      console.log('[Email] ❌ Invalid SendGrid API key format, falling back to console');
       return 'console';
     }
   }
   
   // Fall back to SMTP in production if configured
   if (process.env.NODE_ENV === 'production' && process.env.SMTP_USER && process.env.SMTP_PASS) {
-    console.log('Using SMTP provider');
+    console.log('[Email] Using SMTP provider');
     return 'smtp';
   }
   
   // Default to console in development or if nothing is configured
-  console.log('Using console provider (no email will be sent)');
+  console.log('[Email] ⚠️ Using console provider (no email will be sent)');
   return 'console';
 }
 
@@ -123,25 +124,36 @@ function createSMTPTransporter() {
 
 // Universal email sending function
 export async function sendEmail(options: any) {
+  console.log('[Email] sendEmail called with:', {
+    to: options.to,
+    subject: options.subject,
+    hasHtml: !!options.html,
+    hasText: !!options.text
+  });
+  
   const provider = getEmailProvider();
   
   switch (provider) {
     case 'sendgrid':
+      console.log('[Email] Attempting to send via SendGrid...');
       return sendWithSendGrid(options);
       
     case 'smtp':
+      console.log('[Email] Attempting to send via SMTP...');
       const transporter = createSMTPTransporter();
       const result = await transporter.sendMail({
         from: `${emailConfig.from.name} <${emailConfig.from.email}>`,
         ...options,
       });
+      console.log('[Email] ✅ SMTP email sent:', result.messageId);
       return { ...result, provider: 'smtp' };
       
     case 'console':
     default:
-      console.log('📧 Email would be sent:', {
+      console.log('[Email] 📧 Console mode - Email would be sent:', {
         from: `${emailConfig.from.name} <${emailConfig.from.email}>`,
-        ...options,
+        to: options.to,
+        subject: options.subject,
       });
       return { 
         messageId: `dev-${Date.now()}`,
