@@ -16,19 +16,31 @@ export default function ForgotPasswordPage() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/auth/forgot-password", {
+      console.log("[ForgotPassword] Requesting reset for:", email);
+      
+      const response = await fetch("/api/auth/simple-forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
 
+      const data = await response.json();
+      console.log("[ForgotPassword] Response:", { status: response.status, data });
+
       if (response.ok) {
         setSubmitted(true);
-        setMessage("Password reset instructions have been sent to your email.");
+        setMessage(data.message || "Password reset instructions have been sent to your email.");
+        
+        // In development, show the reset URL
+        if (data.debug?.resetUrl) {
+          console.log("[ForgotPassword] Debug - Reset URL:", data.debug.resetUrl);
+          setMessage(message => message + "\n\nDEBUG: Check console for reset link.");
+        }
       } else {
-        setError("Unable to process request. Please try again.");
+        setError(data.message || "Unable to process request. Please try again.");
       }
-    } catch (err) {
+    } catch (err: any) {
+      console.error("[ForgotPassword] Error:", err);
       setError("An error occurred. Please try again.");
     } finally {
       setLoading(false);

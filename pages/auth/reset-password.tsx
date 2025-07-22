@@ -29,6 +29,8 @@ export default function ResetPasswordPage() {
     setLoading(true);
 
     try {
+      console.log("[ResetPassword] Submitting password reset with token:", token?.substring(0, 10) + "...");
+      
       const response = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -36,13 +38,21 @@ export default function ResetPasswordPage() {
       });
 
       const data = await response.json();
+      console.log("[ResetPassword] API Response:", { 
+        status: response.status, 
+        ok: response.ok, 
+        data 
+      });
 
-      if (response.ok) {
+      if (response.ok && data.success) {
+        console.log("[ResetPassword] ✅ Password reset successful!");
         setSuccess(true);
       } else {
-        setError(data.message || "Failed to reset password");
+        console.error("[ResetPassword] ❌ Password reset failed:", data);
+        setError(data.message || data.error || "Failed to reset password");
       }
-    } catch (err) {
+    } catch (err: any) {
+      console.error("[ResetPassword] ❌ Error during password reset:", err);
       setError("An error occurred. Please try again.");
     } finally {
       setLoading(false);

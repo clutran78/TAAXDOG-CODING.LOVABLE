@@ -442,12 +442,25 @@ export async function sendPasswordResetEmail(email: string, name: string, token:
   console.log("[Email] Generating password reset URL:", { appUrl, resetUrl });
   const template = templates.passwordReset(name, resetUrl);
   
-  const transporter = createTransporter();
-  await transporter.sendMail({
-    from: `${emailConfig.from.name} <${emailConfig.from.email}>`,
-    to: email,
-    ...template,
-  });
+  console.log("[Email] Attempting to send password reset email to:", email);
+  console.log("[Email] From address:", `${emailConfig.from.name} <${emailConfig.from.email}>`);
+  
+  try {
+    const transporter = createTransporter();
+    const result = await transporter.sendMail({
+      from: `${emailConfig.from.name} <${emailConfig.from.email}>`,
+      to: email,
+      ...template,
+    });
+    console.log("[Email] ✅ Password reset email sent successfully:", result);
+  } catch (error: any) {
+    console.error("[Email] ❌ Failed to send password reset email:", {
+      error: error.message,
+      code: error.code,
+      response: error.response
+    });
+    throw error;
+  }
 }
 
 // Send welcome email after verification
