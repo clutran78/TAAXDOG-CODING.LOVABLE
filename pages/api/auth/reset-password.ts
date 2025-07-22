@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { prisma } from "../../../lib/prisma";
 import bcrypt from "bcryptjs";
+import { verifyPasswordResetToken, resetPassword } from "../../../lib/auth";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   console.log(`[ResetPassword] Request received - Method: ${req.method}, Time: ${new Date().toISOString()}`);
@@ -27,44 +28,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    // Find user with valid reset token
-    const user = await prisma.user.findFirst({
-      where: {
-        passwordResetToken: token,
-        passwordResetExpires: {
-          gt: new Date(), // Token must not be expired
-        },
-      },
-    });
-
-    if (!user) {
-      console.log(`[ResetPassword] No user found with valid token: ${token?.substring(0, 10)}...`);
+    // Use the new password reset token verification
+    console.log(`[ResetPassword] Verifying token...`);
+    const resetToken = await verifyPasswordResetToken(token);
+    
+    if (!resetToken) {
+      console.log(`[ResetPassword] Invalid or expired token: ${token?.substring(0, 10)}...`);
       return res.status(400).json({
         error: "Invalid token",
         message: "Password reset token is invalid or has expired",
       });
     }
     
-    console.log(`[ResetPassword] Found user for password reset: ${user.email}`);
+    console.log(`[ResetPassword] Token valid for email: ${resetToken.email}`);
 
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(password, 12);
-
-    // Update user password and clear reset token
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        password: hashedPassword,
-        passwordResetToken: null,
-        passwordResetExpires: null,
-      },
-    });
-
-    console.log("✅ Password reset successful for user:", user.email);
-
-    return res.status(200).json({
-      message: "Password reset successful",
-    });
+    // Use the resetPassword function from auth.ts
+    try {
+      await resetPassword(token, password);
+      console.log(`[ResetPassword] ✅ Password reset successful for: ${resetToken.email}`);
+      
+      return res.status(200).json({
+        message: "Password reset successful",
+        success: true
+      });
+    } catch (error: any) {
+      console.error(`[ResetPassword] Failed to reset password:`, error);
+      return res.status(500).json({
+        error: "Failed to reset password",
+        message: error.message || "Failed to reset password. Please try again.",
+      });
+    }
 
   } catch (error: any) {
     console.error("❌ Reset password error:", error);
