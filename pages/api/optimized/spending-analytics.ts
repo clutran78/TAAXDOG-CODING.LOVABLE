@@ -1,28 +1,27 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
-import { prisma } from '../../../lib/db/optimizedPrisma';
+import { prisma } from '../../../lib/prisma';
 import { getSpendingAnalytics } from '../../../lib/services/queryOptimizer';
 import { getCacheManager, CacheKeys, CacheTTL } from '../../../lib/services/cache/cacheManager';
 import { ViewQueries } from '../../../lib/services/viewQueries';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
 
 /**
  * Optimized spending analytics endpoint
  * Demonstrates use of materialized views and aggregated queries
  */
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return apiResponse.methodNotAllowed(res, { error: 'Method not allowed' });
   }
 
   try {
     // Get session
     const session = await getServerSession(req, res, authOptions);
     if (!session?.user?.id) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return apiResponse.unauthorized(res, { error: 'Unauthorized' });
     }
 
     const userId = session.user.id;
@@ -30,14 +29,14 @@ export default async function handler(
     const viewQueries = new ViewQueries(prisma);
 
     // Parse date range
-    const period = req.query.period as string || 'month'; // month, quarter, year
+    const period = (req.query.period as string) || 'month'; // month, quarter, year
     const customStartDate = req.query.startDate ? new Date(req.query.startDate as string) : null;
     const customEndDate = req.query.endDate ? new Date(req.query.endDate as string) : null;
 
     // Calculate date range based on period
     let startDate: Date;
     let endDate = new Date();
-    
+
     if (customStartDate && customEndDate) {
       startDate = customStartDate;
       endDate = customEndDate;
@@ -65,32 +64,27 @@ export default async function handler(
       CacheTTL.LONG, // Longer cache for analytics
       async () => {
         // Get all analytics data in parallel
-        const [
-          spendingData,
-          monthlyTrends,
-          categoryTrends,
-          taxSummary,
-          comparisons
-        ] = await Promise.all([
-          // Get aggregated spending data
-          getSpendingAnalytics(prisma, userId, startDate, endDate),
-          
-          // Get monthly trends from view
-          viewQueries.getMonthlySpending(userId, startDate, endDate),
-          
-          // Get category trends for top categories
-          Promise.all(
-            ['Food', 'Transport', 'Entertainment', 'Shopping', 'Bills'].map(category =>
-              viewQueries.getCategoryTrends(userId, category, 6)
-            )
-          ),
-          
-          // Get tax summary for current year
-          viewQueries.getTaxCategorySummary(userId, endDate.getFullYear()),
-          
-          // Get comparison data (previous period)
-          getComparisonData(startDate, endDate, userId),
-        ]);
+        const [spendingData, monthlyTrends, categoryTrends, taxSummary, comparisons] =
+          await Promise.all([
+            // Get aggregated spending data
+            getSpendingAnalytics(prisma, userId, startDate, endDate),
+
+            // Get monthly trends from view
+            viewQueries.getMonthlySpending(userId, startDate, endDate),
+
+            // Get category trends for top categories
+            Promise.all(
+              ['Food', 'Transport', 'Entertainment', 'Shopping', 'Bills'].map((category) =>
+                viewQueries.getCategoryTrends(userId, category, 6),
+              ),
+            ),
+
+            // Get tax summary for current year
+            viewQueries.getTaxCategorySummary(userId, endDate.getFullYear()),
+
+            // Get comparison data (previous period)
+            getComparisonData(startDate, endDate, userId),
+          ]);
 
         // Calculate insights and predictions
         const insights = generateInsights(spendingData, monthlyTrends);
@@ -99,8 +93,14 @@ export default async function handler(
         return {
           period: { startDate, endDate },
           summary: {
-            totalSpending: spendingData.categorySpending.reduce((sum, cat) => sum + (cat._sum.amount || 0), 0),
-            totalTransactions: spendingData.categorySpending.reduce((sum, cat) => sum + cat._count, 0),
+            totalSpending: spendingData.categorySpending.reduce(
+              (sum, cat) => sum + (cat._sum.amount || 0),
+              0,
+            ),
+            totalTransactions: spendingData.categorySpending.reduce(
+              (sum, cat) => sum + cat._count,
+              0,
+            ),
             totalDeductible: spendingData.deductibleTotal._sum.amount || 0,
             deductibleCount: spendingData.deductibleTotal._count || 0,
           },
@@ -108,28 +108,30 @@ export default async function handler(
           monthlyTrends: spendingData.monthlyTrends,
           goalProgress: spendingData.goalProgress,
           taxSummary,
-          categoryTrends: categoryTrends.reduce((acc, trends, idx) => {
-            acc[['Food', 'Transport', 'Entertainment', 'Shopping', 'Bills'][idx]] = trends;
-            return acc;
-          }, {} as Record<string, any>),
+          categoryTrends: categoryTrends.reduce(
+            (acc, trends, idx) => {
+              acc[['Food', 'Transport', 'Entertainment', 'Shopping', 'Bills'][idx]] = trends;
+              return acc;
+            },
+            {} as Record<string, any>,
+          ),
           comparisons,
           insights,
           predictions,
         };
-      }
+      },
     );
 
     // Set appropriate cache headers
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
-    
-    return res.status(200).json({
+
+    return apiResponse.success(res, {
       success: true,
       data: analytics,
     });
-
   } catch (error) {
-    console.error('Analytics error:', error);
-    return res.status(500).json({ 
+    logger.error('Analytics error:', error);
+    return apiResponse.internalError(res, {
       error: 'Failed to generate analytics',
       message: error instanceof Error ? error.message : 'Unknown error',
     });
@@ -202,7 +204,7 @@ function generateInsights(spendingData: any, monthlyTrends: any[]) {
     const latest = monthlyTrends[0];
     const previous = monthlyTrends[1];
     const change = ((latest.totalAmount - previous.totalAmount) / previous.totalAmount) * 100;
-    
+
     if (Math.abs(change) > 20) {
       insights.push({
         type: 'spending_trend',
@@ -213,10 +215,10 @@ function generateInsights(spendingData: any, monthlyTrends: any[]) {
   }
 
   // Goal progress alerts
-  const goalsAtRisk = spendingData.goalProgress.filter((g: any) => 
-    g.progressPercentage < 50 && g.daysRemaining < 30
+  const goalsAtRisk = spendingData.goalProgress.filter(
+    (g: any) => g.progressPercentage < 50 && g.daysRemaining < 30,
   );
-  
+
   if (goalsAtRisk.length > 0) {
     insights.push({
       type: 'goals_at_risk',
@@ -235,7 +237,7 @@ function generatePredictions(monthlyTrends: any[], categoryTrends: any[]) {
   }
 
   // Simple linear regression for next month prediction
-  const amounts = monthlyTrends.map(t => t.totalAmount).reverse();
+  const amounts = monthlyTrends.map((t) => t.totalAmount).reverse();
   const n = amounts.length;
   const sumX = (n * (n + 1)) / 2;
   const sumY = amounts.reduce((a, b) => a + b, 0);

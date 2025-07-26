@@ -4,17 +4,19 @@ import { authOptions } from '../auth/[...nextauth]';
 import { getStripe } from '@/lib/stripe/config';
 import { prisma } from '@/lib/prisma';
 import { subscriptionManager } from '@/lib/stripe/subscription-manager';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return apiResponse.methodNotAllowed(res, { error: 'Method not allowed' });
   }
 
   try {
     // Check authentication
     const session = await getServerSession(req, res, authOptions);
     if (!session || !session.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return apiResponse.unauthorized(res, { error: 'Unauthorized' });
     }
 
     // Get user's subscription
@@ -23,11 +25,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     if (!subscription || !subscription.stripeCustomerId) {
-      return res.status(404).json({ error: 'No active subscription found' });
+      return apiResponse.notFound(res, { error: 'No active subscription found' });
     }
 
     const { stripe } = getStripe();
-    
+
     // Get query parameters
     const { limit = 10, starting_after } = req.query;
 
@@ -47,7 +49,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           try {
             await subscriptionManager.generateTaxInvoice(invoice.id);
           } catch (error) {
-            console.error('Failed to generate tax invoice:', error);
+            logger.error('Failed to generate tax invoice:', error);
           }
         }
 
@@ -72,10 +74,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           invoice_pdf: invoice.invoice_pdf,
           gst: {
             amount: gstAmount,
-            rate: 0.10,
+            rate: 0.1,
             amountExGST: amountExGST,
           },
-          lines: invoice.lines.data.map(line => ({
+          lines: invoice.lines.data.map((line) => ({
             description: line.description,
             amount: line.amount,
             period: {
@@ -84,22 +86,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             },
           })),
         };
-      })
+      }),
     );
 
     // Return invoices
-    res.status(200).json({
+    apiResponse.success(res, {
       success: true,
       invoices: formattedInvoices,
       has_more: invoices.has_more,
     });
-
   } catch (error: any) {
-    console.error('Get invoices error:', error);
-    
-    res.status(500).json({ 
-      error: 'Failed to retrieve invoices', 
-      message: error.message 
+    logger.error('Get invoices error:', error);
+
+    apiResponse.internalError(res, {
+      error: 'Failed to retrieve invoices',
+      message: error.message,
     });
   }
 }

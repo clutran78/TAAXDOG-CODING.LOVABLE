@@ -1,30 +1,36 @@
-import type { NextApiRequest, NextApiResponse } from "next";
-import { getServerSession } from "next-auth";
-import { authOptions, logAuthEvent } from "../../../lib/auth";
-import { prisma } from "../../../lib/prisma";
-import { generateTOTPSecret, verifyTOTP, generateSecureToken } from "../../../lib/security/encryption";
-import { sendTwoFactorCode } from "../../../lib/email";
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { getServerSession } from 'next-auth';
+import { authOptions, logAuthEvent } from '../../../lib/auth';
+import { prisma } from '../../../lib/prisma';
+import { logger } from '@/lib/logger';
+import {
+  generateTOTPSecret,
+  verifyTOTP,
+  generateSecureToken,
+} from '../../../lib/security/encryption';
+import { sendTwoFactorCode } from '../../../lib/email';
 import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
+import { apiResponse } from '@/lib/api/response';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
-  
+
   if (!session || !session.user) {
-    return res.status(401).json({ message: "Unauthorized" });
+    return apiResponse.unauthorized(res, { message: 'Unauthorized' });
   }
 
   switch (req.method) {
-    case "GET":
+    case 'GET':
       return getTwoFactorStatus(req, res, session.user.id);
-    case "POST":
+    case 'POST':
       return enableTwoFactor(req, res, session.user.id);
-    case "PUT":
+    case 'PUT':
       return verifyTwoFactor(req, res, session.user.id);
-    case "DELETE":
+    case 'DELETE':
       return disableTwoFactor(req, res, session.user.id);
     default:
-      return res.status(405).json({ message: "Method not allowed" });
+      return apiResponse.methodNotAllowed(res, { message: 'Method not allowed' });
   }
 }
 
@@ -40,16 +46,16 @@ async function getTwoFactorStatus(req: NextApiRequest, res: NextApiResponse, use
     });
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return apiResponse.notFound(res, { message: 'User not found' });
     }
 
-    res.status(200).json({
+    apiResponse.success(res, {
       enabled: user.twoFactorEnabled,
       methods: user.twoFactorEnabled ? ['authenticator', 'email'] : [],
     });
   } catch (error) {
-    console.error("Get 2FA status error:", error);
-    res.status(500).json({ message: "Failed to get 2FA status" });
+    logger.error('Get 2FA status error:', error);
+    apiResponse.internalError(res, { message: 'Failed to get 2FA status' });
   }
 }
 
@@ -69,12 +75,12 @@ async function enableTwoFactor(req: NextApiRequest, res: NextApiResponse, userId
     });
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return apiResponse.notFound(res, { message: 'User not found' });
     }
 
     if (user.twoFactorEnabled) {
-      return res.status(400).json({ 
-        message: "Two-factor authentication is already enabled",
+      return apiResponse.error(res, {
+        message: 'Two-factor authentication is already enabled',
         enabled: true,
       });
     }
@@ -98,17 +104,17 @@ async function enableTwoFactor(req: NextApiRequest, res: NextApiResponse, userId
         },
       });
 
-      res.status(200).json({
+      apiResponse.success(res, {
         method: 'authenticator',
         secret: secret.base32,
         qrCode: qrCodeUrl,
         manualEntryKey: secret.base32.match(/.{1,4}/g)?.join(' '), // Format for manual entry
-        message: "Scan the QR code with your authenticator app and enter the verification code",
+        message: 'Scan the QR code with your authenticator app and enter the verification code',
       });
     } else if (method === 'email') {
       // Generate email verification code
       const code = Math.floor(100000 + Math.random() * 900000).toString();
-      
+
       // Store code temporarily (expires in 10 minutes)
       await prisma.verificationToken.create({
         data: {
@@ -121,25 +127,25 @@ async function enableTwoFactor(req: NextApiRequest, res: NextApiResponse, userId
       // Send email
       await sendTwoFactorCode(user.email, user.name, code);
 
-      res.status(200).json({
+      apiResponse.success(res, {
         method: 'email',
-        message: "Verification code sent to your email",
+        message: 'Verification code sent to your email',
       });
     } else {
-      return res.status(400).json({ message: "Invalid 2FA method" });
+      return apiResponse.error(res, { message: 'Invalid 2FA method' });
     }
 
     // Log 2FA setup attempt
     await logAuthEvent({
-      event: "TWO_FACTOR_ENABLED",
+      event: 'TWO_FACTOR_ENABLED',
       userId,
       success: true,
       metadata: { method, step: 'initiated' },
       req,
     });
   } catch (error) {
-    console.error("Enable 2FA error:", error);
-    res.status(500).json({ message: "Failed to enable 2FA" });
+    logger.error('Enable 2FA error:', error);
+    apiResponse.internalError(res, { message: 'Failed to enable 2FA' });
   }
 }
 
@@ -149,7 +155,7 @@ async function verifyTwoFactor(req: NextApiRequest, res: NextApiResponse, userId
     const { code, method = 'authenticator' } = req.body;
 
     if (!code) {
-      return res.status(400).json({ message: "Verification code is required" });
+      return apiResponse.error(res, { message: 'Verification code is required' });
     }
 
     const user = await prisma.user.findUnique({
@@ -162,14 +168,14 @@ async function verifyTwoFactor(req: NextApiRequest, res: NextApiResponse, userId
     });
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return apiResponse.notFound(res, { message: 'User not found' });
     }
 
     let isValid = false;
 
     if (method === 'authenticator') {
       if (!user.twoFactorSecret) {
-        return res.status(400).json({ message: "2FA setup not initiated" });
+        return apiResponse.error(res, { message: '2FA setup not initiated' });
       }
 
       // Verify TOTP code
@@ -193,7 +199,7 @@ async function verifyTwoFactor(req: NextApiRequest, res: NextApiResponse, userId
         isValid = true;
         // Delete used token
         await prisma.verificationToken.delete({
-          where: { 
+          where: {
             identifier_token: {
               identifier: user.email,
               token: `2fa_${code}`,
@@ -205,13 +211,13 @@ async function verifyTwoFactor(req: NextApiRequest, res: NextApiResponse, userId
 
     if (!isValid) {
       await logAuthEvent({
-        event: "TWO_FACTOR_FAILED",
+        event: 'TWO_FACTOR_FAILED',
         userId,
         success: false,
-        metadata: { method, reason: "Invalid code" },
+        metadata: { method, reason: 'Invalid code' },
         req,
       });
-      return res.status(400).json({ message: "Invalid verification code" });
+      return apiResponse.error(res, { message: 'Invalid verification code' });
     }
 
     // Enable 2FA if not already enabled
@@ -222,23 +228,21 @@ async function verifyTwoFactor(req: NextApiRequest, res: NextApiResponse, userId
       });
 
       // Generate backup codes
-      const backupCodes = Array.from({ length: 8 }, () => 
-        generateSecureToken(4).toUpperCase()
-      );
+      const backupCodes = Array.from({ length: 8 }, () => generateSecureToken(4).toUpperCase());
 
       // Store backup codes (encrypted in production)
       // For now, return them to the user
-      
+
       await logAuthEvent({
-        event: "TWO_FACTOR_ENABLED",
+        event: 'TWO_FACTOR_ENABLED',
         userId,
         success: true,
         metadata: { method, step: 'completed' },
         req,
       });
 
-      return res.status(200).json({
-        message: "Two-factor authentication enabled successfully",
+      return apiResponse.success(res, {
+        message: 'Two-factor authentication enabled successfully',
         enabled: true,
         backupCodes,
         warning: "Save these backup codes in a secure place. You won't be able to see them again.",
@@ -247,20 +251,20 @@ async function verifyTwoFactor(req: NextApiRequest, res: NextApiResponse, userId
 
     // If already enabled, this is just a verification
     await logAuthEvent({
-      event: "TWO_FACTOR_SUCCESS",
+      event: 'TWO_FACTOR_SUCCESS',
       userId,
       success: true,
       metadata: { method },
       req,
     });
 
-    res.status(200).json({
-      message: "Verification successful",
+    apiResponse.success(res, {
+      message: 'Verification successful',
       verified: true,
     });
   } catch (error) {
-    console.error("Verify 2FA error:", error);
-    res.status(500).json({ message: "Failed to verify 2FA code" });
+    logger.error('Verify 2FA error:', error);
+    apiResponse.internalError(res, { message: 'Failed to verify 2FA code' });
   }
 }
 
@@ -270,7 +274,7 @@ async function disableTwoFactor(req: NextApiRequest, res: NextApiResponse, userI
     const { password } = req.body;
 
     if (!password) {
-      return res.status(400).json({ message: "Password is required to disable 2FA" });
+      return apiResponse.error(res, { message: 'Password is required to disable 2FA' });
     }
 
     const user = await prisma.user.findUnique({
@@ -282,29 +286,29 @@ async function disableTwoFactor(req: NextApiRequest, res: NextApiResponse, userI
     });
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return apiResponse.notFound(res, { message: 'User not found' });
     }
 
     if (!user.twoFactorEnabled) {
-      return res.status(400).json({ 
-        message: "Two-factor authentication is not enabled",
+      return apiResponse.error(res, {
+        message: 'Two-factor authentication is not enabled',
         enabled: false,
       });
     }
 
     // Verify password
-    const bcrypt = await import("bcryptjs");
+    const bcrypt = await import('bcryptjs');
     const isPasswordValid = await bcrypt.compare(password, user.password!);
 
     if (!isPasswordValid) {
       await logAuthEvent({
-        event: "TWO_FACTOR_DISABLED",
+        event: 'TWO_FACTOR_DISABLED',
         userId,
         success: false,
-        metadata: { reason: "Invalid password" },
+        metadata: { reason: 'Invalid password' },
         req,
       });
-      return res.status(401).json({ message: "Invalid password" });
+      return apiResponse.unauthorized(res, { message: 'Invalid password' });
     }
 
     // Disable 2FA
@@ -317,33 +321,33 @@ async function disableTwoFactor(req: NextApiRequest, res: NextApiResponse, userI
     });
 
     await logAuthEvent({
-      event: "TWO_FACTOR_DISABLED",
+      event: 'TWO_FACTOR_DISABLED',
       userId,
       success: true,
       req,
     });
 
-    res.status(200).json({
-      message: "Two-factor authentication disabled successfully",
+    apiResponse.success(res, {
+      message: 'Two-factor authentication disabled successfully',
       enabled: false,
     });
   } catch (error) {
-    console.error("Disable 2FA error:", error);
-    res.status(500).json({ message: "Failed to disable 2FA" });
+    logger.error('Disable 2FA error:', error);
+    apiResponse.internalError(res, { message: 'Failed to disable 2FA' });
   }
 }
 
 // Challenge endpoint for login with 2FA
 export async function challengeTwoFactor(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ message: "Method not allowed" });
+  if (req.method !== 'POST') {
+    return apiResponse.methodNotAllowed(res, { message: 'Method not allowed' });
   }
 
   try {
     const { email, code, method = 'authenticator' } = req.body;
 
     if (!email || !code) {
-      return res.status(400).json({ message: "Email and code are required" });
+      return apiResponse.error(res, { message: 'Email and code are required' });
     }
 
     const user = await prisma.user.findUnique({
@@ -356,7 +360,7 @@ export async function challengeTwoFactor(req: NextApiRequest, res: NextApiRespon
     });
 
     if (!user || !user.twoFactorEnabled) {
-      return res.status(400).json({ message: "Invalid request" });
+      return apiResponse.error(res, { message: 'Invalid request' });
     }
 
     let isValid = false;
@@ -373,28 +377,28 @@ export async function challengeTwoFactor(req: NextApiRequest, res: NextApiRespon
 
     if (!isValid) {
       await logAuthEvent({
-        event: "TWO_FACTOR_FAILED",
+        event: 'TWO_FACTOR_FAILED',
         userId: user.id,
         success: false,
         req,
       });
-      return res.status(400).json({ message: "Invalid verification code" });
+      return apiResponse.error(res, { message: 'Invalid verification code' });
     }
 
     await logAuthEvent({
-      event: "TWO_FACTOR_SUCCESS",
+      event: 'TWO_FACTOR_SUCCESS',
       userId: user.id,
       success: true,
       req,
     });
 
     // Return success - the actual login is handled by NextAuth
-    res.status(200).json({
+    apiResponse.success(res, {
       success: true,
-      message: "2FA verification successful",
+      message: '2FA verification successful',
     });
   } catch (error) {
-    console.error("2FA challenge error:", error);
-    res.status(500).json({ message: "Failed to verify 2FA" });
+    logger.error('2FA challenge error:', error);
+    apiResponse.internalError(res, { message: 'Failed to verify 2FA' });
   }
 }

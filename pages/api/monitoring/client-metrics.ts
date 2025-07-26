@@ -2,28 +2,22 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
 import winston from 'winston';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
 
 // Configure logger for client metrics
 const clientLogger = winston.createLogger({
   level: 'info',
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json()
-  ),
-  transports: [
-    new winston.transports.File({ filename: 'logs/client-metrics.log' })
-  ]
+  format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
+  transports: [new winston.transports.File({ filename: 'logs/client-metrics.log' })],
 });
 
 // Store client metrics in memory (in production, use a database)
 const clientMetricsStore: any[] = [];
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return apiResponse.methodNotAllowed(res, { error: 'Method not allowed' });
   }
 
   try {
@@ -37,12 +31,12 @@ export default async function handler(
       metrics,
       userAgent,
       timestamp,
-      serverTimestamp: new Date()
+      serverTimestamp: new Date(),
     };
 
     // Store metrics
     clientMetricsStore.push(metricsData);
-    
+
     // Keep only last 1000 entries
     if (clientMetricsStore.length > 1000) {
       clientMetricsStore.shift();
@@ -60,10 +54,10 @@ export default async function handler(
       clientLogger.warn('Poor LCP detected', metricsData);
     }
 
-    return res.status(200).json({ success: true });
+    return apiResponse.success(res, { success: true });
   } catch (error) {
-    console.error('Error storing client metrics:', error);
-    return res.status(500).json({ error: 'Failed to store metrics' });
+    logger.error('Error storing client metrics:', error);
+    return apiResponse.internalError(res, { error: 'Failed to store metrics' });
   }
 }
 

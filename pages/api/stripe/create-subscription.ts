@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { subscriptionManager } from '@/lib/stripe/subscription-manager';
 import { z } from 'zod';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
 
 // Request validation schema
 const createSubscriptionSchema = z.object({
@@ -15,22 +17,22 @@ const createSubscriptionSchema = z.object({
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return apiResponse.methodNotAllowed(res, { error: 'Method not allowed' });
   }
 
   try {
     // Check authentication
     const session = await getServerSession(req, res, authOptions);
     if (!session || !session.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return apiResponse.unauthorized(res, { error: 'Unauthorized' });
     }
 
     // Validate request body
     const validation = createSubscriptionSchema.safeParse(req.body);
     if (!validation.success) {
-      return res.status(400).json({ 
-        error: 'Invalid request data', 
-        details: validation.error.errors 
+      return apiResponse.error(res, {
+        error: 'Invalid request data',
+        details: validation.error.errors,
       });
     }
 
@@ -51,7 +53,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     // Return subscription details
-    res.status(200).json({
+    apiResponse.success(res, {
       success: true,
       subscription: {
         id: result.subscription.id,
@@ -62,20 +64,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
       clientSecret: result.clientSecret,
     });
-
   } catch (error: any) {
-    console.error('Create subscription error:', error);
-    
+    logger.error('Create subscription error:', error);
+
     if (error.type === 'StripeCardError') {
-      return res.status(400).json({ 
-        error: 'Payment failed', 
-        message: error.message 
+      return apiResponse.error(res, {
+        error: 'Payment failed',
+        message: error.message,
       });
     }
-    
-    res.status(500).json({ 
-      error: 'Failed to create subscription', 
-      message: error.message 
+
+    apiResponse.internalError(res, {
+      error: 'Failed to create subscription',
+      message: error.message,
     });
   }
 }

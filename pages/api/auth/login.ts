@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { prisma } from '../../../lib/db/monitoredPrisma';
+import { prisma } from '../../../lib/prisma';
 import { withApiMonitoring } from '../../../lib/monitoring';
 import {
   verifyPassword,
@@ -11,34 +11,29 @@ import {
   calculateLockoutDuration,
   generateSessionToken,
 } from '../../../lib/auth/auth-utils';
-import { loginSchema, validateInput } from '../../../lib/auth/validation';
-import { authRateLimiter } from '../../../lib/auth/rate-limiter';
 import { AuthEvent } from '@prisma/client';
+import { withRateLimit, RATE_LIMIT_CONFIGS } from '../../../lib/security/rateLimiter';
+import { addSecurityHeaders } from '../../../lib/security/sanitizer';
+import {
+  withValidation,
+  validateMethod,
+  composeMiddleware,
+} from '../../../lib/middleware/validation';
+import { authSchemas } from '../../../lib/validation/api-schemas';
+import { logger } from '../../../lib/utils/logger';
+import { apiResponse } from '../../../lib/api/response';
 
-async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Only allow POST requests
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  // Apply rate limiting
-  const rateLimitOk = await authRateLimiter(req, res);
-  if (!rateLimitOk) return;
+async function loginHandler(req: NextApiRequest, res: NextApiResponse) {
+  // Add security headers
+  addSecurityHeaders(res);
 
   const startTime = Date.now();
   const clientIp = getClientIP(req);
+  const requestId = (req as any).requestId;
 
   try {
-    // Validate input
-    const validation = validateInput(loginSchema, req.body);
-    if (!validation.success) {
-      return res.status(400).json({
-        error: 'Validation failed',
-        errors: validation.errors,
-      });
-    }
-
-    const { email, password } = validation.data;
+    // Input is already validated by middleware
+    const { email, password } = req.body;
 
     // Find user
     const user = await prisma.user.findUnique({
@@ -58,11 +53,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     if (!user || !user.password) {
       // Don't reveal if user exists
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Prevent timing attacks
-      return res.status(401).json({
-        error: 'Authentication failed',
-        message: 'Invalid email or password',
-      });
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Prevent timing attacks
+      logger.warn('Login attempt for non-existent user', { email, clientIp, requestId });
+      return apiResponse.unauthorized(res, 'Invalid email or password');
     }
 
     // Check if account is locked
@@ -78,30 +71,36 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         },
       });
 
-      return res.status(403).json({
-        error: 'Account locked',
-        message: 'Your account has been temporarily locked due to multiple failed login attempts. Please try again later.',
-        lockedUntil: user.lockedUntil,
-      });
+      const remainingTime = user.lockedUntil
+        ? Math.ceil((user.lockedUntil.getTime() - Date.now()) / 1000 / 60)
+        : 0;
+
+      logger.warn('Login attempt on locked account', { userId: user.id, clientIp, requestId });
+      return apiResponse.forbidden(
+        res,
+        `Too many failed login attempts. Account locked for ${remainingTime} minutes.`
+      );
     }
 
     // Verify password
-    const passwordValid = await verifyPassword(password, user.password);
+    const isValidPassword = await verifyPassword(password, user.password);
 
-    if (!passwordValid) {
-      // Increment failed login attempts
-      const failedAttempts = user.failedLoginAttempts + 1;
-      const lockoutUntil = calculateLockoutDuration(failedAttempts);
+    if (!isValidPassword) {
+      // Increment failed attempts
+      const failedAttempts = (user.failedLoginAttempts || 0) + 1;
+      const updateData: any = { failedLoginAttempts: failedAttempts };
+
+      // Lock account after 5 failed attempts
+      if (failedAttempts >= 5) {
+        const lockoutDuration = calculateLockoutDuration(failedAttempts);
+        updateData.lockedUntil = new Date(Date.now() + lockoutDuration);
+      }
 
       await prisma.user.update({
         where: { id: user.id },
-        data: {
-          failedLoginAttempts: failedAttempts,
-          lockedUntil: lockoutUntil,
-        },
+        data: updateData,
       });
 
-      // Log failed attempt
       await prisma.auditLog.create({
         data: {
           event: AuthEvent.LOGIN,
@@ -109,71 +108,83 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           ipAddress: clientIp,
           userAgent: req.headers['user-agent'] || '',
           success: false,
-          metadata: {
-            reason: 'Invalid password',
-            attempts: failedAttempts,
-          },
+          metadata: { reason: 'Invalid password', failedAttempts },
         },
       });
 
-      return res.status(401).json({
-        error: 'Authentication failed',
-        message: 'Invalid email or password',
-        remainingAttempts: lockoutUntil ? 0 : Math.max(0, 5 - failedAttempts),
+      logger.warn('Failed login attempt', { userId: user.id, failedAttempts, clientIp, requestId });
+      return apiResponse.unauthorized(res, 'Invalid email or password');
+    }
+
+    // Check if email is verified
+    if (!user.emailVerified) {
+      await prisma.auditLog.create({
+        data: {
+          event: AuthEvent.LOGIN,
+          userId: user.id,
+          ipAddress: clientIp,
+          userAgent: req.headers['user-agent'] || '',
+          success: false,
+          metadata: { reason: 'Email not verified' },
+        },
+      });
+
+      logger.warn('Login attempt with unverified email', { userId: user.id, clientIp, requestId });
+      return apiResponse.forbidden(res, 'Please verify your email before logging in');
+    }
+
+    // Check if 2FA is enabled
+    if (user.twoFactorEnabled) {
+      // Generate temporary token for 2FA
+      const tempToken = generateSessionToken();
+
+      // Store temp token in cache or session
+      await prisma.session.create({
+        data: {
+          sessionToken: tempToken,
+          userId: user.id,
+          expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
+          ipAddress: clientIp,
+          userAgent: req.headers['user-agent'] || '',
+          metadata: { type: '2fa_pending' },
+        },
+      });
+
+      return apiResponse.success(res, {
+        requiresTwoFactor: true,
+        tempToken,
+        message: 'Please enter your 2FA code',
       });
     }
 
-    // Check if email is verified (only if email provider is configured)
-    const { shouldRequireEmailVerification } = await import('../../../lib/auth/email-config');
-    if (shouldRequireEmailVerification() && !user.emailVerified) {
-      return res.status(403).json({
-        error: 'Email not verified',
-        message: 'Please verify your email address before logging in.',
-        requiresVerification: true,
-      });
-    }
-
-    // Reset failed login attempts on successful login
+    // Reset failed attempts on successful login
     await prisma.user.update({
       where: { id: user.id },
       data: {
         failedLoginAttempts: 0,
         lockedUntil: null,
         lastLoginAt: new Date(),
-        lastLoginIp: clientIp,
       },
     });
 
-    // Generate session token
-    const sessionToken = generateSessionToken();
-
-    // Create session
-    const session = await prisma.session.create({
-      data: {
-        userId: user.id,
-        sessionToken,
-        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-      },
-    });
-
-    // Generate JWT token
+    // Generate JWT
     const token = generateJWT({
       userId: user.id,
       email: user.email,
       role: user.role,
-      sessionId: session.id,
     });
 
-    // Set auth cookie
-    const isDevelopment = process.env.NODE_ENV !== 'production';
-    res.setHeader('Set-Cookie', [
-      `auth-token=${token}; ${Object.entries(getAuthCookieOptions(isDevelopment))
-        .map(([key, value]) => `${key}=${value}`)
-        .join('; ')}`,
-      `session-token=${sessionToken}; ${Object.entries(getAuthCookieOptions(isDevelopment))
-        .map(([key, value]) => `${key}=${value}`)
-        .join('; ')}`,
-    ]);
+    // Create session
+    const sessionToken = generateSessionToken();
+    await prisma.session.create({
+      data: {
+        sessionToken,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+        ipAddress: clientIp,
+        userAgent: req.headers['user-agent'] || '',
+      },
+    });
 
     // Log successful login
     await prisma.auditLog.create({
@@ -183,46 +194,59 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         ipAddress: clientIp,
         userAgent: req.headers['user-agent'] || '',
         success: true,
-        metadata: {
-          sessionId: session.id,
-          twoFactorRequired: user.twoFactorEnabled,
-        },
+        metadata: { duration: Date.now() - startTime },
       },
     });
 
-    const duration = Date.now() - startTime;
-    console.log('[Login] User logged in successfully:', {
+    // Set cookies
+    const cookieOptions = getAuthCookieOptions();
+    res.setHeader('Set-Cookie', [
+      `authToken=${token}; ${Object.entries(cookieOptions)
+        .map(([key, value]) => `${key}=${value}`)
+        .join('; ')}`,
+      `sessionToken=${sessionToken}; ${Object.entries(cookieOptions)
+        .map(([key, value]) => `${key}=${value}`)
+        .join('; ')}`,
+    ]);
+
+    logger.info('Successful login', {
       userId: user.id,
-      email: user.email,
-      duration: `${duration}ms`,
-      ip: clientIp,
+      duration: Date.now() - startTime,
+      requestId,
     });
 
-    // Return success response
-    return res.status(200).json({
-      message: 'Login successful',
+    return apiResponse.success(res, {
       user: sanitizeUser(user),
-      requiresTwoFactor: user.twoFactorEnabled,
+      token,
+    });
+  } catch (error) {
+    logger.error('Login error', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      clientIp,
+      requestId,
     });
 
-  } catch (error: any) {
-    const duration = Date.now() - startTime;
-
-    // Log error
-    console.error('[Login] Login failed:', {
-      error: error.message,
-      code: error.code,
-      duration: `${duration}ms`,
-      ip: clientIp,
-      email: req.body.email,
-    });
-
-    // Generic error response
-    return res.status(500).json({
-      error: 'Internal server error',
-      message: 'An unexpected error occurred. Please try again later.',
-    });
+    return apiResponse.internalError(res, error, 'An error occurred during login. Please try again.');
   }
 }
 
-export default withApiMonitoring(handler);
+// Export with validation, rate limiting and monitoring
+export default composeMiddleware(
+  validateMethod(['POST']),
+  withValidation({
+    body: authSchemas.login.body,
+    response: authSchemas.login.response,
+  }),
+  withRateLimit({
+    ...RATE_LIMIT_CONFIGS.auth.login,
+    keyGenerator: (req) => {
+      // Use IP address for rate limiting login attempts
+      const ip = getClientIP(req) || 'unknown';
+      // Also consider email if provided for more granular limiting
+      const email = req.body?.email?.toLowerCase();
+      return email ? `login:${ip}:${email}` : `login:${ip}`;
+    },
+    message: 'Too many login attempts. Please try again in 15 minutes.',
+  }),
+  withApiMonitoring,
+)(loginHandler);

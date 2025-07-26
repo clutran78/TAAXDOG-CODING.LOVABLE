@@ -5,6 +5,8 @@ import { getStripe } from '@/lib/stripe/config';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import Stripe from 'stripe';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
 
 // Request validation schemas
 const attachPaymentMethodSchema = z.object({
@@ -21,7 +23,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Check authentication
     const session = await getServerSession(req, res, authOptions);
     if (!session || !session.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return apiResponse.unauthorized(res, { error: 'Unauthorized' });
     }
 
     // Get user's subscription
@@ -30,7 +32,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     if (!subscription || !subscription.stripeCustomerId) {
-      return res.status(404).json({ error: 'No active subscription found' });
+      return apiResponse.notFound(res, { error: 'No active subscription found' });
     }
 
     const { stripe } = getStripe();
@@ -44,25 +46,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
 
         // Get default payment method
-        const customer = await stripe.customers.retrieve(subscription.stripeCustomerId) as Stripe.Customer;
+        const customer = (await stripe.customers.retrieve(
+          subscription.stripeCustomerId,
+        )) as Stripe.Customer;
         const defaultPaymentMethodId = customer.invoice_settings?.default_payment_method;
 
         // Format payment methods
-        const formattedMethods = paymentMethods.data.map(pm => ({
+        const formattedMethods = paymentMethods.data.map((pm) => ({
           id: pm.id,
           type: pm.type,
-          card: pm.card ? {
-            brand: pm.card.brand,
-            last4: pm.card.last4,
-            exp_month: pm.card.exp_month,
-            exp_year: pm.card.exp_year,
-            funding: pm.card.funding,
-          } : null,
+          card: pm.card
+            ? {
+                brand: pm.card.brand,
+                last4: pm.card.last4,
+                exp_month: pm.card.exp_month,
+                exp_year: pm.card.exp_year,
+                funding: pm.card.funding,
+              }
+            : null,
           created: pm.created,
           isDefault: pm.id === defaultPaymentMethodId,
         }));
 
-        res.status(200).json({
+        apiResponse.success(res, {
           success: true,
           paymentMethods: formattedMethods,
         });
@@ -72,9 +78,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Attach payment method
         const attachValidation = attachPaymentMethodSchema.safeParse(req.body);
         if (!attachValidation.success) {
-          return res.status(400).json({ 
-            error: 'Invalid request data', 
-            details: attachValidation.error.errors 
+          return apiResponse.error(res, {
+            error: 'Invalid request data',
+            details: attachValidation.error.errors,
           });
         }
 
@@ -94,7 +100,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           });
         }
 
-        res.status(200).json({
+        apiResponse.success(res, {
           success: true,
           message: 'Payment method added successfully',
         });
@@ -104,9 +110,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Detach payment method
         const detachValidation = detachPaymentMethodSchema.safeParse(req.body);
         if (!detachValidation.success) {
-          return res.status(400).json({ 
-            error: 'Invalid request data', 
-            details: detachValidation.error.errors 
+          return apiResponse.error(res, {
+            error: 'Invalid request data',
+            details: detachValidation.error.errors,
           });
         }
 
@@ -119,7 +125,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
 
         if (allMethods.data.length === 1) {
-          return res.status(400).json({
+          return apiResponse.error(res, {
             error: 'Cannot remove the only payment method',
             message: 'Please add another payment method before removing this one',
           });
@@ -128,22 +134,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Detach payment method
         await stripe.paymentMethods.detach(methodToDetach);
 
-        res.status(200).json({
+        apiResponse.success(res, {
           success: true,
           message: 'Payment method removed successfully',
         });
         break;
 
       default:
-        res.status(405).json({ error: 'Method not allowed' });
+        apiResponse.methodNotAllowed(res, { error: 'Method not allowed' });
     }
-
   } catch (error: any) {
-    console.error('Payment methods error:', error);
-    
-    res.status(500).json({ 
-      error: 'Failed to manage payment methods', 
-      message: error.message 
+    logger.error('Payment methods error:', error);
+
+    apiResponse.internalError(res, {
+      error: 'Failed to manage payment methods',
+      message: error.message,
     });
   }
 }

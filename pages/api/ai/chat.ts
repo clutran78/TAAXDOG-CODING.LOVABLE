@@ -1,38 +1,87 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
 import { AIService } from '../../../lib/ai/ai-service';
 import { AIOperationType, SYSTEM_PROMPTS } from '../../../lib/ai/config';
 import { prisma } from '../../../lib/prisma';
+import { authMiddleware, AuthenticatedRequest } from '../../../lib/middleware/auth';
+import { withSessionRateLimit } from '../../../lib/security/rateLimiter';
+import { sanitizers, addSecurityHeaders, sanitizedSchemas } from '../../../lib/security/sanitizer';
+import { getClientIp } from 'request-ip';
 import { v4 as uuidv4 } from 'uuid';
+import { z } from 'zod';
+import { logger } from '@/lib/logger';
+import {
+  sendSuccess,
+  sendUnauthorized,
+  sendValidationError,
+  sendMethodNotAllowed,
+  sendInternalError,
+  ERROR_CODES,
+} from '@/lib/api/response';
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+// Validation schema for chat requests
+const ChatRequestSchema = z.object({
+  message: sanitizedSchemas.basicFormat
+    .min(1, 'Message is required')
+    .max(4000, 'Message must be less than 4000 characters'),
+  sessionId: z.string().uuid('Invalid session ID format').optional(),
+  operationType: z.nativeEnum(AIOperationType).default(AIOperationType.FINANCIAL_ADVICE),
+  context: z.record(z.any()).optional(),
+});
+
+/**
+ * AI Chat API endpoint with enhanced security
+ * Handles POST (send message) operations
+ * Uses authentication middleware to ensure data isolation
+ */
+async function chatHandler(req: AuthenticatedRequest, res: NextApiResponse) {
+  // Add security headers
+  addSecurityHeaders(res);
+
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    res.status(405).end('Method Not Allowed');
-    return;
+    return apiResponse.methodNotAllowed(res, ['POST']);
   }
 
+  const userId = req.userId;
+  const clientIp = getClientIp(req) || 'unknown';
+
   try {
-    const session = await getServerSession(req, res, authOptions);
-    
-    if (!session?.user?.id) {
-      return res.status(401).json({ error: 'Unauthorized' });
+    // Validate userId exists
+    if (!userId) {
+      return apiResponse.unauthorized(res, 'User ID not found in authenticated request');
     }
 
-    const { 
-      message, 
-      sessionId, 
-      operationType = AIOperationType.FINANCIAL_ADVICE,
-      context 
-    } = req.body;
-
-    if (!message) {
-      return res.status(400).json({ error: 'Message is required' });
+    // Validate and sanitize input data
+    const validationResult = ChatRequestSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      const errors = validationResult.error.errors.map((err) => ({
+        field: err.path.join('.'),
+        message: err.message,
+      }));
+      return apiResponse.validationError(res, errors, {
+        message: 'Invalid input data',
+      });
     }
+
+    const { message, sessionId, operationType, context } = validationResult.data;
+
+    // Log AI chat access for audit
+    await prisma.auditLog
+      .create({
+        data: {
+          event: 'AI_CHAT_ACCESS',
+          userId,
+          ipAddress: clientIp,
+          userAgent: req.headers['user-agent'] || '',
+          success: true,
+          metadata: {
+            operationType,
+            sessionId: sessionId || 'new',
+            messageLength: message.length,
+            timestamp: new Date().toISOString(),
+          },
+        },
+      })
+      .catch((err) => logger.error('Audit log error:', err););
 
     // Initialize AI service with multi-provider support
     const aiService = new AIService();
@@ -44,41 +93,96 @@ export default async function handler(
     const systemPrompt = getSystemPromptForOperation(operationType);
     const messages = [
       { role: 'system', content: systemPrompt },
-      { role: 'user', content: message }
+      { role: 'user', content: message }, // Already sanitized
     ];
 
-    // Add context if provided
+    // Add context if provided (ensure no sensitive data leakage)
     if (context) {
+      // Filter out sensitive fields from context
+      const { password, apiKey, secret, ...safeContext } = context;
       messages.splice(1, 0, {
         role: 'system',
-        content: `Additional context: ${JSON.stringify(context)}`
+        content: `Additional context: ${JSON.stringify(safeContext)}`,
       });
     }
 
     // Send message using multi-provider AI service with failover
     const response = await aiService.sendMessage(
       messages,
-      session.user.id,
+      userId,
       operationType as AIOperationType,
       currentSessionId,
-      true // enable caching
+      true, // enable caching
     );
 
-    res.status(200).json({
-      sessionId: currentSessionId,
-      response: response.content,
-      provider: response.provider,
-      model: response.model,
-      tokensUsed: response.tokensUsed,
-      cost: response.cost,
-      responseTimeMs: response.responseTimeMs,
-      cached: response.cost === 0
-    });
+    // Log successful AI response
+    await prisma.auditLog
+      .create({
+        data: {
+          event: 'AI_CHAT_RESPONSE',
+          userId,
+          ipAddress: clientIp,
+          userAgent: req.headers['user-agent'] || '',
+          success: true,
+          metadata: {
+            sessionId: currentSessionId,
+            provider: response.provider,
+            model: response.model,
+            tokensUsed: response.tokensUsed,
+            cost: response.cost,
+            cached: response.cost === 0,
+            timestamp: new Date().toISOString(),
+          },
+        },
+      })
+      .catch((err) => logger.error('Audit log error:', err););
+
+    // Set security headers
+    res.setHeader('Cache-Control', 'private, no-store, must-revalidate');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+
+    return apiResponse.success(
+      res,
+      {
+        sessionId: currentSessionId,
+        response: response.content,
+        provider: response.provider,
+        model: response.model,
+        tokensUsed: response.tokensUsed,
+        cost: response.cost,
+        responseTimeMs: response.responseTimeMs,
+        cached: response.cost === 0,
+      },
+      {
+        meta: {
+          requestId: (req as any).requestId,
+          processingTime: response.responseTimeMs,
+        },
+      },
+    );
   } catch (error) {
-    console.error('AI chat error:', error);
-    res.status(500).json({ 
-      error: 'AI chat failed',
-      message: error instanceof Error ? error.message : 'Unknown error'
+    logger.error('AI chat error:', error, { userId });
+
+    // Log error
+    await prisma.auditLog
+      .create({
+        data: {
+          event: 'AI_CHAT_ERROR',
+          userId,
+          ipAddress: clientIp,
+          userAgent: req.headers['user-agent'] || '',
+          success: false,
+          metadata: {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            timestamp: new Date().toISOString(),
+          },
+        },
+      })
+      .catch((err) => logger.error('Audit log error:', err););
+
+    return apiResponse.internalError(res, error, {
+      message: 'Unable to process your request. Please try again.',
+      includeDetails: process.env.NODE_ENV === 'development',
     });
   }
 }
@@ -96,3 +200,9 @@ function getSystemPromptForOperation(operationType: string): string {
 
   return prompts[operationType] || SYSTEM_PROMPTS.FINANCIAL_ADVISOR;
 }
+
+// Export with authentication and rate limiting middleware
+export default withSessionRateLimit(authMiddleware.authenticated(chatHandler), {
+  window: 60 * 1000, // 1 minute
+  max: 10, // 10 requests per minute (AI is expensive)
+});

@@ -2,11 +2,10 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { SubscriptionService } from '../../../lib/stripe/subscription-service';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     res.status(405).end('Method Not Allowed');
@@ -15,23 +14,23 @@ export default async function handler(
 
   try {
     const session = await getServerSession(req, res, authOptions);
-    
+
     if (!session?.user?.id) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return apiResponse.unauthorized(res, { error: 'Unauthorized' });
     }
 
     const { planId, billingCycle } = req.body;
 
     if (!planId || !billingCycle) {
-      return res.status(400).json({ error: 'Missing required parameters' });
+      return apiResponse.error(res, { error: 'Missing required parameters' });
     }
 
     if (!['monthly', 'annual'].includes(billingCycle)) {
-      return res.status(400).json({ error: 'Invalid billing cycle' });
+      return apiResponse.error(res, { error: 'Invalid billing cycle' });
     }
 
     const subscriptionService = new SubscriptionService();
-    
+
     const protocol = req.headers['x-forwarded-proto'] || 'http';
     const host = req.headers.host;
     const baseUrl = `${protocol}://${host}`;
@@ -44,12 +43,12 @@ export default async function handler(
       cancelUrl: `${baseUrl}/subscription/plans`,
     });
 
-    res.status(200).json({ sessionId: checkoutSession.id });
+    apiResponse.success(res, { sessionId: checkoutSession.id });
   } catch (error) {
-    console.error('Error creating checkout session:', error);
-    res.status(500).json({ 
+    logger.error('Error creating checkout session:', error);
+    apiResponse.internalError(res, {
       error: 'Failed to create checkout session',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 }

@@ -1,23 +1,25 @@
-import type { NextApiRequest, NextApiResponse } from "next";
-import { prisma } from "../../lib/prisma";
-import { 
-  hashPassword, 
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { prisma } from '../../lib/prisma';
+import { logger } from '@/lib/logger';
+import {
+  hashPassword,
   generateEmailVerificationToken,
   generateJWT,
   sanitizeUser,
   getClientIP,
   getAuthCookieOptions,
-  validatePasswordStrength
-} from "../../lib/auth/auth-utils";
-import { registerSchema, validateInput } from "../../lib/auth/validation";
-import { authRateLimiter } from "../../lib/auth/rate-limiter";
-import { sendVerificationEmail } from "../../lib/email";
-import { TaxResidency, AuthEvent } from "@prisma/client";
-import { InputValidator } from "../../lib/security/middleware";
+  validatePasswordStrength,
+} from '../../lib/auth/auth-utils';
+import { registerSchema, validateInput } from '../../lib/auth/validation';
+import { authRateLimiter } from '../../lib/auth/rate-limiter';
+import { sendVerificationEmail } from '../../lib/email';
+import { TaxResidency, AuthEvent } from '@prisma/client';
+import { InputValidator } from '../../lib/security/middleware';
+import { apiResponse } from '@/lib/api/response';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ message: "Method not allowed" });
+  if (req.method !== 'POST') {
+    return apiResponse.methodNotAllowed(res, { message: 'Method not allowed' });
   }
 
   // Apply rate limiting
@@ -31,9 +33,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Validate input with Zod schema
     const validation = validateInput(registerSchema, req.body);
     if (!validation.success) {
-      return res.status(400).json({ 
-        error: "Validation failed", 
-        errors: validation.errors 
+      return apiResponse.error(res, {
+        error: 'Validation failed',
+        errors: validation.errors,
       });
     }
 
@@ -43,27 +45,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Additional password strength check
     const passwordValidation = validatePasswordStrength(password);
     if (!passwordValidation.isValid) {
-      return res.status(400).json({
-        error: "Password does not meet requirements",
-        errors: { password: passwordValidation.errors }
+      return apiResponse.error(res, {
+        error: 'Password does not meet requirements',
+        errors: { password: passwordValidation.errors },
       });
     }
-    
+
     // Validate phone if provided
     if (phone && !InputValidator.isValidAustralianPhone(phone)) {
-      return res.status(400).json({ message: "Invalid Australian phone number format" });
+      return apiResponse.error(res, { message: 'Invalid Australian phone number format' });
     }
-    
+
     // Check privacy consent (Australian Privacy Principles compliance)
-    if (!privacyConsent?.termsAccepted || !privacyConsent?.privacyPolicyAccepted || !privacyConsent?.dataCollectionConsent) {
-      return res.status(400).json({ 
-        message: "You must accept the terms of service, privacy policy, and consent to data collection" 
+    if (
+      !privacyConsent?.termsAccepted ||
+      !privacyConsent?.privacyPolicyAccepted ||
+      !privacyConsent?.dataCollectionConsent
+    ) {
+      return apiResponse.error(res, {
+        message:
+          'You must accept the terms of service, privacy policy, and consent to data collection',
       });
     }
 
     // Validate ABN if provided
     if (abn && !InputValidator.isValidABN(abn)) {
-      return res.status(400).json({ message: "Invalid ABN format" });
+      return apiResponse.error(res, { message: 'Invalid ABN format' });
     }
 
     // Start transaction for atomic operations
@@ -71,7 +78,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Check if user already exists
       const existingUser = await tx.user.findUnique({
         where: { email: email.toLowerCase() },
-        select: { id: true }
+        select: { id: true },
       });
 
       if (existingUser) {
@@ -79,11 +86,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // Generate email verification token
-      const { token: verificationToken, expires: verificationExpires } = generateEmailVerificationToken();
+      const { token: verificationToken, expires: verificationExpires } =
+        generateEmailVerificationToken();
 
       // Hash password
       const hashedPassword = await hashPassword(password);
-      
+
       // Sanitize inputs
       const sanitizedPhone = phone ? phone.replace(/\s/g, '') : null;
 
@@ -94,7 +102,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           password: hashedPassword,
           name,
           phone: sanitizedPhone,
-          abn: abn ? abn.replace(/\s/g, "") : null,
+          abn: abn ? abn.replace(/\s/g, '') : null,
           taxResidency: (taxResidency as TaxResidency) || TaxResidency.RESIDENT,
           emailVerificationToken: verificationToken,
           emailVerificationExpires: verificationExpires,
@@ -115,16 +123,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           event: AuthEvent.REGISTER,
           userId: user.id,
           ipAddress: clientIp,
-          userAgent: req.headers["user-agent"] || "",
+          userAgent: req.headers['user-agent'] || '',
           success: true,
           metadata: {
             email: user.email,
             hasABN: !!abn,
             taxResidency,
-            privacyConsent: privacyConsent ? {
-              ...privacyConsent,
-              timestamp: new Date(),
-            } : null,
+            privacyConsent: privacyConsent
+              ? {
+                  ...privacyConsent,
+                  timestamp: new Date(),
+                }
+              : null,
           },
         },
       });
@@ -134,13 +144,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Send verification email (outside transaction)
     try {
-      await sendVerificationEmail(
-        result.user.email,
-        result.user.name,
-        result.verificationToken
-      );
+      await sendVerificationEmail(result.user.email, result.user.name, result.verificationToken);
     } catch (emailError) {
-      console.error('[Register] Failed to send verification email:', emailError);
+      logger.error('[Register] Failed to send verification email:', emailError);
       // Don't fail registration if email fails
     }
 
@@ -169,14 +175,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     // Return success response
-    res.status(201).json({
-      message: "Account created successfully. Please check your email to verify your account.",
+    apiResponse.created(res, {
+      message: 'Account created successfully. Please check your email to verify your account.',
       user: sanitizeUser(result.user),
       requiresVerification: true,
     });
   } catch (error: any) {
     const duration = Date.now() - startTime;
-    
+
     // Log error
     console.error('[Register] Registration failed:', {
       error: error.message,
@@ -202,7 +208,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Generic error response
-    return res.status(500).json({
+    return apiResponse.internalError(res, {
       error: 'Internal server error',
       message: 'An unexpected error occurred. Please try again later.',
     });

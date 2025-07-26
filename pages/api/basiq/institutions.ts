@@ -4,12 +4,13 @@ import { authOptions } from '../auth/[...nextauth]';
 import { basiqClient } from '@/lib/basiq/client';
 import { basiqDB } from '@/lib/basiq/database';
 import { BASIQ_CONFIG } from '@/lib/basiq/config';
+import { apiResponse } from '@/lib/api/response';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
 
   if (!session || !session.user) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return apiResponse.unauthorized(res, { error: 'Unauthorized' });
   }
 
   const startTime = Date.now();
@@ -29,15 +30,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         } else {
           // Get all institutions
           const institutions = await basiqClient.getInstitutions();
-          
+
           // Filter Australian institutions
           const australianInstitutions = institutions.data.filter(
-            inst => inst.country === country
+            (inst) => inst.country === country,
           );
 
           // Add popular flag for major Australian banks
           const popularIds = Object.values(BASIQ_CONFIG.INSTITUTIONS);
-          const institutionsWithPopular = australianInstitutions.map(inst => ({
+          const institutionsWithPopular = australianInstitutions.map((inst) => ({
             ...inst,
             isPopular: popularIds.includes(inst.id),
           }));
@@ -55,7 +56,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           };
         }
 
-        res.status(200).json(responseBody);
+        apiResponse.success(res, responseBody);
         break;
 
       default:
@@ -79,7 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       responseStatus,
       responseBody,
       duration,
-      error
+      error,
     );
   }
 }

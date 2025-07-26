@@ -4,23 +4,25 @@ import { authOptions } from '../../auth/[...nextauth]';
 import { PrismaClient } from '@prisma/client';
 import { processReceipt } from '../../../../lib/gemini-ai';
 import path from 'path';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
 
 const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return apiResponse.methodNotAllowed(res, { error: 'Method not allowed' });
   }
 
   try {
     const session = await getServerSession(req, res, authOptions);
     if (!session?.user?.id) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return apiResponse.unauthorized(res, { error: 'Unauthorized' });
     }
 
     const { id } = req.query;
     if (!id || typeof id !== 'string') {
-      return res.status(400).json({ error: 'Invalid receipt ID' });
+      return apiResponse.error(res, { error: 'Invalid receipt ID' });
     }
 
     // Get receipt from database
@@ -29,17 +31,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     if (!receipt) {
-      return res.status(404).json({ error: 'Receipt not found' });
+      return apiResponse.notFound(res, { error: 'Receipt not found' });
     }
 
     // Verify ownership
     if (receipt.userId !== session.user.id) {
-      return res.status(403).json({ error: 'Forbidden' });
+      return apiResponse.forbidden(res, { error: 'Forbidden' });
     }
 
     // Check if already processed
     if (receipt.processingStatus !== 'PENDING') {
-      return res.status(400).json({ error: 'Receipt already processed' });
+      return apiResponse.error(res, { error: 'Receipt already processed' });
     }
 
     // Update status to processing
@@ -54,23 +56,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Process with Gemini AI
     const processedReceipt = await processReceipt(id, imagePath);
 
-    res.status(200).json({
+    apiResponse.success(res, {
       success: true,
       receipt: processedReceipt,
     });
-
   } catch (error) {
-    console.error('Receipt processing error:', error);
-    
+    logger.error('Receipt processing error:', error);
+
     // Update status to failed
     if (req.query.id) {
-      await prisma.receipt.update({
-        where: { id: req.query.id as string },
-        data: { processingStatus: 'FAILED' },
-      }).catch(console.error);
+      await prisma.receipt
+        .update({
+          where: { id: req.query.id as string },
+          data: { processingStatus: 'FAILED' },
+        })
+        .catch(console.error);
     }
-    
-    res.status(500).json({ error: 'Failed to process receipt' });
+
+    apiResponse.internalError(res, { error: 'Failed to process receipt' });
   } finally {
     await prisma.$disconnect();
   }

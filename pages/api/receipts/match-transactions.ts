@@ -1,17 +1,22 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
-import { autoMatchReceipts, findMatchingTransaction } from '../../../lib/receipt-transaction-matching';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
+import {
+  autoMatchReceipts,
+  findMatchingTransaction,
+} from '../../../lib/receipt-transaction-matching';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return apiResponse.methodNotAllowed(res, { error: 'Method not allowed' });
   }
 
   try {
     const session = await getServerSession(req, res, authOptions);
     if (!session?.user?.id) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return apiResponse.unauthorized(res, { error: 'Unauthorized' });
     }
 
     const { receiptId } = req.body;
@@ -19,14 +24,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (receiptId) {
       // Match single receipt
       const match = await findMatchingTransaction(receiptId, session.user.id);
-      
+
       if (match) {
-        res.status(200).json({
+        apiResponse.success(res, {
           success: true,
           match,
         });
       } else {
-        res.status(404).json({
+        apiResponse.notFound(res, {
           success: false,
           message: 'No matching transaction found',
         });
@@ -34,17 +39,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } else {
       // Auto-match all unmatched receipts
       const result = await autoMatchReceipts(session.user.id);
-      
-      res.status(200).json({
+
+      apiResponse.success(res, {
         success: true,
         matched: result.matched,
         total: result.total,
         message: `Matched ${result.matched} out of ${result.total} receipts`,
       });
     }
-
   } catch (error) {
-    console.error('Receipt matching error:', error);
-    res.status(500).json({ error: 'Failed to match receipts' });
+    logger.error('Receipt matching error:', error);
+    apiResponse.internalError(res, { error: 'Failed to match receipts' });
   }
 }

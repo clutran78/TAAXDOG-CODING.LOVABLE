@@ -1,15 +1,16 @@
-import type { NextApiRequest, NextApiResponse } from "next";
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { apiResponse } from '@/lib/api/response';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Block this endpoint entirely in production
   if (process.env.NODE_ENV === 'production') {
-    return res.status(404).json({ message: "Not found" });
+    return apiResponse.notFound(res, { message: 'Not found' });
   }
 
   // In development, still require a token for extra security
   const token = req.headers['x-test-token'];
   if (token !== process.env.HEALTH_CHECK_TOKEN) {
-    return res.status(403).json({ message: "Forbidden" });
+    return apiResponse.forbidden(res, { message: 'Forbidden' });
   }
 
   // Return minimal configuration without exposing any key prefixes
@@ -21,5 +22,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     emailFrom: process.env.EMAIL_FROM ? 'Configured' : 'Not configured',
   };
 
-  res.status(200).json(config);
+  apiResponse.success(res, config);
 }

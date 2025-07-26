@@ -4,6 +4,8 @@ import Stripe from 'stripe';
 import { getStripe } from '@/lib/stripe/config';
 import { subscriptionManager } from '@/lib/stripe/subscription-manager';
 import { prisma } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
 
 // Disable body parsing, we need raw body for webhook signature verification
 export const config = {
@@ -27,14 +29,14 @@ const webhookHandlers: Record<string, (event: Stripe.Event) => Promise<void>> = 
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return apiResponse.methodNotAllowed(res, { error: 'Method not allowed' });
   }
 
   const buf = await buffer(req);
   const signature = req.headers['stripe-signature'] as string;
 
   if (!signature) {
-    return res.status(400).json({ error: 'Missing stripe-signature header' });
+    return apiResponse.error(res, { error: 'Missing stripe-signature header' });
   }
 
   let event: Stripe.Event;
@@ -43,8 +45,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { stripe, webhookSecret } = getStripe();
     event = stripe.webhooks.constructEvent(buf, signature, webhookSecret);
   } catch (err: any) {
-    console.error('Webhook signature verification failed:', err.message);
-    return res.status(400).json({ error: `Webhook Error: ${err.message}` });
+    logger.error('Webhook signature verification failed:', err.message);
+    return apiResponse.error(res, { error: `Webhook Error: ${err.message}` });
   }
 
   // Log webhook event
@@ -52,7 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     await prisma.auditLog.create({
       data: {
         event: 'STRIPE_WEBHOOK' as any,
-        ipAddress: req.headers['x-forwarded-for'] as string || 'unknown',
+        ipAddress: (req.headers['x-forwarded-for'] as string) || 'unknown',
         metadata: {
           eventType: event.type,
           eventId: event.id,
@@ -62,7 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
   } catch (error) {
-    console.error('Failed to log webhook event:', error);
+    logger.error('Failed to log webhook event:', error);
   }
 
   // Handle the event
@@ -71,13 +73,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (handler) {
       await handler(event);
     } else {
-      console.log(`Unhandled webhook event type: ${event.type}`);
+      logger.info(`Unhandled webhook event type: ${event.type}`);
     }
 
-    res.status(200).json({ received: true });
+    apiResponse.success(res, { received: true });
   } catch (error: any) {
-    console.error(`Error handling webhook ${event.type}:`, error);
-    res.status(500).json({ error: `Webhook handler error: ${error.message}` });
+    logger.error(`Error handling webhook ${event.type}:`, error);
+    apiResponse.internalError(res, { error: `Webhook handler error: ${error.message}` });
   }
 }
 
@@ -85,35 +87,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 async function handleSubscriptionCreated(event: Stripe.Event) {
   const subscription = event.data.object as Stripe.Subscription;
   await subscriptionManager.handleWebhookEvent(event);
-  console.log(`Subscription created: ${subscription.id}`);
+  logger.info(`Subscription created: ${subscription.id}`);
 }
 
 async function handleSubscriptionUpdated(event: Stripe.Event) {
   const subscription = event.data.object as Stripe.Subscription;
   await subscriptionManager.handleWebhookEvent(event);
-  console.log(`Subscription updated: ${subscription.id}`);
+  logger.info(`Subscription updated: ${subscription.id}`);
 }
 
 async function handleSubscriptionDeleted(event: Stripe.Event) {
   const subscription = event.data.object as Stripe.Subscription;
   await subscriptionManager.handleWebhookEvent(event);
-  console.log(`Subscription deleted: ${subscription.id}`);
+  logger.info(`Subscription deleted: ${subscription.id}`);
 }
 
 async function handleTrialWillEnd(event: Stripe.Event) {
   const subscription = event.data.object as Stripe.Subscription;
   await subscriptionManager.handleWebhookEvent(event);
-  
+
   // Send trial ending notification email
   const userId = subscription.metadata.userId;
   if (userId) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
     });
-    
+
     if (user) {
       // TODO: Implement email notification
-      console.log(`Trial ending notification for user: ${user.email}`);
+      logger.info(`Trial ending notification for user: ${user.email}`);
     }
   }
 }
@@ -121,28 +123,28 @@ async function handleTrialWillEnd(event: Stripe.Event) {
 async function handleInvoicePaid(event: Stripe.Event) {
   const invoice = event.data.object as Stripe.Invoice;
   await subscriptionManager.handleWebhookEvent(event);
-  console.log(`Invoice paid: ${invoice.id}`);
+  logger.info(`Invoice paid: ${invoice.id}`);
 }
 
 async function handleInvoicePaymentFailed(event: Stripe.Event) {
   const invoice = event.data.object as Stripe.Invoice;
   await subscriptionManager.handleWebhookEvent(event);
-  
+
   // Send payment failed notification
   if (invoice.subscription) {
     const subscription = await getStripe().stripe.subscriptions.retrieve(
-      invoice.subscription as string
+      invoice.subscription as string,
     );
-    
+
     const userId = subscription.metadata.userId;
     if (userId) {
       const user = await prisma.user.findUnique({
         where: { id: userId },
       });
-      
+
       if (user) {
         // TODO: Implement email notification
-        console.log(`Payment failed notification for user: ${user.email}`);
+        logger.info(`Payment failed notification for user: ${user.email}`);
       }
     }
   }
@@ -150,8 +152,8 @@ async function handleInvoicePaymentFailed(event: Stripe.Event) {
 
 async function handlePaymentMethodAttached(event: Stripe.Event) {
   const paymentMethod = event.data.object as Stripe.PaymentMethod;
-  console.log(`Payment method attached: ${paymentMethod.id}`);
-  
+  logger.info(`Payment method attached: ${paymentMethod.id}`);
+
   // Update default payment method if needed
   if (paymentMethod.customer) {
     const { stripe } = getStripe();
@@ -165,19 +167,19 @@ async function handlePaymentMethodAttached(event: Stripe.Event) {
 
 async function handlePaymentMethodDetached(event: Stripe.Event) {
   const paymentMethod = event.data.object as Stripe.PaymentMethod;
-  console.log(`Payment method detached: ${paymentMethod.id}`);
+  logger.info(`Payment method detached: ${paymentMethod.id}`);
 }
 
 async function handleCheckoutCompleted(event: Stripe.Event) {
   const session = event.data.object as Stripe.Checkout.Session;
-  console.log(`Checkout completed: ${session.id}`);
-  
+  logger.info(`Checkout completed: ${session.id}`);
+
   // Handle successful checkout
   if (session.mode === 'subscription' && session.subscription) {
     const subscription = await getStripe().stripe.subscriptions.retrieve(
-      session.subscription as string
+      session.subscription as string,
     );
-    
+
     await subscriptionManager.handleWebhookEvent({
       ...event,
       type: 'customer.subscription.created',

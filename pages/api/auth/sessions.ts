@@ -1,22 +1,24 @@
-import type { NextApiRequest, NextApiResponse } from "next";
-import { getServerSession } from "next-auth";
-import { authOptions, logAuthEvent } from "../../../lib/auth";
-import { prisma } from "../../../lib/prisma";
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { getServerSession } from 'next-auth';
+import { authOptions, logAuthEvent } from '../../../lib/auth';
+import { prisma } from '../../../lib/prisma';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
-  
+
   if (!session || !session.user) {
-    return res.status(401).json({ message: "Unauthorized" });
+    return apiResponse.unauthorized(res, { message: 'Unauthorized' });
   }
 
   switch (req.method) {
-    case "GET":
+    case 'GET':
       return getSessions(req, res, session.user.id);
-    case "DELETE":
+    case 'DELETE':
       return revokeSessions(req, res, session.user.id);
     default:
-      return res.status(405).json({ message: "Method not allowed" });
+      return apiResponse.methodNotAllowed(res, { message: 'Method not allowed' });
   }
 }
 
@@ -60,10 +62,11 @@ async function getSessions(req: NextApiRequest, res: NextApiResponse, userId: st
     });
 
     // Parse user agents for better display
-    const sessionsWithDetails = sessions.map(session => {
-      const isCurrentSession = req.cookies['next-auth.session-token'] === session.sessionToken ||
-                              req.cookies['__Secure-next-auth.session-token'] === session.sessionToken;
-      
+    const sessionsWithDetails = sessions.map((session) => {
+      const isCurrentSession =
+        req.cookies['next-auth.session-token'] === session.sessionToken ||
+        req.cookies['__Secure-next-auth.session-token'] === session.sessionToken;
+
       return {
         id: session.id,
         expires: session.expires,
@@ -72,11 +75,11 @@ async function getSessions(req: NextApiRequest, res: NextApiResponse, userId: st
       };
     });
 
-    const loginHistory = recentLogins.map(login => {
+    const loginHistory = recentLogins.map((login) => {
       const userAgent = login.userAgent || '';
       const device = getDeviceFromUserAgent(userAgent);
       const browser = getBrowserFromUserAgent(userAgent);
-      
+
       return {
         id: login.id,
         ipAddress: login.ipAddress,
@@ -87,14 +90,14 @@ async function getSessions(req: NextApiRequest, res: NextApiResponse, userId: st
       };
     });
 
-    res.status(200).json({
+    apiResponse.success(res, {
       activeSessions: sessionsWithDetails,
       loginHistory,
       sessionCount: sessions.length,
     });
   } catch (error) {
-    console.error("Get sessions error:", error);
-    res.status(500).json({ message: "Failed to retrieve sessions" });
+    logger.error('Get sessions error:', error);
+    apiResponse.internalError(res, { message: 'Failed to retrieve sessions' });
   }
 }
 
@@ -105,9 +108,9 @@ async function revokeSessions(req: NextApiRequest, res: NextApiResponse, userId:
 
     if (revokeAll) {
       // Revoke all sessions except current
-      const currentToken = req.cookies['next-auth.session-token'] || 
-                          req.cookies['__Secure-next-auth.session-token'];
-      
+      const currentToken =
+        req.cookies['next-auth.session-token'] || req.cookies['__Secure-next-auth.session-token'];
+
       await prisma.session.deleteMany({
         where: {
           userId,
@@ -116,18 +119,18 @@ async function revokeSessions(req: NextApiRequest, res: NextApiResponse, userId:
       });
 
       await logAuthEvent({
-        event: "SESSION_EXPIRED",
+        event: 'SESSION_EXPIRED',
         userId,
         success: true,
         metadata: {
-          action: "revoke_all_sessions",
+          action: 'revoke_all_sessions',
           excludedCurrent: true,
         },
         req,
       });
 
-      return res.status(200).json({
-        message: "All other sessions have been revoked",
+      return apiResponse.success(res, {
+        message: 'All other sessions have been revoked',
         revokedCount: -1, // Indicates all sessions
       });
     }
@@ -142,16 +145,16 @@ async function revokeSessions(req: NextApiRequest, res: NextApiResponse, userId:
       });
 
       if (!session) {
-        return res.status(404).json({ message: "Session not found" });
+        return apiResponse.notFound(res, { message: 'Session not found' });
       }
 
       // Don't allow revoking current session
-      const currentToken = req.cookies['next-auth.session-token'] || 
-                          req.cookies['__Secure-next-auth.session-token'];
-      
+      const currentToken =
+        req.cookies['next-auth.session-token'] || req.cookies['__Secure-next-auth.session-token'];
+
       if (session.sessionToken === currentToken) {
-        return res.status(400).json({ 
-          message: "Cannot revoke current session. Use logout instead." 
+        return apiResponse.error(res, {
+          message: 'Cannot revoke current session. Use logout instead.',
         });
       }
 
@@ -160,26 +163,26 @@ async function revokeSessions(req: NextApiRequest, res: NextApiResponse, userId:
       });
 
       await logAuthEvent({
-        event: "SESSION_EXPIRED",
+        event: 'SESSION_EXPIRED',
         userId,
         success: true,
         metadata: {
-          action: "revoke_session",
+          action: 'revoke_session',
           sessionId,
         },
         req,
       });
 
-      return res.status(200).json({
-        message: "Session revoked successfully",
+      return apiResponse.success(res, {
+        message: 'Session revoked successfully',
         revokedSessionId: sessionId,
       });
     }
 
-    return res.status(400).json({ message: "No session specified to revoke" });
+    return apiResponse.error(res, { message: 'No session specified to revoke' });
   } catch (error) {
-    console.error("Revoke sessions error:", error);
-    res.status(500).json({ message: "Failed to revoke sessions" });
+    logger.error('Revoke sessions error:', error);
+    apiResponse.internalError(res, { message: 'Failed to revoke sessions' });
   }
 }
 
@@ -209,18 +212,18 @@ function getBrowserFromUserAgent(userAgent: string): string {
 // Security check endpoint - check for suspicious activity
 export async function checkSecurity(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
-  
+
   if (!session || !session.user) {
-    return res.status(401).json({ message: "Unauthorized" });
+    return apiResponse.unauthorized(res, { message: 'Unauthorized' });
   }
 
-  if (req.method !== "GET") {
-    return res.status(405).json({ message: "Method not allowed" });
+  if (req.method !== 'GET') {
+    return apiResponse.methodNotAllowed(res, { message: 'Method not allowed' });
   }
 
   try {
     const userId = session.user.id;
-    
+
     // Check for suspicious activities
     const suspiciousActivities = await prisma.auditLog.findMany({
       where: {
@@ -275,11 +278,15 @@ export async function checkSecurity(req: NextApiRequest, res: NextApiResponse) {
 
     // Add recommendations
     if (failedLogins > 5) {
-      securityStatus.recommendations.push("Multiple failed login attempts detected. Consider changing your password.");
+      securityStatus.recommendations.push(
+        'Multiple failed login attempts detected. Consider changing your password.',
+      );
     }
 
     if (recentNewDevices.length > 3) {
-      securityStatus.recommendations.push("Multiple new devices detected. Review your active sessions.");
+      securityStatus.recommendations.push(
+        'Multiple new devices detected. Review your active sessions.',
+      );
     }
 
     const user = await prisma.user.findUnique({
@@ -288,12 +295,14 @@ export async function checkSecurity(req: NextApiRequest, res: NextApiResponse) {
     });
 
     if (!user?.twoFactorEnabled) {
-      securityStatus.recommendations.push("Enable two-factor authentication for enhanced security.");
+      securityStatus.recommendations.push(
+        'Enable two-factor authentication for enhanced security.',
+      );
     }
 
-    res.status(200).json({
+    apiResponse.success(res, {
       securityStatus,
-      suspiciousActivities: suspiciousActivities.map(activity => ({
+      suspiciousActivities: suspiciousActivities.map((activity) => ({
         id: activity.id,
         type: activity.metadata?.type || 'Unknown',
         ipAddress: activity.ipAddress,
@@ -301,7 +310,7 @@ export async function checkSecurity(req: NextApiRequest, res: NextApiResponse) {
       })),
     });
   } catch (error) {
-    console.error("Security check error:", error);
-    res.status(500).json({ message: "Failed to check security status" });
+    logger.error('Security check error:', error);
+    apiResponse.internalError(res, { message: 'Failed to check security status' });
   }
 }

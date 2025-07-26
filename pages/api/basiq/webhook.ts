@@ -5,6 +5,8 @@ import { BASIQ_CONFIG } from '@/lib/basiq/config';
 import { BasiqWebhookEvent } from '@/lib/basiq/types';
 import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
 
 // Verify webhook signature
 function verifyWebhookSignature(payload: string, signature: string): boolean {
@@ -14,15 +16,12 @@ function verifyWebhookSignature(payload: string, signature: string): boolean {
     .update(payload)
     .digest('hex');
 
-  return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expectedSignature)
-  );
+  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return apiResponse.methodNotAllowed(res, { error: 'Method not allowed' });
   }
 
   try {
@@ -31,8 +30,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const rawBody = JSON.stringify(req.body);
 
     if (!signature || !verifyWebhookSignature(rawBody, signature)) {
-      console.error('Invalid webhook signature');
-      return res.status(401).json({ error: 'Invalid signature' });
+      logger.error('Invalid webhook signature');
+      return apiResponse.unauthorized(res, { error: 'Invalid signature' });
     }
 
     const webhookEvent: BasiqWebhookEvent = req.body;
@@ -64,33 +63,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           break;
 
         default:
-          console.log(`Unhandled webhook event type: ${webhookEvent.type}`);
+          logger.info(`Unhandled webhook event type: ${webhookEvent.type}`);
       }
 
       // Mark webhook as processed
       await basiqDB.updateWebhookStatus(webhookRecord.id, 'processed');
 
-      res.status(200).json({ message: 'Webhook processed successfully' });
+      apiResponse.success(res, { message: 'Webhook processed successfully' });
     } catch (error: any) {
       // Mark webhook as failed
-      await basiqDB.updateWebhookStatus(
-        webhookRecord.id, 
-        'failed', 
-        error.message
-      );
+      await basiqDB.updateWebhookStatus(webhookRecord.id, 'failed', error.message);
 
-      console.error('Webhook processing error:', error);
-      res.status(500).json({ error: 'Failed to process webhook' });
+      logger.error('Webhook processing error:', error);
+      apiResponse.internalError(res, { error: 'Failed to process webhook' });
     }
   } catch (error: any) {
-    console.error('Webhook handler error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error('Webhook handler error:', error);
+    apiResponse.internalError(res, { error: 'Internal server error' });
   }
 }
 
 async function handleConnectionEvent(event: BasiqWebhookEvent) {
   const connectionId = event.data.id;
-  
+
   // Extract user ID from the connection URL
   const matches = event.data.links?.self.match(/users\/([^\/]+)\/connections/);
   if (!matches) {
@@ -107,7 +102,7 @@ async function handleConnectionEvent(event: BasiqWebhookEvent) {
   // If connection is successful, fetch and sync accounts
   if (connection.status === 'success') {
     const accounts = await basiqClient.getAccounts(userId);
-    
+
     // Find the user in our database by BASIQ user ID
     const basiqUser = await prisma.basiq_users.findUnique({
       where: { basiq_user_id: userId },
@@ -121,7 +116,7 @@ async function handleConnectionEvent(event: BasiqWebhookEvent) {
 
 async function handleAccountEvent(event: BasiqWebhookEvent) {
   const accountId = event.data.id;
-  
+
   // Extract user ID from the account URL
   const matches = event.data.links?.self.match(/users\/([^\/]+)\/accounts/);
   if (!matches) {
@@ -155,7 +150,7 @@ async function handleTransactionEvent(event: BasiqWebhookEvent) {
   // For transaction events, we need to identify the account
   // and fetch the latest transactions
   const transactionId = event.data.id;
-  
+
   // Extract account ID from the transaction URL
   const matches = event.data.links?.self.match(/accounts\/([^\/]+)\/transactions/);
   if (!matches) {
@@ -181,17 +176,17 @@ async function handleTransactionEvent(event: BasiqWebhookEvent) {
 
 async function handleJobEvent(event: BasiqWebhookEvent) {
   const jobId = event.data.id;
-  
+
   // Get job details
   const job = await basiqClient.getJob(jobId);
 
-  console.log(`Job ${jobId} ${job.status}:`, job);
+  logger.info(`Job ${jobId} ${job.status}:`, job);
 
   // If job failed, we might want to notify the user
   if (job.status === 'failed' && job.error) {
     // Log the error for monitoring
-    console.error(`Job ${jobId} failed:`, job.error);
-    
+    logger.error(`Job ${jobId} failed:`, job.error);
+
     // TODO: Implement user notification system
     // For now, we just log the error
   }

@@ -4,16 +4,18 @@ import { authOptions } from '../auth/[...nextauth]';
 import { basiqClient } from '@/lib/basiq/client';
 import { basiqDB } from '@/lib/basiq/database';
 import { prisma } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
 
   if (!session || !session.user) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return apiResponse.unauthorized(res, { error: 'Unauthorized' });
   }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return apiResponse.methodNotAllowed(res, { error: 'Method not allowed' });
   }
 
   const startTime = Date.now();
@@ -55,7 +57,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Sync accounts
     if (type === 'all' || type === 'accounts') {
       const accounts = await basiqClient.getAccounts(basiqUser.basiq_user_id);
-      
+
       for (const account of accounts.data) {
         try {
           // Get connection from database
@@ -64,7 +66,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           });
 
           if (!connection) {
-            console.error(`Connection not found for account ${account.id}`);
+            logger.error(`Connection not found for account ${account.id}`);
             syncResults.accounts.errors++;
             continue;
           }
@@ -97,7 +99,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           });
           syncResults.accounts.synced++;
         } catch (err) {
-          console.error(`Error syncing account ${account.id}:`, err);
+          logger.error(`Error syncing account ${account.id}:`, err);
           syncResults.accounts.errors++;
         }
       }
@@ -105,7 +107,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Sync transactions
     if (type === 'all' || type === 'transactions') {
-      const accounts = accountId 
+      const accounts = accountId
         ? [await prisma.bank_accounts.findUnique({ where: { basiq_account_id: accountId } })]
         : await prisma.bank_accounts.findMany({ where: { basiq_user_id: basiqUser.id } });
 
@@ -115,7 +117,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         try {
           const params = {
             accountId: account.basiq_account_id,
-            fromDate: fromDate || new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default 90 days
+            fromDate:
+              fromDate ||
+              new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default 90 days
             limit: 500,
           };
 
@@ -125,8 +129,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             try {
               // Categorize transaction for tax purposes
               const categorization = basiqClient.categorizeTransaction(transaction);
-              const gstAmount = categorization.gstApplicable 
-                ? basiqClient.calculateGST(Math.abs(transaction.amount)) 
+              const gstAmount = categorization.gstApplicable
+                ? basiqClient.calculateGST(Math.abs(transaction.amount))
                 : null;
 
               await prisma.bank_transactions.upsert({
@@ -165,12 +169,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               });
               syncResults.transactions.synced++;
             } catch (err) {
-              console.error(`Error syncing transaction ${transaction.id}:`, err);
+              logger.error(`Error syncing transaction ${transaction.id}:`, err);
               syncResults.transactions.errors++;
             }
           }
         } catch (err) {
-          console.error(`Error syncing transactions for account ${account.basiq_account_id}:`, err);
+          logger.error(`Error syncing transactions for account ${account.basiq_account_id}:`, err);
           syncResults.transactions.errors++;
         }
       }
@@ -187,8 +191,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       syncResults,
       timestamp: new Date().toISOString(),
     };
-    res.status(200).json(responseBody);
-
+    apiResponse.success(res, responseBody);
   } catch (err: any) {
     responseStatus = 500;
     error = err.message;
@@ -205,7 +208,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       responseStatus,
       responseBody,
       duration,
-      error
+      error,
     );
   }
 }

@@ -1,15 +1,17 @@
-import type { NextApiRequest, NextApiResponse } from "next";
-import { prisma } from "../../../lib/prisma";
-import { getClientIP } from "../../../lib/auth/auth-utils";
-import { verifyEmailSchema, validateInput } from "../../../lib/auth/validation";
-import { emailVerificationRateLimiter } from "../../../lib/auth/rate-limiter";
-import { sendWelcomeEmail } from "../../../lib/email";
-import { AuthEvent } from "@prisma/client";
-import { logAuthEvent } from "../../../lib/auth";
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { prisma } from '../../../lib/prisma';
+import { getClientIP } from '../../../lib/auth/auth-utils';
+import { verifyEmailSchema, validateInput } from '../../../lib/auth/validation';
+import { emailVerificationRateLimiter } from '../../../lib/auth/rate-limiter';
+import { sendWelcomeEmail } from '../../../lib/email';
+import { AuthEvent } from '@prisma/client';
+import { logAuthEvent } from '../../../lib/auth';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ message: "Method not allowed" });
+  if (req.method !== 'POST') {
+    return apiResponse.methodNotAllowed(res, { message: 'Method not allowed' });
   }
 
   // Apply rate limiting
@@ -23,7 +25,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Validate input
     const validation = validateInput(verifyEmailSchema, req.body);
     if (!validation.success) {
-      return res.status(400).json({
+      return apiResponse.error(res, {
         error: 'Validation failed',
         errors: validation.errors,
       });
@@ -62,7 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
       });
 
-      return res.status(400).json({
+      return apiResponse.error(res, {
         error: 'Invalid or expired token',
         message: 'This verification link is invalid or has expired. Please request a new one.',
       });
@@ -78,8 +80,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           emailVerificationExpires: null,
         },
       });
-      
-      return res.status(200).json({ 
+
+      return apiResponse.success(res, {
         message: 'Email already verified',
         alreadyVerified: true,
       });
@@ -90,7 +92,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Update user
       await tx.user.update({
         where: { id: user.id },
-        data: { 
+        data: {
           emailVerified: new Date(),
           emailVerificationToken: null,
           emailVerificationExpires: null,
@@ -119,7 +121,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       await sendWelcomeEmail(user.email, user.name);
     } catch (emailError) {
-      console.error('[VerifyEmail] Failed to send welcome email:', emailError);
+      logger.error('[VerifyEmail] Failed to send welcome email:', emailError);
       // Don't fail verification if welcome email fails
     }
 
@@ -132,11 +134,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     // Return success response
-    return res.status(200).json({ 
+    return apiResponse.success(res, {
       message: 'Email verified successfully! You can now access all features.',
       success: true,
     });
-
   } catch (error: any) {
     const duration = Date.now() - startTime;
 
@@ -149,7 +150,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     // Generic error response
-    return res.status(500).json({
+    return apiResponse.internalError(res, {
       error: 'Internal server error',
       message: 'An unexpected error occurred. Please try again later.',
     });
@@ -158,15 +159,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
 // Resend verification email endpoint
 export async function resendVerificationEmail(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ message: "Method not allowed" });
+  if (req.method !== 'POST') {
+    return apiResponse.methodNotAllowed(res, { message: 'Method not allowed' });
   }
 
   try {
     const { email } = req.body;
 
     if (!email) {
-      return res.status(400).json({ message: "Email is required" });
+      return apiResponse.error(res, { message: 'Email is required' });
     }
 
     // Find user
@@ -176,15 +177,15 @@ export async function resendVerificationEmail(req: NextApiRequest, res: NextApiR
 
     if (!user) {
       // Don't reveal if user exists
-      return res.status(200).json({ 
-        message: "If an account exists with this email, a verification email will be sent." 
+      return apiResponse.success(res, {
+        message: 'If an account exists with this email, a verification email will be sent.',
       });
     }
 
     // Check if already verified
     if (user.emailVerified) {
-      return res.status(200).json({ 
-        message: "Email is already verified",
+      return apiResponse.success(res, {
+        message: 'Email is already verified',
         alreadyVerified: true,
       });
     }
@@ -200,40 +201,40 @@ export async function resendVerificationEmail(req: NextApiRequest, res: NextApiR
 
     if (recentTokens >= 3) {
       await logAuthEvent({
-        event: "EMAIL_VERIFICATION",
+        event: 'EMAIL_VERIFICATION',
         userId: user.id,
         success: false,
-        metadata: { reason: "Too many verification attempts" },
+        metadata: { reason: 'Too many verification attempts' },
         req,
       });
-      return res.status(429).json({ 
-        message: "Too many verification emails requested. Please try again later." 
+      return apiResponse.rateLimitExceeded(res, {
+        message: 'Too many verification emails requested. Please try again later.',
       });
     }
 
     // Create new verification token
-    const { createVerificationToken } = await import("../../../lib/auth");
+    const { createVerificationToken } = await import('../../../lib/auth');
     const newToken = await createVerificationToken(email);
 
     // Send verification email
-    const { sendVerificationEmail } = await import("../../../lib/email");
+    const { sendVerificationEmail } = await import('../../../lib/email');
     await sendVerificationEmail(email, user.name, newToken);
 
     // Log resend attempt
     await logAuthEvent({
-      event: "EMAIL_VERIFICATION",
+      event: 'EMAIL_VERIFICATION',
       userId: user.id,
       success: true,
-      metadata: { action: "resend" },
+      metadata: { action: 'resend' },
       req,
     });
 
-    res.status(200).json({ 
-      message: "Verification email sent successfully",
+    apiResponse.success(res, {
+      message: 'Verification email sent successfully',
       success: true,
     });
   } catch (error) {
-    console.error("Resend verification error:", error);
-    res.status(500).json({ message: "An error occurred sending verification email" });
+    logger.error('Resend verification error:', error);
+    apiResponse.internalError(res, { message: 'An error occurred sending verification email' });
   }
 }

@@ -1,10 +1,12 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { secureApiEndpoint } from '@/lib/middleware/security';
 import { apiKeyManager } from '@/lib/services/apiKeyManager';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
 
 export default secureApiEndpoint(async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return apiResponse.methodNotAllowed(res, { error: 'Method not allowed' });
   }
 
   try {
@@ -14,7 +16,7 @@ export default secureApiEndpoint(async (req: NextApiRequest, res: NextApiRespons
       'https://au-api.basiq.io/users/me/accounts',
       {
         method: 'GET',
-      }
+      },
     );
 
     if (!response.ok) {
@@ -22,13 +24,13 @@ export default secureApiEndpoint(async (req: NextApiRequest, res: NextApiRespons
     }
 
     const data = await response.json();
-    
-    res.status(200).json({ 
+
+    apiResponse.success(res, {
       success: true,
-      accounts: data
+      accounts: data,
     });
   } catch (error) {
-    console.error('BASIQ API error:', error);
-    res.status(500).json({ error: 'Failed to fetch banking data' });
+    logger.error('BASIQ API error:', error);
+    apiResponse.internalError(res, { error: 'Failed to fetch banking data' });
   }
 });

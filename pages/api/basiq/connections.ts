@@ -4,12 +4,13 @@ import authOptions from '../auth/[...nextauth]';
 import { basiqClient } from '@/lib/basiq/client';
 import { basiqDB } from '@/lib/basiq/database';
 import { CreateConnectionParams } from '@/lib/basiq/types';
+import { apiResponse } from '@/lib/api/response';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
 
   if (!session || !session.user) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return apiResponse.unauthorized(res, { error: 'Unauthorized' });
   }
 
   const startTime = Date.now();
@@ -51,9 +52,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         if (completedJob.status === 'failed') {
           responseStatus = 400;
-          responseBody = { 
-            error: 'Connection failed', 
-            details: completedJob.error 
+          responseBody = {
+            error: 'Connection failed',
+            details: completedJob.error,
           };
           return res.status(responseStatus).json(responseBody);
         }
@@ -72,14 +73,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           connection.id,
           connection.institution.id,
           connection.institution.name,
-          connection.status
+          connection.status,
         );
 
         responseBody = {
           connection,
           job: completedJob,
         };
-        res.status(200).json(responseBody);
+        apiResponse.success(res, responseBody);
         break;
 
       case 'GET':
@@ -91,7 +92,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           connections: connections.data,
           localData: localConnections,
         };
-        res.status(200).json(responseBody);
+        apiResponse.success(res, responseBody);
         break;
 
       case 'PUT':
@@ -118,7 +119,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         responseBody = {
           job: refreshedJob,
         };
-        res.status(200).json(responseBody);
+        apiResponse.success(res, responseBody);
         break;
 
       case 'DELETE':
@@ -134,7 +135,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         await basiqDB.updateConnectionStatus(id, 'deleted');
 
         responseBody = { message: 'Connection deleted successfully' };
-        res.status(200).json(responseBody);
+        apiResponse.success(res, responseBody);
         break;
 
       default:
@@ -158,7 +159,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       responseStatus,
       responseBody,
       duration,
-      error
+      error,
     );
   }
 }

@@ -2,16 +2,18 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { bankingValidators } from '@/lib/basiq/validation';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
 
   if (!session || !session.user) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return apiResponse.unauthorized(res, { error: 'Unauthorized' });
   }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return apiResponse.methodNotAllowed(res, { error: 'Method not allowed' });
   }
 
   try {
@@ -22,13 +24,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const bsbValidation = bankingValidators.validateBSB(value);
         if (bsbValidation.valid) {
           const bankName = bankingValidators.getBankFromBSB(value);
-          res.status(200).json({
+          apiResponse.success(res, {
             valid: true,
             formatted: bsbValidation.formatted,
             bankName,
           });
         } else {
-          res.status(400).json({
+          apiResponse.error(res, {
             valid: false,
             error: bsbValidation.error,
           });
@@ -36,14 +38,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         break;
 
       case 'accountNumber':
-        const accountValidation = bankingValidators.validateAccountNumber(value, additionalData?.bsb);
+        const accountValidation = bankingValidators.validateAccountNumber(
+          value,
+          additionalData?.bsb,
+        );
         if (accountValidation.valid) {
-          res.status(200).json({
+          apiResponse.success(res, {
             valid: true,
             formatted: accountValidation.formatted,
           });
         } else {
-          res.status(400).json({
+          apiResponse.error(res, {
             valid: false,
             error: accountValidation.error,
           });
@@ -57,16 +62,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           accountNumber,
           accountName,
         });
-        
+
         if (bankAccountValidation.valid) {
           const bankName = bankingValidators.getBankFromBSB(bsb);
-          res.status(200).json({
+          apiResponse.success(res, {
             valid: true,
             formatted: bankAccountValidation.formatted,
             bankName,
           });
         } else {
-          res.status(400).json({
+          apiResponse.error(res, {
             valid: false,
             errors: bankAccountValidation.errors,
           });
@@ -76,12 +81,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       case 'mobile':
         const mobileValidation = bankingValidators.validateAustralianMobile(value);
         if (mobileValidation.valid) {
-          res.status(200).json({
+          apiResponse.success(res, {
             valid: true,
             formatted: mobileValidation.formatted,
           });
         } else {
-          res.status(400).json({
+          apiResponse.error(res, {
             valid: false,
             error: mobileValidation.error,
           });
@@ -91,12 +96,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       case 'abn':
         const abnValidation = bankingValidators.validateABN(value);
         if (abnValidation.valid) {
-          res.status(200).json({
+          apiResponse.success(res, {
             valid: true,
             formatted: abnValidation.formatted,
           });
         } else {
-          res.status(400).json({
+          apiResponse.error(res, {
             valid: false,
             error: abnValidation.error,
           });
@@ -107,12 +112,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Note: TFN validation should be handled carefully
         const tfnValidation = bankingValidators.validateTFN(value);
         if (tfnValidation.valid) {
-          res.status(200).json({
+          apiResponse.success(res, {
             valid: true,
             // Don't return formatted TFN for security
           });
         } else {
-          res.status(400).json({
+          apiResponse.error(res, {
             valid: false,
             error: tfnValidation.error,
           });
@@ -120,10 +125,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         break;
 
       default:
-        res.status(400).json({ error: 'Invalid validation type' });
+        apiResponse.error(res, { error: 'Invalid validation type' });
     }
   } catch (error: any) {
-    console.error('Validation error:', error);
-    res.status(500).json({ error: 'Validation failed', message: error.message });
+    logger.error('Validation error:', error);
+    apiResponse.internalError(res, { error: 'Validation failed', message: error.message });
   }
 }

@@ -1,10 +1,6 @@
 {
   "compilerOptions": {
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "es6"
-    ],
+    "lib": ["dom", "dom.iterable", "es2022"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -23,26 +19,48 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./*"
-      ]
+      "@/*": ["./*"]
     },
-    "target": "ES2017",
-    "strictNullChecks": true
+    "target": "ES2022",
+
+    // Strict Type-Checking Options
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "useUnknownInCatchVariables": true,
+    "alwaysStrict": true,
+
+    // Additional Checks
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "allowUnusedLabels": false,
+    "allowUnreachableCode": false,
+
+    // Module Resolution Options
+    "moduleDetection": "force",
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+
+    // Emit Options
+    "removeComments": true,
+    "importsNotUsedAsValues": "remove",
+    "sourceMap": true,
+    "declaration": false,
+    "declarationMap": false,
+
+    // Advanced Options
+    "allowArbitraryExtensions": true,
+    "resolvePackageJsonExports": true,
+    "resolvePackageJsonImports": true
   },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "*.backup",
-    "auth.backup",
-    "dashboard.backup",
-    "unauth.backup",
-    "next-frontend",
-    "next-frontend-backup"
-  ]
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules", "*.backup", "auth.backup", "dashboard.backup", "unauth.backup", "next-frontend", "next-frontend-backup"]
 }

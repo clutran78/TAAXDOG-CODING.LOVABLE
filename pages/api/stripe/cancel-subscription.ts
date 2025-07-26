@@ -4,6 +4,7 @@ import { authOptions } from '../auth/[...nextauth]';
 import { subscriptionManager } from '@/lib/stripe/subscription-manager';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { apiResponse } from '@/lib/api/response';
 
 // Request validation schema
 const cancelSubscriptionSchema = z.object({
@@ -14,14 +15,14 @@ const cancelSubscriptionSchema = z.object({
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return apiResponse.methodNotAllowed(res, { error: 'Method not allowed' });
   }
 
   try {
     // Check authentication
     const session = await getServerSession(req, res, authOptions);
     if (!session || !session.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return apiResponse.unauthorized(res, { error: 'Unauthorized' });
     }
 
     // Get user's subscription
@@ -30,15 +31,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     if (!subscription) {
-      return res.status(404).json({ error: 'No active subscription found' });
+      return apiResponse.notFound(res, { error: 'No active subscription found' });
     }
 
     // Validate request body
     const validation = cancelSubscriptionSchema.safeParse(req.body);
     if (!validation.success) {
-      return res.status(400).json({ 
-        error: 'Invalid request data', 
-        details: validation.error.errors 
+      return apiResponse.error(res, {
+        error: 'Invalid request data',
+        details: validation.error.errors,
       });
     }
 
@@ -47,7 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Cancel subscription
     const cancelledSubscription = await subscriptionManager.cancelSubscription(
       subscription.stripeSubscriptionId,
-      immediately
+      immediately,
     );
 
     // Store cancellation feedback
@@ -56,7 +57,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         data: {
           userId: session.user.id,
           event: 'SUBSCRIPTION_CANCELLED' as any,
-          ipAddress: req.headers['x-forwarded-for'] as string || 'unknown',
+          ipAddress: (req.headers['x-forwarded-for'] as string) || 'unknown',
           metadata: {
             reason,
             feedback,
@@ -69,7 +70,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Return cancellation details
-    res.status(200).json({
+    apiResponse.success(res, {
       success: true,
       subscription: {
         id: cancelledSubscription.id,
@@ -78,11 +79,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         cancelAtPeriodEnd: cancelledSubscription.cancel_at_period_end,
         currentPeriodEnd: cancelledSubscription.current_period_end,
       },
-      message: immediately 
-        ? 'Subscription cancelled immediately' 
+      message: immediately
+        ? 'Subscription cancelled immediately'
         : `Subscription will be cancelled at the end of the current billing period`,
     });
-
   } catch (error: any) {
     // Log sanitized error information
     console.error('[Cancel Subscription] Error occurred:', {
@@ -90,13 +90,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       code: error?.code,
       type: error?.type,
       statusCode: error?.statusCode,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-    
+
     // Send generic error response to client
-    res.status(500).json({ 
-      error: 'Failed to cancel subscription', 
-      message: 'An error occurred while cancelling your subscription. Please try again or contact support.'
+    apiResponse.internalError(res, {
+      error: 'Failed to cancel subscription',
+      message:
+        'An error occurred while cancelling your subscription. Please try again or contact support.',
     });
   }
 }

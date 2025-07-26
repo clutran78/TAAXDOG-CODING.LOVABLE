@@ -1,34 +1,33 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Block this test endpoint in production
   if (process.env.NODE_ENV === 'production') {
-    return res.status(404).json({ message: "Not found" });
+    return apiResponse.notFound(res, { message: 'Not found' });
   }
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return apiResponse.methodNotAllowed(res, { error: 'Method not allowed' });
   }
 
-  console.log('Simple register called');
-  console.log('Body:', req.body);
-  console.log('Headers:', req.headers);
+  logger.info('Simple register called');
+  logger.info('Body:', req.body);
+  logger.info('Headers:', req.headers);
 
   // Simple validation
   const { email, password, name } = req.body || {};
-  
+
   if (!email || !password || !name) {
-    return res.status(400).json({
+    return apiResponse.error(res, {
       error: 'Missing required fields',
-      received: req.body
+      received: req.body,
     });
   }
 
   // For testing, just return success
-  return res.status(200).json({
+  return apiResponse.success(res, {
     message: 'Registration test successful',
-    data: { email, name }
+    data: { email, name },
   });
 }

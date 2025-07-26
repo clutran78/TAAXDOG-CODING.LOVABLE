@@ -2,18 +2,20 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../auth/[...nextauth]';
 import { PrismaClient } from '@prisma/client';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
 
 const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
   if (!session?.user?.id) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return apiResponse.unauthorized(res, { error: 'Unauthorized' });
   }
 
   const { id } = req.query;
   if (!id || typeof id !== 'string') {
-    return res.status(400).json({ error: 'Invalid budget ID' });
+    return apiResponse.error(res, { error: 'Invalid budget ID' });
   }
 
   switch (req.method) {
@@ -24,7 +26,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     case 'DELETE':
       return handleDelete(req, res, id, session.user.id);
     default:
-      return res.status(405).json({ error: 'Method not allowed' });
+      return apiResponse.methodNotAllowed(res, { error: 'Method not allowed' });
   }
 }
 
@@ -32,33 +34,30 @@ async function handleGet(
   req: NextApiRequest,
   res: NextApiResponse,
   budgetId: string,
-  userId: string
+  userId: string,
 ) {
   try {
     const budget = await prisma.budget.findUnique({
       where: { id: budgetId },
       include: {
         budgetTracking: {
-          orderBy: [
-            { year: 'desc' },
-            { month: 'desc' },
-          ],
+          orderBy: [{ year: 'desc' }, { month: 'desc' }],
         },
       },
     });
 
     if (!budget) {
-      return res.status(404).json({ error: 'Budget not found' });
+      return apiResponse.notFound(res, { error: 'Budget not found' });
     }
 
     if (budget.userId !== userId) {
-      return res.status(403).json({ error: 'Forbidden' });
+      return apiResponse.forbidden(res, { error: 'Forbidden' });
     }
 
-    res.status(200).json({ budget });
+    apiResponse.success(res, { budget });
   } catch (error) {
-    console.error('Get budget error:', error);
-    res.status(500).json({ error: 'Failed to fetch budget' });
+    logger.error('Get budget error:', error);
+    apiResponse.internalError(res, { error: 'Failed to fetch budget' });
   } finally {
     await prisma.$disconnect();
   }
@@ -68,7 +67,7 @@ async function handlePut(
   req: NextApiRequest,
   res: NextApiResponse,
   budgetId: string,
-  userId: string
+  userId: string,
 ) {
   try {
     const budget = await prisma.budget.findUnique({
@@ -76,21 +75,14 @@ async function handlePut(
     });
 
     if (!budget) {
-      return res.status(404).json({ error: 'Budget not found' });
+      return apiResponse.notFound(res, { error: 'Budget not found' });
     }
 
     if (budget.userId !== userId) {
-      return res.status(403).json({ error: 'Forbidden' });
+      return apiResponse.forbidden(res, { error: 'Forbidden' });
     }
 
-    const {
-      name,
-      monthlyBudget,
-      targetSavings,
-      monthlyIncome,
-      categoryLimits,
-      status,
-    } = req.body;
+    const { name, monthlyBudget, targetSavings, monthlyIncome, categoryLimits, status } = req.body;
 
     const updatedBudget = await prisma.budget.update({
       where: { id: budgetId },
@@ -105,10 +97,10 @@ async function handlePut(
       },
     });
 
-    res.status(200).json({ budget: updatedBudget });
+    apiResponse.success(res, { budget: updatedBudget });
   } catch (error) {
-    console.error('Update budget error:', error);
-    res.status(500).json({ error: 'Failed to update budget' });
+    logger.error('Update budget error:', error);
+    apiResponse.internalError(res, { error: 'Failed to update budget' });
   } finally {
     await prisma.$disconnect();
   }
@@ -118,7 +110,7 @@ async function handleDelete(
   req: NextApiRequest,
   res: NextApiResponse,
   budgetId: string,
-  userId: string
+  userId: string,
 ) {
   try {
     const budget = await prisma.budget.findUnique({
@@ -126,21 +118,21 @@ async function handleDelete(
     });
 
     if (!budget) {
-      return res.status(404).json({ error: 'Budget not found' });
+      return apiResponse.notFound(res, { error: 'Budget not found' });
     }
 
     if (budget.userId !== userId) {
-      return res.status(403).json({ error: 'Forbidden' });
+      return apiResponse.forbidden(res, { error: 'Forbidden' });
     }
 
     await prisma.budget.delete({
       where: { id: budgetId },
     });
 
-    res.status(200).json({ success: true });
+    apiResponse.success(res, { success: true });
   } catch (error) {
-    console.error('Delete budget error:', error);
-    res.status(500).json({ error: 'Failed to delete budget' });
+    logger.error('Delete budget error:', error);
+    apiResponse.internalError(res, { error: 'Failed to delete budget' });
   } finally {
     await prisma.$disconnect();
   }

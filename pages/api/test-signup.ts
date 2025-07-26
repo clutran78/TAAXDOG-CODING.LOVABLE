@@ -1,18 +1,17 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return apiResponse.methodNotAllowed(res, { error: 'Method not allowed' });
   }
 
-  console.log('Test register endpoint called');
-  console.log('Body:', req.body);
+  logger.info('Test register endpoint called');
+  logger.info('Body:', req.body);
 
-  return res.status(200).json({
+  return apiResponse.success(res, {
     message: 'Test successful',
-    received: req.body
+    received: req.body,
   });
 }

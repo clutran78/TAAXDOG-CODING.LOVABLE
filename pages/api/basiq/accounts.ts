@@ -3,12 +3,14 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { basiqClient } from '@/lib/basiq/client';
 import { basiqDB } from '@/lib/basiq/database';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
 
   if (!session || !session.user) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return apiResponse.unauthorized(res, { error: 'Unauthorized' });
   }
 
   const startTime = Date.now();
@@ -44,19 +46,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
               await basiqDB.syncTransactions(account.id, transactions.data);
             } catch (err) {
-              console.error(`Failed to sync transactions for account ${account.id}:`, err);
+              logger.error(`Failed to sync transactions for account ${account.id}:`, err);
             }
           }
         }
 
         // Get accounts from database
         const accounts = await basiqDB.getUserAccounts(session.user.id);
-        
+
         responseBody = {
           accounts,
           synced: sync === 'true',
         };
-        res.status(200).json(responseBody);
+        apiResponse.success(res, responseBody);
         break;
 
       case 'POST':
@@ -69,9 +71,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         const account = await basiqClient.getAccount(basiqUser.basiq_user_id, accountId);
-        
+
         responseBody = { account };
-        res.status(200).json(responseBody);
+        apiResponse.success(res, responseBody);
         break;
 
       default:
@@ -95,7 +97,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       responseStatus,
       responseBody,
       duration,
-      error
+      error,
     );
   }
 }

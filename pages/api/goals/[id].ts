@@ -1,130 +1,407 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { GoalService } from '@/lib/goals/goal-service';
-import { UpdateGoalRequest } from '@/lib/types/goal';
-import { z } from 'zod';
-import { createValidatedHandler, validators } from '@/lib/validation/api-validator';
+import { prisma } from '../../../lib/prisma';
+import { addSecurityHeaders } from '../../../lib/security/sanitizer';
+import { authMiddleware, AuthenticatedRequest } from '../../../lib/middleware/auth';
+import { withSessionRateLimit } from '../../../lib/security/rateLimiter';
+import {
+  withValidation,
+  validateMethod,
+  composeMiddleware,
+} from '../../../lib/middleware/validation';
+import { goalSchemas } from '../../../lib/validation/api-schemas';
+import { logger } from '../../../lib/utils/logger';
+import { AuthEvent } from '@prisma/client';
+import { apiResponse } from '@/lib/api/response';
 
-// Define validation schemas
-const querySchema = z.object({
-  id: validators.uuid,
-});
+/**
+ * Single goal API endpoint with comprehensive validation
+ * Handles GET (retrieve), PATCH (update), DELETE (delete)
+ */
+async function goalDetailHandler(req: AuthenticatedRequest, res: NextApiResponse) {
+  // Add security headers to all responses
+  addSecurityHeaders(res);
 
-const updateGoalSchema = z.object({
-  title: validators.safeString.min(1).max(100).optional(),
-  targetAmount: validators.amount.optional(),
-  currentAmount: validators.amount.optional(),
-  targetDate: validators.date.optional(),
-  description: validators.safeString.max(500).optional(),
-  category: validators.safeString.max(50).optional(),
-  status: z.enum(['ACTIVE', 'COMPLETED', 'CANCELLED']).optional(),
-});
+  const requestId = (req as any).requestId;
 
-export default createValidatedHandler(
-  {
-    querySchema,
-    bodySchema: updateGoalSchema.optional(),
-    allowedMethods: ['GET', 'PUT', 'DELETE'],
-  },
-  async (req, res) => {
-  const session = await getServerSession(req, res, authOptions);
+  try {
+    const userId = req.userId;
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+    const { id } = req.query;
 
-  if (!session || !session.user) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    // Validate userId exists
+    if (!userId) {
+      logger.error('Missing userId in authenticated request', { requestId });
+      return apiResponse.unauthorized(res, {
+        error: 'Authentication Error',
+        message: 'User ID not found in authenticated request',
+        requestId,
+      });
+    }
+
+    // ID is already validated by middleware
+    const goalId = id as string;
+
+    logger.info('Goal detail API access', {
+      userId,
+      goalId,
+      method: req.method,
+      clientIp,
+      requestId,
+    });
+
+    switch (req.method) {
+      case 'GET':
+        return handleGetGoal(userId, goalId, res, requestId);
+
+      case 'PATCH':
+        return handleUpdateGoal(userId, goalId, req.body, res, clientIp, requestId);
+
+      case 'DELETE':
+        return handleDeleteGoal(userId, goalId, res, clientIp, requestId);
+
+      default:
+        res.setHeader('Allow', ['GET', 'PATCH', 'DELETE']);
+        return apiResponse.methodNotAllowed(res, {
+          error: 'Method not allowed',
+          message: `Method ${req.method} is not allowed`,
+          requestId,
+        });
+    }
+  } catch (error) {
+    logger.error('Goal detail API error', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      userId: req.userId,
+      goalId: req.query.id,
+      requestId,
+    });
+
+    return apiResponse.internalError(res, {
+      error: 'Internal server error',
+      message: 'An error occurred while processing your request',
+      requestId,
+    });
   }
+}
 
-  const userId = session.user.id;
-  const goalId = req.validatedQuery!.id;
+/**
+ * Get a single goal by ID
+ */
+async function handleGetGoal(
+  userId: string,
+  goalId: string,
+  res: NextApiResponse,
+  requestId?: string,
+) {
+  try {
+    const goal = await prisma.goal.findFirst({
+      where: {
+        id: goalId,
+        userId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        targetAmount: true,
+        currentAmount: true,
+        deadline: true,
+        category: true,
+        status: true,
+        priority: true,
+        createdAt: true,
+        updatedAt: true,
+        completedAt: true,
+      },
+    });
 
-  switch (req.method) {
-    case 'GET':
-      try {
-        const goal = await GoalService.getGoal(goalId, userId);
-        
-        if (!goal) {
-          return res.status(404).json({ error: 'Goal not found' });
-        }
+    if (!goal) {
+      logger.warn('Goal not found', {
+        userId,
+        goalId,
+        requestId,
+      });
 
-        const formattedGoal = {
-          id: goal.id,
-          name: goal.title,
-          currentAmount: goal.currentAmount.toNumber(),
-          targetAmount: goal.targetAmount.toNumber(),
-          dueDate: goal.targetDate.toISOString(),
-          userId: goal.userId,
-          description: goal.category,
-          category: goal.category,
-          createdAt: goal.createdAt.toISOString(),
-          updatedAt: goal.updatedAt.toISOString(),
-          status: goal.status,
-        };
+      return apiResponse.notFound(res, {
+        error: 'Not found',
+        message: 'Goal not found',
+        requestId,
+      });
+    }
 
-        return res.status(200).json(formattedGoal);
-      } catch (error) {
-        console.error('Error fetching goal:', error);
-        return res.status(500).json({ error: 'Failed to fetch goal' });
-      }
+    // Calculate progress
+    const progress = goal.targetAmount > 0 ? (goal.currentAmount / goal.targetAmount) * 100 : 0;
 
-    case 'PUT':
-      try {
-        const data = req.validatedBody as UpdateGoalRequest;
+    const daysRemaining = goal.deadline
+      ? Math.max(
+          0,
+          Math.ceil((new Date(goal.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
+        )
+      : null;
 
-        // Verify the goal belongs to the user
-        const existingGoal = await GoalService.getGoal(goalId, userId);
-        if (!existingGoal) {
-          return res.status(404).json({ error: 'Goal not found' });
-        }
+    logger.info('Goal retrieved', {
+      userId,
+      goalId,
+      requestId,
+    });
 
-        const updateData: any = {};
+    return apiResponse.success(res, {
+      success: true,
+      data: {
+        ...goal,
+        progressPercentage: Math.min(100, Math.round(progress * 100) / 100),
+        daysRemaining,
+        isOverdue: goal.deadline ? new Date(goal.deadline) < new Date() : false,
+      },
+    });
+  } catch (error) {
+    logger.error('Error fetching goal', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      userId,
+      goalId,
+      requestId,
+    });
 
-        if (data.name !== undefined) updateData.title = data.name;
-        if (data.targetAmount !== undefined) updateData.targetAmount = data.targetAmount;
-        if (data.currentAmount !== undefined) updateData.currentAmount = data.currentAmount;
-        if (data.dueDate !== undefined) updateData.targetDate = new Date(data.dueDate);
-        if (data.category !== undefined) updateData.category = data.category;
-        if (data.status !== undefined) updateData.status = data.status;
-
-        const goal = await GoalService.updateGoal(goalId, updateData);
-
-        const formattedGoal = {
-          id: goal.id,
-          name: goal.title,
-          currentAmount: goal.currentAmount.toNumber(),
-          targetAmount: goal.targetAmount.toNumber(),
-          dueDate: goal.targetDate.toISOString(),
-          userId: goal.userId,
-          description: goal.category,
-          category: goal.category,
-          createdAt: goal.createdAt.toISOString(),
-          updatedAt: goal.updatedAt.toISOString(),
-          status: goal.status,
-        };
-
-        return res.status(200).json(formattedGoal);
-      } catch (error) {
-        console.error('Error updating goal:', error);
-        return res.status(500).json({ error: 'Failed to update goal' });
-      }
-
-    case 'DELETE':
-      try {
-        // Verify the goal belongs to the user
-        const existingGoal = await GoalService.getGoal(goalId, userId);
-        if (!existingGoal) {
-          return res.status(404).json({ error: 'Goal not found' });
-        }
-
-        await GoalService.deleteGoal(goalId);
-        return res.status(204).end();
-      } catch (error) {
-        console.error('Error deleting goal:', error);
-        return res.status(500).json({ error: 'Failed to delete goal' });
-      }
-
-    default:
-      res.setHeader('Allow', ['GET', 'PUT', 'DELETE']);
-      return res.status(405).json({ error: 'Method not allowed' });
+    return apiResponse.internalError(res, {
+      error: 'Failed to fetch goal',
+      message: 'Unable to retrieve your goal. Please try again.',
+      requestId,
+    });
   }
+}
+
+/**
+ * Update a goal
+ */
+async function handleUpdateGoal(
+  userId: string,
+  goalId: string,
+  body: any,
+  res: NextApiResponse,
+  clientIp: string,
+  requestId?: string,
+) {
+  try {
+    // Body is already validated by middleware
+    const { name, description, targetAmount, currentAmount, deadline, status, priority } = body;
+
+    // Verify goal exists and belongs to user
+    const existingGoal = await prisma.goal.findFirst({
+      where: {
+        id: goalId,
+        userId,
+        deletedAt: null,
+      },
+    });
+
+    if (!existingGoal) {
+      logger.warn('Goal not found for update', {
+        userId,
+        goalId,
+        requestId,
+      });
+
+      return apiResponse.notFound(res, {
+        error: 'Not found',
+        message: 'Goal not found',
+        requestId,
+      });
+    }
+
+    // Build update data
+    const updateData: any = {
+      ...(name !== undefined && { name }),
+      ...(description !== undefined && { description }),
+      ...(targetAmount !== undefined && { targetAmount }),
+      ...(currentAmount !== undefined && { currentAmount }),
+      ...(deadline !== undefined && { deadline: deadline ? new Date(deadline) : null }),
+      ...(status !== undefined && { status }),
+      ...(priority !== undefined && { priority }),
+      updatedAt: new Date(),
+    };
+
+    // Check if goal is being completed
+    if (currentAmount !== undefined && targetAmount !== undefined) {
+      if (currentAmount >= targetAmount) {
+        updateData.status = 'COMPLETED';
+        updateData.completedAt = new Date();
+      }
+    } else if (currentAmount !== undefined && currentAmount >= existingGoal.targetAmount) {
+      updateData.status = 'COMPLETED';
+      updateData.completedAt = new Date();
+    }
+
+    // Update the goal
+    const updatedGoal = await prisma.goal.update({
+      where: {
+        id: goalId,
+        userId, // Double-check ownership
+      },
+      data: updateData,
+      select: {
+        id: true,
+        name: true,
+        targetAmount: true,
+        currentAmount: true,
+        status: true,
+        updatedAt: true,
+        completedAt: true,
+      },
+    });
+
+    // Log goal update
+    await prisma.auditLog.create({
+      data: {
+        event: 'GOAL_UPDATE' as AuthEvent,
+        userId,
+        ipAddress: clientIp,
+        userAgent: req.headers['user-agent'] || '',
+        success: true,
+        metadata: {
+          goalId,
+          changes: updateData,
+        },
+      },
+    });
+
+    logger.info('Goal updated', {
+      userId,
+      goalId,
+      updatedFields: Object.keys(updateData),
+      requestId,
+    });
+
+    return apiResponse.success(res, {
+      success: true,
+      data: updatedGoal,
+    });
+  } catch (error) {
+    logger.error('Error updating goal', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      userId,
+      goalId,
+      requestId,
+    });
+
+    return apiResponse.internalError(res, {
+      error: 'Failed to update goal',
+      message: 'Unable to update your goal. Please try again.',
+      requestId,
+    });
   }
-);
+}
+
+/**
+ * Soft delete a goal
+ */
+async function handleDeleteGoal(
+  userId: string,
+  goalId: string,
+  res: NextApiResponse,
+  clientIp: string,
+  requestId?: string,
+) {
+  try {
+    // Verify goal exists and belongs to user
+    const existingGoal = await prisma.goal.findFirst({
+      where: {
+        id: goalId,
+        userId,
+        deletedAt: null,
+      },
+    });
+
+    if (!existingGoal) {
+      logger.warn('Goal not found for deletion', {
+        userId,
+        goalId,
+        requestId,
+      });
+
+      return apiResponse.notFound(res, {
+        error: 'Not found',
+        message: 'Goal not found',
+        requestId,
+      });
+    }
+
+    // Soft delete the goal
+    await prisma.goal.update({
+      where: {
+        id: goalId,
+        userId, // Double-check ownership
+      },
+      data: {
+        deletedAt: new Date(),
+        status: 'CANCELLED',
+      },
+    });
+
+    // Log goal deletion
+    await prisma.auditLog.create({
+      data: {
+        event: 'GOAL_DELETE' as AuthEvent,
+        userId,
+        ipAddress: clientIp,
+        userAgent: req.headers['user-agent'] || '',
+        success: true,
+        metadata: {
+          goalId,
+          goalName: existingGoal.name,
+        },
+      },
+    });
+
+    logger.info('Goal deleted', {
+      userId,
+      goalId,
+      requestId,
+    });
+
+    return apiResponse.success(res, {
+      success: true,
+      message: 'Goal deleted successfully',
+    });
+  } catch (error) {
+    logger.error('Error deleting goal', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      userId,
+      goalId,
+      requestId,
+    });
+
+    return apiResponse.internalError(res, {
+      error: 'Failed to delete goal',
+      message: 'Unable to delete your goal. Please try again.',
+      requestId,
+    });
+  }
+}
+
+// Export with validation, authentication and rate limiting middleware
+export default composeMiddleware(
+  validateMethod(['GET', 'PATCH', 'DELETE']),
+  withValidation({
+    params: goalSchemas.update.params,
+    body: (req: NextApiRequest) => {
+      if (req.method === 'PATCH') {
+        return goalSchemas.update.body;
+      }
+      return undefined;
+    },
+    response: (req: NextApiRequest) => {
+      if (req.method === 'GET') {
+        return goalSchemas.list.response; // Similar structure for single goal
+      }
+      if (req.method === 'PATCH') {
+        return goalSchemas.update.response;
+      }
+      return undefined;
+    },
+  }),
+  authMiddleware.authenticated,
+  withSessionRateLimit({
+    window: 60 * 1000, // 1 minute
+    max: 30, // 30 requests per minute
+  }),
+)(goalDetailHandler);

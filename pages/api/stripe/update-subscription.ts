@@ -4,6 +4,8 @@ import { authOptions } from '../auth/[...nextauth]';
 import { subscriptionManager } from '@/lib/stripe/subscription-manager';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
 
 // Request validation schema
 const updateSubscriptionSchema = z.object({
@@ -15,14 +17,14 @@ const updateSubscriptionSchema = z.object({
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'PUT' && req.method !== 'PATCH') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return apiResponse.methodNotAllowed(res, { error: 'Method not allowed' });
   }
 
   try {
     // Check authentication
     const session = await getServerSession(req, res, authOptions);
     if (!session || !session.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return apiResponse.unauthorized(res, { error: 'Unauthorized' });
     }
 
     // Get user's subscription
@@ -31,15 +33,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     if (!subscription) {
-      return res.status(404).json({ error: 'No active subscription found' });
+      return apiResponse.notFound(res, { error: 'No active subscription found' });
     }
 
     // Validate request body
     const validation = updateSubscriptionSchema.safeParse(req.body);
     if (!validation.success) {
-      return res.status(400).json({ 
-        error: 'Invalid request data', 
-        details: validation.error.errors 
+      return apiResponse.error(res, {
+        error: 'Invalid request data',
+        details: validation.error.errors,
       });
     }
 
@@ -55,7 +57,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     // Return updated subscription details
-    res.status(200).json({
+    apiResponse.success(res, {
       success: true,
       subscription: {
         id: updatedSubscription.id,
@@ -67,20 +69,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         trialEnd: updatedSubscription.trial_end,
       },
     });
-
   } catch (error: any) {
-    console.error('Update subscription error:', error);
-    
+    logger.error('Update subscription error:', error);
+
     if (error.type === 'StripeInvalidRequestError') {
-      return res.status(400).json({ 
-        error: 'Invalid request', 
-        message: error.message 
+      return apiResponse.error(res, {
+        error: 'Invalid request',
+        message: error.message,
       });
     }
-    
-    res.status(500).json({ 
-      error: 'Failed to update subscription', 
-      message: error.message 
+
+    apiResponse.internalError(res, {
+      error: 'Failed to update subscription',
+      message: error.message,
     });
   }
 }

@@ -1,18 +1,20 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../auth/[...nextauth]';
-import { prisma } from '../../../../lib/db/unifiedMonitoredPrisma';
+import { prisma } from '../../../../lib/prisma';
 import { subHours, subDays } from 'date-fns';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return apiResponse.methodNotAllowed(res, { error: 'Method not allowed' });
   }
 
   const session = await getServerSession(req, res, authOptions);
-  
+
   if (!session || session.user.role !== 'ADMIN') {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return apiResponse.unauthorized(res, { error: 'Unauthorized' });
   }
 
   try {
@@ -26,8 +28,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const failedLogins = await prisma.auditLog.count({
       where: {
         action: 'login.failed',
-        createdAt: { gte: oneHourAgo }
-      }
+        createdAt: { gte: oneHourAgo },
+      },
     });
 
     // Get suspicious activities
@@ -36,10 +38,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         OR: [
           { action: { contains: 'suspicious' } },
           { action: { contains: 'denied' } },
-          { action: { contains: 'blocked' } }
+          { action: { contains: 'blocked' } },
         ],
-        createdAt: { gte: oneHourAgo }
-      }
+        createdAt: { gte: oneHourAgo },
+      },
     });
 
     // Get recent security events
@@ -49,9 +51,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           { action: { contains: 'security' } },
           { action: { contains: 'login' } },
           { action: { contains: 'denied' } },
-          { action: { contains: 'export' } }
+          { action: { contains: 'export' } },
         ],
-        createdAt: { gte: oneHourAgo }
+        createdAt: { gte: oneHourAgo },
       },
       orderBy: { createdAt: 'desc' },
       take: 20,
@@ -61,8 +63,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         userId: true,
         ipAddress: true,
         details: true,
-        createdAt: true
-      }
+        createdAt: true,
+      },
     });
 
     // Calculate vulnerabilities (mock data for now)
@@ -70,15 +72,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       critical: 0,
       high: 0,
       medium: 2,
-      low: 5
+      low: 5,
     };
 
     // Check for users without 2FA (vulnerability)
     const usersWithout2FA = await prisma.user.count({
       where: {
         twoFactorEnabled: false,
-        role: { in: ['ADMIN', 'ACCOUNTANT'] }
-      }
+        role: { in: ['ADMIN', 'ACCOUNTANT'] },
+      },
     });
 
     if (usersWithout2FA > 0) {
@@ -89,8 +91,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const oldSessions = await prisma.session.count({
       where: {
         createdAt: { lt: subDays(now, 30) },
-        expires: { gt: now }
-      }
+        expires: { gt: now },
+      },
     });
 
     if (oldSessions > 0) {
@@ -101,8 +103,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const activeThreats = await prisma.auditLog.count({
       where: {
         action: { contains: 'threat' },
-        createdAt: { gte: oneDayAgo }
-      }
+        createdAt: { gte: oneDayAgo },
+      },
     });
 
     // Calculate security score
@@ -130,52 +132,52 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       {
         framework: 'Australian Privacy Act',
         score: 92,
-        status: 'compliant'
+        status: 'compliant',
       },
       {
         framework: 'Financial Security',
         score: 88,
-        status: 'compliant'
+        status: 'compliant',
       },
       {
         framework: 'Data Residency',
         score: 100,
-        status: 'compliant'
-      }
+        status: 'compliant',
+      },
     ];
 
     // Generate recommendations
     const recommendations = [];
-    
+
     if (usersWithout2FA > 0) {
       recommendations.push(`Enable 2FA for ${usersWithout2FA} privileged users`);
     }
-    
+
     if (failedLogins > 10) {
       recommendations.push('Investigate high number of failed login attempts');
     }
-    
+
     if (suspiciousActivities > 5) {
       recommendations.push('Review and address suspicious activities');
     }
-    
+
     if (oldSessions > 0) {
       recommendations.push(`Clean up ${oldSessions} expired sessions`);
     }
-    
+
     if (vulnerabilities.critical > 0) {
       recommendations.push('Address critical vulnerabilities immediately');
     }
 
     // Format recent events
-    const formattedEvents = recentEvents.map(event => ({
+    const formattedEvents = recentEvents.map((event) => ({
       id: event.id,
       timestamp: event.createdAt.toISOString(),
       type: event.action.split('.')[0],
       severity: determineSeverity(event.action),
       description: formatEventDescription(event.action, event.details as any),
       user: event.userId,
-      ipAddress: event.ipAddress
+      ipAddress: event.ipAddress,
     }));
 
     const metrics = {
@@ -188,13 +190,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       vulnerabilities,
       recentEvents: formattedEvents,
       compliance,
-      recommendations
+      recommendations,
     };
 
-    res.status(200).json(metrics);
+    apiResponse.success(res, metrics);
   } catch (error) {
-    console.error('Error fetching security metrics:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error('Error fetching security metrics:', error);
+    apiResponse.internalError(res, { error: 'Internal server error' });
   }
 }
 
@@ -207,7 +209,7 @@ function determineSeverity(action: string): string {
 
 function formatEventDescription(action: string, details: any): string {
   const actionParts = action.split('.');
-  
+
   switch (actionParts[0]) {
     case 'login':
       if (actionParts[1] === 'failed') {
@@ -230,6 +232,6 @@ function formatEventDescription(action: string, details: any): string {
     case 'security':
       return details?.description || 'Security event detected';
   }
-  
+
   return action.replace(/\./g, ' ').replace(/_/g, ' ');
 }

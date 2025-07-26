@@ -4,16 +4,17 @@ import { authOptions } from '../auth/[...nextauth]';
 import { basiqClient } from '@/lib/basiq/client';
 import { basiqDB } from '@/lib/basiq/database';
 import { prisma } from '@/lib/prisma';
+import { apiResponse } from '@/lib/api/response';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
 
   if (!session || !session.user) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return apiResponse.unauthorized(res, { error: 'Unauthorized' });
   }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return apiResponse.methodNotAllowed(res, { error: 'Method not allowed' });
   }
 
   const startTime = Date.now();
@@ -79,7 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         select: { id: true },
       });
 
-      const accountIds = accounts.map(acc => acc.id);
+      const accountIds = accounts.map((acc) => acc.id);
 
       // Delete transactions
       const deletedTransactions = await prisma.bank_transactions.deleteMany({
@@ -122,8 +123,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       };
     }
 
-    res.status(200).json(responseBody);
-
+    apiResponse.success(res, responseBody);
   } catch (err: any) {
     responseStatus = 500;
     error = err.message;
@@ -140,7 +140,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       responseStatus,
       responseBody,
       duration,
-      error
+      error,
     );
   }
 }

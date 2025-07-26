@@ -3,17 +3,19 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { subscriptionManager } from '@/lib/stripe/subscription-manager';
 import { prisma } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return apiResponse.methodNotAllowed(res, { error: 'Method not allowed' });
   }
 
   try {
     // Check authentication
     const session = await getServerSession(req, res, authOptions);
     if (!session || !session.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return apiResponse.unauthorized(res, { error: 'Unauthorized' });
     }
 
     // Get user's subscription
@@ -22,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     if (!subscription || !subscription.stripeCustomerId) {
-      return res.status(404).json({ error: 'No active subscription found' });
+      return apiResponse.notFound(res, { error: 'No active subscription found' });
     }
 
     // Get return URL from request or use default
@@ -31,7 +33,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Create portal session
     const portalUrl = await subscriptionManager.createPortalSession(
       subscription.stripeCustomerId,
-      returnUrl
+      returnUrl,
     );
 
     // Log portal access
@@ -39,7 +41,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       data: {
         userId: session.user.id,
         event: 'SUBSCRIPTION_PORTAL_ACCESS' as any,
-        ipAddress: req.headers['x-forwarded-for'] as string || 'unknown',
+        ipAddress: (req.headers['x-forwarded-for'] as string) || 'unknown',
         metadata: {
           customerId: subscription.stripeCustomerId,
           returnUrl,
@@ -49,17 +51,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     // Return portal URL
-    res.status(200).json({
+    apiResponse.success(res, {
       success: true,
       url: portalUrl,
     });
-
   } catch (error: any) {
-    console.error('Customer portal error:', error);
-    
-    res.status(500).json({ 
-      error: 'Failed to create portal session', 
-      message: error.message 
+    logger.error('Customer portal error:', error);
+
+    apiResponse.internalError(res, {
+      error: 'Failed to create portal session',
+      message: error.message,
     });
   }
 }

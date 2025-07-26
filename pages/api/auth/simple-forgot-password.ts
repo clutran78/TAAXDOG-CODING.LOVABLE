@@ -1,22 +1,25 @@
-import type { NextApiRequest, NextApiResponse } from "next";
-import { prisma } from "../../../lib/prisma";
-import { createPasswordResetToken } from "../../../lib/auth";
-import { sendPasswordResetEmail } from "../../../lib/email";
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { prisma } from '../../../lib/prisma';
+import { createPasswordResetToken } from '../../../lib/auth';
+import { sendPasswordResetEmail } from '../../../lib/email';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ message: "Method not allowed" });
+  if (req.method !== 'POST') {
+    return apiResponse.methodNotAllowed(res, { message: 'Method not allowed' });
   }
 
   try {
     const { email } = req.body;
 
     if (!email) {
-      return res.status(400).json({ message: "Email is required" });
+      return apiResponse.error(res, { message: 'Email is required' });
     }
 
     // Always return success to prevent email enumeration
-    const successMessage = "If an account exists with this email, you will receive password reset instructions.";
+    const successMessage =
+      'If an account exists with this email, you will receive password reset instructions.';
 
     // Find user
     const user = await prisma.user.findUnique({
@@ -31,13 +34,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (!user) {
       // Don't reveal if user exists
-      return res.status(200).json({ message: successMessage });
+      return apiResponse.success(res, { message: successMessage });
     }
 
     // For testing, we'll skip email verification check
     // In production, uncomment this:
     // if (!user.emailVerified) {
-    //   return res.status(200).json({ message: successMessage });
+    //   return apiResponse.success(res, { message: successMessage });
     // }
 
     // Generate reset token
@@ -46,42 +49,45 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Try to send email
     try {
       await sendPasswordResetEmail(user.email, user.name, resetToken);
-      console.log("[ForgotPassword] ✅ Reset email sent successfully to:", user.email);
+      logger.info('[ForgotPassword] ✅ Reset email sent successfully to:', user.email);
     } catch (emailError: any) {
-      console.error("[ForgotPassword] ❌ Failed to send email:", {
+      console.error('[ForgotPassword] ❌ Failed to send email:', {
         error: emailError.message,
         code: emailError.code,
         response: emailError.response?.body,
         to: user.email,
-        stack: emailError.stack
+        stack: emailError.stack,
       });
-      
+
       // In production, we still return success to prevent email enumeration
       // but log the full error for debugging
-      if (process.env.NODE_ENV === "development") {
-        return res.status(500).json({ 
-          message: "Failed to send reset email",
-          error: emailError.message 
+      if (process.env.NODE_ENV === 'development') {
+        return apiResponse.internalError(res, {
+          message: 'Failed to send reset email',
+          error: emailError.message,
         });
       }
     }
 
-    const baseUrl = process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://taxreturnpro.com.au';
-    
-    return res.status(200).json({ 
+    const baseUrl =
+      process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://taxreturnpro.com.au';
+
+    return apiResponse.success(res, {
       message: successMessage,
       // Include token in development for testing
-      debug: process.env.NODE_ENV === "development" ? {
-        resetToken,
-        resetUrl: `${baseUrl}/auth/reset-password?token=${resetToken}`
-      } : undefined
+      debug:
+        process.env.NODE_ENV === 'development'
+          ? {
+              resetToken,
+              resetUrl: `${baseUrl}/auth/reset-password?token=${resetToken}`,
+            }
+          : undefined,
     });
-
   } catch (error: any) {
-    console.error("[ForgotPassword] Error:", error);
-    return res.status(500).json({ 
-      message: "An error occurred processing your request",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined
+    logger.error('[ForgotPassword] Error:', error);
+    return apiResponse.internalError(res, {
+      message: 'An error occurred processing your request',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 }

@@ -4,12 +4,13 @@ import { authOptions } from '../auth/[...nextauth]';
 import { basiqClient } from '@/lib/basiq/client';
 import { basiqDB } from '@/lib/basiq/database';
 import { CreateUserParams } from '@/lib/basiq/types';
+import { apiResponse } from '@/lib/api/response';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
 
   if (!session || !session.user) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return apiResponse.unauthorized(res, { error: 'Unauthorized' });
   }
 
   const startTime = Date.now();
@@ -44,7 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           session.user.id,
           basiqUser.id,
           basiqUser.email,
-          basiqUser.mobile
+          basiqUser.mobile,
         );
 
         // Create consent for the user
@@ -58,7 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           user: basiqUser,
           consent: consent,
         };
-        res.status(200).json(responseBody);
+        apiResponse.success(res, responseBody);
         break;
 
       case 'GET':
@@ -72,12 +73,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         // Fetch from BASIQ API
         const userDetails = await basiqClient.getUser(basiqUserRecord.basiq_user_id);
-        
+
         responseBody = {
           user: userDetails,
           localData: basiqUserRecord,
         };
-        res.status(200).json(responseBody);
+        apiResponse.success(res, responseBody);
         break;
 
       case 'DELETE':
@@ -96,7 +97,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         await basiqDB.updateBasiqUserStatus(session.user.id, 'deleted');
 
         responseBody = { message: 'BASIQ user deleted successfully' };
-        res.status(200).json(responseBody);
+        apiResponse.success(res, responseBody);
         break;
 
       default:
@@ -120,7 +121,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       responseStatus,
       responseBody,
       duration,
-      error
+      error,
     );
   }
 }

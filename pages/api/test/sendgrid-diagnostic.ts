@@ -1,38 +1,45 @@
-import type { NextApiRequest, NextApiResponse } from "next";
+import type { NextApiRequest, NextApiResponse } from 'next';
 import sgMail from '@sendgrid/mail';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Only allow in development or with a secret header
-  if (process.env.NODE_ENV === 'production' && req.headers['x-test-key'] !== process.env.TEST_EMAIL_SECRET) {
-    return res.status(403).json({ error: "Forbidden" });
+  if (
+    process.env.NODE_ENV === 'production' &&
+    req.headers['x-test-key'] !== process.env.TEST_EMAIL_SECRET
+  ) {
+    return apiResponse.forbidden(res, { error: 'Forbidden' });
   }
 
-  console.log('[SendGrid Diagnostic] Running diagnostics...');
+  logger.info('[SendGrid Diagnostic] Running diagnostics...');
 
   const diagnostics = {
     environment: {
       NODE_ENV: process.env.NODE_ENV,
       EMAIL_PROVIDER: process.env.EMAIL_PROVIDER,
       EMAIL_FROM: process.env.EMAIL_FROM || 'Not set',
-      SENDGRID_API_KEY: process.env.SENDGRID_API_KEY ? {
-        exists: true,
-        startsWithSG: process.env.SENDGRID_API_KEY.startsWith('SG.'),
-        length: process.env.SENDGRID_API_KEY.length,
-        preview: process.env.SENDGRID_API_KEY.substring(0, 10) + '...'
-      } : { exists: false },
+      SENDGRID_API_KEY: process.env.SENDGRID_API_KEY
+        ? {
+            exists: true,
+            startsWithSG: process.env.SENDGRID_API_KEY.startsWith('SG.'),
+            length: process.env.SENDGRID_API_KEY.length,
+            preview: process.env.SENDGRID_API_KEY.substring(0, 10) + '...',
+          }
+        : { exists: false },
       APP_URL: process.env.APP_URL,
       NEXTAUTH_URL: process.env.NEXTAUTH_URL,
     },
     sendgridInit: {
       apiKeySet: false,
-      error: null as any
+      error: null as any,
     },
     testEmail: {
       attempted: false,
       success: false,
       error: null as any,
-      response: null as any
-    }
+      response: null as any,
+    },
   };
 
   // Test SendGrid initialization
@@ -48,7 +55,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // If requested, try to send a test email
   if (req.method === 'POST' && req.body.testEmail && diagnostics.sendgridInit.apiKeySet) {
     diagnostics.testEmail.attempted = true;
-    
+
     const msg = {
       to: req.body.testEmail,
       from: process.env.EMAIL_FROM || 'noreply@taxreturnpro.com.au',
@@ -58,41 +65,45 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     };
 
     try {
-      console.log('[SendGrid Diagnostic] Attempting to send test email to:', req.body.testEmail);
+      logger.info('[SendGrid Diagnostic] Attempting to send test email to:', req.body.testEmail);
       const [response] = await sgMail.send(msg);
       diagnostics.testEmail.success = true;
       diagnostics.testEmail.response = {
         statusCode: response.statusCode,
         headers: response.headers,
-        messageId: response.headers['x-message-id']
+        messageId: response.headers['x-message-id'],
       };
-      console.log('[SendGrid Diagnostic] ✅ Test email sent successfully');
+      logger.info('[SendGrid Diagnostic] ✅ Test email sent successfully');
     } catch (error: any) {
-      console.error('[SendGrid Diagnostic] ❌ Failed to send test email:', error);
+      logger.error('[SendGrid Diagnostic] ❌ Failed to send test email:', error);
       diagnostics.testEmail.error = {
         message: error.message,
         code: error.code,
-        response: error.response?.body
+        response: error.response?.body,
       };
     }
   }
 
   // Check email provider logic
   const providerLogic = {
-    shouldUseSendGrid: process.env.EMAIL_PROVIDER === 'sendgrid' && 
-                       process.env.SENDGRID_API_KEY?.startsWith('SG.'),
-    actualProvider: !process.env.EMAIL_PROVIDER ? 'console (no EMAIL_PROVIDER)' :
-                    process.env.EMAIL_PROVIDER !== 'sendgrid' ? `${process.env.EMAIL_PROVIDER} (not sendgrid)` :
-                    !process.env.SENDGRID_API_KEY ? 'console (no API key)' :
-                    !process.env.SENDGRID_API_KEY.startsWith('SG.') ? 'console (invalid API key format)' :
-                    'sendgrid'
+    shouldUseSendGrid:
+      process.env.EMAIL_PROVIDER === 'sendgrid' && process.env.SENDGRID_API_KEY?.startsWith('SG.'),
+    actualProvider: !process.env.EMAIL_PROVIDER
+      ? 'console (no EMAIL_PROVIDER)'
+      : process.env.EMAIL_PROVIDER !== 'sendgrid'
+        ? `${process.env.EMAIL_PROVIDER} (not sendgrid)`
+        : !process.env.SENDGRID_API_KEY
+          ? 'console (no API key)'
+          : !process.env.SENDGRID_API_KEY.startsWith('SG.')
+            ? 'console (invalid API key format)'
+            : 'sendgrid',
   };
 
   const response = {
     timestamp: new Date().toISOString(),
     diagnostics,
     providerLogic,
-    recommendations: [] as string[]
+    recommendations: [] as string[],
   };
 
   // Add recommendations
@@ -109,5 +120,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     response.recommendations.push('Set EMAIL_FROM to your verified sender email');
   }
 
-  res.status(200).json(response);
+  apiResponse.success(res, response);
 }

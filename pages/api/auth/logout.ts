@@ -2,22 +2,27 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '../../../lib/prisma';
 import { verifyJWT, getClientIP } from '../../../lib/auth/auth-utils';
 import { AuthEvent } from '@prisma/client';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Only allow POST requests
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return apiResponse.methodNotAllowed(res, { error: 'Method not allowed' });
   }
 
   const clientIp = getClientIP(req);
 
   try {
     // Get auth token from cookie
-    const cookies = req.headers.cookie?.split(';').reduce((acc, cookie) => {
-      const [key, value] = cookie.trim().split('=');
-      acc[key] = value;
-      return acc;
-    }, {} as Record<string, string>);
+    const cookies = req.headers.cookie?.split(';').reduce(
+      (acc, cookie) => {
+        const [key, value] = cookie.trim().split('=');
+        acc[key] = value;
+        return acc;
+      },
+      {} as Record<string, string>,
+    );
 
     const authToken = cookies?.['auth-token'];
     const sessionToken = cookies?.['session-token'];
@@ -33,7 +38,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         sessionId = decoded.sessionId || null;
       } catch (error) {
         // Token might be invalid or expired, but we still want to clear cookies
-        console.log('[Logout] Invalid auth token:', error);
+        logger.error('[Logout] Invalid auth token:', error);
       }
     }
 
@@ -46,7 +51,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         userId = userId || deletedSession.userId;
       } catch (error) {
         // Session might not exist
-        console.log('[Logout] Session not found:', error);
+        logger.error('[Logout] Session not found:', error);
       }
     }
 
@@ -72,7 +77,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           },
         });
       } catch (error) {
-        console.error('[Logout] Error clearing sessions:', error);
+        logger.error('[Logout] Error clearing sessions:', error);
       }
     }
 
@@ -84,7 +89,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       `HttpOnly`,
       !isDevelopment && `Secure`,
       `SameSite=lax`,
-    ].filter(Boolean).join('; ');
+    ]
+      .filter(Boolean)
+      .join('; ');
 
     res.setHeader('Set-Cookie', [
       `auth-token=; ${cookieOptions}`,
@@ -98,10 +105,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     // Return success response
-    return res.status(200).json({
+    return apiResponse.success(res, {
       message: 'Logout successful',
     });
-
   } catch (error: any) {
     // Log error
     console.error('[Logout] Logout error:', {
@@ -118,7 +124,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       `HttpOnly`,
       !isDevelopment && `Secure`,
       `SameSite=lax`,
-    ].filter(Boolean).join('; ');
+    ]
+      .filter(Boolean)
+      .join('; ');
 
     res.setHeader('Set-Cookie', [
       `auth-token=; ${cookieOptions}`,
@@ -127,7 +135,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ]);
 
     // Return success anyway - user wants to logout
-    return res.status(200).json({
+    return apiResponse.success(res, {
       message: 'Logout successful',
     });
   }

@@ -1,170 +1,142 @@
-import type { NextApiRequest, NextApiResponse } from "next";
-import { prisma } from "../../../lib/prisma";
-import bcrypt from "bcryptjs";
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { prisma } from '../../../lib/prisma';
+import bcrypt from 'bcryptjs';
+import { withRateLimit, RATE_LIMIT_CONFIGS } from '../../../lib/security/rateLimiter';
+import { addSecurityHeaders } from '../../../lib/security/sanitizer';
+import {
+  withValidation,
+  validateMethod,
+  composeMiddleware,
+} from '../../../lib/middleware/validation';
+import { authSchemas } from '../../../lib/validation/api-schemas';
+import { logger } from '../../../lib/utils/logger';
+import { getClientIP } from '../../../lib/auth/auth-utils';
+import { AuthEvent } from '@prisma/client';
+import { apiResponse } from '../../../lib/api/response';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  console.log("\n========== REGISTRATION ENDPOINT START ==========");
-  console.log("Timestamp:", new Date().toISOString());
-  console.log("Method:", req.method);
-  console.log("Headers:", {
-    "content-type": req.headers["content-type"],
-    "user-agent": req.headers["user-agent"],
-    "origin": req.headers.origin,
-    "referer": req.headers.referer
-  });
-  
-  // Test database connection first
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    console.log("✅ Database connection successful");
-  } catch (dbError) {
-    console.error("❌ Database connection failed:", dbError);
-    return res.status(500).json({
-      error: "Database connection error",
-      message: "Unable to connect to database. Please try again later."
-    });
-  }
-  console.log("📝 Registration request received:", {
-    method: req.method,
+async function registerHandler(req: NextApiRequest, res: NextApiResponse) {
+  // Add security headers
+  addSecurityHeaders(res);
+
+  const requestId = (req as any).requestId;
+  const clientIp = getClientIP(req);
+  const startTime = Date.now();
+
+  logger.info('Registration attempt', {
+    requestId,
+    clientIp,
     email: req.body?.email,
-    hasPassword: !!req.body?.password,
-    hasName: !!req.body?.name,
-    timestamp: new Date().toISOString(),
-    headers: {
-      contentType: req.headers['content-type'],
-      origin: req.headers.origin,
-      referer: req.headers.referer
-    }
   });
 
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
   try {
+    // Input is already validated by middleware
     const { email, password, name } = req.body;
-    
-    console.log("🔍 Registration data validation:", {
-      email: email || 'MISSING',
-      emailType: typeof email,
-      passwordLength: password?.length || 0,
-      name: name || 'MISSING',
-      nameType: typeof name,
-      bodyKeys: Object.keys(req.body || {})
-    });
-
-    // Basic validation
-    if (!email || !password || !name) {
-      return res.status(400).json({ 
-        error: "Missing required fields",
-        message: "Email, password, and name are required" 
-      });
-    }
-
-    if (password.length < 8) {
-      return res.status(400).json({
-        error: "Invalid password",
-        message: "Password must be at least 8 characters long"
-      });
-    }
 
     // Check if user already exists
-    console.log("🔍 Checking for existing user:", email.toLowerCase());
     const existingUser = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
     });
 
     if (existingUser) {
-      console.log("⚠️ User already exists:", {
-        email: existingUser.email,
-        id: existingUser.id,
-        emailVerified: !!existingUser.emailVerified
+      logger.warn('Registration attempt with existing email', { email, clientIp, requestId });
+
+      // Log security event
+      await prisma.auditLog.create({
+        data: {
+          event: AuthEvent.REGISTER,
+          userId: existingUser.id,
+          ipAddress: clientIp,
+          userAgent: req.headers['user-agent'] || '',
+          success: false,
+          metadata: { reason: 'Email already exists' },
+        },
       });
-      return res.status(409).json({
-        error: "User already exists",
-        message: "An account with this email already exists",
-      });
+
+      return apiResponse.error(res, 'An account with this email already exists', 409, undefined, 'USER_EXISTS');
     }
-    
-    console.log("✅ Email is available for registration");
 
     // Hash password
-    console.log("🔐 Hashing password...");
     const hashedPassword = await bcrypt.hash(password, 12);
-    console.log("✅ Password hashed successfully");
 
     // Create user
-    console.log("📝 Creating user in database...");
     const user = await prisma.user.create({
       data: {
         email: email.toLowerCase(),
         password: hashedPassword,
-        name,
-        emailVerified: new Date(), // Auto-verify for now
+        name: name.trim(),
+        role: 'USER',
+        emailVerified: null,
       },
       select: {
         id: true,
         email: true,
         name: true,
         role: true,
+        createdAt: true,
       },
     });
 
-    console.log("✅ User registered successfully:", {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role
+    // Log successful registration
+    await prisma.auditLog.create({
+      data: {
+        event: AuthEvent.REGISTER,
+        userId: user.id,
+        ipAddress: clientIp,
+        userAgent: req.headers['user-agent'] || '',
+        success: true,
+        metadata: { duration: Date.now() - startTime },
+      },
     });
 
-    res.status(201).json({
-      message: "Account created successfully",
+    logger.info('User registered successfully', {
+      userId: user.id,
+      email: user.email,
+      duration: Date.now() - startTime,
+      requestId,
+    });
+
+    // TODO: Send verification email
+    // await sendVerificationEmail(user.email, user.id);
+
+    return apiResponse.created(res, {
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
         role: user.role,
       },
-    });
+    }, 'User registered successfully');
   } catch (error: any) {
-    console.error("❌ Registration error:", {
-      message: error.message,
+    logger.error('Registration error', {
+      error: error.message,
       code: error.code,
-      stack: error.stack,
-      meta: error.meta,
-      email: req.body.email,
-      timestamp: new Date().toISOString()
+      clientIp,
+      requestId,
     });
-    
+
+    // Check for specific Prisma errors
     if (error.code === 'P2002') {
-      return res.status(409).json({
-        error: "User already exists",
-        message: "An account with this email already exists",
-      });
+      return apiResponse.error(res, 'An account with this email already exists', 409, undefined, 'USER_EXISTS');
     }
 
-    if (error.code === 'P2025') {
-      console.error("Database schema issue - required fields might be missing");
-      return res.status(500).json({
-        error: "Database configuration error",
-        message: "Unable to create account due to database configuration. Please contact support.",
-      });
-    }
-
-    if (error.message?.includes('prisma') || error.message?.includes('database')) {
-      console.error("Database connection error during registration");
-      return res.status(500).json({
-        error: "Database connection error",
-        message: "Unable to connect to database. Please try again later.",
-      });
-    }
-
-    return res.status(500).json({
-      error: "Internal server error",
-      message: "Failed to create account. Please try again.",
-      debug: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  } finally {
-    console.log("========== REGISTRATION ENDPOINT END ==========\n");
+    return apiResponse.internalError(res, error, 'An error occurred during registration. Please try again.');
   }
 }
+
+// Export with validation, rate limiting and monitoring
+export default composeMiddleware(
+  validateMethod(['POST']),
+  withValidation({
+    body: authSchemas.register.body,
+    response: authSchemas.register.response,
+  }),
+  withRateLimit({
+    ...RATE_LIMIT_CONFIGS.auth.register,
+    keyGenerator: (req) => {
+      // Use IP address for rate limiting registration
+      const ip = getClientIP(req) || 'unknown';
+      return `register:${ip}`;
+    },
+    message: 'Too many registration attempts. Please try again in 1 hour.',
+  }),
+)(registerHandler);

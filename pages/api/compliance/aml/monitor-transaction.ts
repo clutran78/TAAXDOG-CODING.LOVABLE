@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import { AMLMonitoringService } from '@/lib/services/compliance';
 import { createAuditLog } from '@/lib/services/auditLogger';
 import { z } from 'zod';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
 
 // Validation schema
 const monitorTransactionSchema = z.object({
@@ -16,18 +18,15 @@ const monitorTransactionSchema = z.object({
   description: z.string().optional(),
 });
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return apiResponse.methodNotAllowed(res, { error: 'Method not allowed' });
   }
 
   const session = await getServerSession(req, res, authOptions);
-  
+
   if (!session?.user?.id) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return apiResponse.unauthorized(res, { error: 'Unauthorized' });
   }
 
   try {
@@ -48,39 +47,41 @@ export default async function handler(
 
     // Create audit log for high-risk transactions
     if (assessment.requiresReview) {
-      await createAuditLog({
-        userId: session.user.id,
-        operationType: 'AML_TRANSACTION_FLAGGED',
-        resourceType: 'AML_MONITORING',
-        resourceId: validatedData.transactionId,
-        currentData: {
-          assessment,
-          transaction: validatedData,
+      await createAuditLog(
+        {
+          userId: session.user.id,
+          operationType: 'AML_TRANSACTION_FLAGGED',
+          resourceType: 'AML_MONITORING',
+          resourceId: validatedData.transactionId,
+          currentData: {
+            assessment,
+            transaction: validatedData,
+          },
+          amount: validatedData.amount,
+          currency: validatedData.currency,
+          success: true,
         },
-        amount: validatedData.amount,
-        currency: validatedData.currency,
-        success: true,
-      }, {
-        request: req,
-        sessionId: session.user.id,
-      });
+        {
+          request: req,
+          sessionId: session.user.id,
+        },
+      );
     }
 
-    return res.status(200).json({
+    return apiResponse.success(res, {
       success: true,
       data: assessment,
     });
-
   } catch (error: any) {
     if (error.name === 'ZodError') {
-      return res.status(400).json({
+      return apiResponse.error(res, {
         error: 'Validation failed',
         details: error.errors,
       });
     }
 
-    console.error('AML monitoring error:', error);
-    return res.status(500).json({
+    logger.error('AML monitoring error:', error);
+    return apiResponse.internalError(res, {
       error: 'Failed to monitor transaction',
     });
   }

@@ -5,6 +5,7 @@ import { APRAComplianceService } from '@/lib/services/compliance';
 import { IncidentType, IncidentSeverity, IncidentStatus } from '@prisma/client';
 import { z } from 'zod';
 import { withRateLimit } from '@/lib/middleware/rateLimiter';
+import { apiResponse } from '@/lib/api/response';
 
 // Validation schemas
 const createIncidentSchema = z.object({
@@ -31,19 +32,16 @@ const submitToAPRASchema = z.object({
   incidentId: z.string().uuid(),
 });
 
-async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
-  
+
   if (!session?.user?.id) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return apiResponse.unauthorized(res, { error: 'Unauthorized' });
   }
 
   // Only admin and support roles can manage incidents
   if (!['ADMIN', 'SUPPORT'].includes(session.user.role)) {
-    return res.status(403).json({ error: 'Forbidden - Admin access required' });
+    return apiResponse.forbidden(res, { error: 'Forbidden - Admin access required' });
   }
 
   switch (req.method) {
@@ -57,15 +55,11 @@ async function handler(
       // Otherwise, create new incident
       return handleCreateIncident(req, res, session.user.id);
     default:
-      return res.status(405).json({ error: 'Method not allowed' });
+      return apiResponse.methodNotAllowed(res, { error: 'Method not allowed' });
   }
 }
 
-async function handleCreateIncident(
-  req: NextApiRequest,
-  res: NextApiResponse,
-  reportedBy: string
-) {
+async function handleCreateIncident(req: NextApiRequest, res: NextApiResponse, reportedBy: string) {
   try {
     const validatedData = createIncidentSchema.parse(req.body);
 
@@ -79,44 +73,44 @@ async function handleCreateIncident(
         dataCompromised: validatedData.dataCompromised,
         immediateActions: validatedData.immediateActions,
       },
-      reportedBy
+      reportedBy,
     );
 
     if (!result.success) {
-      return res.status(400).json({
+      return apiResponse.error(res, {
         error: 'Failed to create incident report',
       });
     }
 
-    return res.status(201).json({
+    return apiResponse.created(res, {
       success: true,
       data: {
         incidentId: result.incidentId,
-        message: validatedData.severity === IncidentSeverity.CRITICAL 
-          ? 'Critical incident reported. Immediate action protocols activated.'
-          : 'Incident report created successfully.',
+        message:
+          validatedData.severity === IncidentSeverity.CRITICAL
+            ? 'Critical incident reported. Immediate action protocols activated.'
+            : 'Incident report created successfully.',
       },
     });
-
   } catch (error: any) {
     if (error.name === 'ZodError') {
-      return res.status(400).json({
+      return apiResponse.error(res, {
         error: 'Validation failed',
         details: error.errors,
       });
     }
 
-    console.error('Error creating incident:', error instanceof Error ? error.message : 'Unknown error occurred');
-    return res.status(500).json({
+    console.error(
+      'Error creating incident:',
+      error instanceof Error ? error.message : 'Unknown error occurred',
+    );
+    return apiResponse.internalError(res, {
       error: 'Failed to create incident report',
     });
   }
 }
 
-async function handleUpdateIncident(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+async function handleUpdateIncident(req: NextApiRequest, res: NextApiResponse) {
   try {
     const validatedData = updateIncidentSchema.parse(req.body);
 
@@ -129,62 +123,63 @@ async function handleUpdateIncident(
         preventiveMeasures: validatedData.preventiveMeasures,
         affectedUsers: validatedData.affectedUsers,
         financialImpact: validatedData.financialImpact,
-      }
+      },
     );
 
-    return res.status(200).json({
+    return apiResponse.success(res, {
       success: true,
       message: 'Incident updated successfully',
     });
-
   } catch (error: any) {
     if (error.name === 'ZodError') {
-      return res.status(400).json({
+      return apiResponse.error(res, {
         error: 'Validation failed',
         details: error.errors,
       });
     }
 
-    console.error('Error updating incident:', error instanceof Error ? error.message : 'Unknown error occurred');
-    return res.status(500).json({
+    console.error(
+      'Error updating incident:',
+      error instanceof Error ? error.message : 'Unknown error occurred',
+    );
+    return apiResponse.internalError(res, {
       error: 'Failed to update incident',
     });
   }
 }
 
-async function handleSubmitToAPRA(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+async function handleSubmitToAPRA(req: NextApiRequest, res: NextApiResponse) {
   try {
     const validatedData = submitToAPRASchema.parse(req.body);
 
     const result = await APRAComplianceService.submitToAPRA(validatedData.incidentId);
 
     if (!result.success) {
-      return res.status(400).json({
+      return apiResponse.error(res, {
         error: 'Failed to submit to APRA',
       });
     }
 
-    return res.status(200).json({
+    return apiResponse.success(res, {
       success: true,
       data: {
         reference: result.reference,
         message: 'Incident successfully reported to APRA',
       },
     });
-
   } catch (error: any) {
     if (error.name === 'ZodError') {
-      return res.status(400).json({
+      return apiResponse.error(res, {
         error: 'Validation failed',
         details: error.errors,
       });
     }
 
-    console.error('Error submitting to APRA:', error instanceof Error ? error.message : 'Unknown error occurred');
-    return res.status(500).json({
+    console.error(
+      'Error submitting to APRA:',
+      error instanceof Error ? error.message : 'Unknown error occurred',
+    );
+    return apiResponse.internalError(res, {
       error: 'Failed to submit to APRA',
     });
   }

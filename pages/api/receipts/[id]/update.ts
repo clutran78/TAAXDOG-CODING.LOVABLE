@@ -2,24 +2,30 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../auth/[...nextauth]';
 import { PrismaClient } from '@prisma/client';
-import { detectTaxCategory, validateTaxInvoice, detectDuplicateReceipt } from '../../../../lib/australian-tax-compliance';
+import { logger } from '@/lib/logger';
+import { apiResponse } from '@/lib/api/response';
+import {
+  detectTaxCategory,
+  validateTaxInvoice,
+  detectDuplicateReceipt,
+} from '../../../../lib/australian-tax-compliance';
 
 const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'PUT') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return apiResponse.methodNotAllowed(res, { error: 'Method not allowed' });
   }
 
   try {
     const session = await getServerSession(req, res, authOptions);
     if (!session?.user?.id) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return apiResponse.unauthorized(res, { error: 'Unauthorized' });
     }
 
     const { id } = req.query;
     if (!id || typeof id !== 'string') {
-      return res.status(400).json({ error: 'Invalid receipt ID' });
+      return apiResponse.error(res, { error: 'Invalid receipt ID' });
     }
 
     // Get existing receipt
@@ -28,12 +34,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     if (!receipt) {
-      return res.status(404).json({ error: 'Receipt not found' });
+      return apiResponse.notFound(res, { error: 'Receipt not found' });
     }
 
     // Verify ownership
     if (receipt.userId !== session.user.id) {
-      return res.status(403).json({ error: 'Forbidden' });
+      return apiResponse.forbidden(res, { error: 'Forbidden' });
     }
 
     const {
@@ -63,11 +69,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const duplicateCheck = detectDuplicateReceipt(
       { merchant, totalAmount, date, taxInvoiceNumber },
-      existingReceipts
+      existingReceipts,
     );
 
     if (duplicateCheck.isDuplicate) {
-      return res.status(400).json({
+      return apiResponse.error(res, {
         error: 'Duplicate receipt detected',
         duplicateReceiptId: duplicateCheck.matchedReceiptId,
       });
@@ -102,16 +108,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
 
-    res.status(200).json({
+    apiResponse.success(res, {
       success: true,
       receipt: updatedReceipt,
       taxInvoiceValid: invoiceValidation.isValid,
       missingFields: invoiceValidation.missingFields,
     });
-
   } catch (error) {
-    console.error('Receipt update error:', error);
-    res.status(500).json({ error: 'Failed to update receipt' });
+    logger.error('Receipt update error:', error);
+    apiResponse.internalError(res, { error: 'Failed to update receipt' });
   } finally {
     await prisma.$disconnect();
   }
