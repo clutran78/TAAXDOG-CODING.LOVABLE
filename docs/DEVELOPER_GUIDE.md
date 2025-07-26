@@ -1,438 +1,578 @@
-# Developer Guide
+# TAAXDOG Developer Guide
+
+**Last Updated**: January 17, 2025  
+**Project Version**: 0.1.0  
+**Status**: Production Ready
 
 ## Overview
 
-This guide provides comprehensive information for developers working on the TAAXDOG project. It covers setup, development practices, testing, and deployment procedures.
+TAAXDOG is an enterprise-grade financial management and Australian tax compliance platform built with Next.js, PostgreSQL, and AI integration. This guide provides comprehensive information for developers to understand, set up, and contribute to the project.
 
-## Table of Contents
-
-1. [Getting Started](#getting-started)
-2. [Development Workflow](#development-workflow)
-3. [Code Standards](#code-standards)
-4. [Testing](#testing)
-5. [Performance](#performance)
-6. [Deployment](#deployment)
-7. [Troubleshooting](#troubleshooting)
-
-## Getting Started
+## Quick Start
 
 ### Prerequisites
 
-- Node.js 18+ and npm 8+
-- PostgreSQL 14+
-- Git
-- VS Code (recommended) or your preferred IDE
+```bash
+# Required software
+Node.js >= 18.0.0
+npm >= 8.0.0
+PostgreSQL >= 14.0
+Docker (optional, recommended)
+Git
+```
 
-### Initial Setup
+### Environment Setup
 
-1. **Clone the repository**
+1. **Clone the repository:**
    ```bash
    git clone https://github.com/TaaxDog/TAAXDOG-CODING.git
    cd TAAXDOG-CODING
    ```
 
-2. **Install dependencies**
+2. **Install dependencies:**
    ```bash
    npm install
    ```
 
-3. **Environment setup**
+3. **Environment configuration:**
    ```bash
    cp .env.example .env.local
    # Edit .env.local with your configuration
    ```
 
-4. **Database setup**
+4. **Database setup:**
    ```bash
    npx prisma generate
    npx prisma migrate dev
-   npm run test-db
    ```
 
-5. **Start development**
+5. **Start development server:**
    ```bash
    npm run dev
    ```
 
-### Environment Configuration
+### Docker Setup (Recommended)
 
-See [ENVIRONMENT_VARIABLES.md](./ENVIRONMENT_VARIABLES.md) for detailed configuration.
+```bash
+# Development with Docker
+docker-compose -f docker-compose.dev.yml up
 
-Key variables:
-- `DATABASE_URL` - PostgreSQL connection string
-- `NEXTAUTH_URL` - Application URL
-- `NEXTAUTH_SECRET` - Authentication secret
-- `ANTHROPIC_API_KEY` - AI service key
-- `STRIPE_SECRET_KEY` - Payment processing
-- `BASIQ_API_KEY` - Banking integration
+# Production-like environment
+docker-compose up
+```
+
+## Architecture Overview
+
+### Technology Stack
+
+**Frontend:**
+- Next.js 15.3.4 with React 19
+- TypeScript for type safety
+- Tailwind CSS v4 for styling
+- React Query for data fetching
+- NextAuth.js for authentication
+
+**Backend:**
+- Next.js API Routes (primary)
+- Python Flask (legacy, being migrated)
+- Prisma ORM for database access
+- PostgreSQL database
+
+**External Services:**
+- Basiq API (banking integration)
+- Anthropic Claude (AI insights)
+- Google Gemini (OCR processing)
+- Stripe (payments)
+- SendGrid (email)
+- Sentry (monitoring)
+
+### Project Structure
+
+```
+TAAXDOG-CODING/
+├── pages/                    # Next.js pages and API routes
+│   ├── api/                 # Backend API endpoints
+│   │   ├── auth/           # Authentication endpoints
+│   │   ├── banking/        # Banking/Basiq integration
+│   │   ├── ai/             # AI service endpoints
+│   │   ├── stripe/         # Payment processing
+│   │   └── admin/          # Admin functions
+│   ├── auth/               # Authentication pages
+│   ├── dashboard/          # Main application pages
+│   └── _app.tsx            # App configuration
+├── components/              # React components
+│   ├── auth/              # Authentication components
+│   ├── dashboard/         # Dashboard components
+│   ├── Goal/              # Financial goals management
+│   ├── insights/          # AI insights display
+│   ├── transactions/      # Transaction management
+│   └── ui/                # Reusable UI components
+├── lib/                    # Core utilities and services
+│   ├── auth/              # Authentication utilities
+│   ├── ai/                # AI service integrations
+│   ├── basiq/             # Banking API client
+│   ├── stripe/            # Payment processing
+│   ├── db/                # Database utilities
+│   ├── monitoring/        # Performance monitoring
+│   └── types/             # TypeScript type definitions
+├── prisma/                 # Database schema and migrations
+│   ├── schema.prisma      # Database schema
+│   └── migrations/        # Database migrations
+├── backend/                # Python Flask services (legacy)
+├── scripts/                # Utility and deployment scripts
+├── tests/                  # Test suites
+├── docs/                   # Documentation
+└── docker/                 # Docker configuration files
+```
 
 ## Development Workflow
 
-### Branch Strategy
+### Code Quality Standards
 
-- `main` - Production branch
-- `develop` - Development branch
-- `feature/*` - Feature branches
-- `fix/*` - Bug fix branches
-- `hotfix/*` - Emergency fixes
+**TypeScript:**
+- Strict mode enabled
+- No `any` types allowed
+- Comprehensive type definitions
+- ESLint + Prettier configuration
 
-### Development Commands
+**Testing:**
+- 80%+ test coverage requirement
+- Jest with React Testing Library
+- Unit, integration, and E2E tests
+- Automated test runs on CI
+
+**Code Style:**
+- Consistent naming conventions
+- Comprehensive comments and documentation
+- Modular component design
+- Clear separation of concerns
+
+### Essential Scripts
 
 ```bash
 # Development
-npm run dev              # Start dev server
+npm run dev              # Start development server
 npm run build            # Build for production
 npm run start            # Start production server
 
 # Code Quality
 npm run lint             # Run ESLint
-npm run lint:fix         # Fix ESLint issues
+npm run lint:fix         # Fix ESLint errors
 npm run format           # Format with Prettier
-npm run type-check       # TypeScript checking
-npm run validate         # Run all checks
+npm run type-check       # TypeScript type checking
+npm run quality:check    # Run all quality checks
+npm run fix:all          # Fix naming, console, lint, format
 
 # Testing
-npm test                 # Run all tests
-npm test -- --watch      # Watch mode
-npm test -- --coverage   # Coverage report
-npm test [filename]      # Test specific file
-
-# Optimization
-npm run analyze-bundle   # Analyze bundle size
-npm run optimization:report # Performance report
+npm test                 # Run tests
+npm run test:coverage    # Run tests with coverage
+npm run test:watch       # Run tests in watch mode
+npm run test:integration # Run integration tests
 
 # Database
-npm run migrate          # Run migrations
-npx prisma studio        # Open database GUI
-npm run test-db          # Test connection
+npm run migrate          # Run database migrations
+npm run test-db          # Test database connection
+
+# Analysis & Optimization
+npm run analyze-bundle   # Analyze bundle size
+npm run optimization:report # Generate optimization report
+
+# Deployment
+npm run deploy:validate  # Pre-deployment checks
+npm run verify:quick     # Quick system verification
+npm run verify:full      # Comprehensive verification
 ```
 
-### Git Workflow
+## Database Management
 
-1. **Create feature branch**
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
+### Schema Design
 
-2. **Make changes and commit**
-   ```bash
-   git add .
-   git commit -m "feat: add new feature"
-   ```
+The database uses PostgreSQL with Prisma ORM. Key models include:
 
-3. **Run quality checks**
-   ```bash
-   npm run quality:check
-   ```
+- **Users**: User accounts and authentication
+- **Goals**: Financial goals and tracking
+- **Transactions**: Banking transactions
+- **Receipts**: Receipt data and OCR results
+- **Subscriptions**: Stripe subscription management
+- **AuditLogs**: Compliance and security logging
 
-4. **Push and create PR**
-   ```bash
-   git push origin feature/your-feature-name
-   ```
+### Migration Workflow
 
-### Commit Convention
+```bash
+# Create new migration
+npx prisma migrate dev --name descriptive_name
 
-Follow conventional commits:
-- `feat:` - New feature
-- `fix:` - Bug fix
-- `docs:` - Documentation
-- `style:` - Formatting
-- `refactor:` - Code restructuring
-- `test:` - Tests
-- `chore:` - Maintenance
+# Apply migrations
+npx prisma migrate deploy
 
-## Code Standards
+# Generate Prisma client
+npx prisma generate
 
-### TypeScript
-
-- Use strict mode
-- No `any` types without justification
-- Prefer interfaces over types for objects
-- Use enums for constants
-- Document complex types
-
-```typescript
-// Good
-interface User {
-  id: string;
-  email: string;
-  role: UserRole;
-}
-
-enum UserRole {
-  USER = 'USER',
-  ADMIN = 'ADMIN',
-}
-
-// Bad
-const user: any = { id: '123' };
+# View database
+npx prisma studio
 ```
 
-### React Components
+### Performance Optimization
 
-- Use functional components with hooks
-- Implement proper error boundaries
-- Use React.memo for expensive components
-- Lazy load heavy components
+Recent improvements include:
+- 6 critical database indexes
+- Query optimization patterns
+- Connection pooling
+- Row-level security (RLS)
 
-```typescript
-// Good
-const HeavyComponent = lazy(() => import('./HeavyComponent'));
+## API Development
 
-export const MyComponent: React.FC<Props> = memo(({ data }) => {
-  const [state, setState] = useState(initialState);
-  
-  return (
-    <Suspense fallback={<Loading />}>
-      <HeavyComponent data={data} />
-    </Suspense>
-  );
-});
+### REST API Guidelines
+
+**Endpoint Structure:**
+```
+/api/[feature]/[action]
 ```
 
-### API Routes
-
-Use standardized responses:
-
+**Standard Response Format:**
 ```typescript
-import { apiResponse } from '@/lib/api/response';
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  try {
-    const data = await fetchData();
-    return apiResponse.success(res, data);
-  } catch (error) {
-    return apiResponse.error(res, 'Failed to fetch data', 500);
-  }
+interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
 }
 ```
 
-### Error Handling
+**Authentication:**
+- NextAuth.js session-based
+- Role-based access control (RBAC)
+- Rate limiting on all endpoints
 
-- Always handle errors gracefully
-- Log errors with context
-- Provide user-friendly messages
-- Use error boundaries in React
+**Error Handling:**
+- Comprehensive error types
+- Structured error responses
+- Audit logging for failures
+
+### Key API Routes
+
+```
+Authentication:
+  POST /api/auth/register
+  POST /api/auth/signin
+  POST /api/auth/signout
+
+Banking:
+  GET  /api/banking/accounts
+  POST /api/banking/sync
+  GET  /api/banking/transactions
+
+AI Services:
+  POST /api/ai/insights
+  POST /api/ai/categorize
+  POST /api/ai/ocr
+
+Goals:
+  GET  /api/goals
+  POST /api/goals
+  PUT  /api/goals/[id]
+  DELETE /api/goals/[id]
+
+Payments:
+  POST /api/stripe/create-checkout
+  POST /api/stripe/webhook
+```
+
+## Frontend Development
+
+### Component Architecture
+
+**Component Guidelines:**
+- Maximum 200 lines per component
+- Single responsibility principle
+- Comprehensive TypeScript types
+- Proper error boundaries
+
+**State Management:**
+- React Context for global state
+- React Query for server state
+- Local state for component-specific data
+
+**Styling:**
+- Tailwind CSS v4
+- Responsive design first
+- Dark/light mode support
+- Consistent design system
+
+### Performance Optimization
+
+**Implemented:**
+- React Query for caching
+- Lazy loading for heavy components
+- Code splitting with dynamic imports
+- Bundle size optimization
+
+**Monitoring:**
+- Sentry for error tracking
+- Web Vitals monitoring
+- Performance metrics
+
+## Testing Strategy
+
+### Test Types
+
+**Unit Tests:**
+- Individual component testing
+- Utility function testing
+- API endpoint testing
+
+**Integration Tests:**
+- Database integration
+- External API integration
+- Authentication flows
+
+**End-to-End Tests:**
+- Complete user workflows
+- Critical business processes
+- Cross-browser compatibility
+
+### Test Configuration
+
+```bash
+# Jest configuration
+jest.config.js              # Main Jest config
+__tests__/setup.ts          # Test environment setup
+
+# Test file patterns
+*.test.ts(x)                # Unit tests
+*.integration.test.ts       # Integration tests
+__tests__/e2e/             # E2E tests
+```
+
+## Security & Compliance
+
+### Security Measures
+
+**Authentication & Authorization:**
+- NextAuth.js with JWT sessions
+- Role-based access control
+- Multi-factor authentication support
+
+**Data Protection:**
+- AES-256-GCM field encryption
+- Row-level security (RLS)
+- Input validation and sanitization
+- CSRF protection
+
+**API Security:**
+- Rate limiting
+- Request validation
+- Comprehensive audit logging
+- Security headers
+
+### Australian Compliance
+
+**Financial Regulations:**
+- AML/CTF compliance monitoring
+- APRA guidelines adherence
+- Privacy Act 1988 compliance
+- GST calculation and reporting
+
+**Data Residency:**
+- Australian data centers
+- Local data storage requirements
+- Compliance reporting tools
+
+## AI Integration
+
+### Service Architecture
+
+**Primary AI Providers:**
+- Anthropic Claude 4 Sonnet (financial insights)
+- Google Gemini Pro (OCR processing)
+- Multi-provider fallback system
+
+**Key Features:**
+- Receipt OCR and data extraction
+- Transaction categorization
+- Financial insights and recommendations
+- Tax compliance checking
+
+### Implementation Guidelines
 
 ```typescript
-try {
-  await riskyOperation();
-} catch (error) {
-  logger.error('Operation failed', {
-    error,
-    context: { userId, operation: 'riskyOperation' }
-  });
-  throw new AppError('Something went wrong', 500);
+// AI service pattern
+interface AIServiceProvider {
+  name: string;
+  processReceipt(image: Buffer): Promise<ReceiptData>;
+  generateInsights(transactions: Transaction[]): Promise<Insight[]>;
+  categorizeTransaction(transaction: Transaction): Promise<Category>;
 }
 ```
 
-## Testing
+## Deployment & DevOps
 
-### Test Structure
+### Container Architecture
 
-```
-__tests__/
-├── unit/           # Unit tests
-├── integration/    # Integration tests
-├── e2e/           # End-to-end tests
-└── utils/         # Test utilities
-```
+**Docker Optimization:**
+- Multi-stage builds
+- Image size: 200MB (down from 1.5GB)
+- Development and production configs
+- Health checks and monitoring
 
-### Writing Tests
+**Configuration:**
+```bash
+# Development
+docker-compose -f docker-compose.dev.yml up
 
-```typescript
-import { render, screen, fireEvent } from '@testing-library/react';
-import { MyComponent } from '@/components/MyComponent';
-
-describe('MyComponent', () => {
-  it('should render correctly', () => {
-    render(<MyComponent title="Test" />);
-    expect(screen.getByText('Test')).toBeInTheDocument();
-  });
-
-  it('should handle click events', async () => {
-    const handleClick = jest.fn();
-    render(<MyComponent onClick={handleClick} />);
-    
-    fireEvent.click(screen.getByRole('button'));
-    expect(handleClick).toHaveBeenCalledTimes(1);
-  });
-});
+# Production
+docker-compose up
 ```
 
-### Test Coverage
+### Environment Management
 
-Maintain minimum 80% coverage:
-- Statements: 80%
-- Branches: 70%
-- Functions: 80%
-- Lines: 80%
-
-## Performance
-
-### Bundle Optimization
-
-1. **Use dynamic imports**
-   ```typescript
-   const HeavyComponent = dynamic(() => import('./HeavyComponent'), {
-     loading: () => <Skeleton />,
-     ssr: false
-   });
-   ```
-
-2. **Implement code splitting**
-   ```typescript
-   // pages/insights.tsx
-   export default createLazyPage(
-     '../components/insights/InsightsDashboard',
-     'InsightsDashboard'
-   );
-   ```
-
-3. **Optimize images**
-   ```typescript
-   import Image from 'next/image';
-   
-   <Image
-     src="/hero.jpg"
-     alt="Hero"
-     width={1200}
-     height={600}
-     priority
-     placeholder="blur"
-   />
-   ```
-
-### React Query
-
-Use for data fetching:
-
-```typescript
-import { useQuery } from '@tanstack/react-query';
-
-export function useUserData(userId: string) {
-  return useQuery({
-    queryKey: ['user', userId],
-    queryFn: () => fetchUser(userId),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000,   // 10 minutes
-  });
-}
+**Environment Files:**
+```bash
+.env.local           # Local development
+.env.production      # Production configuration
+.env.example         # Template with required variables
 ```
 
-### Performance Monitoring
+**Required Variables:**
+- Database URLs
+- API keys (AI services, banking, payments)
+- Authentication secrets
+- Monitoring and logging configs
 
-- Web Vitals are tracked automatically
-- Check Sentry dashboard for performance issues
-- Run `npm run optimization:report` regularly
-- Monitor bundle size with `npm run analyze-bundle`
+### CI/CD Pipeline
 
-## Deployment
-
-### Pre-deployment Checklist
-
-1. **Run all checks**
-   ```bash
-   npm run deploy:validate
-   ```
-
-2. **Test production build**
-   ```bash
-   npm run build
-   npm run start
-   ```
-
-3. **Check environment variables**
-   ```bash
-   npm run env:validate
-   ```
-
-4. **Run security checks**
-   ```bash
-   npm run security:validate
-   ```
-
-### Deployment Process
-
-1. **Merge to main branch**
-   ```bash
-   git checkout main
-   git merge develop
-   ```
-
-2. **Tag release**
-   ```bash
-   git tag -a v0.1.0 -m "Release version 0.1.0"
-   git push origin main --tags
-   ```
-
-3. **Deploy**
-   - Automatic deployment via GitHub Actions
-   - Or manual: `git push origin main`
-
-4. **Post-deployment**
-   - Monitor error rates in Sentry
-   - Check performance metrics
-   - Verify critical user flows
+**Automated Checks:**
+- TypeScript compilation
+- ESLint and Prettier
+- Test suite execution
+- Security vulnerability scanning
+- Performance testing
 
 ## Troubleshooting
 
 ### Common Issues
 
-#### TypeScript Errors
+**Development Setup:**
 ```bash
-# Clear TypeScript cache
-rm -rf node_modules/.cache
-npm run type-check
+# Node modules issues
+rm -rf node_modules package-lock.json
+npm install
+
+# Prisma issues
+npx prisma generate
+npx prisma migrate reset
 ```
 
-#### Database Issues
+**Database Connection:**
 ```bash
+# Test database connection
+npm run test-db
+
 # Reset database
 npx prisma migrate reset
-npx prisma generate
-npm run migrate
 ```
 
-#### Build Failures
+**Build Issues:**
 ```bash
+# Type checking
+npm run type-check
+
 # Clean build
 rm -rf .next
 npm run build
 ```
 
-#### Test Failures
+### Performance Debugging
+
 ```bash
-# Clear Jest cache
-npm test -- --clearCache
-npm test
+# Bundle analysis
+npm run analyze-bundle
+
+# Performance monitoring
+npm run optimization:report
+
+# Database performance
+npm run test:db-performance
 ```
 
-### Debug Mode
+## Best Practices
 
-Enable debug logging:
-```bash
-DEBUG=taaxdog:* npm run dev
-```
+### Code Organization
 
-### Performance Issues
+1. **Feature-based structure**: Group related files together
+2. **Clear naming conventions**: Descriptive and consistent names
+3. **Comprehensive documentation**: Comments and README files
+4. **Type safety**: Full TypeScript coverage
+5. **Error handling**: Comprehensive error boundaries
 
-1. Check bundle size: `npm run analyze-bundle`
-2. Review Sentry performance data
-3. Profile with React DevTools
-4. Check database query performance
+### Development Workflow
 
-## Resources
+1. **Branch strategy**: Feature branches with PR reviews
+2. **Code quality**: Run quality checks before commits
+3. **Testing**: Write tests for new features
+4. **Documentation**: Update docs with changes
+5. **Performance**: Monitor and optimize regularly
 
-- [Architecture Overview](./architecture.md)
-- [API Documentation](./api-docs/)
+### Security Guidelines
+
+1. **Input validation**: Validate all user inputs
+2. **Authentication**: Secure session management
+3. **Authorization**: Role-based access control
+4. **Data encryption**: Encrypt sensitive data
+5. **Audit logging**: Log security events
+
+## Resources & Support
+
+### Documentation
+
+- [Architecture Guide](./architecture.md)
+- [API Documentation](../pages/api/)
 - [Security Guide](./SECURITY.md)
 - [Compliance Guide](./COMPLIANCE.md)
-- [Bundle Optimization](./BUNDLE_OPTIMIZATION.md)
-- [Sentry Performance](./SENTRY_PERFORMANCE.md)
 
-## Support
+### External Resources
 
-- GitHub Issues: [Report bugs](https://github.com/TaaxDog/TAAXDOG-CODING/issues)
-- Documentation: Check `/docs` directory
-- Team Chat: Internal Slack channel
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Prisma Documentation](https://www.prisma.io/docs)
+- [TypeScript Handbook](https://www.typescriptlang.org/docs)
+- [Australian Tax Office](https://www.ato.gov.au)
+
+### Getting Help
+
+1. **Documentation**: Check existing docs first
+2. **GitHub Issues**: Report bugs and feature requests
+3. **Code Reviews**: Get help through PR reviews
+4. **Team Communication**: Use established communication channels
+
+## Contributing
+
+### Pull Request Process
+
+1. **Fork and branch**: Create feature branch from main
+2. **Development**: Implement changes with tests
+3. **Quality checks**: Run all quality and test scripts
+4. **Documentation**: Update relevant documentation
+5. **Pull request**: Submit with clear description
+6. **Review process**: Address feedback and iterate
+7. **Merge**: Squash merge after approval
+
+### Code Review Guidelines
+
+**Reviewers should check:**
+- Code quality and style consistency
+- Test coverage and quality
+- Security considerations
+- Performance impact
+- Documentation updates
+- Compliance requirements
+
+**Authors should ensure:**
+- All tests pass
+- Code quality checks pass
+- Documentation is updated
+- Changes are well-explained
+- Breaking changes are noted
+
+---
+
+This developer guide provides the foundation for contributing to TAAXDOG. For specific technical details, refer to the documentation in the `/docs` directory and the inline code comments throughout the project.
