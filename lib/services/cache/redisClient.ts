@@ -39,3 +39,7 @@ export class RedisClient {
 export function createRedisClient() {
   return RedisClient.getInstance();
 }
+
+export function getRedisCache() {
+  return RedisClient.getInstance();
+}

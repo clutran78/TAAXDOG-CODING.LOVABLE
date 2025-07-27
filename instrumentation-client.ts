@@ -56,10 +56,7 @@ if (SENTRY_DSN && typeof window !== 'undefined') {
           return true;
         },
       }),
-      // Performance monitoring for specific operations
-      Sentry.httpIntegration({
-        tracing: true,
-      }),
+      // HTTP integration is included by default in browserTracingIntegration
     ],
 
     // Filtering

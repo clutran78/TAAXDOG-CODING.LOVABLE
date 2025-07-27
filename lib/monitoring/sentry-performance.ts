@@ -53,11 +53,8 @@ export class SentryPerformanceMonitor {
         }
       }
       
-      // Also send as custom metric
-      Sentry.metrics.gauge(metric.name, metric.value, {
-        unit: metric.unit,
-        tags: metric.tags,
-      });
+      // In Sentry v8, metrics are set on spans directly
+      // The setMeasurement call above is the correct way to track metrics
     } catch (error) {
       logger.error('Failed to track metric', { error, metric });
     }
@@ -109,10 +106,12 @@ export class SentryPerformanceMonitor {
       });
     }
     
-    // Track cache hit rate
-    Sentry.metrics.increment(`cache.${operation}`, 1, {
-      tags: { cache_key: key },
-    });
+    // Track cache hit rate as a span attribute
+    const activeSpan = Sentry.getActiveSpan();
+    if (activeSpan) {
+      activeSpan.setAttribute(`cache.${operation}.count`, 1);
+      activeSpan.setAttribute('cache.key', key);
+    }
   }
 
   /**

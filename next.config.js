@@ -53,6 +53,22 @@ const nextConfig = {
   // Add webpack configuration to ignore problematic files
   webpack: (config, { isServer, webpack }) => {
     const path = require('path');
+    
+    // Add polyfills as entry point for server bundle
+    if (isServer) {
+      const originalEntry = config.entry;
+      config.entry = async () => {
+        const entries = await originalEntry();
+        
+        // Add polyfills before all other entries
+        if (entries['main.js'] && Array.isArray(entries['main.js'])) {
+          entries['main.js'].unshift(path.join(__dirname, 'lib/polyfills/runtime-polyfills.js'));
+        }
+        
+        return entries;
+      };
+    }
+    
     config.module.rules.push({
       test: /-rls-migrated\.(ts|tsx)$/,
       loader: 'ignore-loader',
