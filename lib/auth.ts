@@ -7,6 +7,10 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { logger } from '@/lib/logger';
 
+// Re-export commonly used auth utilities
+export { logAuthEvent } from './auth/auth-utils';
+export const hashPassword = async (password: string) => bcrypt.hash(password, 12);
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [

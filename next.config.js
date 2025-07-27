@@ -55,6 +55,15 @@ const nextConfig = {
       loader: 'ignore-loader',
     });
 
+    // Fix for 'self is not defined' error in server-side rendering
+    if (isServer) {
+      config.plugins.push(
+        new webpack.DefinePlugin({
+          self: 'global',
+        })
+      );
+    }
+
     // Fix for winston and other node modules
     if (!isServer) {
       config.resolve.fallback = {
