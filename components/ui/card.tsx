@@ -1,5 +1,5 @@
 import React from 'react';
-import { responsivePadding } from '@/lib/utils/responsive';
+import { RESPONSIVE_PADDING } from '@/lib/utils/responsive';
 
 interface BaseCardProps {
   children: React.ReactNode;
@@ -32,7 +32,7 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
           rounded-lg 
           ${variantStyles[variant]} 
           ${hoverStyles}
-          ${padding ? responsivePadding.card : ''}
+          ${padding ? RESPONSIVE_PADDING.card : ''}
           ${className}
         `}
       >

@@ -27,22 +27,18 @@ export {
   FormTextarea,
   FormSelect,
   FormCheckbox,
-  FormRadio,
-  FormSwitch,
   FieldError,
-  FormGroup,
-  FormLabel,
-  FormHelperText,
-  Form,
-  useForm,
+  FormMessage,
+  PasswordStrength,
+  useFormValidation,
 } from './FormComponents';
 
 // Input components
 export { Input, Textarea } from './Input';
 export type { InputProps, TextareaProps } from './Input';
 
-// Loading components
-export { Spinner, LoadingOverlay, LoadingButton, Skeleton, LoadingDots } from './Spinner';
+// Loading components from Spinner
+export { Spinner, LoadingDots, LoadingOverlay, LoadingButton, Skeleton } from './Spinner';
 export type {
   SpinnerProps,
   LoadingOverlayProps,
@@ -50,16 +46,19 @@ export type {
   SkeletonProps,
 } from './Spinner';
 
-// Skeleton loaders
+// Skeleton loaders (excluding duplicates from Spinner)
 export {
-  ButtonSkeleton,
-  CardSkeleton,
-  TableRowSkeleton,
-  FormSkeleton,
-  DashboardCardSkeleton,
-  TransactionListSkeleton,
-  ChartSkeleton,
-  StatsSkeleton,
+  SkeletonText,
+  SkeletonCard,
+  SkeletonTransactionRow,
+  SkeletonStatsCard,
+  SkeletonTable,
+  SkeletonForm,
+  SkeletonBankAccount,
+  SkeletonBudgetItem,
+  SkeletonDashboardGrid,
+  InlineLoader,
+  ProgressBar,
 } from './SkeletonLoaders';
 
 // Tab components
@@ -67,10 +66,11 @@ export { Tabs, TabsList, TabsTrigger, TabsContent } from './tabs';
 
 // Error components
 export {
-  ErrorMessage,
-  ErrorPage,
-  ErrorBoundaryFallback,
-  FormErrorMessage,
-  InlineError,
-  ErrorAlert,
+  ErrorDisplay,
+  ApiError,
+  NetworkError,
+  ErrorWithDetails,
+  RetryWrapper,
+  EmptyState,
+  AsyncBoundary,
 } from './ErrorComponents';

@@ -37,8 +37,6 @@ const nextConfig = {
     esmExternals: true,
     // Optimize CSS
     optimizeCss: true,
-    // Enable build cache for faster builds
-    isrMemoryCacheSize: 0, // Disable in-memory cache to reduce memory usage
   },
   
   // Optimize images
@@ -49,11 +47,32 @@ const nextConfig = {
     minimumCacheTTL: 60 * 60 * 24 * 365, // 1 year
   },
   
-  // Enable SWC minification
-  swcMinify: true,
-  // Optimize bundle splitting
-  optimization: {
-    splitChunks: {
+  // Add webpack configuration to ignore problematic files
+  webpack: (config, { isServer, webpack }) => {
+    const path = require('path');
+    config.module.rules.push({
+      test: /-rls-migrated\.(ts|tsx)$/,
+      loader: 'ignore-loader',
+    });
+
+    // Fix for winston and other node modules
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        dns: false,
+        child_process: false,
+        readline: false,
+      };
+    }
+
+    // Enable module concatenation for smaller bundles
+    config.optimization.concatenateModules = true;
+    
+    // Optimize bundle splitting
+    config.optimization.splitChunks = {
       chunks: 'all',
       cacheGroups: {
         // Vendor code splitting
@@ -87,31 +106,7 @@ const nextConfig = {
           priority: 15,
         },
       },
-    },
-  },
-  // Add webpack configuration to ignore problematic files
-  webpack: (config, { isServer, webpack }) => {
-    const path = require('path');
-    config.module.rules.push({
-      test: /-rls-migrated\.(ts|tsx)$/,
-      loader: 'ignore-loader',
-    });
-
-    // Fix for winston and other node modules
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-        dns: false,
-        child_process: false,
-        readline: false,
-      };
-    }
-
-    // Enable module concatenation for smaller bundles
-    config.optimization.concatenateModules = true;
+    };
     
     // Add module aliases for cleaner imports and smaller bundles
     config.resolve.alias = {
