@@ -59,36 +59,14 @@ const nextConfig = {
     });
 
     // Fix for 'self is not defined' error in server-side rendering
-    config.plugins.push(
-      new webpack.ProvidePlugin({
-        self: 'global',
-      })
-    );
-    
-    // Additional define plugin for server
     if (isServer) {
+      // Provide fallback for self
       config.plugins.push(
         new webpack.DefinePlugin({
-          'typeof self': '"object"',
+          'typeof self': '"undefined"',
+          'typeof window': '"undefined"',
         })
       );
-      
-      // Add polyfill as entry point for server build
-      const originalEntry = config.entry;
-      config.entry = async () => {
-        const entries = await originalEntry();
-        
-        // Add polyfill to all entry points
-        Object.keys(entries).forEach((key) => {
-          if (Array.isArray(entries[key])) {
-            entries[key] = ['./lib/webpack-entry.js', ...entries[key]];
-          } else {
-            entries[key] = ['./lib/webpack-entry.js', entries[key]];
-          }
-        });
-        
-        return entries;
-      };
     }
 
     // Fix for winston and other node modules

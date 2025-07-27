@@ -1,4 +1,4 @@
-import { getCLS, getFCP, getFID, getLCP, getTTFB, Metric } from 'web-vitals';
+import { onCLS, onFCP, onINP, onLCP, onTTFB, Metric } from 'web-vitals';
 import { logger } from '@/lib/logger';
 
 interface PerformanceData {
@@ -66,31 +66,31 @@ class PerformanceMonitor {
 
   private initializeWebVitals() {
     // Cumulative Layout Shift
-    getCLS((metric) => {
+    onCLS((metric) => {
       this.data.CLS = metric.value;
       this.maybeReport('cls');
     });
 
     // First Contentful Paint
-    getFCP((metric) => {
+    onFCP((metric) => {
       this.data.FCP = metric.value;
       this.maybeReport('fcp');
     });
 
-    // First Input Delay
-    getFID((metric) => {
-      this.data.FID = metric.value;
-      this.maybeReport('fid');
+    // Interaction to Next Paint (replaces FID)
+    onINP((metric) => {
+      this.data.customMetrics.INP = metric.value;
+      this.maybeReport('inp');
     });
 
     // Largest Contentful Paint
-    getLCP((metric) => {
+    onLCP((metric) => {
       this.data.LCP = metric.value;
       this.maybeReport('lcp');
     });
 
     // Time to First Byte
-    getTTFB((metric) => {
+    onTTFB((metric) => {
       this.data.TTFB = metric.value;
       this.maybeReport('ttfb');
     });

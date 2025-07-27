@@ -3,7 +3,7 @@ import { BrowserProfilingIntegration } from '@sentry/browser';
 
 const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
-if (SENTRY_DSN) {
+if (SENTRY_DSN && typeof window !== 'undefined') {
   Sentry.init({
     dsn: SENTRY_DSN,
     environment: process.env.NEXT_PUBLIC_ENVIRONMENT || 'development',
@@ -31,7 +31,7 @@ if (SENTRY_DSN) {
 
     // Integrations
     integrations: [
-      new Sentry.Replay({
+      new Sentry.replayIntegration({
         maskAllText: true,
         blockAllMedia: true,
         maskAllInputs: true,
@@ -39,7 +39,7 @@ if (SENTRY_DSN) {
         mask: ['.sensitive', '[data-sensitive]'],
         block: ['.no-capture', '[data-no-capture]'],
       }),
-      new Sentry.BrowserTracing({
+      new Sentry.browserTracingIntegration({
         // Set up automatic route change tracking in Next.js
         routingInstrumentation: Sentry.nextRouterInstrumentation,
         // Enable automatic pageload transaction
@@ -60,11 +60,11 @@ if (SENTRY_DSN) {
         },
       }),
       // Performance monitoring for specific operations
-      new Sentry.Integrations.Http({
+      new Sentry.httpIntegration({
         tracing: true,
       }),
       // Browser profiling for performance bottlenecks
-      new Sentry.BrowserProfilingIntegration(),
+      new BrowserProfilingIntegration(),
     ],
 
     // Filtering
