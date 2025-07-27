@@ -1,6 +1,6 @@
 // Alert components
-export { Alert, AlertDescription, InlineAlert } from './Alert';
-export type { AlertProps, AlertDescriptionProps, InlineAlertProps } from './Alert';
+export { Alert, AlertDescription, InlineAlert } from './alert';
+export type { AlertProps, AlertDescriptionProps, InlineAlertProps } from './alert';
 
 // Badge components
 export { Badge, StatusBadge, CountBadge } from './Badge';
@@ -19,7 +19,7 @@ export {
   CardContent,
   CardFooter,
   CompactCard,
-} from './Card';
+} from './card';
 
 // Form components
 export {
@@ -63,7 +63,7 @@ export {
 } from './SkeletonLoaders';
 
 // Tab components
-export { Tabs, TabsList, TabsTrigger, TabsContent } from './Tabs';
+export { Tabs, TabsList, TabsTrigger, TabsContent } from './tabs';
 
 // Error components
 export {
