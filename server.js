@@ -1,3 +1,6 @@
+// Apply server-side polyfills before anything else
+require('./lib/polyfills/server-polyfills.js');
+
 const { createServer } = require('http');
 const next = require('next');
 

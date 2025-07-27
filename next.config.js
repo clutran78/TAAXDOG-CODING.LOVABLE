@@ -1,3 +1,6 @@
+// Apply server-side polyfills
+require('./lib/polyfills/server-polyfills.js');
+
 // Run startup checks in development
 if (process.env.NODE_ENV !== 'production') {
   try {

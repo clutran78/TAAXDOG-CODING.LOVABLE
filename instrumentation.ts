@@ -1,5 +1,7 @@
 export async function register() {
+  // Apply server-side polyfills
   if (process.env.NEXT_RUNTIME === 'nodejs') {
+    await import('./lib/polyfills/server-polyfills.js');
     // Server-side Sentry configuration
     const { ProfilingIntegration } = await import('@sentry/profiling-node');
     const Sentry = await import('@sentry/nextjs');
