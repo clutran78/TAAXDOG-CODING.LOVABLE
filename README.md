@@ -5,6 +5,7 @@ compliance, AI-powered insights, and automated banking integration. Built with
 Next.js, PostgreSQL, and enterprise-grade security features.
 
 <!-- Last major update: 2025-01-17 -->
+<!-- Deployment trigger: 2025-07-27 23:08 -->
 
 🌐 **Website**: [taxreturnpro.com.au](https://taaxdog-landing-page.vercel.app)  
 📊 **Repository**:
