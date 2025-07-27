@@ -1,0 +1,233 @@
+# DigitalOcean App Platform Configuration Template
+# This is a template file for documentation purposes only.
+# DO NOT commit actual app.yaml files with sensitive values to the repository.
+# Configure your app directly through DigitalOcean's dashboard or CLI.
+
+name: Taaxdog-coding
+region: syd
+
+services:
+- name: web
+  environment_slug: node-js
+  github:
+    repo: TaaxDog/TAAXDOG-CODING
+    branch: main
+    deploy_on_push: true
+  
+  source_dir: /
+  build_command: npm install --production=false && npx prisma generate && npm run build
+  run_command: npm start
+  
+  instance_count: 1
+  instance_size_slug: apps-s-1vcpu-1gb-fixed
+  
+  http_port: 3000
+  
+  routes:
+  - path: /
+  
+  envs:
+  # Core configuration
+  - key: NODE_ENV
+    value: "production"
+    scope: RUN_AND_BUILD_TIME
+  - key: PORT
+    value: "3000"
+    scope: RUN_AND_BUILD_TIME
+  - key: NEXTAUTH_URL
+    value: "https://taxreturnpro.com.au"
+    scope: RUN_AND_BUILD_TIME
+  - key: NEXT_PUBLIC_API_URL
+    value: "https://taxreturnpro.com.au"
+    scope: RUN_AND_BUILD_TIME
+  
+  # Authentication secrets (Configure in DigitalOcean dashboard)
+  - key: NEXTAUTH_SECRET
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    type: SECRET
+    scope: RUN_AND_BUILD_TIME
+  - key: JWT_SECRET_KEY
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    type: SECRET
+    scope: RUN_AND_BUILD_TIME
+  - key: GOOGLE_CLIENT_ID
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    scope: RUN_AND_BUILD_TIME
+  - key: GOOGLE_CLIENT_SECRET
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    type: SECRET
+    scope: RUN_AND_BUILD_TIME
+  
+  # Database (Configure in DigitalOcean dashboard)
+  - key: DATABASE_URL
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    type: SECRET
+    scope: RUN_AND_BUILD_TIME
+  - key: DATABASE_POOLING_URL
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    type: SECRET
+    scope: RUN_AND_BUILD_TIME
+  
+  # Stripe (Configure in DigitalOcean dashboard)
+  - key: STRIPE_PUBLISHABLE_KEY
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    scope: RUN_AND_BUILD_TIME
+  - key: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    scope: RUN_AND_BUILD_TIME
+  - key: STRIPE_SECRET_KEY
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    type: SECRET
+    scope: RUN_AND_BUILD_TIME
+  - key: STRIPE_WEBHOOK_SECRET
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    type: SECRET
+    scope: RUN_AND_BUILD_TIME
+  - key: STRIPE_EARLY_ACCESS_PRICE_ID_SMART
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    scope: RUN_AND_BUILD_TIME
+  - key: STRIPE_PRICE_ID_SMART
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    scope: RUN_AND_BUILD_TIME
+  - key: STRIPE_EARLY_ACCESS_PRICE_ID_PRO
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    scope: RUN_AND_BUILD_TIME
+  - key: STRIPE_PRICE_ID_PRO
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    scope: RUN_AND_BUILD_TIME
+  
+  # AI Services (Configure in DigitalOcean dashboard)
+  - key: ANTHROPIC_API_KEY
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    type: SECRET
+    scope: RUN_AND_BUILD_TIME
+  - key: OPENROUTER_API_KEY
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    type: SECRET
+    scope: RUN_AND_BUILD_TIME
+  - key: GEMINI_API_KEY
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    type: SECRET
+    scope: RUN_AND_BUILD_TIME
+  
+  # Banking Integration (Configure in DigitalOcean dashboard)
+  - key: BASIQ_API_KEY
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    type: SECRET
+    scope: RUN_AND_BUILD_TIME
+  - key: BASIQ_SERVER_URL
+    value: "https://au-api.basiq.io"
+    scope: RUN_AND_BUILD_TIME
+  
+  # Email Service (Configure in DigitalOcean dashboard)
+  - key: SENDGRID_API_KEY
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    type: SECRET
+    scope: RUN_AND_BUILD_TIME
+  - key: FROM_EMAIL
+    value: "noreply@taxreturnpro.com.au"
+    scope: RUN_AND_BUILD_TIME
+  - key: SUPPORT_EMAIL
+    value: "support@taxreturnpro.com.au"
+    scope: RUN_AND_BUILD_TIME
+  
+  # Security & Compliance (Configure in DigitalOcean dashboard)
+  - key: FIELD_ENCRYPTION_KEY
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    type: SECRET
+    scope: RUN_AND_BUILD_TIME
+  - key: COMPLIANCE_TEST_MODE
+    value: "false"
+    scope: RUN_AND_BUILD_TIME
+  - key: AUSTRAC_API_KEY
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    type: SECRET
+    scope: RUN_AND_BUILD_TIME
+  - key: ABN_LOOKUP_GUID
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    type: SECRET
+    scope: RUN_AND_BUILD_TIME
+  
+  # Monitoring (Configure in DigitalOcean dashboard)
+  - key: SENTRY_DSN
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    scope: RUN_AND_BUILD_TIME
+  - key: SENTRY_ORG
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    scope: RUN_AND_BUILD_TIME
+  - key: SENTRY_PROJECT
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    scope: RUN_AND_BUILD_TIME
+  - key: NEXT_PUBLIC_SENTRY_DSN
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    scope: RUN_AND_BUILD_TIME
+  
+  # Firebase (Configure in DigitalOcean dashboard)
+  - key: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    scope: RUN_AND_BUILD_TIME
+  - key: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    scope: RUN_AND_BUILD_TIME
+  - key: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    scope: RUN_AND_BUILD_TIME
+  - key: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    scope: RUN_AND_BUILD_TIME
+  - key: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    scope: RUN_AND_BUILD_TIME
+  - key: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    scope: RUN_AND_BUILD_TIME
+  - key: FIREBASE_SERVICE_ACCOUNT_KEY
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    type: SECRET
+    scope: RUN_AND_BUILD_TIME
+  
+  # Cache & Performance
+  - key: REDIS_URL
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    type: SECRET
+    scope: RUN_AND_BUILD_TIME
+  - key: ENABLE_CACHE
+    value: "true"
+    scope: RUN_AND_BUILD_TIME
+  - key: CACHE_TTL
+    value: "3600"
+    scope: RUN_AND_BUILD_TIME
+  
+  # Feature Flags
+  - key: FEATURE_AI_ENABLED
+    value: "true"
+    scope: RUN_AND_BUILD_TIME
+  - key: FEATURE_BANKING_ENABLED
+    value: "true"
+    scope: RUN_AND_BUILD_TIME
+  - key: FEATURE_RECEIPTS_ENABLED
+    value: "true"
+    scope: RUN_AND_BUILD_TIME
+  - key: FEATURE_GOALS_ENABLED
+    value: "true"
+    scope: RUN_AND_BUILD_TIME
+  
+  # Flask Backend
+  - key: FLASK_API_URL
+    value: "http://flask-backend:5000"
+    scope: RUN_AND_BUILD_TIME
+  - key: FLASK_API_KEY
+    value: "CONFIGURE_IN_DIGITALOCEAN_DASHBOARD"
+    type: SECRET
+    scope: RUN_AND_BUILD_TIME
+
+domains:
+- domain: taxreturnpro.com.au
+  type: PRIMARY
+- domain: www.taxreturnpro.com.au
+  type: ALIAS
+
+alerts:
+- rule: DEPLOYMENT_FAILED
+- rule: DOMAIN_FAILED
+- rule: DEPLOYMENT_LIVE
