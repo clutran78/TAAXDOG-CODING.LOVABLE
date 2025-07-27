@@ -1,18 +1,24 @@
 # Taaxdog Authentication System
 
-This is a complete authentication system for Taaxdog-coding with NextAuth.js integration, built with Australian compliance requirements.
+This is a complete authentication system for Taaxdog-coding with NextAuth.js
+integration, built with Australian compliance requirements.
 
 ## Features
 
 ### 1. Authentication Methods
-- **Email/Password Authentication**: Custom credentials provider with bcrypt password hashing
+
+- **Email/Password Authentication**: Custom credentials provider with bcrypt
+  password hashing
 - **Google OAuth**: Social login integration
 - **Session Management**: JWT-based sessions with 30-day expiration
 
 ### 2. Security Features
-- **Password Requirements**: Minimum 12 characters with uppercase, lowercase, numbers, and special characters
-- **Account Lockout**: Automatic lockout after 5 failed login attempts (30 minutes)
-- **Rate Limiting**: 
+
+- **Password Requirements**: Minimum 12 characters with uppercase, lowercase,
+  numbers, and special characters
+- **Account Lockout**: Automatic lockout after 5 failed login attempts (30
+  minutes)
+- **Rate Limiting**:
   - Registration: 5 attempts per minute per IP
   - General API: 100 requests per minute per IP
 - **CSRF Protection**: For sensitive API endpoints
@@ -20,13 +26,16 @@ This is a complete authentication system for Taaxdog-coding with NextAuth.js int
 - **Audit Logging**: Comprehensive logging of all authentication events
 
 ### 3. Australian Compliance
-- **Tax Residency Status**: Captures resident/non-resident/temporary resident status
+
+- **Tax Residency Status**: Captures resident/non-resident/temporary resident
+  status
 - **ABN Support**: Optional Australian Business Number field with validation
 - **TFN Support**: Tax File Number field (encrypted storage)
 - **GST Compliance**: Built for Australian tax requirements
 - **Data Residency**: Designed for Australian data center deployment
 
 ### 4. Role-Based Access Control (RBAC)
+
 - **User Roles**: USER, ACCOUNTANT, SUPPORT, ADMIN
 - **Role Hierarchy**: Permission inheritance system
 - **Protected Routes**: Automatic route protection based on roles
@@ -65,11 +74,13 @@ This is a complete authentication system for Taaxdog-coding with NextAuth.js int
 ## Setup Instructions
 
 ### 1. Install Dependencies
+
 ```bash
 npm install
 ```
 
 ### 2. Set Environment Variables
+
 Create a `.env.local` file with:
 
 ```env
@@ -86,16 +97,19 @@ GOOGLE_CLIENT_SECRET="your-google-client-secret"
 ```
 
 ### 3. Generate Prisma Client
+
 ```bash
 npx prisma generate
 ```
 
 ### 4. Run Database Migrations
+
 ```bash
 npx prisma migrate dev --name init
 ```
 
 ### 5. Start Development Server
+
 ```bash
 npm run dev
 ```
@@ -113,11 +127,13 @@ The authentication system uses the following main tables:
 ## API Endpoints
 
 ### Authentication
+
 - `POST /api/auth/register` - Register new user
 - `POST /api/auth/change-password` - Change user password
 - `/api/auth/*` - NextAuth endpoints (signin, signout, session, etc.)
 
 ### Protected Routes
+
 - `/dashboard` - Requires authentication
 - `/profile` - Requires authentication
 - `/admin/*` - Requires ADMIN role

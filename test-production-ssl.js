@@ -10,8 +10,8 @@ async function testProductionConnection() {
     database: process.env.DB_NAME || 'taaxdog-production',
     ssl: {
       rejectUnauthorized: false, // Required for DigitalOcean
-      require: true
-    }
+      require: true,
+    },
   };
 
   if (!clientConfig.password) {
@@ -57,7 +57,6 @@ async function testProductionConnection() {
     console.log('✓ Test table cleaned up');
 
     console.log('\n✅ All production database tests passed!');
-
   } catch (error) {
     console.error('❌ Connection failed:', error.message);
     console.error('Error code:', error.code);

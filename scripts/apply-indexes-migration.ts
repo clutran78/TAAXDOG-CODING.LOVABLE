@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -17,9 +17,9 @@ async function applyIndexesMigration() {
     console.log('📊 Database Info:', dbInfo);
 
     // Check if we're in production
-    const isProduction = process.env.NODE_ENV === 'production' || 
-                        process.env.DATABASE_URL?.includes('production');
-    
+    const isProduction =
+      process.env.NODE_ENV === 'production' || process.env.DATABASE_URL?.includes('production');
+
     if (isProduction) {
       console.log('\n⚠️  WARNING: You are connected to a production database!');
       console.log('Please review the migration before proceeding.\n');
@@ -59,12 +59,14 @@ async function applyIndexesMigration() {
       console.log('Remove --dry-run flag to apply the migration.');
     } else {
       console.log('\n🔄 Applying migration...');
-      
+
       // Split SQL into individual statements and execute
       const statements = migrationSQL
         .split(';')
-        .map(s => s.trim())
-        .filter(s => s.length > 0 && !s.startsWith('--') && !s.toLowerCase().startsWith('select'));
+        .map((s) => s.trim())
+        .filter(
+          (s) => s.length > 0 && !s.startsWith('--') && !s.toLowerCase().startsWith('select'),
+        );
 
       for (const statement of statements) {
         try {
@@ -103,7 +105,6 @@ async function applyIndexesMigration() {
 
       console.log('\n✅ Migration completed successfully!');
     }
-
   } catch (error) {
     console.error('\n❌ Migration failed:', error);
     process.exit(1);

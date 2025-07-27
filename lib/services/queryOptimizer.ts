@@ -1,288 +1,581 @@
-import { PrismaClient } from "@prisma/client";
-import { cache } from 'react';
+// External dependencies
+import { Prisma } from '@prisma/client';
+import { logger } from '@/lib/logger';
+
+// Internal dependencies
+import { prisma } from '../prisma';
+
+// Cache configuration
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const queryCache = new Map<string, { data: any; timestamp: number }>();
+
+// Helper function for caching
+async function getCachedOrExecute<T>(
+  key: string,
+  executor: () => Promise<T>,
+  duration: number = CACHE_DURATION,
+): Promise<T> {
+  const cached = queryCache.get(key);
+  if (cached && Date.now() - cached.timestamp < duration) {
+    return cached.data;
+  }
+
+  try {
+    const data = await executor();
+    queryCache.set(key, { data, timestamp: Date.now() });
+    return data;
+  } catch (error) {
+    logger.error(`Query error for ${key}:`, error);
+    throw error;
+  }
+}
+
+// Clear cache for a specific user
+export function clearUserCache(userId: string) {
+  for (const key of queryCache.keys()) {
+    if (key.includes(userId)) {
+      queryCache.delete(key);
+    }
+  }
+}
 
 // Optimized query functions with proper relation loading to prevent N+1 queries
 
 /**
  * Batch fetch goals with all related data in a single query
  */
-export const getGoalsWithRelations = cache(async (
-  prisma: PrismaClient,
-  userId: string,
-  includeTransactions = false
-) => {
-  return prisma.goal.findMany({
-    where: { userId },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        }
-      },
-      transactions: includeTransactions ? {
-        orderBy: { createdAt: 'desc' },
-        take: 10, // Limit to recent transactions
-        select: {
-          id: true,
-          amount: true,
-          description: true,
-          category: true,
-          date: true,
-          createdAt: true,
-        }
-      } : false,
-    },
-    orderBy: { createdAt: 'desc' },
-  });
-});
+export async function getGoalsWithRelations(userId: string, includeTransactions = false) {
+  const cacheKey = `goals_${userId}_${includeTransactions}`;
 
-/**
- * Batch fetch user with all related data
- */
-export const getUserWithFullProfile = cache(async (
-  prisma: PrismaClient,
-  userId: string
-) => {
-  return prisma.user.findUnique({
-    where: { id: userId },
-    include: {
-      accounts: true,
-      goals: {
-        where: { isActive: true },
-        orderBy: { targetDate: 'asc' },
-      },
-      bankingConnections: {
-        where: { isActive: true },
-        select: {
-          id: true,
-          institutionName: true,
-          lastSyncedAt: true,
-          status: true,
-        }
-      },
-      transactions: {
-        orderBy: { date: 'desc' },
-        take: 20, // Recent transactions only
-        select: {
-          id: true,
-          amount: true,
-          description: true,
-          category: true,
-          date: true,
-          isDeductible: true,
-        }
-      },
-      receipts: {
-        orderBy: { createdAt: 'desc' },
-        take: 10, // Recent receipts
-        select: {
-          id: true,
-          merchant: true,
-          amount: true,
-          category: true,
-          date: true,
-          isDeductible: true,
-        }
-      },
-      _count: {
-        select: {
-          goals: true,
-          transactions: true,
-          receipts: true,
-          bankingConnections: true,
-        }
-      }
+  return getCachedOrExecute(cacheKey, async () => {
+    // Validate user exists
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new Error('User not found');
     }
-  });
-});
 
-/**
- * Optimized transaction queries with related data
- */
-export const getTransactionsWithRelations = cache(async (
-  prisma: PrismaClient,
-  userId: string,
-  options?: {
-    startDate?: Date;
-    endDate?: Date;
-    category?: string;
-    isDeductible?: boolean;
-    limit?: number;
-    offset?: number;
-  }
-) => {
-  const where: any = { userId };
-  
-  if (options?.startDate || options?.endDate) {
-    where.date = {};
-    if (options.startDate) where.date.gte = options.startDate;
-    if (options.endDate) where.date.lte = options.endDate;
-  }
-  
-  if (options?.category) where.category = options.category;
-  if (options?.isDeductible !== undefined) where.isDeductible = options.isDeductible;
-
-  const [transactions, totalCount] = await Promise.all([
-    prisma.transaction.findMany({
-      where,
+    return prisma.goal.findMany({
+      where: {
+        userId,
+        deletedAt: null, // Exclude soft-deleted goals
+      },
       include: {
         user: {
           select: {
             id: true,
             name: true,
             email: true,
-          }
+          },
         },
-        bankingConnection: {
-          select: {
-            id: true,
-            institutionName: true,
-          }
+        transactions: includeTransactions
+          ? {
+              where: {
+                userId, // Ensure transactions belong to user
+                deletedAt: null,
+              },
+              orderBy: { date: 'desc' },
+              take: 10, // Limit to recent transactions
+              select: {
+                id: true,
+                amount: true,
+                description: true,
+                category: true,
+                date: true,
+                type: true,
+                taxCategory: true,
+              },
+            }
+          : false,
+      },
+      orderBy: [{ status: 'asc' }, { deadline: 'asc' }, { createdAt: 'desc' }],
+    });
+  });
+}
+
+/**
+ * Batch fetch user with all related data
+ */
+export async function getUserWithFullProfile(userId: string) {
+  const cacheKey = `user_profile_${userId}`;
+
+  return getCachedOrExecute(
+    cacheKey,
+    async () => {
+      const profile = await prisma.user.findUnique({
+        where: {
+          id: userId,
+          deletedAt: null,
         },
-        goal: {
+        include: {
+          accounts: {
+            where: { deletedAt: null },
+          },
+          goals: {
+            where: {
+              status: 'ACTIVE',
+              deletedAt: null,
+            },
+            orderBy: { deadline: 'asc' },
+          },
+          bankAccounts: {
+            where: {
+              status: { in: ['ACTIVE', 'CONNECTED'] },
+              deletedAt: null,
+            },
+            select: {
+              id: true,
+              accountName: true,
+              institution: true,
+              lastSyncedAt: true,
+              status: true,
+              balance: true,
+              accountType: true,
+            },
+          },
+          transactions: {
+            where: { deletedAt: null },
+            orderBy: { date: 'desc' },
+            take: 20, // Recent transactions only
+            select: {
+              id: true,
+              amount: true,
+              description: true,
+              category: true,
+              date: true,
+              isBusinessExpense: true,
+              taxCategory: true,
+              type: true,
+            },
+          },
+          receipts: {
+            where: { deletedAt: null },
+            orderBy: { createdAt: 'desc' },
+            take: 10, // Recent receipts
+            select: {
+              id: true,
+              merchant: true,
+              totalAmount: true,
+              gstAmount: true,
+              date: true,
+              processingStatus: true,
+            },
+          },
+          _count: {
+            select: {
+              goals: { where: { deletedAt: null } },
+              transactions: { where: { deletedAt: null } },
+              receipts: { where: { deletedAt: null } },
+              bankAccounts: { where: { deletedAt: null } },
+            },
+          },
+        },
+      });
+
+      if (!profile) {
+        throw new Error('User not found');
+      }
+
+      return profile;
+    },
+    CACHE_DURATION * 2,
+  ); // Cache user profile for longer
+}
+
+/**
+ * Optimized transaction queries with related data
+ */
+export async function getTransactionsWithRelations(
+  userId: string,
+  options?: {
+    startDate?: Date;
+    endDate?: Date;
+    category?: string;
+    isBusinessExpense?: boolean;
+    taxCategory?: string;
+    limit?: number;
+    offset?: number;
+  },
+) {
+  const cacheKey = `transactions_${userId}_${JSON.stringify(options)}`;
+
+  return getCachedOrExecute(cacheKey, async () => {
+    // Build where clause with user isolation
+    const where: Prisma.TransactionWhereInput = {
+      userId,
+      deletedAt: null,
+      // Ensure transactions belong to user's bank accounts
+      bankAccount: {
+        userId,
+        deletedAt: null,
+      },
+    };
+
+    if (options?.startDate || options?.endDate) {
+      where.date = {};
+      if (options.startDate) where.date.gte = options.startDate;
+      if (options.endDate) where.date.lte = options.endDate;
+    }
+
+    if (options?.category) where.category = options.category;
+    if (options?.isBusinessExpense !== undefined)
+      where.isBusinessExpense = options.isBusinessExpense;
+    if (options?.taxCategory) where.taxCategory = options.taxCategory;
+
+    const [transactions, totalCount] = await Promise.all([
+      prisma.transaction.findMany({
+        where,
+        include: {
+          bankAccount: {
+            select: {
+              id: true,
+              accountName: true,
+              institution: true,
+              userId: true, // For verification
+            },
+          },
+          receipt: {
+            where: { deletedAt: null },
+            select: {
+              id: true,
+              merchant: true,
+              totalAmount: true,
+              gstAmount: true,
+            },
+          },
+        },
+        orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+        take: options?.limit || 50,
+        skip: options?.offset || 0,
+      }),
+      prisma.transaction.count({ where }),
+    ]);
+
+    // Double-check user isolation
+    const verifiedTransactions = transactions
+      .filter((t) => t.bankAccount?.userId === userId)
+      .map(({ bankAccount, ...tx }) => ({
+        ...tx,
+        bankAccount: bankAccount
+          ? {
+              id: bankAccount.id,
+              accountName: bankAccount.accountName,
+              institution: bankAccount.institution,
+            }
+          : null,
+      }));
+
+    return {
+      transactions: verifiedTransactions,
+      totalCount,
+      hasMore: (options?.offset || 0) + verifiedTransactions.length < totalCount,
+    };
+  });
+}
+
+/**
+ * Batch update multiple goals efficiently with user validation
+ */
+export async function batchUpdateGoals(
+  userId: string,
+  updates: Array<{
+    id: string;
+    currentAmount?: number;
+    status?: 'ACTIVE' | 'COMPLETED' | 'PAUSED' | 'CANCELLED';
+    completedAt?: Date | null;
+  }>,
+) {
+  try {
+    // First verify all goals belong to the user
+    const goalIds = updates.map((u) => u.id);
+    const existingGoals = await prisma.goal.findMany({
+      where: {
+        id: { in: goalIds },
+        userId,
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+
+    if (existingGoals.length !== updates.length) {
+      throw new Error('One or more goals not found or unauthorized');
+    }
+
+    // Use transaction to ensure atomicity
+    const results = await prisma.$transaction(
+      updates.map((update) =>
+        prisma.goal.update({
+          where: {
+            id: update.id,
+            userId, // Double-check ownership
+          },
+          data: {
+            currentAmount: update.currentAmount,
+            status: update.status,
+            completedAt: update.status === 'COMPLETED' ? update.completedAt || new Date() : null,
+            updatedAt: new Date(),
+          },
+        }),
+      ),
+    );
+
+    // Clear cache for affected user
+    clearUserCache(userId);
+
+    return results;
+  } catch (error) {
+    logger.error('Batch update goals error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Efficient aggregation queries with caching
+ */
+export async function getSpendingAnalytics(userId: string, startDate: Date, endDate: Date) {
+  const cacheKey = `analytics_${userId}_${startDate.toISOString()}_${endDate.toISOString()}`;
+
+  return getCachedOrExecute(
+    cacheKey,
+    async () => {
+      // Validate user exists
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true },
+      });
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      const [
+        categorySpending,
+        monthlyTrends,
+        deductibleTotal,
+        goalProgress,
+        incomeVsExpenses,
+        taxCategoryBreakdown,
+      ] = await Promise.all([
+        // Category spending aggregation
+        prisma.transaction.groupBy({
+          by: ['category', 'type'],
+          where: {
+            userId,
+            date: { gte: startDate, lte: endDate },
+            deletedAt: null,
+            // Ensure transactions belong to user's bank accounts
+            bankAccount: {
+              userId,
+              deletedAt: null,
+            },
+          },
+          _sum: { amount: true },
+          _count: true,
+          orderBy: { _sum: { amount: 'desc' } },
+        }),
+
+        // Monthly spending trends with proper user isolation
+        prisma.$queryRaw<
+          Array<{
+            month: Date;
+            income: number;
+            expenses: number;
+            net_cash_flow: number;
+            transaction_count: bigint;
+          }>
+        >`
+        SELECT 
+          DATE_TRUNC('month', t.date) as month,
+          SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE 0 END) as income,
+          SUM(CASE WHEN t.type = 'EXPENSE' THEN ABS(t.amount) ELSE 0 END) as expenses,
+          SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE -ABS(t.amount) END) as net_cash_flow,
+          COUNT(*) as transaction_count
+        FROM "Transaction" t
+        INNER JOIN "BankAccount" ba ON t."bankAccountId" = ba.id
+        WHERE ba."userId" = ${userId}
+          AND t."userId" = ${userId}
+          AND t.date >= ${startDate}
+          AND t.date <= ${endDate}
+          AND t."deletedAt" IS NULL
+          AND ba."deletedAt" IS NULL
+        GROUP BY DATE_TRUNC('month', t.date)
+        ORDER BY month DESC
+      `,
+
+        // Tax deductible totals
+        prisma.transaction.aggregate({
+          where: {
+            userId,
+            isBusinessExpense: true,
+            date: { gte: startDate, lte: endDate },
+            deletedAt: null,
+            bankAccount: {
+              userId,
+              deletedAt: null,
+            },
+          },
+          _sum: {
+            amount: true,
+            gstAmount: true,
+          },
+          _count: true,
+        }),
+
+        // Goal progress summary
+        prisma.goal.findMany({
+          where: {
+            userId,
+            status: 'ACTIVE',
+            deletedAt: null,
+          },
           select: {
             id: true,
             name: true,
             targetAmount: true,
             currentAmount: true,
-          }
-        },
-        receipt: true,
-      },
-      orderBy: { date: 'desc' },
-      take: options?.limit || 50,
-      skip: options?.offset || 0,
-    }),
-    prisma.transaction.count({ where })
-  ]);
+            deadline: true,
+            category: true,
+          },
+        }),
 
-  return {
-    transactions,
-    totalCount,
-    hasMore: (options?.offset || 0) + transactions.length < totalCount,
-  };
-});
+        // Income vs Expenses summary
+        prisma.transaction.groupBy({
+          by: ['type'],
+          where: {
+            userId,
+            date: { gte: startDate, lte: endDate },
+            deletedAt: null,
+            bankAccount: {
+              userId,
+              deletedAt: null,
+            },
+          },
+          _sum: { amount: true },
+          _count: true,
+        }),
 
-/**
- * Batch update multiple goals efficiently
- */
-export const batchUpdateGoals = async (
-  prisma: PrismaClient,
-  updates: Array<{
-    id: string;
-    currentAmount?: number;
-    isActive?: boolean;
-    achievedAt?: Date | null;
-  }>
-) => {
-  // Use transaction to ensure atomicity
-  return prisma.$transaction(
-    updates.map(update => 
-      prisma.goal.update({
-        where: { id: update.id },
-        data: {
-          currentAmount: update.currentAmount,
-          isActive: update.isActive,
-          achievedAt: update.achievedAt,
-          updatedAt: new Date(),
-        },
-      })
-    )
-  );
-};
+        // Tax category breakdown
+        prisma.transaction.groupBy({
+          by: ['taxCategory'],
+          where: {
+            userId,
+            isBusinessExpense: true,
+            date: { gte: startDate, lte: endDate },
+            deletedAt: null,
+            taxCategory: { not: null },
+            bankAccount: {
+              userId,
+              deletedAt: null,
+            },
+          },
+          _sum: {
+            amount: true,
+            gstAmount: true,
+          },
+          _count: true,
+        }),
+      ]);
 
-/**
- * Efficient aggregation queries
- */
-export const getSpendingAnalytics = cache(async (
-  prisma: PrismaClient,
-  userId: string,
-  startDate: Date,
-  endDate: Date
-) => {
-  const [
-    categorySpending,
-    monthlyTrends,
-    deductibleTotal,
-    goalProgress
-  ] = await Promise.all([
-    // Category spending aggregation
-    prisma.transaction.groupBy({
-      by: ['category'],
-      where: {
-        userId,
-        date: { gte: startDate, lte: endDate },
-      },
-      _sum: { amount: true },
-      _count: true,
-      orderBy: { _sum: { amount: 'desc' } },
-    }),
-    
-    // Monthly spending trends
-    prisma.$queryRaw`
-      SELECT 
-        DATE_TRUNC('month', date) as month,
-        SUM(amount) as total_amount,
-        COUNT(*) as transaction_count,
-        AVG(amount) as avg_amount
-      FROM "Transaction"
-      WHERE "userId" = ${userId}
-        AND date >= ${startDate}
-        AND date <= ${endDate}
-      GROUP BY DATE_TRUNC('month', date)
-      ORDER BY month DESC
-    `,
-    
-    // Deductible totals
-    prisma.transaction.aggregate({
-      where: {
-        userId,
-        isDeductible: true,
-        date: { gte: startDate, lte: endDate },
-      },
-      _sum: { amount: true },
-      _count: true,
-    }),
-    
-    // Goal progress summary
-    prisma.goal.findMany({
-      where: { userId, isActive: true },
-      select: {
-        id: true,
-        name: true,
-        targetAmount: true,
-        currentAmount: true,
-        targetDate: true,
-        _count: {
-          select: { transactions: true }
+      // Process and format results
+      const categoryBreakdown = categorySpending.map((cat) => ({
+        category: cat.category,
+        type: cat.type,
+        totalAmount: Math.abs(cat._sum.amount || 0),
+        transactionCount: cat._count,
+        percentage: 0, // Will calculate after
+      }));
+
+      // Calculate percentages
+      const totalExpenses = categoryBreakdown
+        .filter((c) => c.type === 'EXPENSE')
+        .reduce((sum, c) => sum + c.totalAmount, 0);
+
+      categoryBreakdown.forEach((cat) => {
+        if (cat.type === 'EXPENSE' && totalExpenses > 0) {
+          cat.percentage = Math.round((cat.totalAmount / totalExpenses) * 100 * 100) / 100;
         }
-      },
-    }),
-  ]);
+      });
 
-  return {
-    categorySpending,
-    monthlyTrends,
-    deductibleTotal,
-    goalProgress: goalProgress.map(goal => ({
-      ...goal,
-      progressPercentage: (goal.currentAmount / goal.targetAmount) * 100,
-      daysRemaining: goal.targetDate 
-        ? Math.ceil((goal.targetDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-        : null,
-    })),
-  };
-});
+      // Format monthly trends
+      const formattedTrends = monthlyTrends.map((trend) => ({
+        month: trend.month,
+        income: Number(trend.income) || 0,
+        expenses: Number(trend.expenses) || 0,
+        netCashFlow: Number(trend.net_cash_flow) || 0,
+        transactionCount: Number(trend.transaction_count) || 0,
+        savingsRate:
+          trend.income > 0
+            ? Math.round(((trend.income - trend.expenses) / trend.income) * 100 * 100) / 100
+            : 0,
+      }));
+
+      // Calculate goal metrics
+      const goalMetrics = goalProgress.map((goal) => ({
+        ...goal,
+        progressPercentage:
+          goal.targetAmount > 0
+            ? Math.round((goal.currentAmount / goal.targetAmount) * 100 * 100) / 100
+            : 0,
+        daysRemaining: goal.deadline
+          ? Math.max(
+              0,
+              Math.ceil((new Date(goal.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
+            )
+          : null,
+        monthlyRequired:
+          goal.deadline && goal.targetAmount > goal.currentAmount
+            ? Math.round(
+                (goal.targetAmount - goal.currentAmount) /
+                  Math.max(
+                    1,
+                    Math.ceil(
+                      (new Date(goal.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30),
+                    ),
+                  ),
+              )
+            : null,
+      }));
+
+      return {
+        summary: {
+          totalIncome: incomeVsExpenses.find((i) => i.type === 'INCOME')?._sum.amount || 0,
+          totalExpenses: Math.abs(
+            incomeVsExpenses.find((i) => i.type === 'EXPENSE')?._sum.amount || 0,
+          ),
+          netSavings:
+            (incomeVsExpenses.find((i) => i.type === 'INCOME')?._sum.amount || 0) -
+            Math.abs(incomeVsExpenses.find((i) => i.type === 'EXPENSE')?._sum.amount || 0),
+          transactionCount: incomeVsExpenses.reduce((sum, i) => sum + i._count, 0),
+        },
+        categorySpending: categoryBreakdown.filter((c) => c.type === 'EXPENSE'),
+        monthlyTrends: formattedTrends,
+        taxDeductible: {
+          totalAmount: Math.abs(deductibleTotal._sum.amount || 0),
+          totalGst: deductibleTotal._sum.gstAmount || 0,
+          count: deductibleTotal._count,
+          potentialRefund:
+            Math.round(Math.abs(deductibleTotal._sum.amount || 0) * 0.325 * 100) / 100, // Avg tax rate
+        },
+        taxCategories: taxCategoryBreakdown.map((cat) => ({
+          category: cat.taxCategory,
+          amount: Math.abs(cat._sum.amount || 0),
+          gstAmount: cat._sum.gstAmount || 0,
+          count: cat._count,
+        })),
+        goalProgress: goalMetrics,
+      };
+    },
+    CACHE_DURATION * 3,
+  ); // Cache analytics for 15 minutes
+}
 
 /**
  * Preload related data for better performance
  */
-export const preloadUserData = async (
-  prisma: PrismaClient,
-  userId: string
-) => {
+export const preloadUserData = async (prisma: PrismaClient, userId: string) => {
   // Warm up the cache with commonly accessed data
   await Promise.all([
     getUserWithFullProfile(prisma, userId),

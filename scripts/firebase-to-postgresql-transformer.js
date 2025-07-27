@@ -8,21 +8,21 @@ const AustralianValidators = {
   // Validate Australian BSB (Bank State Branch) number
   validateBSB: (bsb) => {
     if (!bsb) return { valid: false, formatted: null, error: 'BSB is required' };
-    
+
     const cleaned = bsb.toString().replace(/[\s-]/g, '');
-    
+
     if (!/^\d{6}$/.test(cleaned)) {
       return { valid: false, formatted: null, error: 'BSB must be exactly 6 digits' };
     }
-    
+
     // Format as XXX-XXX
     const formatted = `${cleaned.substring(0, 3)}-${cleaned.substring(3)}`;
-    
+
     // Validate against known Australian BSB ranges
     const firstTwo = parseInt(cleaned.substring(0, 2));
     const validRanges = [
-      [1, 3],   // NSW
-      [6, 9],   // VIC
+      [1, 3], // NSW
+      [6, 9], // VIC
       [11, 19], // VIC
       [30, 39], // WA
       [40, 49], // QLD
@@ -30,114 +30,118 @@ const AustralianValidators = {
       [60, 69], // TAS
       [70, 79], // ACT/NSW
       [80, 89], // NT
-      [90, 99]  // Other
+      [90, 99], // Other
     ];
-    
+
     const isValidRange = validRanges.some(([min, max]) => firstTwo >= min && firstTwo <= max);
-    
+
     if (!isValidRange) {
-      return { valid: false, formatted: formatted, error: 'Invalid BSB range for Australian banks' };
+      return {
+        valid: false,
+        formatted: formatted,
+        error: 'Invalid BSB range for Australian banks',
+      };
     }
-    
+
     return { valid: true, formatted: formatted, error: null };
   },
 
   // Validate Australian phone numbers
   validatePhone: (phone) => {
     if (!phone) return { valid: true, formatted: null, error: null }; // Phone is optional
-    
+
     const cleaned = phone.toString().replace(/[\s\-\(\)]/g, '');
-    
+
     // Australian mobile numbers (04XX XXX XXX)
     if (/^04\d{8}$/.test(cleaned)) {
       return {
         valid: true,
         formatted: `+61${cleaned.substring(1)}`,
-        error: null
+        error: null,
       };
     }
-    
+
     // Australian landline numbers (0X XXXX XXXX)
     if (/^0[2-9]\d{8}$/.test(cleaned)) {
       return {
         valid: true,
         formatted: `+61${cleaned.substring(1)}`,
-        error: null
+        error: null,
       };
     }
-    
+
     // Already in international format
     if (/^(\+)?614\d{8}$/.test(cleaned)) {
       return {
         valid: true,
         formatted: cleaned.startsWith('+') ? cleaned : `+${cleaned}`,
-        error: null
+        error: null,
       };
     }
-    
+
     // Already in international landline format
     if (/^(\+)?61[2-9]\d{8}$/.test(cleaned)) {
       return {
         valid: true,
         formatted: cleaned.startsWith('+') ? cleaned : `+${cleaned}`,
-        error: null
+        error: null,
       };
     }
-    
+
     return {
       valid: false,
       formatted: null,
-      error: 'Invalid Australian phone number format'
+      error: 'Invalid Australian phone number format',
     };
   },
 
   // Validate Australian Business Number (ABN)
   validateABN: (abn) => {
     if (!abn) return { valid: true, formatted: null, error: null }; // ABN is optional
-    
+
     const cleaned = abn.toString().replace(/\s/g, '');
-    
+
     if (!/^\d{11}$/.test(cleaned)) {
       return { valid: false, formatted: null, error: 'ABN must be exactly 11 digits' };
     }
-    
+
     // ABN checksum validation
     const weights = [10, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19];
     const digits = cleaned.split('').map(Number);
-    
+
     // Subtract 1 from first digit
     digits[0] -= 1;
-    
+
     // Calculate weighted sum
-    const sum = digits.reduce((acc, digit, index) => acc + (digit * weights[index]), 0);
-    
+    const sum = digits.reduce((acc, digit, index) => acc + digit * weights[index], 0);
+
     if (sum % 89 !== 0) {
       return { valid: false, formatted: cleaned, error: 'Invalid ABN checksum' };
     }
-    
+
     return { valid: true, formatted: cleaned, error: null };
   },
 
   // Validate Tax File Number (TFN)
   validateTFN: (tfn) => {
     if (!tfn) return { valid: true, formatted: null, error: null }; // TFN is optional
-    
+
     const cleaned = tfn.toString().replace(/\s/g, '');
-    
+
     if (!/^\d{8,9}$/.test(cleaned)) {
       return { valid: false, formatted: null, error: 'TFN must be 8 or 9 digits' };
     }
-    
+
     // TFN checksum validation
     const weights = [1, 4, 3, 7, 5, 8, 6, 9, 10];
     const digits = cleaned.padStart(9, '0').split('').map(Number);
-    
-    const sum = digits.reduce((acc, digit, index) => acc + (digit * weights[index]), 0);
-    
+
+    const sum = digits.reduce((acc, digit, index) => acc + digit * weights[index], 0);
+
     if (sum % 11 !== 0) {
       return { valid: false, formatted: cleaned, error: 'Invalid TFN checksum' };
     }
-    
+
     return { valid: true, formatted: cleaned, error: null };
   },
 
@@ -146,16 +150,16 @@ const AustralianValidators = {
     if (amount === null || amount === undefined) {
       return { valid: false, formatted: null, error: 'Amount is required' };
     }
-    
+
     const numAmount = parseFloat(amount);
-    
+
     if (isNaN(numAmount)) {
       return { valid: false, formatted: null, error: 'Invalid amount format' };
     }
-    
+
     // Round to 2 decimal places for AUD
     const formatted = Math.round(numAmount * 100) / 100;
-    
+
     return { valid: true, formatted: formatted, error: null };
   },
 
@@ -163,9 +167,9 @@ const AustralianValidators = {
   calculateGST: (amount, isGSTInclusive = true) => {
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount)) return { gstAmount: 0, netAmount: 0, totalAmount: 0 };
-    
+
     if (isGSTInclusive) {
-      const gstAmount = Math.round(numAmount / 11 * 100) / 100;
+      const gstAmount = Math.round((numAmount / 11) * 100) / 100;
       const netAmount = Math.round((numAmount - gstAmount) * 100) / 100;
       return { gstAmount, netAmount, totalAmount: numAmount };
     } else {
@@ -178,40 +182,47 @@ const AustralianValidators = {
   // Validate email format
   validateEmail: (email) => {
     if (!email) return { valid: false, formatted: null, error: 'Email is required' };
-    
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const trimmed = email.trim().toLowerCase();
-    
+
     if (!emailRegex.test(trimmed)) {
       return { valid: false, formatted: null, error: 'Invalid email format' };
     }
-    
+
     return { valid: true, formatted: trimmed, error: null };
   },
 
   // Validate Australian bank account number
   validateAccountNumber: (accountNumber) => {
-    if (!accountNumber) return { valid: false, formatted: null, error: 'Account number is required' };
-    
+    if (!accountNumber)
+      return { valid: false, formatted: null, error: 'Account number is required' };
+
     const cleaned = accountNumber.toString().replace(/[\s-]/g, '');
-    
+
     if (!/^\d{6,10}$/.test(cleaned)) {
       return { valid: false, formatted: null, error: 'Account number must be 6-10 digits' };
     }
-    
+
     return { valid: true, formatted: cleaned, error: null };
   },
 
   // Validate Australian institution names
   validateInstitution: (name) => {
     const knownInstitutions = [
-      'Commonwealth Bank', 'CBA',
-      'Westpac', 'WBC',
-      'ANZ', 'Australia and New Zealand Banking Group',
-      'National Australia Bank', 'NAB',
+      'Commonwealth Bank',
+      'CBA',
+      'Westpac',
+      'WBC',
+      'ANZ',
+      'Australia and New Zealand Banking Group',
+      'National Australia Bank',
+      'NAB',
       'Macquarie Bank',
-      'ING', 'ING Direct',
-      'Bank of Queensland', 'BOQ',
+      'ING',
+      'ING Direct',
+      'Bank of Queensland',
+      'BOQ',
       'Bendigo Bank',
       'Suncorp',
       'St.George Bank',
@@ -223,41 +234,41 @@ const AustralianValidators = {
       'AMP Bank',
       'Bank Australia',
       'Beyond Bank',
-      'Heritage Bank'
+      'Heritage Bank',
     ];
-    
+
     if (!name) return { valid: false, formatted: null, error: 'Institution name is required' };
-    
+
     const normalized = name.trim();
-    const isKnown = knownInstitutions.some(inst => 
-      normalized.toLowerCase().includes(inst.toLowerCase())
+    const isKnown = knownInstitutions.some((inst) =>
+      normalized.toLowerCase().includes(inst.toLowerCase()),
     );
-    
+
     return {
       valid: true,
       formatted: normalized,
       isKnownInstitution: isKnown,
-      error: null
+      error: null,
     };
-  }
+  },
 };
 
 // ATO-compliant tax categories
 const ATOTaxCategories = {
   mapCategory: (firebaseCategory) => {
     const mapping = {
-      'income': 'INCOME',
-      'business_expense': 'BUSINESS_EXPENSE',
-      'personal': 'PERSONAL',
-      'investment': 'INVESTMENT',
-      'gst_payable': 'GST_PAYABLE',
-      'gst_receivable': 'GST_RECEIVABLE',
-      'capital': 'CAPITAL',
-      'depreciation': 'DEPRECIATION',
-      'deductible': 'DEDUCTIBLE',
-      'non_deductible': 'NON_DEDUCTIBLE'
+      income: 'INCOME',
+      business_expense: 'BUSINESS_EXPENSE',
+      personal: 'PERSONAL',
+      investment: 'INVESTMENT',
+      gst_payable: 'GST_PAYABLE',
+      gst_receivable: 'GST_RECEIVABLE',
+      capital: 'CAPITAL',
+      depreciation: 'DEPRECIATION',
+      deductible: 'DEDUCTIBLE',
+      non_deductible: 'NON_DEDUCTIBLE',
     };
-    
+
     const normalized = (firebaseCategory || '').toLowerCase().replace(/\s+/g, '_');
     return mapping[normalized] || 'UNCATEGORIZED';
   },
@@ -274,11 +285,11 @@ const ATOTaxCategories = {
       'DEPRECIATION',
       'DEDUCTIBLE',
       'NON_DEDUCTIBLE',
-      'UNCATEGORIZED'
+      'UNCATEGORIZED',
     ];
-    
+
     return validCategories.includes(category);
-  }
+  },
 };
 
 // ID mapping and relationship management
@@ -291,33 +302,34 @@ class IDMapper {
       receipts: new Map(),
       budgets: new Map(),
       budgetTracking: new Map(),
-      financialInsights: new Map()
+      financialInsights: new Map(),
     };
   }
 
   generateUUID(firebaseId, collection) {
     const namespace = `taaxdog-${collection}`;
-    const hash = crypto.createHash('sha256')
+    const hash = crypto
+      .createHash('sha256')
       .update(namespace + firebaseId)
       .digest('hex');
-    
+
     return [
       hash.substring(0, 8),
       hash.substring(8, 12),
       '4' + hash.substring(13, 16),
       ((parseInt(hash.substring(16, 17), 16) & 0x3) | 0x8).toString(16) + hash.substring(17, 20),
-      hash.substring(20, 32)
+      hash.substring(20, 32),
     ].join('-');
   }
 
   mapID(firebaseId, collection) {
     if (!firebaseId) return null;
-    
+
     if (!this.mappings[collection].has(firebaseId)) {
       const uuid = this.generateUUID(firebaseId, collection);
       this.mappings[collection].set(firebaseId, uuid);
     }
-    
+
     return this.mappings[collection].get(firebaseId);
   }
 
@@ -344,35 +356,35 @@ class FirebaseToPostgreSQLTransformer {
       totalRecords: 0,
       successfulTransformations: 0,
       failedTransformations: 0,
-      validationErrors: 0
+      validationErrors: 0,
     };
   }
 
   // Transform Firebase timestamp to PostgreSQL timestamp
   transformTimestamp(timestamp) {
     if (!timestamp) return null;
-    
+
     // Handle Firestore timestamp format
     if (timestamp._seconds !== undefined) {
       return new Date(timestamp._seconds * 1000).toISOString();
     }
-    
+
     // Handle Firebase timestamp object
     if (timestamp.toDate && typeof timestamp.toDate === 'function') {
       return timestamp.toDate().toISOString();
     }
-    
+
     // Handle string timestamps
     if (typeof timestamp === 'string') {
       const date = new Date(timestamp);
       return isNaN(date.getTime()) ? null : date.toISOString();
     }
-    
+
     // Handle milliseconds timestamp
     if (typeof timestamp === 'number') {
       return new Date(timestamp).toISOString();
     }
-    
+
     return null;
   }
 
@@ -380,7 +392,7 @@ class FirebaseToPostgreSQLTransformer {
   transformUser(firebaseDoc) {
     const errors = [];
     const pgRecord = {
-      id: this.idMapper.mapID(firebaseDoc._firebaseId || firebaseDoc.id, 'users')
+      id: this.idMapper.mapID(firebaseDoc._firebaseId || firebaseDoc.id, 'users'),
     };
 
     // Validate and transform email
@@ -395,7 +407,7 @@ class FirebaseToPostgreSQLTransformer {
     // Basic fields
     pgRecord.name = firebaseDoc.name || '';
     pgRecord.emailVerified = this.transformTimestamp(firebaseDoc.emailVerified);
-    
+
     // Validate and transform phone
     if (firebaseDoc.phone) {
       const phoneValidation = AustralianValidators.validatePhone(firebaseDoc.phone);
@@ -410,11 +422,11 @@ class FirebaseToPostgreSQLTransformer {
     // Password (already hashed)
     pgRecord.password = firebaseDoc.password || null;
     pgRecord.image = firebaseDoc.image || null;
-    
+
     // Role and residency
     pgRecord.role = firebaseDoc.role || 'USER';
     pgRecord.taxResidency = firebaseDoc.taxResidency || 'RESIDENT';
-    
+
     // Validate ABN
     if (firebaseDoc.abn) {
       const abnValidation = AustralianValidators.validateABN(firebaseDoc.abn);
@@ -444,7 +456,7 @@ class FirebaseToPostgreSQLTransformer {
     pgRecord.lastLoginIp = firebaseDoc.lastLoginIp || null;
     pgRecord.twoFactorEnabled = firebaseDoc.twoFactorEnabled || false;
     pgRecord.twoFactorSecret = firebaseDoc.twoFactorSecret || null;
-    
+
     // Timestamps
     pgRecord.createdAt = this.transformTimestamp(firebaseDoc.createdAt) || new Date().toISOString();
     pgRecord.updatedAt = this.transformTimestamp(firebaseDoc.updatedAt) || pgRecord.createdAt;
@@ -456,7 +468,7 @@ class FirebaseToPostgreSQLTransformer {
   transformBankAccount(firebaseDoc) {
     const errors = [];
     const pgRecord = {
-      id: this.idMapper.mapID(firebaseDoc._firebaseId || firebaseDoc.id, 'bankAccounts')
+      id: this.idMapper.mapID(firebaseDoc._firebaseId || firebaseDoc.id, 'bankAccounts'),
     };
 
     // Link to user
@@ -471,7 +483,7 @@ class FirebaseToPostgreSQLTransformer {
 
     // Account details
     pgRecord.accountName = firebaseDoc.accountName || 'Unknown Account';
-    
+
     // Validate BSB
     if (firebaseDoc.bsb) {
       const bsbValidation = AustralianValidators.validateBSB(firebaseDoc.bsb);
@@ -487,7 +499,9 @@ class FirebaseToPostgreSQLTransformer {
 
     // Validate account number
     if (firebaseDoc.accountNumber) {
-      const accountValidation = AustralianValidators.validateAccountNumber(firebaseDoc.accountNumber);
+      const accountValidation = AustralianValidators.validateAccountNumber(
+        firebaseDoc.accountNumber,
+      );
       if (accountValidation.valid) {
         pgRecord.accountNumber = accountValidation.formatted;
       } else {
@@ -500,13 +514,15 @@ class FirebaseToPostgreSQLTransformer {
 
     // Validate institution
     if (firebaseDoc.institutionName) {
-      const institutionValidation = AustralianValidators.validateInstitution(firebaseDoc.institutionName);
+      const institutionValidation = AustralianValidators.validateInstitution(
+        firebaseDoc.institutionName,
+      );
       pgRecord.institutionName = institutionValidation.formatted;
       if (!institutionValidation.isKnownInstitution) {
-        errors.push({ 
-          field: 'institutionName', 
+        errors.push({
+          field: 'institutionName',
           error: 'Warning: Unknown Australian financial institution',
-          severity: 'warning'
+          severity: 'warning',
         });
       }
     }
@@ -528,10 +544,10 @@ class FirebaseToPostgreSQLTransformer {
     pgRecord.basiqConnectionId = firebaseDoc.basiqConnectionId || null;
     pgRecord.basiqInstitutionId = firebaseDoc.basiqInstitutionId || null;
     pgRecord.lastSyncedAt = this.transformTimestamp(firebaseDoc.lastSyncedAt);
-    
+
     // Status
     pgRecord.isActive = firebaseDoc.isActive !== false;
-    
+
     // Timestamps
     pgRecord.createdAt = this.transformTimestamp(firebaseDoc.createdAt) || new Date().toISOString();
     pgRecord.updatedAt = this.transformTimestamp(firebaseDoc.updatedAt) || pgRecord.createdAt;
@@ -543,7 +559,7 @@ class FirebaseToPostgreSQLTransformer {
   transformTransaction(firebaseDoc) {
     const errors = [];
     const pgRecord = {
-      id: this.idMapper.mapID(firebaseDoc._firebaseId || firebaseDoc.id, 'transactions')
+      id: this.idMapper.mapID(firebaseDoc._firebaseId || firebaseDoc.id, 'transactions'),
     };
 
     // Link to user
@@ -578,7 +594,7 @@ class FirebaseToPostgreSQLTransformer {
     // Transaction details
     pgRecord.description = firebaseDoc.description || '';
     pgRecord.date = this.transformTimestamp(firebaseDoc.date) || new Date().toISOString();
-    
+
     // Tax category
     pgRecord.taxCategory = ATOTaxCategories.mapCategory(firebaseDoc.taxCategory);
     if (!ATOTaxCategories.validateCategory(pgRecord.taxCategory)) {
@@ -605,7 +621,7 @@ class FirebaseToPostgreSQLTransformer {
     pgRecord.basiqTransactionId = firebaseDoc.basiqTransactionId || null;
     pgRecord.merchantName = firebaseDoc.merchantName || null;
     pgRecord.isReconciled = firebaseDoc.isReconciled || false;
-    
+
     // Metadata as JSONB
     if (firebaseDoc.metadata) {
       pgRecord.metadata = JSON.stringify(firebaseDoc.metadata);
@@ -622,7 +638,7 @@ class FirebaseToPostgreSQLTransformer {
   transformReceipt(firebaseDoc) {
     const errors = [];
     const pgRecord = {
-      id: this.idMapper.mapID(firebaseDoc._firebaseId || firebaseDoc.id, 'receipts')
+      id: this.idMapper.mapID(firebaseDoc._firebaseId || firebaseDoc.id, 'receipts'),
     };
 
     // Link to user
@@ -641,13 +657,17 @@ class FirebaseToPostgreSQLTransformer {
       const transactionId = firebaseDoc.transactionId || firebaseDoc.transaction_id;
       pgRecord.transaction_id = this.idMapper.getMapping(transactionId, 'transactions');
       if (!pgRecord.transaction_id) {
-        errors.push({ field: 'transaction_id', error: 'Transaction reference not found', severity: 'warning' });
+        errors.push({
+          field: 'transaction_id',
+          error: 'Transaction reference not found',
+          severity: 'warning',
+        });
       }
     }
 
     // Receipt details
     pgRecord.merchant = firebaseDoc.merchant || firebaseDoc.merchantName || null;
-    
+
     // Total amount
     const totalAmount = firebaseDoc.totalAmount || firebaseDoc.total_amount;
     if (totalAmount !== undefined) {
@@ -668,16 +688,16 @@ class FirebaseToPostgreSQLTransformer {
       const gstValidation = AustralianValidators.validateCurrency(gstAmount);
       if (gstValidation.valid) {
         pgRecord.gst_amount = gstValidation.formatted;
-        
+
         // Validate GST is approximately 10% of total
         if (pgRecord.total_amount > 0) {
           const expectedGst = pgRecord.total_amount / 11;
           const gstDifference = Math.abs(pgRecord.gst_amount - expectedGst);
           if (gstDifference > 0.1) {
-            errors.push({ 
-              field: 'gst_amount', 
+            errors.push({
+              field: 'gst_amount',
               error: `GST amount differs from expected 10% by $${gstDifference.toFixed(2)}`,
-              severity: 'warning'
+              severity: 'warning',
             });
           }
         }
@@ -692,7 +712,7 @@ class FirebaseToPostgreSQLTransformer {
 
     // Date
     pgRecord.date = this.transformTimestamp(firebaseDoc.date) || null;
-    
+
     // Items as JSONB
     if (firebaseDoc.items) {
       pgRecord.items = JSON.stringify(firebaseDoc.items);
@@ -700,10 +720,10 @@ class FirebaseToPostgreSQLTransformer {
 
     // Image URL
     pgRecord.image_url = firebaseDoc.imageUrl || firebaseDoc.image_url || null;
-    
+
     // AI processing fields
     pgRecord.ai_processed = firebaseDoc.aiProcessed || firebaseDoc.ai_processed || false;
-    
+
     const aiConfidence = firebaseDoc.aiConfidence || firebaseDoc.ai_confidence;
     if (aiConfidence !== undefined) {
       if (aiConfidence >= 0 && aiConfidence <= 1) {
@@ -716,11 +736,16 @@ class FirebaseToPostgreSQLTransformer {
 
     pgRecord.ai_provider = firebaseDoc.aiProvider || firebaseDoc.ai_provider || null;
     pgRecord.ai_model = firebaseDoc.aiModel || firebaseDoc.ai_model || null;
-    pgRecord.processing_status = firebaseDoc.processingStatus || firebaseDoc.processing_status || 'pending';
+    pgRecord.processing_status =
+      firebaseDoc.processingStatus || firebaseDoc.processing_status || 'pending';
 
     // Timestamps
-    pgRecord.created_at = this.transformTimestamp(firebaseDoc.createdAt || firebaseDoc.created_at) || new Date().toISOString();
-    pgRecord.updated_at = this.transformTimestamp(firebaseDoc.updatedAt || firebaseDoc.updated_at) || pgRecord.created_at;
+    pgRecord.created_at =
+      this.transformTimestamp(firebaseDoc.createdAt || firebaseDoc.created_at) ||
+      new Date().toISOString();
+    pgRecord.updated_at =
+      this.transformTimestamp(firebaseDoc.updatedAt || firebaseDoc.updated_at) ||
+      pgRecord.created_at;
 
     return { record: pgRecord, errors };
   }
@@ -729,7 +754,7 @@ class FirebaseToPostgreSQLTransformer {
   transformBudget(firebaseDoc) {
     const errors = [];
     const pgRecord = {
-      id: this.idMapper.mapID(firebaseDoc._firebaseId || firebaseDoc.id, 'budgets')
+      id: this.idMapper.mapID(firebaseDoc._firebaseId || firebaseDoc.id, 'budgets'),
     };
 
     // Link to user
@@ -745,7 +770,7 @@ class FirebaseToPostgreSQLTransformer {
 
     // Budget details
     pgRecord.name = firebaseDoc.name || 'Unnamed Budget';
-    
+
     // Monthly budget
     const monthlyBudget = firebaseDoc.monthlyBudget || firebaseDoc.monthly_budget;
     const budgetValidation = AustralianValidators.validateCurrency(monthlyBudget);
@@ -782,7 +807,7 @@ class FirebaseToPostgreSQLTransformer {
     if (firebaseDoc.predictions) {
       pgRecord.predictions = JSON.stringify(firebaseDoc.predictions);
     }
-    
+
     const categoryLimits = firebaseDoc.categoryLimits || firebaseDoc.category_limits;
     if (categoryLimits) {
       pgRecord.category_limits = JSON.stringify(categoryLimits);
@@ -794,19 +819,27 @@ class FirebaseToPostgreSQLTransformer {
       if (confidenceScore >= 0 && confidenceScore <= 1) {
         pgRecord.confidence_score = confidenceScore;
       } else {
-        errors.push({ field: 'confidence_score', error: 'Confidence score must be between 0 and 1' });
+        errors.push({
+          field: 'confidence_score',
+          error: 'Confidence score must be between 0 and 1',
+        });
       }
     }
 
     pgRecord.ai_provider = firebaseDoc.aiProvider || firebaseDoc.ai_provider || null;
     pgRecord.ai_model = firebaseDoc.aiModel || firebaseDoc.ai_model || null;
     pgRecord.analysis_period = firebaseDoc.analysisPeriod || firebaseDoc.analysis_period || null;
-    pgRecord.prediction_period = firebaseDoc.predictionPeriod || firebaseDoc.prediction_period || null;
+    pgRecord.prediction_period =
+      firebaseDoc.predictionPeriod || firebaseDoc.prediction_period || null;
     pgRecord.status = firebaseDoc.status || 'active';
 
     // Timestamps
-    pgRecord.created_at = this.transformTimestamp(firebaseDoc.createdAt || firebaseDoc.created_at) || new Date().toISOString();
-    pgRecord.updated_at = this.transformTimestamp(firebaseDoc.updatedAt || firebaseDoc.updated_at) || pgRecord.created_at;
+    pgRecord.created_at =
+      this.transformTimestamp(firebaseDoc.createdAt || firebaseDoc.created_at) ||
+      new Date().toISOString();
+    pgRecord.updated_at =
+      this.transformTimestamp(firebaseDoc.updatedAt || firebaseDoc.updated_at) ||
+      pgRecord.created_at;
 
     return { record: pgRecord, errors };
   }
@@ -815,7 +848,7 @@ class FirebaseToPostgreSQLTransformer {
   transformBudgetTracking(firebaseDoc) {
     const errors = [];
     const pgRecord = {
-      id: this.idMapper.mapID(firebaseDoc._firebaseId || firebaseDoc.id, 'budgetTracking')
+      id: this.idMapper.mapID(firebaseDoc._firebaseId || firebaseDoc.id, 'budgetTracking'),
     };
 
     // Link to budget
@@ -843,11 +876,11 @@ class FirebaseToPostgreSQLTransformer {
     // Time period
     pgRecord.month = firebaseDoc.month;
     pgRecord.year = firebaseDoc.year;
-    
+
     if (!pgRecord.month || pgRecord.month < 1 || pgRecord.month > 12) {
       errors.push({ field: 'month', error: 'Month must be between 1 and 12' });
     }
-    
+
     if (!pgRecord.year || pgRecord.year < 2020 || pgRecord.year > 2030) {
       errors.push({ field: 'year', error: 'Year must be between 2020 and 2030' });
     }
@@ -878,13 +911,16 @@ class FirebaseToPostgreSQLTransformer {
     }
 
     // Calculate variance
-    pgRecord.variance = Math.round((pgRecord.predicted_amount - pgRecord.actual_amount) * 100) / 100;
-    
+    pgRecord.variance =
+      Math.round((pgRecord.predicted_amount - pgRecord.actual_amount) * 100) / 100;
+
     // Category
     pgRecord.category = firebaseDoc.category || null;
 
     // Timestamp
-    pgRecord.created_at = this.transformTimestamp(firebaseDoc.createdAt || firebaseDoc.created_at) || new Date().toISOString();
+    pgRecord.created_at =
+      this.transformTimestamp(firebaseDoc.createdAt || firebaseDoc.created_at) ||
+      new Date().toISOString();
 
     return { record: pgRecord, errors };
   }
@@ -893,7 +929,7 @@ class FirebaseToPostgreSQLTransformer {
   transformFinancialInsight(firebaseDoc) {
     const errors = [];
     const pgRecord = {
-      id: this.idMapper.mapID(firebaseDoc._firebaseId || firebaseDoc.id, 'financialInsights')
+      id: this.idMapper.mapID(firebaseDoc._firebaseId || firebaseDoc.id, 'financialInsights'),
     };
 
     // Link to user
@@ -910,12 +946,12 @@ class FirebaseToPostgreSQLTransformer {
     // Insight details
     pgRecord.insight_type = firebaseDoc.insightType || firebaseDoc.insight_type || 'GENERAL';
     pgRecord.category = firebaseDoc.category || null;
-    
+
     // JSONB fields
     if (firebaseDoc.content) {
       pgRecord.content = JSON.stringify(firebaseDoc.content);
     }
-    
+
     if (firebaseDoc.recommendations) {
       pgRecord.recommendations = JSON.stringify(firebaseDoc.recommendations);
     }
@@ -926,7 +962,10 @@ class FirebaseToPostgreSQLTransformer {
       if (confidenceScore >= 0 && confidenceScore <= 1) {
         pgRecord.confidence_score = confidenceScore;
       } else {
-        errors.push({ field: 'confidence_score', error: 'Confidence score must be between 0 and 1' });
+        errors.push({
+          field: 'confidence_score',
+          error: 'Confidence score must be between 0 and 1',
+        });
       }
     }
 
@@ -941,12 +980,12 @@ class FirebaseToPostgreSQLTransformer {
     // AI provider info
     pgRecord.provider = firebaseDoc.provider || null;
     pgRecord.model = firebaseDoc.model || null;
-    
+
     // Additional fields
     pgRecord.title = firebaseDoc.title || null;
     pgRecord.description = firebaseDoc.description || null;
     pgRecord.priority = firebaseDoc.priority || 'MEDIUM';
-    
+
     // Validate priority
     if (!['HIGH', 'MEDIUM', 'LOW'].includes(pgRecord.priority)) {
       errors.push({ field: 'priority', error: 'Invalid priority level' });
@@ -956,7 +995,9 @@ class FirebaseToPostgreSQLTransformer {
     pgRecord.is_active = firebaseDoc.isActive !== false && firebaseDoc.is_active !== false;
 
     // Timestamps
-    pgRecord.created_at = this.transformTimestamp(firebaseDoc.createdAt || firebaseDoc.created_at) || new Date().toISOString();
+    pgRecord.created_at =
+      this.transformTimestamp(firebaseDoc.createdAt || firebaseDoc.created_at) ||
+      new Date().toISOString();
     pgRecord.expires_at = this.transformTimestamp(firebaseDoc.expiresAt || firebaseDoc.expires_at);
 
     return { record: pgRecord, errors };
@@ -965,7 +1006,7 @@ class FirebaseToPostgreSQLTransformer {
   // Transform collection
   async transformCollection(collectionName, documents) {
     console.log(`\nTransforming ${collectionName}...`);
-    
+
     const transformedRecords = [];
     const collectionErrors = [];
     let successCount = 0;
@@ -974,7 +1015,7 @@ class FirebaseToPostgreSQLTransformer {
     for (const doc of documents) {
       try {
         let result;
-        
+
         switch (collectionName) {
           case 'users':
             result = this.transformUser(doc);
@@ -1002,25 +1043,25 @@ class FirebaseToPostgreSQLTransformer {
         }
 
         transformedRecords.push(result.record);
-        
+
         if (result.errors.length > 0) {
           collectionErrors.push({
             documentId: doc._firebaseId || doc.id,
-            errors: result.errors
+            errors: result.errors,
           });
           this.validationErrors.push({
             collection: collectionName,
             documentId: doc._firebaseId || doc.id,
-            errors: result.errors
+            errors: result.errors,
           });
         }
-        
+
         successCount++;
       } catch (error) {
         errorCount++;
         collectionErrors.push({
           documentId: doc._firebaseId || doc.id,
-          errors: [{ field: 'document', error: error.message }]
+          errors: [{ field: 'document', error: error.message }],
         });
       }
     }
@@ -1030,9 +1071,9 @@ class FirebaseToPostgreSQLTransformer {
       total: documents.length,
       successful: successCount,
       failed: errorCount,
-      validationErrors: collectionErrors.length
+      validationErrors: collectionErrors.length,
     };
-    
+
     this.transformationStats.totalRecords += documents.length;
     this.transformationStats.successfulTransformations += successCount;
     this.transformationStats.failedTransformations += errorCount;
@@ -1045,28 +1086,28 @@ class FirebaseToPostgreSQLTransformer {
 
     return {
       records: transformedRecords,
-      errors: collectionErrors
+      errors: collectionErrors,
     };
   }
 
   // Verify data integrity
   verifyDataIntegrity(transformedData) {
     console.log('\nVerifying data integrity...');
-    
+
     const integrityReport = {
       missingReferences: [],
       duplicateEmails: [],
       invalidAmounts: [],
-      dateIssues: []
+      dateIssues: [],
     };
 
     // Check user email uniqueness
     const emailMap = new Map();
-    transformedData.users?.forEach(user => {
+    transformedData.users?.forEach((user) => {
       if (emailMap.has(user.email)) {
         integrityReport.duplicateEmails.push({
           email: user.email,
-          userIds: [emailMap.get(user.email), user.id]
+          userIds: [emailMap.get(user.email), user.id],
         });
       } else {
         emailMap.set(user.email, user.id);
@@ -1074,31 +1115,31 @@ class FirebaseToPostgreSQLTransformer {
     });
 
     // Check foreign key references
-    const userIds = new Set(transformedData.users?.map(u => u.id) || []);
-    const bankAccountIds = new Set(transformedData.bankAccounts?.map(b => b.id) || []);
-    const budgetIds = new Set(transformedData.budgets?.map(b => b.id) || []);
-    const transactionIds = new Set(transformedData.transactions?.map(t => t.id) || []);
+    const userIds = new Set(transformedData.users?.map((u) => u.id) || []);
+    const bankAccountIds = new Set(transformedData.bankAccounts?.map((b) => b.id) || []);
+    const budgetIds = new Set(transformedData.budgets?.map((b) => b.id) || []);
+    const transactionIds = new Set(transformedData.transactions?.map((t) => t.id) || []);
 
     // Verify bank account references
-    transformedData.bankAccounts?.forEach(account => {
+    transformedData.bankAccounts?.forEach((account) => {
       if (account.userId && !userIds.has(account.userId)) {
         integrityReport.missingReferences.push({
           collection: 'bankAccounts',
           documentId: account.id,
           field: 'userId',
-          missingId: account.userId
+          missingId: account.userId,
         });
       }
     });
 
     // Verify transaction references
-    transformedData.transactions?.forEach(transaction => {
+    transformedData.transactions?.forEach((transaction) => {
       if (transaction.userId && !userIds.has(transaction.userId)) {
         integrityReport.missingReferences.push({
           collection: 'transactions',
           documentId: transaction.id,
           field: 'userId',
-          missingId: transaction.userId
+          missingId: transaction.userId,
         });
       }
       if (transaction.bankAccountId && !bankAccountIds.has(transaction.bankAccountId)) {
@@ -1106,23 +1147,23 @@ class FirebaseToPostgreSQLTransformer {
           collection: 'transactions',
           documentId: transaction.id,
           field: 'bankAccountId',
-          missingId: transaction.bankAccountId
+          missingId: transaction.bankAccountId,
         });
       }
     });
 
     // Check amount validations
     const checkAmounts = (records, collection) => {
-      records?.forEach(record => {
+      records?.forEach((record) => {
         const amountFields = ['amount', 'total_amount', 'gst_amount', 'balance', 'monthly_budget'];
-        amountFields.forEach(field => {
+        amountFields.forEach((field) => {
           if (record[field] !== undefined && record[field] !== null) {
             if (typeof record[field] !== 'number' || record[field] < 0) {
               integrityReport.invalidAmounts.push({
                 collection,
                 documentId: record.id,
                 field,
-                value: record[field]
+                value: record[field],
               });
             }
           }
@@ -1153,16 +1194,21 @@ class FirebaseToPostgreSQLTransformer {
       idMappings: this.idMapper.exportMappings(),
       validationErrors: this.validationErrors,
       summary: {
-        successRate: (this.transformationStats.successfulTransformations / this.transformationStats.totalRecords * 100).toFixed(2) + '%',
-        totalValidationErrors: this.validationErrors.length
-      }
+        successRate:
+          (
+            (this.transformationStats.successfulTransformations /
+              this.transformationStats.totalRecords) *
+            100
+          ).toFixed(2) + '%',
+        totalValidationErrors: this.validationErrors.length,
+      },
     };
 
     const reportPath = path.join(outputDir, 'transformation_report.json');
     await fs.writeFile(reportPath, JSON.stringify(report, null, 2), 'utf8');
-    
+
     console.log(`\nTransformation report saved to: ${reportPath}`);
-    
+
     return report;
   }
 }
@@ -1173,10 +1219,10 @@ async function transformFirebaseToPostgreSQL(inputDir, outputDir) {
   console.log('=========================================\n');
 
   const transformer = new FirebaseToPostgreSQLTransformer();
-  
+
   try {
     await fs.mkdir(outputDir, { recursive: true });
-    
+
     const collections = [
       'users',
       'bankAccounts',
@@ -1184,24 +1230,24 @@ async function transformFirebaseToPostgreSQL(inputDir, outputDir) {
       'transactions',
       'receipts',
       'budgetTracking',
-      'financialInsights'
+      'financialInsights',
     ];
-    
+
     const transformedData = {};
-    
+
     // Transform each collection
     for (const collection of collections) {
       try {
         const inputPath = path.join(inputDir, `${collection}.json`);
         const documents = JSON.parse(await fs.readFile(inputPath, 'utf8'));
-        
+
         const result = await transformer.transformCollection(collection, documents);
         transformedData[collection] = result.records;
-        
+
         // Save transformed data
         const outputPath = path.join(outputDir, `${collection}_transformed.json`);
         await fs.writeFile(outputPath, JSON.stringify(result.records, null, 2), 'utf8');
-        
+
         // Save errors if any
         if (result.errors.length > 0) {
           const errorsPath = path.join(outputDir, `${collection}_errors.json`);
@@ -1211,21 +1257,20 @@ async function transformFirebaseToPostgreSQL(inputDir, outputDir) {
         console.error(`Error transforming ${collection}:`, error.message);
       }
     }
-    
+
     // Verify data integrity
     const integrityReport = transformer.verifyDataIntegrity(transformedData);
     await fs.writeFile(
       path.join(outputDir, 'integrity_report.json'),
       JSON.stringify(integrityReport, null, 2),
-      'utf8'
+      'utf8',
     );
-    
+
     // Export final report
     await transformer.exportReport(outputDir);
-    
+
     console.log('\nTransformation complete!');
     console.log(`Output directory: ${outputDir}`);
-    
   } catch (error) {
     console.error('\nTransformation failed:', error);
     throw error;
@@ -1236,7 +1281,7 @@ async function transformFirebaseToPostgreSQL(inputDir, outputDir) {
 if (require.main === module) {
   const inputDir = process.argv[2] || path.join(__dirname, '../firebase-exports');
   const outputDir = process.argv[3] || path.join(__dirname, '../firebase-transformed');
-  
+
   transformFirebaseToPostgreSQL(inputDir, outputDir)
     .then(() => process.exit(0))
     .catch(() => process.exit(1));
@@ -1247,5 +1292,5 @@ module.exports = {
   AustralianValidators,
   ATOTaxCategories,
   IDMapper,
-  transformFirebaseToPostgreSQL
+  transformFirebaseToPostgreSQL,
 };

@@ -1,48 +1,50 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { Formik, Form, Field, ErrorMessage } from "formik";
-import * as Yup from "yup";
-import Link from "next/link";
-import { useDarkMode } from "@/providers/dark-mode-provider";
+import { useState } from 'react';
+import { Formik, Form, Field, ErrorMessage } from 'formik';
+import * as Yup from 'yup';
+import Link from 'next/link';
+import { useDarkMode } from '@/providers/dark-mode-provider';
 
 const ForgotPasswordSchema = Yup.object().shape({
-  email: Yup.string()
-    .email("Invalid email address")
-    .required("Email is required"),
+  email: Yup.string().email('Invalid email address').required('Email is required'),
 });
 
 export default function ForgotPasswordPage() {
   const { darkMode, toggleDarkMode } = useDarkMode();
-  const [message, setMessage] = useState("");
-  const [firebaseError, setFirebaseError] = useState("");
+  const [message, setMessage] = useState('');
+  const [firebaseError, setFirebaseError] = useState('');
 
-  const handleSubmit = async (values: any) => {
-    setMessage("");
-    setFirebaseError("");
+  interface ForgotPasswordFormValues {
+    email: string;
+  }
+
+  const handleSubmit = async (values: ForgotPasswordFormValues) => {
+    setMessage('');
+    setFirebaseError('');
     try {
       const response = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: values.email })
+        body: JSON.stringify({ email: values.email }),
       });
-      
+
       const data = await response.json();
-      
+
       if (response.ok) {
-        setMessage("Password reset email sent. Please check your inbox.");
+        setMessage('Password reset email sent. Please check your inbox.');
       } else {
-        setFirebaseError(data.error || "Failed to send reset email.");
+        setFirebaseError(data.error || 'Failed to send reset email.');
       }
-    } catch (error: any) {
-      setFirebaseError("Failed to send reset email. Please try again.");
+    } catch (error) {
+      setFirebaseError('Failed to send reset email. Please try again.');
     }
   };
 
   return (
     <div
       className={`min-h-screen flex items-center justify-center ${
-        darkMode ? "" : "bg-gray-100"
+        darkMode ? '' : 'bg-gray-100'
       } p-4`}
     >
       {/* Dark Mode Toggle Icon */}
@@ -50,24 +52,22 @@ export default function ForgotPasswordPage() {
         onClick={toggleDarkMode}
         className={`mb-4 px-2 py-1 rounded absolute top-10 right-10 ${
           darkMode
-            ? "bg-gray-700 text-white hover:bg-gray-600"
-            : "bg-gray-200 text-black hover:bg-gray-300"
+            ? 'bg-gray-700 text-white hover:bg-gray-600'
+            : 'bg-gray-200 text-black hover:bg-gray-300'
         }`}
       >
-        <i className={`fas ${darkMode ? "fa-sun" : "fa-moon"} fa-1x`}></i>
+        <i className={`fas ${darkMode ? 'fa-sun' : 'fa-moon'} fa-1x`}></i>
       </button>
 
       <div
         className={`max-w-md w-full ${
-          darkMode ? "bg-[#343a40]" : "bg-white"
+          darkMode ? 'bg-[#343a40]' : 'bg-white'
         } shadow-md rounded-md p-6`}
       >
-        <h2 className="text-2xl font-semibold text-center mb-6">
-          Forgot Password
-        </h2>
+        <h2 className="text-2xl font-semibold text-center mb-6">Forgot Password</h2>
 
         <Formik
-          initialValues={{ email: "" }}
+          initialValues={{ email: '' }}
           validationSchema={ForgotPasswordSchema}
           onSubmit={handleSubmit}
         >
@@ -77,7 +77,7 @@ export default function ForgotPasswordPage() {
                 <label
                   htmlFor="email"
                   className={`block text-sm font-medium ${
-                    darkMode ? "text-gray-300" : "text-gray-700"
+                    darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}
                 >
                   Email
@@ -112,14 +112,17 @@ export default function ForgotPasswordPage() {
                 disabled={isSubmitting}
                 className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition"
               >
-                {isSubmitting ? "Sending..." : "Send Reset Link"}
+                {isSubmitting ? 'Sending...' : 'Send Reset Link'}
               </button>
             </Form>
           )}
         </Formik>
 
         <div className="mt-4 text-center">
-          <Link href="/login" className="text-blue-600 hover:underline text-sm">
+          <Link
+            href="/login"
+            className="text-blue-600 hover:underline text-sm"
+          >
             Back to Login
           </Link>
         </div>

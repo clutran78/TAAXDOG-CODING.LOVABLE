@@ -24,16 +24,19 @@ async function startResourceMonitoring() {
   // 4. Schedule periodic log cleanup
   console.log('🧹 Scheduling log cleanup...');
   const logCleanup = new LogCleanup();
-  
+
   // Run cleanup every 6 hours
-  setInterval(async () => {
-    console.log('\n🧹 Running scheduled log cleanup...');
-    await logCleanup.cleanup({
-      dryRun: false,
-      maxAge: 7,
-      maxSize: 100 * 1024 * 1024
-    });
-  }, 6 * 60 * 60 * 1000);
+  setInterval(
+    async () => {
+      console.log('\n🧹 Running scheduled log cleanup...');
+      await logCleanup.cleanup({
+        dryRun: false,
+        maxAge: 7,
+        maxSize: 100 * 1024 * 1024,
+      });
+    },
+    6 * 60 * 60 * 1000,
+  );
 
   // 5. Set up graceful shutdown
   process.on('SIGINT', () => {
@@ -50,10 +53,10 @@ async function startResourceMonitoring() {
     console.log(`Memory: ${metrics.memory.percentage}% used`);
     console.log(`CPU: ${metrics.cpu.percentage}% load`);
     console.log(`Disk: ${metrics.disk.percentage}% used`);
-    
+
     if (metrics.alerts.length > 0) {
       console.log('\n⚠️  Active Alerts:');
-      metrics.alerts.forEach(alert => {
+      metrics.alerts.forEach((alert) => {
         console.log(`- ${alert.severity.toUpperCase()}: ${alert.message}`);
       });
     }
@@ -68,7 +71,7 @@ alertingSystem.on('alert-sent', (alert) => {
   if (alert.severity === 'critical') {
     console.error(`\n🚨 CRITICAL ALERT: ${alert.title}`);
     console.error(alert.message);
-    
+
     // Take automatic action for critical situations
     if (alert.type === 'memory' && alert.metadata?.value > 95) {
       console.log('🔄 Attempting to free memory...');
@@ -76,7 +79,7 @@ alertingSystem.on('alert-sent', (alert) => {
         global.gc();
       }
     }
-    
+
     if (alert.type === 'disk' && alert.metadata?.value > 95) {
       console.log('🧹 Running emergency log cleanup...');
       const cleanup = new LogCleanup();
@@ -84,7 +87,7 @@ alertingSystem.on('alert-sent', (alert) => {
         dryRun: false,
         maxAge: 1, // Delete logs older than 1 day
         maxSize: 10 * 1024 * 1024, // 10MB
-        preserveRecent: 1
+        preserveRecent: 1,
       });
     }
   }

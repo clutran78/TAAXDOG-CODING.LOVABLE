@@ -3,18 +3,13 @@ import { OpenRouterProvider } from './providers/openrouter';
 import { GeminiProvider } from './providers/gemini';
 import { BaseAIProvider } from './base-provider';
 import { CircuitBreaker } from './circuit-breaker';
-import { 
-  AIMessage, 
-  AIResponse, 
-  AIProvider, 
-  AIOperationType,
-  AIError 
-} from './types';
-import { 
+import { AIMessage, AIResponse, AIProvider, AIOperationType, AIError } from './types';
+import { logger } from '@/lib/logger';
+import {
   AI_PROVIDERS,
   AI_FEATURE_PROVIDERS,
   AI_COST_OPTIMIZATION,
-  AUSTRALIAN_TAX_CONFIG 
+  AUSTRALIAN_TAX_CONFIG,
 } from './config';
 import { prisma } from '../prisma';
 import { createHash } from 'crypto';
@@ -35,40 +30,34 @@ export class AIService {
     // Initialize Anthropic with hierarchy configuration
     const anthropicConfig = AI_PROVIDERS.primary;
     if (anthropicConfig.apiKey) {
-      this.providers.set(
-        AIProvider.ANTHROPIC,
-        new AnthropicProvider(anthropicConfig.apiKey)
-      );
+      this.providers.set(AIProvider.ANTHROPIC, new AnthropicProvider(anthropicConfig.apiKey));
     }
 
     // Initialize OpenRouter with hierarchy configuration
     const openRouterConfig = AI_PROVIDERS.secondary;
     if (openRouterConfig.apiKey) {
-      this.providers.set(
-        AIProvider.OPENROUTER,
-        new OpenRouterProvider(openRouterConfig.apiKey)
-      );
+      this.providers.set(AIProvider.OPENROUTER, new OpenRouterProvider(openRouterConfig.apiKey));
     }
 
     // Initialize Gemini with hierarchy configuration
     const geminiConfig = AI_PROVIDERS.tertiary;
     if (geminiConfig.apiKey) {
-      this.providers.set(
-        AIProvider.GEMINI,
-        new GeminiProvider(geminiConfig.apiKey)
-      );
+      this.providers.set(AIProvider.GEMINI, new GeminiProvider(geminiConfig.apiKey));
     }
   }
 
   private initializeCircuitBreakers() {
     const cbConfig = AI_COST_OPTIMIZATION.CIRCUIT_BREAKER;
-    
-    Object.values(AIProvider).forEach(provider => {
-      this.circuitBreakers.set(provider, new CircuitBreaker({
-        failureThreshold: cbConfig.failureThreshold,
-        recoveryTimeMs: cbConfig.recoveryTimeMs,
-        monitoringWindowMs: cbConfig.monitoringWindowMs
-      }));
+
+    Object.values(AIProvider).forEach((provider) => {
+      this.circuitBreakers.set(
+        provider,
+        new CircuitBreaker({
+          failureThreshold: cbConfig.failureThreshold,
+          recoveryTimeMs: cbConfig.recoveryTimeMs,
+          monitoringWindowMs: cbConfig.monitoringWindowMs,
+        }),
+      );
     });
   }
 
@@ -77,7 +66,7 @@ export class AIService {
     userId: string,
     operationType: AIOperationType,
     sessionId?: string,
-    useCache = true
+    useCache = true,
   ): Promise<AIResponse> {
     // Check cache first
     if (useCache) {
@@ -94,12 +83,12 @@ export class AIService {
     for (const providerName of providerOrder) {
       const provider = this.providers.get(providerName);
       const circuitBreaker = this.circuitBreakers.get(providerName);
-      
+
       if (!provider || !circuitBreaker) continue;
 
       // Skip if circuit breaker is open
       if (circuitBreaker.isOpen()) {
-        console.warn(`Circuit breaker is open for provider: ${providerName}`);
+        logger.warn(`Circuit breaker is open for provider: ${providerName}`);
         continue;
       }
 
@@ -124,7 +113,7 @@ export class AIService {
           response.tokensUsed.output,
           response.cost,
           response.responseTimeMs,
-          true
+          true,
         );
 
         // Save to cache
@@ -140,14 +129,14 @@ export class AIService {
             providerName,
             provider.getConfig().model,
             messages,
-            response
+            response,
           );
         }
 
         return response;
       } catch (error) {
         lastError = error as Error;
-        
+
         // Track failed usage
         await this.trackUsage(
           userId,
@@ -159,7 +148,7 @@ export class AIService {
           0,
           0,
           false,
-          error instanceof Error ? error.message : 'Unknown error'
+          error instanceof Error ? error.message : 'Unknown error',
         );
 
         // If not retryable, throw immediately
@@ -167,20 +156,16 @@ export class AIService {
           throw error;
         }
 
-        console.warn(`Provider ${providerName} failed:`, error.message);
+        logger.warn(`Provider ${providerName} failed:`, error.message);
       }
     }
 
     throw lastError || new Error('All AI providers failed');
   }
 
-  async processImage(
-    imageData: string,
-    prompt: string,
-    userId: string
-  ): Promise<AIResponse> {
+  async processImage(imageData: string, prompt: string, userId: string): Promise<AIResponse> {
     const geminiProvider = this.providers.get(AIProvider.GEMINI) as GeminiProvider;
-    
+
     if (!geminiProvider) {
       throw new Error('Gemini provider not available for image processing');
     }
@@ -197,7 +182,7 @@ export class AIService {
       response.tokensUsed.output,
       response.cost,
       response.responseTimeMs,
-      true
+      true,
     );
 
     return response;
@@ -230,7 +215,7 @@ export class AIService {
 
   private async checkCache(
     messages: AIMessage[],
-    operationType: AIOperationType
+    operationType: AIOperationType,
   ): Promise<AIResponse | null> {
     const cacheKey = this.generateCacheKey(messages, operationType);
 
@@ -256,7 +241,7 @@ export class AIService {
         };
       }
     } catch (error) {
-      console.error('Cache check failed:', error);
+      logger.error('Cache check failed:', error);
     }
 
     return null;
@@ -265,7 +250,7 @@ export class AIService {
   private async saveToCache(
     messages: AIMessage[],
     operationType: AIOperationType,
-    response: AIResponse
+    response: AIResponse,
   ): Promise<void> {
     const cacheKey = this.generateCacheKey(messages, operationType);
     const inputHash = this.generateHash(JSON.stringify(messages));
@@ -280,9 +265,7 @@ export class AIService {
       [AIOperationType.CHAT_RESPONSE]: 30 * 60 * 1000, // 30 minutes
     };
 
-    const expiresAt = new Date(
-      Date.now() + (cacheDuration[operationType] || 60 * 60 * 1000)
-    );
+    const expiresAt = new Date(Date.now() + (cacheDuration[operationType] || 60 * 60 * 1000));
 
     try {
       await prisma.aICache.upsert({
@@ -305,7 +288,7 @@ export class AIService {
         },
       });
     } catch (error) {
-      console.error('Failed to save to cache:', error);
+      logger.error('Failed to save to cache:', error);
     }
   }
 
@@ -328,7 +311,7 @@ export class AIService {
     costUsd: number,
     responseTimeMs: number,
     success: boolean,
-    errorMessage?: string
+    errorMessage?: string,
   ): Promise<void> {
     try {
       await prisma.aIUsageTracking.create({
@@ -346,7 +329,7 @@ export class AIService {
         },
       });
     } catch (error) {
-      console.error('Failed to track usage:', error);
+      logger.error('Failed to track usage:', error);
     }
   }
 
@@ -356,7 +339,7 @@ export class AIService {
     provider: AIProvider,
     model: string,
     messages: AIMessage[],
-    response: AIResponse
+    response: AIResponse,
   ): Promise<void> {
     try {
       await prisma.aIConversation.create({
@@ -371,11 +354,14 @@ export class AIService {
         },
       });
     } catch (error) {
-      console.error('Failed to save conversation:', error);
+      logger.error('Failed to save conversation:', error);
     }
   }
 
-  async getUserUsageStats(userId: string, days = 30): Promise<{
+  async getUserUsageStats(
+    userId: string,
+    days = 30,
+  ): Promise<{
     totalCost: number;
     totalTokens: number;
     byProvider: Record<string, { cost: number; tokens: number; requests: number }>;

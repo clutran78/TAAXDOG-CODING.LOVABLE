@@ -1,59 +1,63 @@
-import { useState, useEffect } from "react";
-import { useRouter } from "next/router";
-import Link from "next/link";
-import Head from "next/head";
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import Link from 'next/link';
+import Head from 'next/head';
+import { logger } from '@/lib/logger';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
   const { token } = router.query;
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState("");
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setError('');
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      setError('Passwords do not match');
       return;
     }
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters long");
+      setError('Password must be at least 8 characters long');
       return;
     }
 
     setLoading(true);
 
     try {
-      console.log("[ResetPassword] Submitting password reset with token:", token?.substring(0, 10) + "...");
-      
-      const response = await fetch("/api/auth/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      console.log(
+        '[ResetPassword] Submitting password reset with token:',
+        token?.substring(0, 10) + '...',
+      );
+
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, password }),
       });
 
       const data = await response.json();
-      console.log("[ResetPassword] API Response:", { 
-        status: response.status, 
-        ok: response.ok, 
-        data 
+      console.log('[ResetPassword] API Response:', {
+        status: response.status,
+        ok: response.ok,
+        data,
       });
 
       if (response.ok && data.success) {
-        console.log("[ResetPassword] ✅ Password reset successful!");
+        logger.info('[ResetPassword] ✅ Password reset successful!');
         setSuccess(true);
       } else {
-        console.error("[ResetPassword] ❌ Password reset failed:", data);
-        setError(data.message || data.error || "Failed to reset password");
+        logger.error('[ResetPassword] ❌ Password reset failed:', data);
+        setError(data.message || data.error || 'Failed to reset password');
       }
     } catch (err: any) {
-      console.error("[ResetPassword] ❌ Error during password reset:", err);
-      setError("An error occurred. Please try again.");
+      logger.error('[ResetPassword] ❌ Error during password reset:', err);
+      setError('An error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -67,7 +71,10 @@ export default function ResetPasswordPage() {
           <p className="text-center text-gray-600 mb-6">
             This password reset link is invalid or has expired.
           </p>
-          <Link href="/auth/forgot-password" className="block text-center text-blue-600 hover:underline">
+          <Link
+            href="/auth/forgot-password"
+            className="block text-center text-blue-600 hover:underline"
+          >
             Request a new reset link
           </Link>
         </div>
@@ -83,7 +90,10 @@ export default function ResetPasswordPage() {
           <p className="text-center text-gray-600 mb-6">
             Your password has been successfully reset.
           </p>
-          <Link href="/auth/login" className="block w-full bg-blue-600 text-white text-center py-2 px-4 rounded-md hover:bg-blue-700">
+          <Link
+            href="/auth/login"
+            className="block w-full bg-blue-600 text-white text-center py-2 px-4 rounded-md hover:bg-blue-700"
+          >
             Sign In
           </Link>
         </div>
@@ -101,7 +111,10 @@ export default function ResetPasswordPage() {
         <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
           <h2 className="text-2xl font-bold text-center mb-6">Reset Your Password</h2>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-4"
+          >
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
                 {error}
@@ -109,9 +122,7 @@ export default function ResetPasswordPage() {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                New Password
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
               <input
                 type="password"
                 required
@@ -141,12 +152,15 @@ export default function ResetPasswordPage() {
               disabled={loading}
               className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-blue-400 transition duration-200"
             >
-              {loading ? "Resetting..." : "Reset Password"}
+              {loading ? 'Resetting...' : 'Reset Password'}
             </button>
           </form>
 
           <div className="mt-6 text-center">
-            <Link href="/auth/login" className="text-sm text-blue-600 hover:underline">
+            <Link
+              href="/auth/login"
+              className="text-sm text-blue-600 hover:underline"
+            >
               Back to Login
             </Link>
           </div>

@@ -2,7 +2,8 @@
 
 ## Security Issue Resolved
 
-Firebase service account keys were previously committed to the repository in plain text. This has been addressed by:
+Firebase service account keys were previously committed to the repository in
+plain text. This has been addressed by:
 
 1. **Removed from Git History**: The files have been removed from Git tracking
 2. **Added to .gitignore**: Prevents future accidental commits
@@ -18,6 +19,7 @@ Firebase service account keys were previously committed to the repository in pla
 ### For Production Deployment
 
 1. **Encode your service account key**:
+
    ```bash
    python scripts/encode-firebase-key.py backend/firebase-adminsdk.json
    ```
@@ -51,9 +53,9 @@ firebase_admin.initialize_app(cred)
 
 ## Important Security Notes
 
-⚠️ **NEVER commit service account keys to Git**
-⚠️ **The exposed keys should be rotated immediately in Firebase Console**
-⚠️ **Always use environment variables for production secrets**
+⚠️ **NEVER commit service account keys to Git** ⚠️ **The exposed keys should be
+rotated immediately in Firebase Console** ⚠️ **Always use environment variables
+for production secrets**
 
 ## Rotating Compromised Keys
 

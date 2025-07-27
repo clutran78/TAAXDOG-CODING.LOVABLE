@@ -1,13 +1,14 @@
-"use client";
-import React, { useEffect, useMemo, useState } from "react";
-import AddGoalModal from "./AddGoalForm";
-import { showToast } from "@/services/helperFunction";
-import UpdateProgressModal from "./UpdateProgress";
-import ConfirmModal from "./ConfirmModal";
-import GoalCard from "./goals-card";
-import { deleteGoal, fetchGoals } from "@/services/goal-service";
-import { Goal } from "@/lib/types/goal";
-import { useDarkMode } from "@/providers/dark-mode-provider";
+'use client';
+import React, { useEffect, useMemo, useState } from 'react';
+import AddGoalForm from './AddGoalForm';
+import { showToast } from '@/lib/utils/helpers';
+import UpdateProgressModal from './UpdateProgress';
+import ConfirmModal from './ConfirmModal';
+import GoalCard from './GoalsCard';
+import { deleteGoal, fetchGoals } from '@/lib/services/goals/client-goal-service';
+import { Goal } from '@/lib/types/goal';
+import { useDarkMode } from '@/providers/dark-mode-provider';
+import { logger } from '@/lib/logger';
 
 const GoalPage: React.FC = () => {
   const { darkMode } = useDarkMode();
@@ -19,7 +20,7 @@ const GoalPage: React.FC = () => {
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [goalIdToDelete, setGoalIdToDelete] = useState<string | null>(null);
-  const [goalNameToDelete, setGoalNameToDelete] = useState<string>("");
+  const [goalNameToDelete, setGoalNameToDelete] = useState<string>('');
   const [deleteLoading, setDeleteLoading] = useState<boolean>(false);
 
   useEffect(() => {
@@ -28,8 +29,8 @@ const GoalPage: React.FC = () => {
         const fetchedGoals = await fetchGoals();
         setGoals(fetchedGoals);
       } catch (error) {
-        console.error("Error fetching goals:", error);
-        showToast("Error fetching goals.", "danger");
+        logger.error('Error fetching goals:', error);
+        showToast('Error fetching goals.', 'danger');
       } finally {
         setLoading(false);
       }
@@ -39,29 +40,26 @@ const GoalPage: React.FC = () => {
   }, []);
 
   const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
     }).format(amount);
   };
 
   const totalSaved = useMemo(
     () => goals.reduce((sum, g) => sum + (g.currentAmount || 0), 0),
-    [goals]
+    [goals],
   );
   const totalTarget = useMemo(
     () => goals.reduce((sum, g) => sum + (g.targetAmount || 0), 0),
-    [goals]
+    [goals],
   );
-  const overallProgress =
-    totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0;
+  const overallProgress = totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0;
 
   const sortedGoals = useMemo(() => {
     return [...goals].sort((a, b) => {
-      const aProgress =
-        a.targetAmount > 0 ? (a.currentAmount / a.targetAmount) * 100 : 0;
-      const bProgress =
-        b.targetAmount > 0 ? (b.currentAmount / b.targetAmount) * 100 : 0;
+      const aProgress = a.targetAmount > 0 ? (a.currentAmount / a.targetAmount) * 100 : 0;
+      const bProgress = b.targetAmount > 0 ? (b.currentAmount / b.targetAmount) * 100 : 0;
       return aProgress - bProgress;
     });
   }, [goals]);
@@ -95,28 +93,28 @@ const GoalPage: React.FC = () => {
     if (!goalIdToDelete) return;
     try {
       await deleteGoal(goalIdToDelete);
-      showToast(`Goal "${goalNameToDelete}" deleted successfully.`, "success");
+      showToast(`Goal "${goalNameToDelete}" deleted successfully.`, 'success');
       // Refresh goals list after deletion
       const fetchedGoals = await fetchGoals();
       setGoals(fetchedGoals);
     } catch (err) {
-      console.error(err);
-      showToast("Error deleting goal", "danger");
+      logger.error(err);
+      showToast('Error deleting goal', 'danger');
     } finally {
       setGoalIdToDelete(null);
-      setGoalNameToDelete("");
+      setGoalNameToDelete('');
       setDeleteLoading(false);
     }
   };
 
   const cancelDelete = () => {
     setGoalIdToDelete(null);
-    setGoalNameToDelete("");
+    setGoalNameToDelete('');
   };
 
   return (
     <>
-      <AddGoalModal
+      <AddGoalForm
         show={showGoalModal}
         onClose={() => {
           setShowGoalModal(false);
@@ -124,12 +122,12 @@ const GoalPage: React.FC = () => {
           setEditGoalId(null);
         }}
         onAdd={async () => {
-          console.log("Goal saved");
+          logger.info('Goal saved');
           try {
             const fetchedGoals = await fetchGoals();
             setGoals(fetchedGoals);
           } catch (error) {
-            console.error("Error refreshing goals:", error);
+            logger.error('Error refreshing goals:', error);
           }
         }}
         goalToEdit={goalToEdit}
@@ -146,7 +144,7 @@ const GoalPage: React.FC = () => {
             const fetchedGoals = await fetchGoals();
             setGoals(fetchedGoals);
           } catch (error) {
-            console.error("Error refreshing goals:", error);
+            logger.error('Error refreshing goals:', error);
           }
         }}
         goal={selectedGoal}
@@ -182,7 +180,10 @@ const GoalPage: React.FC = () => {
         </div>
         {loading ? (
           <div className="text-center py-5">
-            <div className="spinner-border text-primary" role="status">
+            <div
+              className="spinner-border text-primary"
+              role="status"
+            >
               <span className="visually-hidden">Loading...</span>
             </div>
             <p className="mt-3">Loading your financial goals...</p>
@@ -194,11 +195,12 @@ const GoalPage: React.FC = () => {
               <div className="card-body">
                 <div className="d-flex justify-content-between align-items-center mb-3">
                   <h5 className="mb-0">Overall Progress</h5>
-                  <span className="badge bg-primary">
-                    {overallProgress.toFixed(1)}%
-                  </span>
+                  <span className="badge bg-primary">{overallProgress.toFixed(1)}%</span>
                 </div>
-                <div className="progress mb-3" style={{ height: "15px" }}>
+                <div
+                  className="progress mb-3"
+                  style={{ height: '15px' }}
+                >
                   <div
                     className="progress-bar bg-primary"
                     role="progressbar"
@@ -209,14 +211,10 @@ const GoalPage: React.FC = () => {
                   ></div>
                 </div>
                 <div className="d-flex justify-content-between">
-                  <span
-                    className={`${darkMode ? "text-secondary" : "text-muted"}`}
-                  >
+                  <span className={`${darkMode ? 'text-secondary' : 'text-muted'}`}>
                     Total Saved: {formatCurrency(totalSaved)}
                   </span>
-                  <span
-                    className={`${darkMode ? "text-secondary" : "text-muted"}`}
-                  >
+                  <span className={`${darkMode ? 'text-secondary' : 'text-muted'}`}>
                     Target: {formatCurrency(totalTarget)}
                   </span>
                 </div>
@@ -230,13 +228,10 @@ const GoalPage: React.FC = () => {
               <div className="text-center py-4">
                 <i
                   className={`fas fa-bullseye fa-3x ${
-                    darkMode ? "text-secondary" : "text-muted"
+                    darkMode ? 'text-secondary' : 'text-muted'
                   } mb-3`}
                 ></i>
-                <p>
-                  No financial goals set yet. Click &quot;Add Goal&quot; to get
-                  started!
-                </p>
+                <p>No financial goals set yet. Click &quot;Add Goal&quot; to get started!</p>
               </div>
             ) : (
               sortedGoals.map((goal, index) => (
@@ -266,9 +261,9 @@ const GoalPage: React.FC = () => {
                 </div>
                 <div>
                   <span className="small">
-                    Setting SMART financial goals (Specific, Measurable,
-                    Achievable, Relevant, Time-bound) can increase your chances
-                    of success by up to 76% according to research.
+                    Setting SMART financial goals (Specific, Measurable, Achievable, Relevant,
+                    Time-bound) can increase your chances of success by up to 76% according to
+                    research.
                   </span>
                 </div>
               </div>

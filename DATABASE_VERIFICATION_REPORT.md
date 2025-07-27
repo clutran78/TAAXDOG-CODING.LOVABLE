@@ -37,33 +37,39 @@ All tables exist but contain 0 records:
 
 1. **Firebase Exports:** No Firebase export directory found
 2. **Migration Data:** No data has been imported yet
-3. **BASIQ Tables:** Not present in current schema (bank_accounts, bank_transactions)
+3. **BASIQ Tables:** Not present in current schema (bank_accounts,
+   bank_transactions)
 
 ## Next Steps
 
 To complete the migration, you need to:
 
 ### 1. Export from Firebase
+
 ```bash
 npm run firebase:export
 ```
 
 ### 2. Transform Data
+
 ```bash
 npm run firebase:transform
 ```
 
 ### 3. Import to PostgreSQL
+
 ```bash
 npm run db:import
 ```
 
 ### 4. Validate Migration
+
 ```bash
 npm run migration:validate
 ```
 
 Or run the complete pipeline:
+
 ```bash
 npm run migration:complete
 ```
@@ -88,6 +94,7 @@ npm run verify:compliance
 ## Australian Compliance Checks Ready
 
 The following validations are configured:
+
 - ✅ BSB format validation (XXX-XXX)
 - ✅ Phone number validation (+61XXXXXXXXX)
 - ✅ GST calculation validation (10%)
@@ -96,4 +103,5 @@ The following validations are configured:
 
 ## Conclusion
 
-The database structure is ready, but no data has been migrated yet. Please run the migration pipeline to import your Firebase data into PostgreSQL.
+The database structure is ready, but no data has been migrated yet. Please run
+the migration pipeline to import your Firebase data into PostgreSQL.

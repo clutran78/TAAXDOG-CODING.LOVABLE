@@ -1,0 +1,299 @@
+pages/api/admin/audit-logs/cleanup.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/admin/audit-logs/verify-integrity.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/admin/audit-reports/generate.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/admin/audit-reports/monthly-compliance.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/admin/dashboard.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/admin/query-metrics.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/admin/security/metrics.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g
+
+pages/api/admin/security/scan.ts
+  Patterns: /return\s+res\./g
+
+pages/api/admin/system-config.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/admin/users.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/ai/budget-prediction.ts
+  Patterns: /res\.status\((\d+)\)\.end\(/g
+
+pages/api/ai/chat.ts
+  Patterns: /sendSuccess\(/g, /sendUnauthorized\(/g, /sendValidationError\(/g, /sendInternalError\(/g, /sendMethodNotAllowed\(/g
+
+pages/api/ai/consultation.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /res\.status\((\d+)\)\.end\(/g, /return\s+res\./g
+
+pages/api/ai/generate-insights.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/ai/insights-v2.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/ai/insights.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/ai/process-receipt.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/ai/report-commentary.ts
+  Patterns: /res\.status\((\d+)\)\.end\(/g
+
+pages/api/ai/tax-advice.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/ai/usage.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /res\.status\((\d+)\)\.end\(/g, /return\s+res\./g
+
+pages/api/auth/change-password.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/auth/forgot-password.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/auth/login-example.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/auth/logout.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/auth/profile.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/auth/reset-password.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/auth/sessions.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/auth/signup.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g
+
+pages/api/auth/simple-forgot-password.ts
+  Patterns: /return\s+res\./g
+
+pages/api/auth/simple-login.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/auth/two-factor.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/auth/verify-email.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/banking/basiq-example.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/banking/connect-with-audit.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/basiq/accounts.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/basiq/connect.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/basiq/connections.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/basiq/disconnect.ts
+  Patterns: /return\s+res\./g
+
+pages/api/basiq/institutions.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g
+
+pages/api/basiq/sync.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/basiq/transactions-cached.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/basiq/transactions.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/basiq/validate.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/basiq/webhook.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/budgets/[id]/index.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/budgets/[id]/variance.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/budgets/index.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/compliance/aml/alerts.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/compliance/aml/monitor-transaction.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/compliance/apra/data-residency.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/compliance/apra/incidents.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/compliance/gst/bas-report.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/compliance/gst/calculate.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/compliance/gst/validate-abn.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/compliance/privacy/consent.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/compliance/privacy/data-request.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/compliance/reports/comprehensive.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/goals/[id]/progress.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/goals/[id].ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/goals/index.ts
+  Patterns: /sendUnauthorized\(/g, /sendValidationError\(/g, /sendInternalError\(/g, /sendCreated\(/g, /sendMethodNotAllowed\(/g, /sendPaginatedSuccess\(/g
+
+pages/api/health/detailed.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/health/external-services.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/health/index.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g
+
+pages/api/health/liveness.ts
+  Patterns: /return\s+res\./g
+
+pages/api/health/readiness.ts
+  Patterns: /sendSuccess\(/g, /sendError\(/g, /sendMethodNotAllowed\(/g
+
+pages/api/health/summary.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/health.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/insights/index.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/monitoring/client-errors.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/monitoring/client-metrics.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/monitoring/metrics.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/monitoring/performance.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g
+
+pages/api/optimized/dashboard-v2.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/optimized/spending-analytics.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/optimized/transactions-paginated.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/optimized/user-dashboard-cached.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/optimized/user-dashboard.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/receipts/[id]/index.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/receipts/[id]/update.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/receipts/index.ts
+  Patterns: /sendUnauthorized\(/g, /sendValidationError\(/g, /sendInternalError\(/g, /sendMethodNotAllowed\(/g, /sendPaginatedSuccess\(/g
+
+pages/api/receipts/match-transactions.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/receipts/process/[id].ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/receipts/process-example.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/receipts/process-with-audit.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/receipts/upload.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g
+
+pages/api/signup.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/stripe/billing-history.ts
+  Patterns: /res\.status\((\d+)\)\.end\(/g
+
+pages/api/stripe/cancel-subscription.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/stripe/create-billing-portal-session.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /res\.status\((\d+)\)\.end\(/g
+
+pages/api/stripe/create-checkout-session.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/stripe/create-subscription.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/stripe/customer-portal.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/stripe/invoices.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/stripe/payment-methods.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/stripe/tax-invoice.ts
+  Patterns: /res\.status\((\d+)\)\.end\(/g
+
+pages/api/stripe/update-subscription.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/stripe/webhook.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /res\.status\((\d+)\)\.end\(/g, /res\.json\(\{/g
+
+pages/api/stripe/webhooks.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/tax/calculations.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g
+
+pages/api/transactions/search.ts
+  Patterns: /res\.status\(\d+\)\.json\(/g, /return\s+res\./g

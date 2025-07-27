@@ -1,15 +1,15 @@
 import { prisma } from '../prisma';
 import { getStripe, SUBSCRIPTION_PLANS, GST_CONFIG, calculateGSTFromTotal } from './config';
-import type { User, Subscription, Plan } from "@prisma/client";
+import type { User, Subscription, Plan } from '@prisma/client';
 import Stripe from 'stripe';
 
 export class StripeService {
   private stripe: Stripe;
-  
+
   constructor() {
     this.stripe = getStripe().stripe;
   }
-  
+
   // Create a Stripe customer
   async createCustomer(user: User): Promise<Stripe.Customer> {
     const customer = await this.stripe.customers.create({
@@ -21,10 +21,10 @@ export class StripeService {
         taxResidency: user.taxResidency,
       },
     });
-    
+
     return customer;
   }
-  
+
   // Get or create Stripe customer
   async getOrCreateCustomer(userId: string): Promise<Stripe.Customer> {
     // Check if user already has a subscription
@@ -32,23 +32,25 @@ export class StripeService {
       where: { userId },
       include: { user: true },
     });
-    
+
     if (subscription?.stripeCustomerId) {
-      return await this.stripe.customers.retrieve(subscription.stripeCustomerId) as Stripe.Customer;
+      return (await this.stripe.customers.retrieve(
+        subscription.stripeCustomerId,
+      )) as Stripe.Customer;
     }
-    
+
     // Create new customer
     const user = await prisma.user.findUnique({
       where: { id: userId },
     });
-    
+
     if (!user) {
       throw new Error('User not found');
     }
-    
+
     return await this.createCustomer(user);
   }
-  
+
   // Create a checkout session for subscription
   async createCheckoutSession({
     userId,
@@ -63,7 +65,7 @@ export class StripeService {
   }): Promise<Stripe.Checkout.Session> {
     const customer = await this.getOrCreateCustomer(userId);
     const planConfig = SUBSCRIPTION_PLANS[plan];
-    
+
     // Create line items for checkout
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
       {
@@ -71,7 +73,7 @@ export class StripeService {
         quantity: 1,
       },
     ];
-    
+
     // Create checkout session
     const session = await this.stripe.checkout.sessions.create({
       customer: customer.id,
@@ -97,16 +99,16 @@ export class StripeService {
         enabled: true,
       },
     });
-    
+
     return session;
   }
-  
+
   // Cancel subscription
   async cancelSubscription(subscriptionId: string): Promise<Stripe.Subscription> {
     const subscription = await this.stripe.subscriptions.update(subscriptionId, {
       cancel_at_period_end: true,
     });
-    
+
     // Update database
     await prisma.subscription.update({
       where: { stripeSubscriptionId: subscriptionId },
@@ -115,16 +117,16 @@ export class StripeService {
         cancelledAt: new Date(),
       },
     });
-    
+
     return subscription;
   }
-  
+
   // Reactivate subscription
   async reactivateSubscription(subscriptionId: string): Promise<Stripe.Subscription> {
     const subscription = await this.stripe.subscriptions.update(subscriptionId, {
       cancel_at_period_end: false,
     });
-    
+
     // Update database
     await prisma.subscription.update({
       where: { stripeSubscriptionId: subscriptionId },
@@ -133,15 +135,18 @@ export class StripeService {
         cancelledAt: null,
       },
     });
-    
+
     return subscription;
   }
-  
+
   // Update subscription (change plan)
-  async updateSubscription(subscriptionId: string, newPlan: 'SMART' | 'PRO'): Promise<Stripe.Subscription> {
+  async updateSubscription(
+    subscriptionId: string,
+    newPlan: 'SMART' | 'PRO',
+  ): Promise<Stripe.Subscription> {
     const subscription = await this.stripe.subscriptions.retrieve(subscriptionId);
     const planConfig = SUBSCRIPTION_PLANS[newPlan];
-    
+
     // Update subscription with new price
     const updatedSubscription = await this.stripe.subscriptions.update(subscriptionId, {
       items: [
@@ -152,7 +157,7 @@ export class StripeService {
       ],
       proration_behavior: 'always_invoice',
     });
-    
+
     // Update database
     await prisma.subscription.update({
       where: { stripeSubscriptionId: subscriptionId },
@@ -161,29 +166,32 @@ export class StripeService {
         stripePriceId: planConfig.prices.regular.stripePriceId,
       },
     });
-    
+
     return updatedSubscription;
   }
-  
+
   // Create portal session for customer to manage subscription
-  async createPortalSession(customerId: string, returnUrl: string): Promise<Stripe.BillingPortal.Session> {
+  async createPortalSession(
+    customerId: string,
+    returnUrl: string,
+  ): Promise<Stripe.BillingPortal.Session> {
     const session = await this.stripe.billingPortal.sessions.create({
       customer: customerId,
       return_url: returnUrl,
     });
-    
+
     return session;
   }
-  
+
   // Generate tax invoice (Australian compliance)
   async generateTaxInvoice(invoiceId: string): Promise<any> {
     const invoice = await this.stripe.invoices.retrieve(invoiceId, {
       expand: ['customer', 'subscription'],
     });
-    
+
     const customer = invoice.customer as Stripe.Customer;
     const { gstAmount, amountExGST } = calculateGSTFromTotal(invoice.total);
-    
+
     // Create invoice record in database
     const dbInvoice = await prisma.invoice.create({
       data: {
@@ -199,7 +207,7 @@ export class StripeService {
         invoiceDate: new Date(invoice.created * 1000),
         paidAt: invoice.paid ? new Date(invoice.status_transitions.paid_at! * 1000) : null,
         lineItems: {
-          create: invoice.lines.data.map(line => ({
+          create: invoice.lines.data.map((line) => ({
             description: line.description || 'Subscription',
             quantity: line.quantity || 1,
             unitPrice: line.price?.unit_amount || 0,
@@ -211,20 +219,20 @@ export class StripeService {
         lineItems: true,
       },
     });
-    
+
     return dbInvoice;
   }
-  
+
   // Sync subscription from Stripe webhook
   async syncSubscriptionFromWebhook(stripeSubscription: Stripe.Subscription): Promise<void> {
     const userId = stripeSubscription.metadata.userId;
     if (!userId) {
       throw new Error('No userId in subscription metadata');
     }
-    
+
     const plan = stripeSubscription.metadata.plan as 'SMART' | 'PRO';
     const priceId = stripeSubscription.items.data[0].price.id;
-    
+
     // Upsert subscription
     await prisma.subscription.upsert({
       where: { stripeSubscriptionId: stripeSubscription.id },
@@ -241,24 +249,30 @@ export class StripeService {
         currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
         currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
         cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
-        cancelledAt: stripeSubscription.canceled_at ? new Date(stripeSubscription.canceled_at * 1000) : null,
-        trialEnd: stripeSubscription.trial_end ? new Date(stripeSubscription.trial_end * 1000) : null,
+        cancelledAt: stripeSubscription.canceled_at
+          ? new Date(stripeSubscription.canceled_at * 1000)
+          : null,
+        trialEnd: stripeSubscription.trial_end
+          ? new Date(stripeSubscription.trial_end * 1000)
+          : null,
       },
       update: {
         status: stripeSubscription.status,
         currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
         currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
         cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
-        cancelledAt: stripeSubscription.canceled_at ? new Date(stripeSubscription.canceled_at * 1000) : null,
+        cancelledAt: stripeSubscription.canceled_at
+          ? new Date(stripeSubscription.canceled_at * 1000)
+          : null,
       },
     });
   }
-  
+
   // Handle failed payment
   async handleFailedPayment(invoiceId: string): Promise<void> {
     const invoice = await this.stripe.invoices.retrieve(invoiceId);
     const subscriptionId = invoice.subscription as string;
-    
+
     if (subscriptionId) {
       // Update subscription in database
       await prisma.subscription.update({
@@ -270,26 +284,26 @@ export class StripeService {
           },
         },
       });
-      
+
       // TODO: Send payment failure email to customer
     }
   }
-  
+
   // Get subscription details
   async getSubscriptionDetails(userId: string): Promise<Subscription | null> {
     return await prisma.subscription.findUnique({
       where: { userId },
     });
   }
-  
+
   // Check if user has active subscription
   async hasActiveSubscription(userId: string): Promise<boolean> {
     const subscription = await prisma.subscription.findUnique({
       where: { userId },
     });
-    
+
     if (!subscription) return false;
-    
+
     const activeStatuses = ['active', 'trialing'];
     return activeStatuses.includes(subscription.status) && !subscription.cancelAtPeriodEnd;
   }

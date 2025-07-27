@@ -1,10 +1,12 @@
 # TAAXDOG Web App Testing Guide
 
-This guide provides instructions on how to visualize and test the TAAXDOG web application.
+This guide provides instructions on how to visualize and test the TAAXDOG web
+application.
 
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:
+
 - Python 3.8 or higher
 - Node.js and npm
 - Git (for version control)
@@ -12,6 +14,7 @@ Before you begin, ensure you have the following installed:
 ## Setting Up the Environment
 
 1. Clone the repository (if you haven't already):
+
    ```
    git clone <repository-url>
    cd TAAXDOG-CODING
@@ -28,6 +31,7 @@ Before you begin, ensure you have the following installed:
 We've created a convenient script to set up and run the application:
 
 1. Make the script executable:
+
    ```
    chmod +x run_app.sh
    ```
@@ -38,6 +42,7 @@ We've created a convenient script to set up and run the application:
    ```
 
 This script will:
+
 - Activate or create a virtual environment
 - Install required dependencies
 - Set up environment variables
@@ -48,12 +53,14 @@ This script will:
 If you prefer to set up manually:
 
 1. Set up a Python virtual environment:
+
    ```
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
 2. Install Python dependencies:
+
    ```
    pip install -r requirements.txt
    ```
@@ -95,16 +102,19 @@ Once the server is running, you can access the web app in your browser:
 We've created a Python script to help test the API endpoints:
 
 1. Make the script executable:
+
    ```
    chmod +x test_api.py
    ```
 
 2. Run the script to test if the server is running:
+
    ```
    ./test_api.py --server http://localhost:8080
    ```
 
 3. Test authentication and user profile endpoints:
+
    ```
    ./test_api.py --server http://localhost:8080 --email your@email.com --password yourpassword
    ```
@@ -120,13 +130,15 @@ We've created a Python script to help test the API endpoints:
 
 You can also test the API endpoints using tools like Postman or curl:
 
-- Verify token: 
+- Verify token:
+
   ```
   POST http://localhost:8080/api/auth/verify-token
   Headers: { "Authorization": "Bearer YOUR_ID_TOKEN" }
   ```
 
 - Get user profile:
+
   ```
   GET http://localhost:8080/api/users/profile
   Headers: { "Authorization": "Bearer YOUR_ID_TOKEN" }
@@ -143,7 +155,8 @@ You can also test the API endpoints using tools like Postman or curl:
 
 ### Browser Testing
 
-The primary way to visualize and test the TAAXDOG web app is through a web browser:
+The primary way to visualize and test the TAAXDOG web app is through a web
+browser:
 
 1. Start the Flask server using one of the methods above
 2. Open your browser and navigate to http://localhost:8080
@@ -162,7 +175,8 @@ To capture screenshots for documentation or bug reports:
    - Linux: PrtScn or use a tool like Flameshot
 
 2. Alternatively, use browser developer tools to capture full-page screenshots:
-   - In Chrome: Open DevTools > Command Menu (Ctrl+Shift+P) > "Capture full size screenshot"
+   - In Chrome: Open DevTools > Command Menu (Ctrl+Shift+P) > "Capture full size
+     screenshot"
 
 ## Troubleshooting
 
@@ -203,4 +217,4 @@ As per the PLAN.md, the next phases to implement and test are:
 - Data Dashboard with DevExpress (Phase 5)
 - Financial Analysis with Claude 3.7 (Phase 6)
 
-Each phase should be tested thoroughly before moving to the next. 
+Each phase should be tested thoroughly before moving to the next.

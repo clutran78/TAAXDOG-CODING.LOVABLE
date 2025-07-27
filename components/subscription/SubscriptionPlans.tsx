@@ -3,6 +3,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { SUBSCRIPTION_PLANS, formatCurrency, getStripePublishableKey } from '../../lib/stripe';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
+import { logger } from '@/lib/logger';
 
 const stripePromise = loadStripe(getStripePublishableKey());
 
@@ -38,11 +39,11 @@ export const SubscriptionPlans: React.FC = () => {
       if (stripe) {
         const { error } = await stripe.redirectToCheckout({ sessionId });
         if (error) {
-          console.error('Stripe error:', error);
+          logger.error('Stripe error:', error);
         }
       }
     } catch (error) {
-      console.error('Error creating checkout session:', error);
+      logger.error('Error creating checkout session:', error);
     } finally {
       setLoading(null);
     }
@@ -51,13 +52,9 @@ export const SubscriptionPlans: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="text-center">
-        <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">
-          Choose Your TAAX Plan
-        </h2>
-        <p className="mt-4 text-lg text-gray-600">
-          Start with a free trial. Cancel anytime.
-        </p>
-        
+        <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">Choose Your TAAX Plan</h2>
+        <p className="mt-4 text-lg text-gray-600">Start with a free trial. Cancel anytime.</p>
+
         <div className="mt-6 flex justify-center">
           <div className="bg-gray-100 p-1 rounded-lg inline-flex">
             <button
@@ -97,39 +94,39 @@ export const SubscriptionPlans: React.FC = () => {
                 </span>
               </div>
             )}
-            
+
             <div className="p-8">
               <h3 className="text-2xl font-bold text-gray-900">{plan.name}</h3>
               <p className="mt-4 text-gray-600">{plan.description}</p>
-              
+
               <div className="mt-6">
                 <div className="flex items-baseline">
                   <span className="text-4xl font-bold text-gray-900">
                     {formatCurrency(
                       billingCycle === 'annual'
                         ? plan.annualPrice / 12
-                        : plan.promotionalMonthlyPrice
+                        : plan.promotionalMonthlyPrice,
                     )}
                   </span>
                   <span className="ml-1 text-gray-600">/month</span>
                 </div>
-                
+
                 {billingCycle === 'monthly' && (
                   <p className="mt-2 text-sm text-green-600">
                     Early access price for first {plan.promotionalMonths} months
                   </p>
                 )}
-                
+
                 {billingCycle === 'annual' && (
                   <p className="mt-2 text-sm text-green-600">
                     Billed annually at {formatCurrency(plan.annualPrice)}
                   </p>
                 )}
-                
+
                 <p className="mt-2 text-sm text-gray-500">
                   {plan.trialDays}-day free trial • Cancel anytime
                 </p>
-                
+
                 {billingCycle === 'monthly' && (
                   <p className="mt-1 text-sm text-gray-500">
                     Then {formatCurrency(plan.monthlyPrice)}/month
@@ -139,7 +136,10 @@ export const SubscriptionPlans: React.FC = () => {
 
               <ul className="mt-8 space-y-4">
                 {plan.features.map((feature, index) => (
-                  <li key={index} className="flex items-start">
+                  <li
+                    key={index}
+                    className="flex items-start"
+                  >
                     <svg
                       className="h-5 w-5 text-green-500 mt-0.5"
                       fill="none"
@@ -167,7 +167,10 @@ export const SubscriptionPlans: React.FC = () => {
               >
                 {loading === plan.id ? (
                   <span className="flex items-center justify-center">
-                    <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                    <svg
+                      className="animate-spin h-5 w-5 mr-2"
+                      viewBox="0 0 24 24"
+                    >
                       <circle
                         className="opacity-25"
                         cx="12"

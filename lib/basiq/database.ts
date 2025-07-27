@@ -42,7 +42,7 @@ export class BasiqDatabase {
     connectionId: string,
     institutionId: string,
     institutionName: string,
-    status: string = 'pending'
+    status: string = 'pending',
   ) {
     const basiqUser = await prisma.basiq_users.findUnique({
       where: { basiq_user_id: basiqUserId },
@@ -66,7 +66,7 @@ export class BasiqDatabase {
   async updateConnectionStatus(connectionId: string, status: string) {
     return prisma.bank_connections.update({
       where: { connection_id: connectionId },
-      data: { 
+      data: {
         status,
         last_synced: status === 'success' ? new Date() : undefined,
       },
@@ -95,7 +95,7 @@ export class BasiqDatabase {
       where: { basiq_user_id: basiqUser.id },
     });
 
-    const connectionMap = new Map(connections.map(c => [c.connection_id, c.id]));
+    const connectionMap = new Map(connections.map((c) => [c.connection_id, c.id]));
 
     // Sync each account
     for (const account of basiqAccounts) {
@@ -154,13 +154,13 @@ export class BasiqDatabase {
       orderBy: { created_at: 'desc' },
     });
 
-    return accounts.map(account => {
+    return accounts.map((account) => {
       const transactions = account.bank_transactions || [];
       const businessExpenses = transactions
-        .filter(t => t.is_business_expense && t.amount < 0)
+        .filter((t) => t.is_business_expense && t.amount < 0)
         .reduce((sum, t) => sum + Math.abs(t.amount), 0);
       const personalExpenses = transactions
-        .filter(t => !t.is_business_expense && t.amount < 0)
+        .filter((t) => !t.is_business_expense && t.amount < 0)
         .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
       return {
@@ -192,7 +192,8 @@ export class BasiqDatabase {
 
     // Sync each transaction
     for (const transaction of basiqTransactions) {
-      const { taxCategory, isBusinessExpense, gstApplicable } = basiqClient.categorizeTransaction(transaction);
+      const { taxCategory, isBusinessExpense, gstApplicable } =
+        basiqClient.categorizeTransaction(transaction);
       const gstAmount = gstApplicable ? basiqClient.calculateGST(Math.abs(transaction.amount)) : 0;
 
       await prisma.bank_transactions.upsert({
@@ -241,7 +242,11 @@ export class BasiqDatabase {
     });
   }
 
-  async getTransactionSummary(userId: string, fromDate?: Date, toDate?: Date): Promise<TransactionSummary> {
+  async getTransactionSummary(
+    userId: string,
+    fromDate?: Date,
+    toDate?: Date,
+  ): Promise<TransactionSummary> {
     const basiqUser = await this.getBasiqUser(userId);
     if (!basiqUser) {
       throw new Error('BASIQ user not found');
@@ -252,7 +257,7 @@ export class BasiqDatabase {
       select: { id: true },
     });
 
-    const accountIds = accounts.map(a => a.id);
+    const accountIds = accounts.map((a) => a.id);
 
     const where: any = {
       bank_account_id: { in: accountIds },
@@ -275,8 +280,11 @@ export class BasiqDatabase {
     let businessExpenses = 0;
     let personalExpenses = 0;
     let gstTotal = 0;
-    const categorizedExpenses: { [key: string]: { total: number; count: number; gst: number } } = {};
-    const monthlyTrends: { [key: string]: { income: number; expenses: number; businessExpenses: number } } = {};
+    const categorizedExpenses: { [key: string]: { total: number; count: number; gst: number } } =
+      {};
+    const monthlyTrends: {
+      [key: string]: { income: number; expenses: number; businessExpenses: number };
+    } = {};
 
     for (const transaction of transactions) {
       const amount = transaction.amount;
@@ -285,7 +293,7 @@ export class BasiqDatabase {
 
       if (isExpense) {
         totalExpenses += absAmount;
-        
+
         if (transaction.is_business_expense) {
           businessExpenses += absAmount;
         } else {
@@ -311,7 +319,7 @@ export class BasiqDatabase {
       if (!monthlyTrends[monthKey]) {
         monthlyTrends[monthKey] = { income: 0, expenses: 0, businessExpenses: 0 };
       }
-      
+
       if (isExpense) {
         monthlyTrends[monthKey].expenses += absAmount;
         if (transaction.is_business_expense) {
@@ -367,7 +375,7 @@ export class BasiqDatabase {
     responseStatus: number,
     responseBody: any,
     duration: number,
-    error?: string
+    error?: string,
   ) {
     return prisma.basiq_api_logs.create({
       data: {

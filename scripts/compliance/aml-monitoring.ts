@@ -11,11 +11,11 @@ const prisma = new PrismaClient();
  */
 async function runAMLMonitoring() {
   console.log('Starting AML monitoring scan...');
-  
+
   try {
     // Get unprocessed transactions from the last 24 hours
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    
+
     const transactions = await prisma.bank_transactions.findMany({
       where: {
         created_at: {
@@ -24,12 +24,14 @@ async function runAMLMonitoring() {
         // Check if transaction has been monitored
         NOT: {
           id: {
-            in: await prisma.aMLTransactionMonitoring.findMany({
-              where: {
-                transactionId: { not: null },
-              },
-              select: { transactionId: true },
-            }).then(results => results.map(r => r.transactionId).filter(Boolean) as string[]),
+            in: await prisma.aMLTransactionMonitoring
+              .findMany({
+                where: {
+                  transactionId: { not: null },
+                },
+                select: { transactionId: true },
+              })
+              .then((results) => results.map((r) => r.transactionId).filter(Boolean) as string[]),
           },
         },
       },
@@ -61,7 +63,7 @@ async function runAMLMonitoring() {
         };
 
         const assessment = await AMLMonitoringService.monitorTransaction(transactionData);
-        
+
         if (assessment.requiresReview) {
           highRiskCount++;
           console.log(`High-risk transaction detected: ${transaction.id}`);
@@ -85,7 +87,6 @@ async function runAMLMonitoring() {
     if (pendingAlerts.length > 0) {
       console.log(`\n⚠️  ${pendingAlerts.length} alerts require review`);
     }
-
   } catch (error) {
     console.error('AML monitoring error:', error);
     process.exit(1);

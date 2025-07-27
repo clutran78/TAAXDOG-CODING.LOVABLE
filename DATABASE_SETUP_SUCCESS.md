@@ -2,13 +2,17 @@
 
 ## ⚠️ SECURITY NOTICE
 
-**IMPORTANT**: All credentials in this document have been replaced with placeholders. Never expose actual database passwords in documentation. Store them securely in environment variables or secret management systems.
+**IMPORTANT**: All credentials in this document have been replaced with
+placeholders. Never expose actual database passwords in documentation. Store
+them securely in environment variables or secret management systems.
 
-Your PostgreSQL database on DigitalOcean is now fully configured and operational.
+Your PostgreSQL database on DigitalOcean is now fully configured and
+operational.
 
 ## ✅ What's Been Done
 
-1. **Fixed Permissions** - Used doadmin credentials to grant full permissions to taaxdog-admin
+1. **Fixed Permissions** - Used doadmin credentials to grant full permissions to
+   taaxdog-admin
 2. **Created All Tables**:
    - `users` - User accounts with email and name
    - `subscriptions` - Stripe subscription management
@@ -38,11 +42,11 @@ const pool = new Pool({
   host: 'taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com',
   port: 25060,
   user: 'taaxdog-admin',
-  password: '[DATABASE_PASSWORD]',  // Store in environment variable
+  password: '[DATABASE_PASSWORD]', // Store in environment variable
   database: 'taaxdog-production',
   ssl: {
-    rejectUnauthorized: false  // Required for DigitalOcean
-  }
+    rejectUnauthorized: false, // Required for DigitalOcean
+  },
 });
 ```
 
@@ -59,6 +63,7 @@ DATABASE_URL_DEVELOPMENT=postgresql://genesis@localhost:5432/taaxdog_development
 ## 🚀 Ready to Use
 
 Your application can now:
+
 - Create and manage user accounts
 - Handle Stripe subscriptions
 - Store tax return data

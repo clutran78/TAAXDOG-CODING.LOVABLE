@@ -8,7 +8,7 @@ const serviceAccount = require('../config/firebase-adminsdk.json');
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  projectId: 'taaxdog-coding'
+  projectId: 'taaxdog-coding',
 });
 
 const db = admin.firestore();
@@ -26,8 +26,8 @@ const EXPORT_CONFIG = {
     'receipts',
     'budgets',
     'budgetTracking',
-    'financialInsights'
-  ]
+    'financialInsights',
+  ],
 };
 
 // Export statistics
@@ -36,7 +36,7 @@ const exportStats = {
   endTime: null,
   collections: {},
   errors: [],
-  idMappings: {}
+  idMappings: {},
 };
 
 // Utility functions
@@ -67,14 +67,16 @@ function transformDocument(doc, collectionName) {
   const transformed = {
     _firebaseId: doc.id,
     _exportedAt: new Date().toISOString(),
-    ...data
+    ...data,
   };
 
   // Transform timestamps
-  Object.keys(transformed).forEach(key => {
+  Object.keys(transformed).forEach((key) => {
     if (transformed[key] && typeof transformed[key] === 'object') {
-      if (transformed[key]._seconds !== undefined || 
-          (transformed[key].toDate && typeof transformed[key].toDate === 'function')) {
+      if (
+        transformed[key]._seconds !== undefined ||
+        (transformed[key].toDate && typeof transformed[key].toDate === 'function')
+      ) {
         transformed[key] = convertFirebaseTimestamp(transformed[key]);
       }
     }
@@ -91,32 +93,32 @@ function transformDocument(doc, collectionName) {
         transformed.abn = validateABN(transformed.abn);
       }
       break;
-    
+
     case 'bankAccounts':
       transformed._postgresTable = 'bank_accounts';
       if (transformed.bsb) {
         transformed.bsb = validateBSB(transformed.bsb);
       }
       break;
-    
+
     case 'transactions':
       transformed._postgresTable = 'transactions';
       transformed.taxCategory = transformed.taxCategory || 'UNCATEGORIZED';
       break;
-    
+
     case 'receipts':
       transformed._postgresTable = 'receipts';
       transformed.aiProcessed = transformed.aiProcessed || false;
       break;
-    
+
     case 'budgets':
       transformed._postgresTable = 'budgets';
       break;
-    
+
     case 'budgetTracking':
       transformed._postgresTable = 'budget_tracking';
       break;
-    
+
     case 'financialInsights':
       transformed._postgresTable = 'financial_insights';
       break;
@@ -130,7 +132,7 @@ function validateAustralianPhone(phone) {
   if (!phone) return null;
   // Remove all non-digits
   const cleaned = phone.replace(/\D/g, '');
-  
+
   // Australian mobile numbers
   if (cleaned.startsWith('04') && cleaned.length === 10) {
     return `+61${cleaned.substring(1)}`;
@@ -143,7 +145,7 @@ function validateAustralianPhone(phone) {
   if (cleaned.startsWith('614') && cleaned.length === 11) {
     return `+${cleaned}`;
   }
-  
+
   return phone; // Return original if validation fails
 }
 
@@ -172,10 +174,10 @@ async function retryOperation(operation, retries = EXPORT_CONFIG.retryAttempts) 
       return await operation();
     } catch (error) {
       if (i === retries - 1) throw error;
-      
+
       const delay = EXPORT_CONFIG.retryDelay * Math.pow(2, i);
       console.log(`Retry attempt ${i + 1} after ${delay}ms...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
 }
@@ -184,7 +186,7 @@ async function retryOperation(operation, retries = EXPORT_CONFIG.retryAttempts) 
 async function exportCollection(collectionName) {
   console.log(`\nExporting collection: ${collectionName}`);
   const startTime = Date.now();
-  
+
   const documents = [];
   const idMapping = {};
   let lastDoc = null;
@@ -193,32 +195,33 @@ async function exportCollection(collectionName) {
 
   try {
     while (true) {
-      let query = db.collection(collectionName)
+      let query = db
+        .collection(collectionName)
         .orderBy(admin.firestore.FieldPath.documentId())
         .limit(EXPORT_CONFIG.batchSize);
-      
+
       if (lastDoc) {
         query = query.startAfter(lastDoc);
       }
 
       const snapshot = await retryOperation(() => query.get());
-      
+
       if (snapshot.empty) break;
 
       batch++;
       console.log(`  Processing batch ${batch} (${snapshot.size} documents)...`);
 
-      snapshot.forEach(doc => {
+      snapshot.forEach((doc) => {
         const transformed = transformDocument(doc, collectionName);
         documents.push(transformed);
-        
+
         // Create ID mapping for relationship preservation
         idMapping[doc.id] = {
           firebaseId: doc.id,
           exportedData: transformed,
-          relationships: extractRelationships(transformed, collectionName)
+          relationships: extractRelationships(transformed, collectionName),
         };
-        
+
         totalDocs++;
       });
 
@@ -227,26 +230,22 @@ async function exportCollection(collectionName) {
 
     // Save collection data
     const exportPath = path.join(EXPORT_CONFIG.exportDir, `${collectionName}.json`);
-    await fs.writeFile(
-      exportPath,
-      JSON.stringify(documents, null, 2),
-      'utf8'
-    );
+    await fs.writeFile(exportPath, JSON.stringify(documents, null, 2), 'utf8');
 
     // Save ID mappings
-    const mappingPath = path.join(EXPORT_CONFIG.exportDir, 'mappings', `${collectionName}_mapping.json`);
-    await fs.writeFile(
-      mappingPath,
-      JSON.stringify(idMapping, null, 2),
-      'utf8'
+    const mappingPath = path.join(
+      EXPORT_CONFIG.exportDir,
+      'mappings',
+      `${collectionName}_mapping.json`,
     );
+    await fs.writeFile(mappingPath, JSON.stringify(idMapping, null, 2), 'utf8');
 
     const endTime = Date.now();
     const stats = {
       documentCount: totalDocs,
       batches: batch,
       exportTime: endTime - startTime,
-      fileSizeBytes: (await fs.stat(exportPath)).size
+      fileSizeBytes: (await fs.stat(exportPath)).size,
     };
 
     exportStats.collections[collectionName] = stats;
@@ -261,7 +260,7 @@ async function exportCollection(collectionName) {
     exportStats.errors.push({
       collection: collectionName,
       error: error.message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
     throw error;
   }
@@ -275,26 +274,26 @@ function extractRelationships(doc, collectionName) {
     case 'bankAccounts':
       if (doc.userId) relationships.user = doc.userId;
       break;
-    
+
     case 'transactions':
       if (doc.userId) relationships.user = doc.userId;
       if (doc.bankAccountId) relationships.bankAccount = doc.bankAccountId;
       break;
-    
+
     case 'receipts':
       if (doc.userId) relationships.user = doc.userId;
       if (doc.transactionId) relationships.transaction = doc.transactionId;
       break;
-    
+
     case 'budgets':
       if (doc.userId) relationships.user = doc.userId;
       break;
-    
+
     case 'budgetTracking':
       if (doc.userId) relationships.user = doc.userId;
       if (doc.budgetId) relationships.budget = doc.budgetId;
       break;
-    
+
     case 'financialInsights':
       if (doc.userId) relationships.user = doc.userId;
       break;
@@ -312,10 +311,14 @@ async function generateExportSummary() {
     ...exportStats,
     exportDate: new Date().toISOString(),
     duration: exportStats.endTime - exportStats.startTime,
-    totalDocuments: Object.values(exportStats.collections)
-      .reduce((sum, stats) => sum + stats.documentCount, 0),
-    totalSize: Object.values(exportStats.collections)
-      .reduce((sum, stats) => sum + stats.fileSizeBytes, 0)
+    totalDocuments: Object.values(exportStats.collections).reduce(
+      (sum, stats) => sum + stats.documentCount,
+      0,
+    ),
+    totalSize: Object.values(exportStats.collections).reduce(
+      (sum, stats) => sum + stats.fileSizeBytes,
+      0,
+    ),
   };
 
   await fs.writeFile(summaryPath, JSON.stringify(summary, null, 2), 'utf8');
@@ -330,18 +333,25 @@ async function generateExportSummary() {
 
 ## Collections Exported
 
-${Object.entries(summary.collections).map(([name, stats]) => `
+${Object.entries(summary.collections)
+  .map(
+    ([name, stats]) => `
 ### ${name}
 - Documents: ${stats.documentCount.toLocaleString()}
 - File Size: ${(stats.fileSizeBytes / 1024 / 1024).toFixed(2)} MB
 - Export Time: ${(stats.exportTime / 1000).toFixed(2)} seconds
 - ID Mappings: ${exportStats.idMappings[name] || 0}
-`).join('')}
+`,
+  )
+  .join('')}
 
 ## Errors
 
-${summary.errors.length === 0 ? 'No errors encountered during export.' : 
-  summary.errors.map(err => `- ${err.collection}: ${err.error} (${err.timestamp})`).join('\n')}
+${
+  summary.errors.length === 0
+    ? 'No errors encountered during export.'
+    : summary.errors.map((err) => `- ${err.collection}: ${err.error} (${err.timestamp})`).join('\n')
+}
 
 ## Files Generated
 
@@ -359,7 +369,7 @@ ${summary.errors.length === 0 ? 'No errors encountered during export.' :
 `;
 
   await fs.writeFile(readmePath, readme, 'utf8');
-  
+
   return summary;
 }
 
@@ -367,13 +377,13 @@ ${summary.errors.length === 0 ? 'No errors encountered during export.' :
 async function main() {
   console.log('Firebase Data Export System');
   console.log('==========================\n');
-  
+
   try {
     exportStats.startTime = Date.now();
-    
+
     // Ensure export directories exist
     await ensureExportDirectory();
-    
+
     // Export each collection
     for (const collection of EXPORT_CONFIG.collections) {
       try {
@@ -382,24 +392,23 @@ async function main() {
         console.error(`Failed to export ${collection}, continuing with next...`);
       }
     }
-    
+
     exportStats.endTime = Date.now();
-    
+
     // Generate summary
     const summary = await generateExportSummary();
-    
+
     console.log('\n\nExport Complete!');
     console.log('================');
     console.log(`Total documents: ${summary.totalDocuments}`);
     console.log(`Total size: ${(summary.totalSize / 1024 / 1024).toFixed(2)} MB`);
     console.log(`Duration: ${(summary.duration / 1000).toFixed(2)} seconds`);
     console.log(`\nExport directory: ${EXPORT_CONFIG.exportDir}`);
-    
+
     if (exportStats.errors.length > 0) {
       console.log(`\n⚠️  ${exportStats.errors.length} errors occurred during export.`);
       console.log('Check the export summary for details.');
     }
-    
   } catch (error) {
     console.error('\nFatal error during export:', error);
     process.exit(1);
@@ -408,13 +417,15 @@ async function main() {
 
 // Run export if called directly
 if (require.main === module) {
-  main().then(() => {
-    console.log('\nExport process completed successfully.');
-    process.exit(0);
-  }).catch(error => {
-    console.error('\nExport process failed:', error);
-    process.exit(1);
-  });
+  main()
+    .then(() => {
+      console.log('\nExport process completed successfully.');
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error('\nExport process failed:', error);
+      process.exit(1);
+    });
 }
 
 module.exports = {
@@ -422,5 +433,5 @@ module.exports = {
   transformDocument,
   validateAustralianPhone,
   validateABN,
-  validateBSB
+  validateBSB,
 };

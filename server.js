@@ -14,14 +14,14 @@ app.prepare().then(() => {
       // Use WHATWG URL API with proper fallback
       const baseUrl = `http://${req.headers.host || `${hostname}:${port}`}`;
       const parsedUrl = new URL(req.url, baseUrl);
-      
+
       // Convert to the format Next.js expects
       const query = Object.fromEntries(parsedUrl.searchParams);
       const urlObject = {
         pathname: parsedUrl.pathname,
-        query: query
+        query: query,
       };
-      
+
       await handle(req, res, urlObject);
     } catch (err) {
       console.error('Error occurred handling', req.url, err);
@@ -33,4 +33,4 @@ app.prepare().then(() => {
     console.log(`> Server ready on http://${hostname}:${port}`);
     console.log(`> Environment: ${process.env.NODE_ENV || 'development'}`);
   });
-}); 
+});

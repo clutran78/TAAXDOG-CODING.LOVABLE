@@ -2,11 +2,15 @@
 
 ## Overview
 
-This document describes the comprehensive error handling and logging system implemented for the TAAXDOG receipt processing pipeline. The system provides robust error recovery, detailed logging, and user-friendly error messages throughout the receipt processing workflow.
+This document describes the comprehensive error handling and logging system
+implemented for the TAAXDOG receipt processing pipeline. The system provides
+robust error recovery, detailed logging, and user-friendly error messages
+throughout the receipt processing workflow.
 
 ## Features
 
 ### 🛡️ Comprehensive Error Handling
+
 - **Image validation** with detailed format and size checks
 - **API retry logic** with exponential backoff
 - **Rate limiting protection** with automatic retry delays
@@ -15,6 +19,7 @@ This document describes the comprehensive error handling and logging system impl
 - **Graceful degradation** when non-critical features fail
 
 ### 📊 Detailed Logging
+
 - **Structured logging** with JSON format for easy parsing
 - **Performance metrics** tracking processing times
 - **Step-by-step tracking** of each processing stage
@@ -22,6 +27,7 @@ This document describes the comprehensive error handling and logging system impl
 - **Log rotation** to prevent disk space issues
 
 ### 👤 User-Friendly Messages
+
 - **Context-aware error messages** based on error type
 - **Actionable feedback** telling users how to fix issues
 - **Progress indicators** during processing
@@ -34,7 +40,7 @@ This document describes the comprehensive error handling and logging system impl
 The system categorizes errors into specific types for better handling:
 
 1. **Configuration Errors** - API keys, environment setup
-2. **Validation Errors** - File format, size, content validation  
+2. **Validation Errors** - File format, size, content validation
 3. **Network Errors** - Connection issues, timeouts
 4. **Rate Limit Errors** - API quota exceeded
 5. **Authentication Errors** - Invalid API credentials
@@ -113,7 +119,7 @@ NETWORK_TIMEOUT = 30 seconds
   "data": {
     "merchant_name": "Example Store",
     "total_amount": 25.99,
-    "date": "2024-01-15",
+    "date": "2024-01-15"
     // ... additional extracted data
   },
   "processing_summary": {
@@ -241,6 +247,7 @@ python -c "from backend.receipt_processor_config import validate_processing_heal
 ### Test Coverage
 
 The test suite covers:
+
 - ✅ Image validation (size, format, corruption)
 - ✅ Data validation (required fields, business rules)
 - ✅ Error message generation
@@ -254,6 +261,7 @@ The test suite covers:
 ### Common Issues
 
 #### 1. High Error Rate
+
 ```bash
 # Check logs for patterns
 tail -f backend/logs/receipt_errors.log
@@ -263,6 +271,7 @@ python -c "from backend.receipt_processor_config import validate_processing_heal
 ```
 
 #### 2. Slow Processing
+
 ```bash
 # Check performance metrics
 tail -f backend/logs/performance.log
@@ -272,6 +281,7 @@ grep "gemini_request" backend/logs/receipt_processing.log | tail -20
 ```
 
 #### 3. API Issues
+
 ```bash
 # Check API connectivity
 curl -H "Authorization: Bearer $GOOGLE_API_KEY" https://generativelanguage.googleapis.com/v1beta/models
@@ -285,7 +295,7 @@ grep "rate_limit\|auth_error" backend/logs/gemini_api.log
 ```
 backend/logs/
 ├── receipt_processing.log    # Main processing logs
-├── receipt_errors.log       # Error-only logs  
+├── receipt_errors.log       # Error-only logs
 ├── gemini_api.log          # Gemini API specific logs
 └── performance.log         # Performance metrics (JSON)
 ```
@@ -318,4 +328,5 @@ backend/logs/
 
 ---
 
-For additional support or questions about the error handling system, please refer to the main project documentation or contact the development team. 
+For additional support or questions about the error handling system, please
+refer to the main project documentation or contact the development team.

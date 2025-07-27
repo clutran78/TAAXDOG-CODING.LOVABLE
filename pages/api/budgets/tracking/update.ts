@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../auth/[...nextauth]';
-import { updateBudgetTracking } from '../../../../lib/budget-tracking';
+import { updateBudgetTracking } from '../../../../lib/services/budget/budget-tracking';
 import { logger } from '@/lib/logger';
 import { apiResponse } from '@/lib/api/response';
 

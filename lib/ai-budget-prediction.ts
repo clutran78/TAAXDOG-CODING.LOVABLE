@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { Anthropic } from '@anthropic-ai/sdk';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { logger } from '@/lib/logger';
 
 const prisma = new PrismaClient();
 const anthropic = new Anthropic({
@@ -33,7 +34,7 @@ export interface SeasonalFactor {
 
 export async function generateBudgetPredictions(
   userId: string,
-  analysisPeriod: number = 6 // months
+  analysisPeriod: number = 6, // months
 ): Promise<BudgetPrediction> {
   try {
     // Fetch historical transaction data
@@ -62,7 +63,7 @@ export async function generateBudgetPredictions(
 
     // Prepare data for AI analysis
     const analysisData = {
-      transactions: transactions.map(t => ({
+      transactions: transactions.map((t) => ({
         amount: t.amount,
         category: t.category,
         date: t.transaction_date,
@@ -81,7 +82,7 @@ export async function generateBudgetPredictions(
 
     return enhancedPrediction;
   } catch (error) {
-    console.error('Budget prediction error:', error);
+    logger.error('Budget prediction error:', error);
     throw error;
   }
 }
@@ -105,22 +106,24 @@ Focus on Australian financial patterns and tax deductions.`;
     const response = await anthropic.messages.create({
       model: 'claude-3-sonnet-20240229',
       max_tokens: 2048,
-      messages: [{
-        role: 'user',
-        content: prompt,
-      }],
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
     });
 
     const content = response.content[0].type === 'text' ? response.content[0].text : '';
     const jsonMatch = content.match(/\{[\s\S]*\}/);
-    
+
     if (!jsonMatch) {
       throw new Error('Invalid AI response format');
     }
 
     return JSON.parse(jsonMatch[0]);
   } catch (error) {
-    console.error('Claude prediction error:', error);
+    logger.error('Claude prediction error:', error);
     // Fallback to statistical prediction
     return generateStatisticalPrediction(data);
   }
@@ -128,11 +131,11 @@ Focus on Australian financial patterns and tax deductions.`;
 
 async function enhanceWithGemini(
   prediction: BudgetPrediction,
-  data: any
+  data: any,
 ): Promise<BudgetPrediction> {
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    
+
     const prompt = `Review and enhance this budget prediction with Australian tax optimization insights:
 ${JSON.stringify(prediction, null, 2)}
 
@@ -148,38 +151,43 @@ Provide:
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
-    
+
     // Extract recommendations
     const recommendations = extractRecommendations(text);
-    
+
     return {
       ...prediction,
       recommendations: [...prediction.recommendations, ...recommendations],
     };
   } catch (error) {
-    console.error('Gemini enhancement error:', error);
+    logger.error('Gemini enhancement error:', error);
     return prediction;
   }
 }
 
 function generateStatisticalPrediction(data: any): BudgetPrediction {
   const { categoryTotals, monthlyTotals } = data;
-  
+
   // Calculate averages and trends
   const monthlyAverage = calculateAverage(Object.values(monthlyTotals));
-  const categoryPredictions = Object.entries(categoryTotals).map(([category, amounts]: [string, any]) => {
-    const avg = calculateAverage(amounts);
-    const trend = calculateTrend(amounts);
-    
-    return {
-      category,
-      predictedAmount: avg * (1 + trend * 0.1),
-      historicalAverage: avg,
-      trend: (trend > 0.05 ? 'increasing' : trend < -0.05 ? 'decreasing' : 'stable') as 'increasing' | 'stable' | 'decreasing',
-      confidence: 0.7,
-    };
-  });
-  
+  const categoryPredictions = Object.entries(categoryTotals).map(
+    ([category, amounts]: [string, any]) => {
+      const avg = calculateAverage(amounts);
+      const trend = calculateTrend(amounts);
+
+      return {
+        category,
+        predictedAmount: avg * (1 + trend * 0.1),
+        historicalAverage: avg,
+        trend: (trend > 0.05 ? 'increasing' : trend < -0.05 ? 'decreasing' : 'stable') as
+          | 'increasing'
+          | 'stable'
+          | 'decreasing',
+        confidence: 0.7,
+      };
+    },
+  );
+
   return {
     monthlySpending: monthlyAverage,
     categoryBreakdown: categoryPredictions,
@@ -196,25 +204,25 @@ function generateStatisticalPrediction(data: any): BudgetPrediction {
 
 function groupTransactionsByCategory(transactions: any[]): Record<string, number[]> {
   const grouped: Record<string, number[]> = {};
-  
-  transactions.forEach(t => {
+
+  transactions.forEach((t) => {
     const category = t.category || 'Other';
     if (!grouped[category]) grouped[category] = [];
     grouped[category].push(Math.abs(parseFloat(t.amount)));
   });
-  
+
   return grouped;
 }
 
 function groupTransactionsByMonth(transactions: any[]): Record<string, number> {
   const grouped: Record<string, number> = {};
-  
-  transactions.forEach(t => {
+
+  transactions.forEach((t) => {
     const monthKey = `${t.transaction_date.getFullYear()}-${t.transaction_date.getMonth() + 1}`;
     if (!grouped[monthKey]) grouped[monthKey] = 0;
     grouped[monthKey] += Math.abs(parseFloat(t.amount));
   });
-  
+
   return grouped;
 }
 
@@ -224,13 +232,13 @@ function calculateAverage(numbers: number[]): number {
 
 function calculateTrend(numbers: number[]): number {
   if (numbers.length < 2) return 0;
-  
+
   const firstHalf = numbers.slice(0, Math.floor(numbers.length / 2));
   const secondHalf = numbers.slice(Math.floor(numbers.length / 2));
-  
+
   const firstAvg = calculateAverage(firstHalf);
   const secondAvg = calculateAverage(secondHalf);
-  
+
   return (secondAvg - firstAvg) / firstAvg;
 }
 
@@ -245,16 +253,16 @@ function generateSeasonalFactors(): SeasonalFactor[] {
 
 function extractRecommendations(text: string): string[] {
   const recommendations: string[] = [];
-  
+
   // Extract tax-related recommendations
   if (text.includes('deduction')) {
     recommendations.push('Track work-related expenses for tax deductions');
   }
-  
+
   if (text.includes('GST')) {
     recommendations.push('Ensure GST receipts are collected for business expenses');
   }
-  
+
   // Add more pattern matching as needed
   return recommendations;
 }
@@ -267,12 +275,12 @@ export async function createBudget(
     targetSavings?: number;
     monthlyIncome?: number;
     categoryLimits?: Record<string, number>;
-  }
+  },
 ): Promise<any> {
   try {
     // Generate predictions
     const predictions = await generateBudgetPredictions(userId);
-    
+
     // Create budget record
     const budget = await prisma.budget.create({
       data: {
@@ -291,13 +299,13 @@ export async function createBudget(
         status: 'ACTIVE',
       },
     });
-    
+
     // Create initial tracking records
     await createInitialTracking(budget.id, userId, predictions);
-    
+
     return budget;
   } catch (error) {
-    console.error('Create budget error:', error);
+    logger.error('Create budget error:', error);
     throw error;
   } finally {
     await prisma.$disconnect();
@@ -307,15 +315,15 @@ export async function createBudget(
 async function createInitialTracking(
   budgetId: string,
   userId: string,
-  predictions: BudgetPrediction
+  predictions: BudgetPrediction,
 ): Promise<void> {
   const currentDate = new Date();
-  
+
   // Create tracking for next 3 months
   for (let i = 0; i < 3; i++) {
     const trackingDate = new Date(currentDate);
     trackingDate.setMonth(trackingDate.getMonth() + i);
-    
+
     for (const category of predictions.categoryBreakdown) {
       await prisma.budgetTracking.create({
         data: {

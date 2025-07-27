@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
+import { logger } from '@/lib/logger';
 
 interface Transaction {
   id: string;
@@ -19,7 +20,13 @@ interface Transaction {
 
 interface TransactionListProps {
   accountId?: string;
-  onTransactionUpdate?: (transactionId: string, updates: any) => void;
+  onTransactionUpdate?: (transactionId: string, updates: TransactionUpdate) => void;
+}
+
+interface TransactionUpdate {
+  taxCategory?: string;
+  isBusinessExpense?: boolean;
+  notes?: string;
 }
 
 export default function TransactionList({ accountId, onTransactionUpdate }: TransactionListProps) {
@@ -62,19 +69,23 @@ export default function TransactionList({ accountId, onTransactionUpdate }: Tran
       }
       if (filters.category) {
         filteredTransactions = filteredTransactions.filter(
-          (t: Transaction) => t.taxCategory === filters.category
+          (t: Transaction) => t.taxCategory === filters.category,
         );
       }
 
       setTransactions(filteredTransactions);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCategoryChange = async (transactionId: string, taxCategory: string, isBusinessExpense: boolean) => {
+  const handleCategoryChange = async (
+    transactionId: string,
+    taxCategory: string,
+    isBusinessExpense: boolean,
+  ) => {
     try {
       const response = await fetch('/api/basiq/transactions', {
         method: 'PUT',
@@ -89,17 +100,17 @@ export default function TransactionList({ accountId, onTransactionUpdate }: Tran
       if (!response.ok) throw new Error('Failed to update transaction');
 
       // Update local state
-      setTransactions(transactions.map(t => 
-        t.id === transactionId 
-          ? { ...t, taxCategory, isBusinessExpense }
-          : t
-      ));
+      setTransactions(
+        transactions.map((t) =>
+          t.id === transactionId ? { ...t, taxCategory, isBusinessExpense } : t,
+        ),
+      );
 
       if (onTransactionUpdate) {
         onTransactionUpdate(transactionId, { taxCategory, isBusinessExpense });
       }
     } catch (err: any) {
-      console.error('Error updating transaction:', err);
+      logger.error('Error updating transaction:', err);
     }
   };
 
@@ -165,8 +176,13 @@ export default function TransactionList({ accountId, onTransactionUpdate }: Tran
               className="w-full px-3 py-2 border rounded-md"
             >
               <option value="">All Categories</option>
-              {taxCategories.map(cat => (
-                <option key={cat.value} value={cat.value}>{cat.label}</option>
+              {taxCategories.map((cat) => (
+                <option
+                  key={cat.value}
+                  value={cat.value}
+                >
+                  {cat.label}
+                </option>
               ))}
             </select>
           </div>
@@ -190,7 +206,10 @@ export default function TransactionList({ accountId, onTransactionUpdate }: Tran
           <div className="text-center py-8 text-gray-500">No transactions found</div>
         ) : (
           transactions.map((transaction) => (
-            <div key={transaction.id} className="p-4 hover:bg-gray-50">
+            <div
+              key={transaction.id}
+              className="p-4 hover:bg-gray-50"
+            >
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-start justify-between">
@@ -202,11 +221,13 @@ export default function TransactionList({ accountId, onTransactionUpdate }: Tran
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className={`font-semibold ${
-                        transaction.direction === 'credit' ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {transaction.direction === 'credit' ? '+' : '-'}
-                        ${Math.abs(transaction.amount).toFixed(2)}
+                      <p
+                        className={`font-semibold ${
+                          transaction.direction === 'credit' ? 'text-green-600' : 'text-red-600'
+                        }`}
+                      >
+                        {transaction.direction === 'credit' ? '+' : '-'}$
+                        {Math.abs(transaction.amount).toFixed(2)}
                       </p>
                       {transaction.gstAmount && transaction.gstAmount > 0 && (
                         <p className="text-xs text-gray-500">
@@ -219,9 +240,11 @@ export default function TransactionList({ accountId, onTransactionUpdate }: Tran
                   {/* Expandable categorization section */}
                   <div className="mt-2">
                     <button
-                      onClick={() => setExpandedTransaction(
-                        expandedTransaction === transaction.id ? null : transaction.id
-                      )}
+                      onClick={() =>
+                        setExpandedTransaction(
+                          expandedTransaction === transaction.id ? null : transaction.id,
+                        )
+                      }
                       className="flex items-center text-sm text-blue-600 hover:text-blue-800"
                     >
                       {expandedTransaction === transaction.id ? (
@@ -246,16 +269,21 @@ export default function TransactionList({ accountId, onTransactionUpdate }: Tran
                             </label>
                             <select
                               value={transaction.taxCategory || ''}
-                              onChange={(e) => handleCategoryChange(
-                                transaction.id,
-                                e.target.value,
-                                transaction.isBusinessExpense || false
-                              )}
+                              onChange={(e) =>
+                                handleCategoryChange(
+                                  transaction.id,
+                                  e.target.value,
+                                  transaction.isBusinessExpense || false,
+                                )
+                              }
                               className="w-full px-3 py-2 border rounded-md text-sm"
                             >
                               <option value="">Select category</option>
-                              {taxCategories.map(cat => (
-                                <option key={cat.value} value={cat.value}>
+                              {taxCategories.map((cat) => (
+                                <option
+                                  key={cat.value}
+                                  value={cat.value}
+                                >
                                   {cat.label}
                                 </option>
                               ))}
@@ -266,11 +294,13 @@ export default function TransactionList({ accountId, onTransactionUpdate }: Tran
                               <input
                                 type="checkbox"
                                 checked={transaction.isBusinessExpense || false}
-                                onChange={(e) => handleCategoryChange(
-                                  transaction.id,
-                                  transaction.taxCategory || '',
-                                  e.target.checked
-                                )}
+                                onChange={(e) =>
+                                  handleCategoryChange(
+                                    transaction.id,
+                                    transaction.taxCategory || '',
+                                    e.target.checked,
+                                  )
+                                }
                                 className="mr-2"
                               />
                               <span className="text-sm font-medium text-gray-700">

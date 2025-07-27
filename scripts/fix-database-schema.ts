@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -56,7 +56,6 @@ async function checkAndFixSchema() {
     console.log('\n🧪 Testing database connection...');
     const userCount = await prisma.user.count();
     console.log(`✅ Database connected successfully! Found ${userCount} users.\n`);
-
   } catch (error) {
     console.error('❌ Error:', error);
     process.exit(1);

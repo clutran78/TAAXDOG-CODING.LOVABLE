@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { GetServerSideProps } from 'next';
 import { getSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
+import { logger } from '@/lib/logger';
 import {
   ShieldCheckIcon,
   ExclamationTriangleIcon,
@@ -10,7 +11,7 @@ import {
   UserGroupIcon,
   LockClosedIcon,
   ExclamationCircleIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 
@@ -53,7 +54,7 @@ export default function SecurityDashboard() {
 
   useEffect(() => {
     fetchSecurityMetrics();
-    
+
     const interval = setInterval(() => {
       fetchSecurityMetrics();
     }, refreshInterval);
@@ -65,12 +66,12 @@ export default function SecurityDashboard() {
     try {
       const response = await fetch('/api/admin/security/metrics');
       if (!response.ok) throw new Error('Failed to fetch metrics');
-      
+
       const data = await response.json();
       setMetrics(data);
       setLastUpdate(new Date());
     } catch (error) {
-      console.error('Error fetching security metrics:', error);
+      logger.error('Error fetching security metrics:', error);
     } finally {
       setLoading(false);
     }
@@ -80,13 +81,13 @@ export default function SecurityDashboard() {
     setLoading(true);
     try {
       const response = await fetch('/api/admin/security/scan', {
-        method: 'POST'
+        method: 'POST',
       });
       if (!response.ok) throw new Error('Security scan failed');
-      
+
       await fetchSecurityMetrics();
     } catch (error) {
-      console.error('Error running security scan:', error);
+      logger.error('Error running security scan:', error);
     } finally {
       setLoading(false);
     }
@@ -116,20 +117,29 @@ export default function SecurityDashboard() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'secure': return 'text-green-600 bg-green-100';
-      case 'at_risk': return 'text-yellow-600 bg-yellow-100';
-      case 'vulnerable': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
+      case 'secure':
+        return 'text-green-600 bg-green-100';
+      case 'at_risk':
+        return 'text-yellow-600 bg-yellow-100';
+      case 'vulnerable':
+        return 'text-red-600 bg-red-100';
+      default:
+        return 'text-gray-600 bg-gray-100';
     }
   };
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'critical': return 'text-red-700 bg-red-100';
-      case 'high': return 'text-orange-700 bg-orange-100';
-      case 'medium': return 'text-yellow-700 bg-yellow-100';
-      case 'low': return 'text-blue-700 bg-blue-100';
-      default: return 'text-gray-700 bg-gray-100';
+      case 'critical':
+        return 'text-red-700 bg-red-100';
+      case 'high':
+        return 'text-orange-700 bg-orange-100';
+      case 'medium':
+        return 'text-yellow-700 bg-yellow-100';
+      case 'low':
+        return 'text-blue-700 bg-blue-100';
+      default:
+        return 'text-gray-700 bg-gray-100';
     }
   };
 
@@ -182,7 +192,9 @@ export default function SecurityDashboard() {
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Overall Security Status</h2>
               <div className="mt-2">
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(metrics.overallStatus)}`}>
+                <span
+                  className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(metrics.overallStatus)}`}
+                >
                   {metrics.overallStatus.toUpperCase()}
                 </span>
               </div>
@@ -219,7 +231,9 @@ export default function SecurityDashboard() {
               <div className="flex items-center">
                 <ExclamationTriangleIcon className="h-8 w-8 text-yellow-600" />
                 <div className="ml-3">
-                  <p className="text-2xl font-semibold text-yellow-900">{metrics.suspiciousActivities}</p>
+                  <p className="text-2xl font-semibold text-yellow-900">
+                    {metrics.suspiciousActivities}
+                  </p>
                   <p className="text-sm text-yellow-700">Suspicious Activities</p>
                 </div>
               </div>
@@ -245,13 +259,18 @@ export default function SecurityDashboard() {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Security Events</h3>
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {metrics.recentEvents.map((event) => (
-                <div key={event.id} className="border-l-4 border-gray-200 pl-4 py-2">
+                <div
+                  key={event.id}
+                  className="border-l-4 border-gray-200 pl-4 py-2"
+                >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <p className="text-sm font-medium text-gray-900">{event.description}</p>
                       <div className="mt-1 flex items-center space-x-3 text-xs text-gray-500">
                         <span>{format(new Date(event.timestamp), 'HH:mm:ss')}</span>
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded ${getSeverityColor(event.severity)}`}>
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded ${getSeverityColor(event.severity)}`}
+                        >
                           {event.severity}
                         </span>
                         {event.user && <span>User: {event.user}</span>}
@@ -278,8 +297,8 @@ export default function SecurityDashboard() {
                     {metrics.vulnerabilities.critical}
                   </span>
                   <div className="w-32 bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-red-600 h-2 rounded-full" 
+                    <div
+                      className="bg-red-600 h-2 rounded-full"
                       style={{ width: `${Math.min(metrics.vulnerabilities.critical * 10, 100)}%` }}
                     />
                   </div>
@@ -292,8 +311,8 @@ export default function SecurityDashboard() {
                     {metrics.vulnerabilities.high}
                   </span>
                   <div className="w-32 bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-orange-600 h-2 rounded-full" 
+                    <div
+                      className="bg-orange-600 h-2 rounded-full"
                       style={{ width: `${Math.min(metrics.vulnerabilities.high * 10, 100)}%` }}
                     />
                   </div>
@@ -306,8 +325,8 @@ export default function SecurityDashboard() {
                     {metrics.vulnerabilities.medium}
                   </span>
                   <div className="w-32 bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-yellow-600 h-2 rounded-full" 
+                    <div
+                      className="bg-yellow-600 h-2 rounded-full"
                       style={{ width: `${Math.min(metrics.vulnerabilities.medium * 10, 100)}%` }}
                     />
                   </div>
@@ -320,8 +339,8 @@ export default function SecurityDashboard() {
                     {metrics.vulnerabilities.low}
                   </span>
                   <div className="w-32 bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full" 
+                    <div
+                      className="bg-blue-600 h-2 rounded-full"
                       style={{ width: `${Math.min(metrics.vulnerabilities.low * 10, 100)}%` }}
                     />
                   </div>
@@ -336,13 +355,18 @@ export default function SecurityDashboard() {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Compliance Status</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {metrics.compliance.map((framework) => (
-              <div key={framework.framework} className="border rounded-lg p-4">
+              <div
+                key={framework.framework}
+                className="border rounded-lg p-4"
+              >
                 <h4 className="font-medium text-gray-900">{framework.framework}</h4>
                 <div className="mt-2 flex items-center justify-between">
                   <span className={`text-3xl font-bold ${getScoreColor(framework.score)}`}>
                     {framework.score}%
                   </span>
-                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(framework.status)}`}>
+                  <span
+                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(framework.status)}`}
+                  >
                     {framework.status}
                   </span>
                 </div>
@@ -357,7 +381,10 @@ export default function SecurityDashboard() {
             <h3 className="text-lg font-semibold text-yellow-900 mb-4">Security Recommendations</h3>
             <ul className="space-y-2">
               {metrics.recommendations.map((recommendation, index) => (
-                <li key={index} className="flex items-start">
+                <li
+                  key={index}
+                  className="flex items-start"
+                >
                   <CheckCircleIcon className="h-5 w-5 text-yellow-600 mt-0.5 mr-2 flex-shrink-0" />
                   <span className="text-sm text-yellow-800">{recommendation}</span>
                 </li>

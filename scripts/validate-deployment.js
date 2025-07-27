@@ -10,7 +10,7 @@ const colors = {
   red: '\x1b[31m',
   green: '\x1b[32m',
   yellow: '\x1b[33m',
-  blue: '\x1b[34m'
+  blue: '\x1b[34m',
 };
 
 let hasErrors = false;
@@ -50,7 +50,7 @@ function validateYAML(filePath) {
 function checkPackageJson() {
   try {
     const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-    
+
     // Check required fields
     if (!packageJson.name) {
       log('fail', 'package.json missing "name" field');
@@ -60,7 +60,7 @@ function checkPackageJson() {
       log('fail', 'package.json missing "version" field');
       return false;
     }
-    
+
     // Check scripts
     const requiredScripts = ['build', 'start'];
     for (const script of requiredScripts) {
@@ -70,14 +70,14 @@ function checkPackageJson() {
         log('fail', `Missing required script "${script}" in package.json`);
       }
     }
-    
+
     // Check Node.js engine
     if (packageJson.engines && packageJson.engines.node) {
       log('pass', `Node.js engine specified: ${packageJson.engines.node}`);
     } else {
       log('warn', 'No Node.js engine version specified in package.json');
     }
-    
+
     return true;
   } catch (error) {
     log('fail', `Error reading package.json: ${error.message}`);
@@ -95,14 +95,14 @@ function checkPortConfiguration() {
       } else {
         log('fail', 'server.js does not use process.env.PORT');
       }
-      
+
       if (serverContent.includes('0.0.0.0')) {
         log('pass', 'server.js binds to 0.0.0.0 (all interfaces)');
       } else if (serverContent.includes('localhost') || serverContent.includes('127.0.0.1')) {
         log('fail', 'server.js binds to localhost/127.0.0.1 - should bind to 0.0.0.0');
       }
     }
-    
+
     return true;
   } catch (error) {
     log('fail', `Error checking port configuration: ${error.message}`);
@@ -114,18 +114,21 @@ function checkGitHubRepository() {
   try {
     const appYaml = yaml.load(fs.readFileSync('.do/app.yaml', 'utf8'));
     const githubRepo = appYaml.services[0].github.repo;
-    
+
     if (githubRepo && !githubRepo.endsWith('.git')) {
       log('pass', `GitHub repository format correct: ${githubRepo}`);
     } else {
       log('fail', 'GitHub repository should not include .git extension');
     }
-    
+
     // Check if USERNAME needs to be replaced
     if (githubRepo.includes('USERNAME')) {
-      log('fail', 'GitHub repository still contains placeholder "USERNAME" - update with actual username');
+      log(
+        'fail',
+        'GitHub repository still contains placeholder "USERNAME" - update with actual username',
+      );
     }
-    
+
     return true;
   } catch (error) {
     log('warn', `Could not verify GitHub repository: ${error.message}`);
@@ -150,15 +153,15 @@ function checkProjectSize() {
     const output = execSync('du -sh .', { encoding: 'utf8' });
     const size = output.trim().split('\t')[0];
     log('pass', `Project size: ${size}`);
-    
+
     // Parse size and check if it's under 500MB
     const sizeValue = parseFloat(size);
     const sizeUnit = size.replace(/[0-9.]/g, '').trim();
-    
+
     if (sizeUnit === 'G' || (sizeUnit === 'M' && sizeValue > 500)) {
       log('warn', 'Project size may exceed DigitalOcean limits (500MB)');
     }
-    
+
     return true;
   } catch (error) {
     log('warn', 'Could not determine project size');
@@ -170,21 +173,21 @@ function checkEnvironmentVariables() {
   try {
     const appYaml = yaml.load(fs.readFileSync('.do/app.yaml', 'utf8'));
     const envVars = appYaml.services[0].envs || [];
-    
+
     const requiredVars = ['NODE_ENV', 'PORT'];
     for (const varName of requiredVars) {
-      const found = envVars.find(env => env.key === varName);
+      const found = envVars.find((env) => env.key === varName);
       if (found) {
         log('pass', `Required environment variable "${varName}" configured`);
       } else {
         log('warn', `Consider adding environment variable "${varName}"`);
       }
     }
-    
+
     // Check for hardcoded secrets
-    const secretVars = envVars.filter(env => env.type === 'SECRET');
+    const secretVars = envVars.filter((env) => env.type === 'SECRET');
     log('pass', `${secretVars.length} environment variables marked as SECRET`);
-    
+
     return true;
   } catch (error) {
     log('warn', `Could not check environment variables: ${error.message}`);
@@ -231,16 +234,18 @@ checkProjectSize();
 // Summary
 console.log(`\n${colors.blue}Validation Summary${colors.reset}`);
 console.log('==================');
-const passCount = results.filter(r => r.status === 'pass').length;
-const failCount = results.filter(r => r.status === 'fail').length;
-const warnCount = results.filter(r => r.status === 'warn').length;
+const passCount = results.filter((r) => r.status === 'pass').length;
+const failCount = results.filter((r) => r.status === 'fail').length;
+const warnCount = results.filter((r) => r.status === 'warn').length;
 
 console.log(`${colors.green}Passed: ${passCount}${colors.reset}`);
 console.log(`${colors.red}Failed: ${failCount}${colors.reset}`);
 console.log(`${colors.yellow}Warnings: ${warnCount}${colors.reset}`);
 
 if (hasErrors) {
-  console.log(`\n${colors.red}Deployment validation failed. Fix the errors above before deploying.${colors.reset}`);
+  console.log(
+    `\n${colors.red}Deployment validation failed. Fix the errors above before deploying.${colors.reset}`,
+  );
   process.exit(1);
 } else {
   console.log(`\n${colors.green}Deployment validation passed!${colors.reset}`);

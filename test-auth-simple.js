@@ -22,14 +22,14 @@ async function testAuth() {
       body: JSON.stringify({
         email: testEmail,
         password: testPassword,
-        name: testName
-      })
+        name: testName,
+      }),
     });
-    
+
     const registerData = await registerResponse.json();
     console.log(`   Status: ${registerResponse.status}`);
     console.log(`   Response:`, registerData);
-    
+
     if (registerResponse.ok) {
       console.log('   ✅ Registration successful!\n');
     } else {
@@ -47,14 +47,14 @@ async function testAuth() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: testEmail,
-        password: testPassword
-      })
+        password: testPassword,
+      }),
     });
-    
+
     const loginData = await loginResponse.json();
     console.log(`   Status: ${loginResponse.status}`);
     console.log(`   Response:`, loginData);
-    
+
     if (loginResponse.ok) {
       console.log('   ✅ Login successful!\n');
     } else {
@@ -71,14 +71,14 @@ async function testAuth() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: testEmail
-      })
+        email: testEmail,
+      }),
     });
-    
+
     const forgotData = await forgotResponse.json();
     console.log(`   Status: ${forgotResponse.status}`);
     console.log(`   Response:`, forgotData);
-    
+
     if (forgotResponse.ok) {
       console.log('   ✅ Forgot password request successful!\n');
     } else {

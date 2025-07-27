@@ -12,25 +12,25 @@ interface MigrationResult {
 
 async function migrateFile(filePath: string): Promise<MigrationResult> {
   const fileName = basename(filePath);
-  
+
   // Skip already migrated files
   if (fileName.includes('-updated') || fileName.includes('-rls')) {
     return {
       file: filePath,
       status: 'skipped',
-      message: 'Already migrated'
+      message: 'Already migrated',
     };
   }
 
   try {
     let content = await readFile(filePath, 'utf-8');
-    
+
     // Check if file uses session/userId pattern
     if (!content.includes('getServerSession') || !content.includes('userId')) {
       return {
         file: filePath,
         status: 'skipped',
-        message: 'No userId filtering detected'
+        message: 'No userId filtering detected',
       };
     }
 
@@ -42,7 +42,7 @@ async function migrateFile(filePath: string): Promise<MigrationResult> {
     if (content.includes("import { NextApiRequest, NextApiResponse } from 'next'")) {
       transformed = transformed.replace(
         "import { NextApiRequest, NextApiResponse } from 'next'",
-        "import type { NextApiResponse } from 'next'"
+        "import type { NextApiResponse } from 'next'",
       );
       changes.push('Updated Next.js imports');
     }
@@ -53,22 +53,22 @@ async function migrateFile(filePath: string): Promise<MigrationResult> {
       if (nextImportMatch) {
         transformed = transformed.replace(
           nextImportMatch[0],
-          nextImportMatch[0] + 
-          "import { withRLSMiddleware, NextApiRequestWithRLS, handleRLSError } from '@/lib/middleware/rls-middleware';\n"
+          nextImportMatch[0] +
+            "import { withRLSMiddleware, NextApiRequestWithRLS, handleRLSError } from '@/lib/middleware/rls-middleware';\n",
         );
         changes.push('Added RLS imports');
       }
     }
 
     // 2. Replace prisma import
-    if (content.includes("import { PrismaClient }") || content.includes("import prisma from")) {
+    if (content.includes('import { PrismaClient }') || content.includes('import prisma from')) {
       transformed = transformed.replace(
         /import \{ PrismaClient \}.*\n.*new PrismaClient\(\);?/g,
-        "import prismaWithRLS from '@/lib/prisma-rls';"
+        "import prismaWithRLS from '@/lib/prisma-rls';",
       );
       transformed = transformed.replace(
         /import prisma from.*['"];?/g,
-        "import prismaWithRLS from '@/lib/prisma-rls';"
+        "import prismaWithRLS from '@/lib/prisma-rls';",
       );
       changes.push('Updated Prisma import');
     }
@@ -76,21 +76,21 @@ async function migrateFile(filePath: string): Promise<MigrationResult> {
     // 3. Update handler signature
     transformed = transformed.replace(
       /export default async function handler\s*\(\s*req:\s*NextApiRequest,\s*res:\s*NextApiResponse\s*\)/g,
-      'async function handler(req: NextApiRequestWithRLS, res: NextApiResponse)'
+      'async function handler(req: NextApiRequestWithRLS, res: NextApiResponse)',
     );
     changes.push('Updated handler signature');
 
     // 4. Remove session checks
     transformed = transformed.replace(
       /const session = await getServerSession.*\n.*if \(!session.*\) \{[\s\S]*?return res\.status\(401\).*\n.*\}\n.*const userId = session\.user\.id;?/g,
-      'if (!req.rlsContext) {\n    return res.status(500).json({ error: \'RLS context not initialized\' });\n  }'
+      "if (!req.rlsContext) {\n    return res.status(500).json({ error: 'RLS context not initialized' });\n  }",
     );
     changes.push('Removed session checks');
 
     // 5. Wrap database operations in RLS context
     // Find all prisma operations
     const prismaOps = transformed.match(/await prisma\.\w+\.\w+\([^)]*\)/g) || [];
-    prismaOps.forEach(op => {
+    prismaOps.forEach((op) => {
       if (!op.includes('req.rlsContext.execute')) {
         const wrapped = `await req.rlsContext.execute(async () => {\n      return ${op};\n    })`;
         transformed = transformed.replace(op, wrapped);
@@ -108,14 +108,14 @@ async function migrateFile(filePath: string): Promise<MigrationResult> {
         const cleaned = match.replace(/userId:?\s*(?:session\.user\.id|userId),?\s*/g, '');
         // Clean up trailing commas
         return cleaned.replace(/,(\s*\})/g, '$1');
-      }
+      },
     );
     changes.push('Removed manual userId filters');
 
     // 7. Update error handling
     transformed = transformed.replace(
       /catch \(error.*\) \{[\s\S]*?return res\.status\(500\).*\}/g,
-      'catch (error) {\n    return handleRLSError(error, res);\n  }'
+      'catch (error) {\n    return handleRLSError(error, res);\n  }',
     );
     changes.push('Updated error handling');
 
@@ -123,14 +123,14 @@ async function migrateFile(filePath: string): Promise<MigrationResult> {
     if (!transformed.includes('export default withRLSMiddleware')) {
       transformed = transformed.replace(
         /export default handler;?$/,
-        'export default withRLSMiddleware(handler);'
+        'export default withRLSMiddleware(handler);',
       );
       changes.push('Added RLS middleware export');
     }
 
     // 9. Fix prisma references
     transformed = transformed.replace(/\bprisma\./g, 'prismaWithRLS.');
-    
+
     // Write to new file
     const newPath = filePath.replace('.ts', '-rls-migrated.ts');
     await writeFile(newPath, transformed);
@@ -138,36 +138,37 @@ async function migrateFile(filePath: string): Promise<MigrationResult> {
     return {
       file: filePath,
       status: 'success',
-      message: `Migrated successfully. Changes: ${changes.join(', ')}`
+      message: `Migrated successfully. Changes: ${changes.join(', ')}`,
     };
-
   } catch (error: any) {
     return {
       file: filePath,
       status: 'error',
-      message: error.message
+      message: error.message,
     };
   }
 }
 
 async function findApiFiles(dir: string, files: string[] = []): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true });
-  
+
   for (const entry of entries) {
     const fullPath = join(dir, entry.name);
-    
+
     if (entry.isDirectory()) {
       await findApiFiles(fullPath, files);
     } else if (entry.isFile() && entry.name.endsWith('.ts')) {
       // Skip already migrated files and nextauth
-      if (!entry.name.includes('-updated') && 
-          !entry.name.includes('-rls') && 
-          !entry.name.includes('[...nextauth]')) {
+      if (
+        !entry.name.includes('-updated') &&
+        !entry.name.includes('-rls') &&
+        !entry.name.includes('[...nextauth]')
+      ) {
         files.push(fullPath);
       }
     }
   }
-  
+
   return files;
 }
 
@@ -180,37 +181,39 @@ async function main() {
   console.log(`Found ${files.length} API files to analyze\n`);
 
   const results: MigrationResult[] = [];
-  
+
   for (const filePath of files) {
     const relativePath = filePath.replace(apiDir + '/', '');
     console.log(`Processing: ${relativePath}`);
     const result = await migrateFile(filePath);
     results.push(result);
-    console.log(`  ${result.status === 'success' ? '✅' : result.status === 'skipped' ? '⏭️' : '❌'} ${result.message}\n`);
+    console.log(
+      `  ${result.status === 'success' ? '✅' : result.status === 'skipped' ? '⏭️' : '❌'} ${result.message}\n`,
+    );
   }
 
   // Summary
   console.log('\n📊 Migration Summary:');
   console.log('═'.repeat(50));
-  
-  const successful = results.filter(r => r.status === 'success');
-  const skipped = results.filter(r => r.status === 'skipped');
-  const errors = results.filter(r => r.status === 'error');
-  
+
+  const successful = results.filter((r) => r.status === 'success');
+  const skipped = results.filter((r) => r.status === 'skipped');
+  const errors = results.filter((r) => r.status === 'error');
+
   console.log(`✅ Successfully migrated: ${successful.length}`);
   console.log(`⏭️  Skipped: ${skipped.length}`);
   console.log(`❌ Errors: ${errors.length}`);
-  
+
   if (successful.length > 0) {
     console.log('\n📝 Successfully migrated files:');
-    successful.forEach(r => {
+    successful.forEach((r) => {
       console.log(`  - ${r.file} → ${r.file.replace('.ts', '-rls-migrated.ts')}`);
     });
   }
-  
+
   if (errors.length > 0) {
     console.log('\n❌ Files with errors:');
-    errors.forEach(r => {
+    errors.forEach((r) => {
       console.log(`  - ${r.file}: ${r.message}`);
     });
   }

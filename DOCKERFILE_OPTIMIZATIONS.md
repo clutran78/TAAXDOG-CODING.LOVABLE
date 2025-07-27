@@ -1,6 +1,7 @@
 # Dockerfile Optimizations for Next.js
 
-This document explains the optimizations implemented in our multi-stage Dockerfile.
+This document explains the optimizations implemented in our multi-stage
+Dockerfile.
 
 ## Key Optimizations
 
@@ -8,11 +9,12 @@ This document explains the optimizations implemented in our multi-stage Dockerfi
 
 ```dockerfile
 # Stage 1: Dependencies (deps)
-# Stage 2: Builder 
+# Stage 2: Builder
 # Stage 3: Production Runtime (runner)
 ```
 
 **Benefits:**
+
 - Separates build dependencies from runtime
 - Reduces final image size by ~70%
 - Improves build cache efficiency
@@ -20,12 +22,14 @@ This document explains the optimizations implemented in our multi-stage Dockerfi
 ### 2. Minimal Runtime Image
 
 **Optimizations:**
+
 - Uses `node:18-alpine` (90MB vs 900MB for full Node.js)
 - Copies only essential files to production stage
 - No build tools or source code in final image
 - Uses Next.js standalone output mode
 
 **Size Comparison:**
+
 - Unoptimized: ~1.5GB
 - Optimized: ~200-300MB
 
@@ -43,6 +47,7 @@ ENTRYPOINT ["dumb-init", "--"]
 ```
 
 **Security Features:**
+
 - Runs as non-root user (nextjs:1001)
 - Proper signal handling with dumb-init
 - Minimal attack surface with Alpine Linux
@@ -51,6 +56,7 @@ ENTRYPOINT ["dumb-init", "--"]
 ### 4. Build Performance
 
 **Layer Caching:**
+
 ```dockerfile
 # Copy package files first
 COPY package*.json ./
@@ -61,6 +67,7 @@ COPY . .
 ```
 
 **Benefits:**
+
 - Dependencies cached separately from source code
 - Faster rebuilds when only code changes
 - Parallel dependency installation
@@ -81,6 +88,7 @@ ENV NODE_ENV=production
 ### 6. File Structure Optimization
 
 **Copied to Production:**
+
 - `.next/standalone/` - Minimal Next.js runtime
 - `.next/static/` - Static assets
 - `public/` - Public files
@@ -88,6 +96,7 @@ ENV NODE_ENV=production
 - `healthcheck.js` - Health check script
 
 **NOT Copied:**
+
 - Source code files
 - Development dependencies
 - Build artifacts
@@ -97,6 +106,7 @@ ENV NODE_ENV=production
 ## Dockerfile Comparison
 
 ### Basic Dockerfile (Before)
+
 ```dockerfile
 FROM node:18
 WORKDIR /app
@@ -106,15 +116,17 @@ RUN npm run build
 EXPOSE 3000
 CMD ["npm", "start"]
 ```
+
 **Size: ~1.5GB**
 
 ### Optimized Dockerfile (After)
+
 ```dockerfile
 # Multi-stage with Alpine
 FROM node:18-alpine AS deps
 # ... dependencies stage
 
-FROM node:18-alpine AS builder  
+FROM node:18-alpine AS builder
 # ... build stage
 
 FROM node:18-alpine AS runner
@@ -122,21 +134,25 @@ FROM node:18-alpine AS runner
 USER nextjs
 CMD ["node", "server.js"]
 ```
+
 **Size: ~200MB**
 
 ## Build Commands
 
 ### Development Build
+
 ```bash
 docker build --target development -t myapp:dev .
 ```
 
 ### Production Build
+
 ```bash
 docker build --target runner -t myapp:prod .
 ```
 
 ### With Build Arguments
+
 ```bash
 docker build \
   --build-arg NODE_ENV=production \
@@ -146,13 +162,13 @@ docker build \
 
 ## Performance Metrics
 
-| Metric | Unoptimized | Optimized | Improvement |
-|--------|-------------|-----------|-------------|
-| Image Size | 1.5GB | 200MB | 87% smaller |
-| Build Time (cold) | 5-7 min | 3-4 min | 40% faster |
-| Build Time (cached) | 2-3 min | 30-60s | 75% faster |
-| Memory Usage | 512MB | 256MB | 50% less |
-| Startup Time | 10-15s | 3-5s | 70% faster |
+| Metric              | Unoptimized | Optimized | Improvement |
+| ------------------- | ----------- | --------- | ----------- |
+| Image Size          | 1.5GB       | 200MB     | 87% smaller |
+| Build Time (cold)   | 5-7 min     | 3-4 min   | 40% faster  |
+| Build Time (cached) | 2-3 min     | 30-60s    | 75% faster  |
+| Memory Usage        | 512MB       | 256MB     | 50% less    |
+| Startup Time        | 10-15s      | 3-5s      | 70% faster  |
 
 ## Best Practices Applied
 
@@ -186,16 +202,19 @@ The `Dockerfile.optimized` includes extra optimizations:
 ## Troubleshooting
 
 ### Large Image Size
+
 - Check if standalone mode is enabled in `next.config.js`
 - Ensure .dockerignore is properly configured
 - Use `docker history` to analyze layers
 
 ### Build Failures
+
 - Clear Docker cache: `docker builder prune`
 - Check Node.js version compatibility
 - Verify all dependencies are listed in package.json
 
 ### Runtime Issues
+
 - Check health endpoint: `/api/health`
 - Verify environment variables are set
 - Check container logs: `docker logs <container>`

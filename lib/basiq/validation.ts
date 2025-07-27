@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger';
+
 // Australian Banking Validation Utilities
 
 // BSB (Bank State Branch) validation
@@ -21,29 +23,52 @@ export function validateBSB(bsb: string): { valid: boolean; formatted?: string; 
 
   // Validate bank and state codes (first 2 digits)
   const bankCode = parseInt(cleaned.substring(0, 2));
-  
+
   // Australian bank codes (first 2 digits of BSB)
   const validBankCodes = [
     '01', // ANZ
-    '03', '73', // Westpac
-    '06', '76', // CBA
-    '08', '48', // NAB
-    '11', '12', '13', '14', // St George
+    '03',
+    '73', // Westpac
+    '06',
+    '76', // CBA
+    '08',
+    '48', // NAB
+    '11',
+    '12',
+    '13',
+    '14', // St George
     '15', // BankSA
     '30', // Bankwest
-    '31', '32', '33', '34', '35', // Bank of Queensland
+    '31',
+    '32',
+    '33',
+    '34',
+    '35', // Bank of Queensland
     '40', // Suncorp
-    '51', '52', '53', '54', '55', // Adelaide Bank/Bendigo
-    '61', '62', '63', '64', '65', // Heritage Bank
+    '51',
+    '52',
+    '53',
+    '54',
+    '55', // Adelaide Bank/Bendigo
+    '61',
+    '62',
+    '63',
+    '64',
+    '65', // Heritage Bank
     '68', // ING
-    '80', '81', '82', '83', // Citibank
-    '92', '93', '94', // AMP
+    '80',
+    '81',
+    '82',
+    '83', // Citibank
+    '92',
+    '93',
+    '94', // AMP
   ];
 
   const bankCodeStr = cleaned.substring(0, 2);
   if (!validBankCodes.includes(bankCodeStr)) {
     // Still valid BSB, just not a major bank
-    console.warn(`BSB ${formatted} uses uncommon bank code ${bankCodeStr}`);
+    logger.warn(`BSB ${formatted} uses uncommon bank code ${bankCodeStr}`);
   }
 
   return { valid: true, formatted };
@@ -53,7 +78,7 @@ export function validateBSB(bsb: string): { valid: boolean; formatted?: string; 
 // Usually 5-9 digits, but can be up to 10 for some banks
 export function validateAccountNumber(
   accountNumber: string,
-  bsb?: string
+  bsb?: string,
 ): { valid: boolean; formatted?: string; error?: string } {
   if (!accountNumber) {
     return { valid: false, error: 'Account number is required' };
@@ -79,22 +104,22 @@ export function validateAccountNumber(
 
     // CBA accounts are typically 9 digits
     if (['06', '76'].includes(bankCode) && cleaned.length !== 9) {
-      console.warn(`CBA account numbers are typically 9 digits, got ${cleaned.length}`);
+      logger.warn(`CBA account numbers are typically 9 digits, got ${cleaned.length}`);
     }
 
     // Westpac accounts are typically 9-10 digits
     if (['03', '73'].includes(bankCode) && (cleaned.length < 9 || cleaned.length > 10)) {
-      console.warn(`Westpac account numbers are typically 9-10 digits, got ${cleaned.length}`);
+      logger.warn(`Westpac account numbers are typically 9-10 digits, got ${cleaned.length}`);
     }
 
     // ANZ accounts are typically 9 digits
     if (bankCode === '01' && cleaned.length !== 9) {
-      console.warn(`ANZ account numbers are typically 9 digits, got ${cleaned.length}`);
+      logger.warn(`ANZ account numbers are typically 9 digits, got ${cleaned.length}`);
     }
 
     // NAB accounts are typically 9 digits
     if (['08', '48'].includes(bankCode) && cleaned.length !== 9) {
-      console.warn(`NAB account numbers are typically 9 digits, got ${cleaned.length}`);
+      logger.warn(`NAB account numbers are typically 9 digits, got ${cleaned.length}`);
     }
   }
 
@@ -200,7 +225,11 @@ export function getBankFromBSB(bsb: string): string | null {
 }
 
 // Validate Australian mobile number
-export function validateAustralianMobile(mobile: string): { valid: boolean; formatted?: string; error?: string } {
+export function validateAustralianMobile(mobile: string): {
+  valid: boolean;
+  formatted?: string;
+  error?: string;
+} {
   if (!mobile) {
     return { valid: false, error: 'Mobile number is required' };
   }
@@ -233,7 +262,7 @@ export function validateABN(abn: string): { valid: boolean; formatted?: string; 
 
   // Remove spaces and check length
   const cleaned = abn.replace(/\s/g, '');
-  
+
   if (cleaned.length !== 11) {
     return { valid: false, error: 'ABN must be 11 digits' };
   }
@@ -244,17 +273,17 @@ export function validateABN(abn: string): { valid: boolean; formatted?: string; 
 
   // ABN checksum validation
   const weights = [10, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19];
-  const digits = cleaned.split('').map(d => parseInt(d));
-  
+  const digits = cleaned.split('').map((d) => parseInt(d));
+
   // Subtract 1 from first digit
   digits[0] -= 1;
-  
+
   // Calculate checksum
   let sum = 0;
   for (let i = 0; i < 11; i++) {
     sum += digits[i] * weights[i];
   }
-  
+
   if (sum % 89 !== 0) {
     return { valid: false, error: 'Invalid ABN checksum' };
   }
@@ -274,7 +303,7 @@ export function validateTFN(tfn: string): { valid: boolean; error?: string } {
 
   // Remove spaces
   const cleaned = tfn.replace(/\s/g, '');
-  
+
   // Check length (8 or 9 digits)
   if (cleaned.length < 8 || cleaned.length > 9) {
     return { valid: false, error: 'TFN must be 8 or 9 digits' };
@@ -286,13 +315,13 @@ export function validateTFN(tfn: string): { valid: boolean; error?: string } {
 
   // TFN checksum validation
   const weights = [1, 4, 3, 7, 5, 8, 6, 9, 10];
-  const digits = cleaned.split('').map(d => parseInt(d));
-  
+  const digits = cleaned.split('').map((d) => parseInt(d));
+
   let sum = 0;
   for (let i = 0; i < digits.length; i++) {
     sum += digits[i] * weights[i];
   }
-  
+
   if (sum % 11 !== 0) {
     return { valid: false, error: 'Invalid TFN checksum' };
   }

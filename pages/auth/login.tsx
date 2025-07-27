@@ -1,49 +1,102 @@
-import { useState } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/router";
-import Link from "next/link";
-import Head from "next/head";
+import { useState, useEffect } from 'react';
+import { signIn } from 'next-auth/react';
+import { useRouter } from 'next/router';
+import Link from 'next/link';
+import Head from 'next/head';
+import { loginSchema, type LoginInput } from '@/lib/auth/validation';
+import { logger } from '@/lib/logger';
+import {
+  FormInput,
+  FormCheckbox,
+  FormMessage,
+  useFormValidation,
+} from '@/components/ui/FormComponents';
+import { InlineLoader } from '@/components/ui/SkeletonLoaders';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState('');
+  const [showSuccess, setShowSuccess] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
+  // Form validation
+  const { values, errors, touched, isSubmitting, getFieldProps, handleSubmit, setFieldTouched } =
+    useFormValidation<LoginInput>(loginSchema, {
+      email: '',
+      password: '',
+    });
+
+  // Check for success message from registration
+  useEffect(() => {
+    if (router.query.registered === 'true') {
+      setShowSuccess(true);
+      // Clear the query param
+      router.replace('/auth/login', undefined, { shallow: true });
+    }
+  }, [router]);
+
+  const onSubmit = async (formValues: LoginInput) => {
+    setServerError('');
 
     try {
-      const result = await signIn("credentials", {
-        email,
-        password,
+      const result = await signIn('credentials', {
+        email: formValues.email,
+        password: formValues.password,
         redirect: false,
       });
 
       if (result?.error) {
-        setError(result.error);
+        // Handle specific error messages
+        if (result.error === 'CredentialsSignin') {
+          setServerError('Invalid email or password. Please try again.');
+        } else if (result.error.includes('verify')) {
+          setServerError(
+            'Please verify your email before signing in. Check your inbox for a verification link.',
+          );
+        } else if (result.error.includes('locked')) {
+          setServerError(
+            'Your account has been locked due to too many failed attempts. Please reset your password.',
+          );
+        } else {
+          setServerError(result.error);
+        }
+
+        // Focus on email field after error
+        const emailField = document.getElementById('email') as HTMLInputElement;
+        emailField?.focus();
       } else {
-        router.push(router.query.callbackUrl?.toString() || "/dashboard");
+        // Successful login
+        const redirectUrl = router.query.callbackUrl?.toString() || '/dashboard';
+        router.push(redirectUrl);
       }
     } catch (err) {
-      setError("An unexpected error occurred");
-    } finally {
-      setLoading(false);
+      setServerError('An unexpected error occurred. Please try again.');
+      logger.error('Login error:', err);
     }
   };
 
-  const handleGoogleSignIn = () => {
-    signIn("google", { callbackUrl: router.query.callbackUrl?.toString() || "/dashboard" });
+  const handleGoogleSignIn = async () => {
+    try {
+      await signIn('google', {
+        callbackUrl: router.query.callbackUrl?.toString() || '/dashboard',
+      });
+    } catch (err) {
+      setServerError('Failed to sign in with Google. Please try again.');
+    }
+  };
+
+  // Handle field blur for real-time validation
+  const handleFieldBlur = (fieldName: keyof LoginInput) => {
+    setFieldTouched(fieldName, true);
   };
 
   return (
     <>
       <Head>
         <title>Login - TaxReturnPro</title>
-        <meta name="description" content="Login to your TaxReturnPro account" />
+        <meta
+          name="description"
+          content="Login to your TaxReturnPro account"
+        />
       </Head>
 
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -57,8 +110,11 @@ export default function LoginPage() {
             Sign in to your account
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Or{" "}
-            <Link href="/auth/register" className="font-medium text-blue-600 hover:text-blue-500">
+            Or{' '}
+            <Link
+              href="/auth/register"
+              className="font-medium text-blue-600 hover:text-blue-500"
+            >
               create a new account
             </Link>
           </p>
@@ -66,87 +122,111 @@ export default function LoginPage() {
 
         <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
           <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-            <form className="space-y-6" onSubmit={handleSubmit}>
-              {error && (
-                <div className="rounded-md bg-red-50 p-4">
-                  <div className="flex">
-                    <div className="ml-3">
-                      <h3 className="text-sm font-medium text-red-800">{error}</h3>
-                    </div>
-                  </div>
-                </div>
+            <form
+              className="space-y-6"
+              onSubmit={handleSubmit(onSubmit)}
+              noValidate
+              aria-label="Login form"
+            >
+              {/* Success message */}
+              {showSuccess && (
+                <FormMessage
+                  type="success"
+                  message="Registration successful! Please sign in with your credentials."
+                  onClose={() => setShowSuccess(false)}
+                />
               )}
 
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                  Email address
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  />
-                </div>
-              </div>
+              {/* Server error message */}
+              {serverError && (
+                <FormMessage
+                  type="error"
+                  message={serverError}
+                  onClose={() => setServerError('')}
+                />
+              )}
 
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                  Password
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  />
-                </div>
-              </div>
+              {/* Email field */}
+              <FormInput
+                {...getFieldProps('email')}
+                id="email"
+                type="email"
+                label="Email address"
+                placeholder="you@example.com"
+                autoComplete="email"
+                required
+                onBlur={(e) => {
+                  getFieldProps('email').onBlur(e);
+                  handleFieldBlur('email');
+                }}
+                hint={!touched.email ? 'Enter the email you used to register' : undefined}
+              />
 
+              {/* Password field */}
+              <FormInput
+                {...getFieldProps('password')}
+                id="password"
+                type="password"
+                label="Password"
+                placeholder="Enter your password"
+                autoComplete="current-password"
+                required
+                showPasswordToggle
+                onBlur={(e) => {
+                  getFieldProps('password').onBlur(e);
+                  handleFieldBlur('password');
+                }}
+              />
+
+              {/* Remember me and forgot password */}
               <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <input
-                    id="remember-me"
-                    name="remember-me"
-                    type="checkbox"
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-                    Remember me
-                  </label>
-                </div>
+                <FormCheckbox
+                  id="remember-me"
+                  name="remember-me"
+                  label="Remember me for 30 days"
+                />
 
                 <div className="text-sm">
-                  <Link href="/auth/forgot-password" className="font-medium text-blue-600 hover:text-blue-500">
+                  <Link
+                    href="/auth/forgot-password"
+                    className="inline-block p-1 -m-1 font-medium text-blue-600 hover:text-blue-500 focus:outline-none focus:underline rounded touch-manipulation"
+                    tabIndex={0}
+                  >
                     Forgot your password?
                   </Link>
                 </div>
               </div>
 
+              {/* Submit button */}
               <div>
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isSubmitting}
+                  className="w-full flex justify-center py-3 px-4 min-h-[44px] border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-manipulation"
+                  aria-label={isSubmitting ? 'Signing in...' : 'Sign in'}
                 >
-                  {loading ? "Signing in..." : "Sign in"}
+                  {isSubmitting ? (
+                    <>
+                      <InlineLoader
+                        size="sm"
+                        className="mr-2"
+                      />
+                      Signing in...
+                    </>
+                  ) : (
+                    'Sign in'
+                  )}
                 </button>
               </div>
             </form>
 
+            {/* Social login divider */}
             <div className="mt-6">
               <div className="relative">
-                <div className="absolute inset-0 flex items-center">
+                <div
+                  className="absolute inset-0 flex items-center"
+                  aria-hidden="true"
+                >
                   <div className="w-full border-t border-gray-300" />
                 </div>
                 <div className="relative flex justify-center text-sm">
@@ -154,12 +234,19 @@ export default function LoginPage() {
                 </div>
               </div>
 
+              {/* Google sign in */}
               <div className="mt-6">
                 <button
                   onClick={handleGoogleSignIn}
-                  className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                  type="button"
+                  className="w-full inline-flex justify-center py-3 px-4 min-h-[44px] border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors touch-manipulation"
+                  aria-label="Sign in with Google"
                 >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24">
+                  <svg
+                    className="w-5 h-5"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
                     <path
                       fill="#4285F4"
                       d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -182,18 +269,46 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {/* Footer links */}
             <div className="mt-6 text-center text-xs text-gray-600">
               <p>By signing in, you agree to our</p>
-              <p>
-                <Link href="/terms" className="text-blue-600 hover:text-blue-500">
+              <p className="mt-1">
+                <Link
+                  href="/terms"
+                  className="inline-block p-1 -m-1 text-blue-600 hover:text-blue-500 focus:outline-none focus:underline rounded touch-manipulation"
+                  tabIndex={0}
+                >
                   Terms of Service
-                </Link>{" "}
-                and{" "}
-                <Link href="/privacy" className="text-blue-600 hover:text-blue-500">
+                </Link>{' '}
+                and{' '}
+                <Link
+                  href="/privacy"
+                  className="inline-block p-1 -m-1 text-blue-600 hover:text-blue-500 focus:outline-none focus:underline rounded touch-manipulation"
+                  tabIndex={0}
+                >
                   Privacy Policy
                 </Link>
               </p>
               <p className="mt-2">ABN: 41 123 456 789</p>
+            </div>
+
+            {/* Security notice */}
+            <div className="mt-4 text-center">
+              <p className="text-xs text-gray-500 flex items-center justify-center">
+                <svg
+                  className="w-4 h-4 mr-1"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                  aria-hidden="true"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Secured with SSL encryption
+              </p>
             </div>
           </div>
         </div>

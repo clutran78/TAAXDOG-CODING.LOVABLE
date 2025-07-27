@@ -2,7 +2,9 @@
 
 ## Overview
 
-The BASIQ banking integration has been successfully implemented with all required features for Australian banking operations. This integration provides secure, compliant access to bank account data for tax management purposes.
+The BASIQ banking integration has been successfully implemented with all
+required features for Australian banking operations. This integration provides
+secure, compliant access to bank account data for tax management purposes.
 
 ## Implementation Status
 
@@ -190,18 +192,21 @@ Webhooks are automatically processed to keep data synchronized.
 ## Security Implementation
 
 ### Data Protection
+
 - Sensitive data encrypted using AES-256-GCM
 - Account numbers masked in logs
 - TFN/ABN data encrypted at rest
 - SSL/TLS for all API communications
 
 ### Access Control
+
 - User-based access control
 - Valid consent required for operations
 - Resource-level authorization
 - Session-based authentication
 
 ### Audit Trail
+
 - All banking operations logged
 - Security events tracked
 - API usage monitoring
@@ -293,4 +298,5 @@ The system handles various error scenarios:
 4. Create user documentation
 5. Plan regular security audits
 
-The BASIQ integration is now fully functional and ready for production use with comprehensive security, compliance, and error handling features.
+The BASIQ integration is now fully functional and ready for production use with
+comprehensive security, compliance, and error handling features.

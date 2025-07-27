@@ -2,7 +2,8 @@
 
 ## Overview
 
-This guide walks you through obtaining and configuring production API credentials for TAAXDOG's compliance features.
+This guide walks you through obtaining and configuring production API
+credentials for TAAXDOG's compliance features.
 
 ## 1. AUSTRAC API (AML/CTF Compliance)
 
@@ -191,11 +192,13 @@ npm run compliance:check-status
 ## 6. API Usage Limits
 
 ### AUSTRAC API
+
 - Rate limit: 100 requests/minute
 - Daily limit: None
 - Batch submissions supported (up to 100 reports)
 
 ### ABN Lookup API
+
 - Free tier: 1,000 lookups/day
 - Paid tier: Contact ATO for higher volumes
 - Rate limit: 10 requests/second
@@ -205,11 +208,13 @@ npm run compliance:check-status
 ### AUSTRAC API Issues
 
 **Error: 401 Unauthorized**
+
 - Check API key is correct
 - Verify entity ID matches registration
 - Ensure production URL is used
 
 **Error: 429 Too Many Requests**
+
 - Implement rate limiting
 - Use batch submissions
 - Contact AUSTRAC for higher limits
@@ -217,11 +222,13 @@ npm run compliance:check-status
 ### ABN Lookup Issues
 
 **Error: Invalid GUID**
+
 - Verify GUID copied correctly
 - Check no extra spaces
 - Ensure not using test GUID in production
 
 **Error: Daily limit exceeded**
+
 - Implement caching for ABN lookups
 - Consider paid tier for higher volume
 - Spread lookups throughout the day
@@ -229,16 +236,19 @@ npm run compliance:check-status
 ## 8. Support Contacts
 
 ### AUSTRAC Support
+
 - Email: ict.support@austrac.gov.au
 - Phone: 1300 021 037
 - Hours: Mon-Fri 9am-5pm AEST
 
 ### ABN Lookup Support
+
 - Web: https://abr.business.gov.au/Help/WebServicesSupport
 - Email: abr@ato.gov.au
 - Phone: 13 72 26
 
 ### Internal Support
+
 - Compliance: compliance@yourdomain.com.au
 - Technical: dev@yourdomain.com.au
 - Emergency: [Your emergency contact]
@@ -246,6 +256,7 @@ npm run compliance:check-status
 ## 9. Regular Maintenance
 
 ### Monthly Tasks
+
 - Review API usage statistics
 - Check for API updates/changes
 - Verify backup processes
@@ -253,6 +264,7 @@ npm run compliance:check-status
 - Update API documentation
 
 ### Quarterly Tasks
+
 - Renew API credentials if required
 - Review and update thresholds
 - Compliance training refresh
@@ -274,5 +286,4 @@ npm run compliance:check-status
 
 ---
 
-**Last Updated**: January 2025
-**Next Review**: April 2025
+**Last Updated**: January 2025 **Next Review**: April 2025

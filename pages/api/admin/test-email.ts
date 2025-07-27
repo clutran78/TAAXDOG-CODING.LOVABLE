@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
 import { getEmailProviderStatus } from '../../../lib/auth/email-config';
-import { sendEmail } from '../../../lib/email';
+import { sendEmail } from '../../../lib/services/email/email';
 import { logger } from '@/lib/logger';
 import { apiResponse } from '@/lib/api/response';
 

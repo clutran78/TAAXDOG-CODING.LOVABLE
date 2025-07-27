@@ -38,14 +38,14 @@ export class OpenRouterProvider extends BaseAIProvider {
         const res = await fetch(this.baseURL, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${this.config.apiKey}`,
+            Authorization: `Bearer ${this.config.apiKey}`,
             'Content-Type': 'application/json',
             'HTTP-Referer': 'https://taxreturnpro.com.au',
             'X-Title': 'TAAX Dog Tax Assistant',
           },
           body: JSON.stringify({
             model: this.config.model,
-            messages: messages.map(msg => ({
+            messages: messages.map((msg) => ({
               role: msg.role,
               content: msg.content,
             })),
@@ -59,7 +59,7 @@ export class OpenRouterProvider extends BaseAIProvider {
           throw this.createError(
             error.error?.message || 'OpenRouter API error',
             res.status,
-            res.status === 429 || res.status >= 500
+            res.status === 429 || res.status >= 500,
           );
         }
 
@@ -116,7 +116,7 @@ export class OpenRouterProvider extends BaseAIProvider {
 
     const inputCost = (tokensInput / 1_000_000) * inputRate;
     const outputCost = (tokensOutput / 1_000_000) * outputRate;
-    
+
     return Number((inputCost + outputCost).toFixed(6));
   }
 }

@@ -63,12 +63,14 @@ Full instructions: `PRODUCTION_API_SETUP.md`
 ### 🚀 What's Working Now
 
 #### Compliance Monitoring
+
 - **AML/CTF**: Transaction monitoring with risk scoring
 - **Privacy**: Consent management and data requests
 - **APRA**: Incident tracking and data residency checks
 - **GST**: Calculations and ABN validation
 
 #### Available Commands
+
 ```bash
 # Manual monitoring
 npm run compliance:aml
@@ -84,7 +86,9 @@ npm run test-compliance
 ```
 
 #### API Endpoints
+
 All endpoints under `/api/compliance/*`:
+
 - AML alerts and monitoring
 - Privacy consent and requests
 - APRA incident reporting
@@ -92,18 +96,19 @@ All endpoints under `/api/compliance/*`:
 
 ### 📊 System Metrics
 
-| Feature | Status | Mode |
-|---------|--------|------|
-| Database | ✅ Ready | Production |
-| API Endpoints | ✅ Active | All |
-| Monitoring Scripts | ✅ Available | Manual/Cron |
-| External APIs | ⏳ Configured | Test Mode |
-| Email Notifications | ⏳ Ready | Requires Config |
-| Automated Monitoring | ⏳ Ready | Requires Cron |
+| Feature              | Status        | Mode            |
+| -------------------- | ------------- | --------------- |
+| Database             | ✅ Ready      | Production      |
+| API Endpoints        | ✅ Active     | All             |
+| Monitoring Scripts   | ✅ Available  | Manual/Cron     |
+| External APIs        | ⏳ Configured | Test Mode       |
+| Email Notifications  | ⏳ Ready      | Requires Config |
+| Automated Monitoring | ⏳ Ready      | Requires Cron   |
 
 ### 🔍 Quick Health Check
 
 Run this to verify everything:
+
 ```bash
 npx ts-node --project tsconfig.node.json scripts/test-compliance-features.ts
 ```
@@ -154,12 +159,14 @@ Expected: All 7 tests passing ✅
 
 ---
 
-**Deployment Date**: January 18, 2025
-**Status**: ✅ Operational in Test Mode
+**Deployment Date**: January 18, 2025 **Status**: ✅ Operational in Test Mode
 **Production Ready**: When API credentials obtained
 
 ## Congratulations! 🎊
 
-Your TAAXDOG compliance system is now fully deployed and operational. The system is running in test mode, allowing you to explore all features safely before connecting to production APIs.
+Your TAAXDOG compliance system is now fully deployed and operational. The system
+is running in test mode, allowing you to explore all features safely before
+connecting to production APIs.
 
-When you're ready for production, follow the API setup guide to obtain credentials and switch to production mode.
+When you're ready for production, follow the API setup guide to obtain
+credentials and switch to production mode.

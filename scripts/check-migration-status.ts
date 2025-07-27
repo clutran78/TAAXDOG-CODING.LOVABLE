@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client';
 import * as dotenv from 'dotenv';
 import { resolve } from 'path';
 
@@ -17,7 +17,7 @@ async function checkMigrationStatus() {
 
     // Get users by email verification status
     const verifiedUsers = await prisma.user.count({
-      where: { emailVerified: { not: null } }
+      where: { emailVerified: { not: null } },
     });
     const unverifiedUsers = totalUsers - verifiedUsers;
     console.log(`Email verified: ${verifiedUsers}`);
@@ -27,8 +27,8 @@ async function checkMigrationStatus() {
     const usersWithResetTokens = await prisma.user.count({
       where: {
         passwordResetToken: { not: null },
-        passwordResetExpires: { gt: new Date() }
-      }
+        passwordResetExpires: { gt: new Date() },
+      },
     });
     console.log(`\nUsers with valid reset tokens: ${usersWithResetTokens}`);
 
@@ -38,9 +38,9 @@ async function checkMigrationStatus() {
         event: 'REGISTER',
         metadata: {
           path: ['source'],
-          equals: 'firebase_migration'
-        }
-      }
+          equals: 'firebase_migration',
+        },
+      },
     });
     console.log(`\nUsers migrated from Firebase: ${migrationLogs}`);
 
@@ -49,19 +49,19 @@ async function checkMigrationStatus() {
       where: {
         event: 'LOGIN_SUCCESS',
         createdAt: {
-          gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // Last 7 days
-        }
-      }
+          gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
+        },
+      },
     });
     console.log(`\nSuccessful logins (last 7 days): ${recentLogins}`);
 
     // Get users by role
     const usersByRole = await prisma.user.groupBy({
       by: ['role'],
-      _count: true
+      _count: true,
     });
     console.log('\nUsers by role:');
-    usersByRole.forEach(role => {
+    usersByRole.forEach((role) => {
       console.log(`  ${role.role}: ${role._count}`);
     });
 
@@ -74,13 +74,13 @@ async function checkMigrationStatus() {
         name: true,
         createdAt: true,
         emailVerified: true,
-        passwordResetToken: true
-      }
+        passwordResetToken: true,
+      },
     });
-    
+
     console.log('\nRecent users:');
     console.log('=============');
-    recentUsers.forEach(user => {
+    recentUsers.forEach((user) => {
       console.log(`${user.email}:`);
       console.log(`  Name: ${user.name}`);
       console.log(`  Created: ${user.createdAt}`);
@@ -93,18 +93,17 @@ async function checkMigrationStatus() {
     const migrationErrors = await prisma.auditLog.findMany({
       where: {
         userAgent: 'Migration Script',
-        success: false
+        success: false,
       },
-      take: 10
+      take: 10,
     });
 
     if (migrationErrors.length > 0) {
       console.log('⚠️  Migration errors found:');
-      migrationErrors.forEach(error => {
+      migrationErrors.forEach((error) => {
         console.log(`  ${error.createdAt}: ${JSON.stringify(error.metadata)}`);
       });
     }
-
   } catch (error) {
     console.error('Error checking migration status:', error);
   } finally {
@@ -116,7 +115,7 @@ async function checkMigrationStatus() {
 if (require.main === module) {
   checkMigrationStatus()
     .then(() => process.exit(0))
-    .catch(error => {
+    .catch((error) => {
       console.error(error);
       process.exit(1);
     });

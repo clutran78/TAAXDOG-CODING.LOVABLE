@@ -1,27 +1,33 @@
 # Firebase Removal Summary
 
-This document summarizes the removal of all Firebase dependencies from the TAAXDOG project.
+This document summarizes the removal of all Firebase dependencies from the
+TAAXDOG project.
 
 ## Dependencies Removed
 
 ### From devDependencies:
+
 - `firebase-admin` (^13.4.0) - Removed from package.json
 
 ### Scripts Modified in package.json:
+
 1. Removed Firebase-specific scripts:
    - `migrate:firebase`
-   - `migrate:status` 
+   - `migrate:status`
    - `migrate:send-emails`
 
 2. Updated scripts:
    - `migration:complete` - Removed `firebase:migrate` step
 
 ### Environment Variables Removed:
+
 From `.env.example`:
+
 - `FIREBASE_SERVICE_ACCOUNT_PATH`
 - `FIREBASE_DATABASE_URL`
 
 ### Files to be Removed:
+
 - `firebase_config.py` (already removed)
 - `__pycache__/firebase_config.*` (compiled Python files)
 - `scripts/migrate-firebase-users.ts`
@@ -32,6 +38,7 @@ From `.env.example`:
 ## Current State
 
 The project now uses only PostgreSQL/Prisma for data persistence:
+
 - Database: PostgreSQL with Prisma ORM
 - Authentication: NextAuth.js with database sessions
 - File storage: Local filesystem (can be migrated to S3/cloud storage)
@@ -39,6 +46,7 @@ The project now uses only PostgreSQL/Prisma for data persistence:
 ## Migration Status
 
 All Firebase dependencies have been removed from:
+
 - ✅ package.json
 - ✅ Environment configuration files
 - ✅ Docker configuration files
@@ -54,6 +62,7 @@ All Firebase dependencies have been removed from:
 ## Components Using PostgreSQL
 
 The following components have already been migrated to use PostgreSQL:
+
 - Goal management (`/services/goal-service.ts`)
 - User authentication (NextAuth.js with Prisma adapter)
 - Receipt storage (Prisma models)

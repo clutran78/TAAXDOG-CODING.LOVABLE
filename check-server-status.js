@@ -2,13 +2,13 @@ const http = require('http');
 
 function checkServer() {
   console.log('🔍 Checking server status...\n');
-  
+
   const options = {
     hostname: 'localhost',
     port: 3000,
     path: '/',
     method: 'GET',
-    timeout: 5000
+    timeout: 5000,
   };
 
   const req = http.request(options, (res) => {

@@ -1,5 +1,12 @@
-import { PrismaClient, ConsentType, ConsentStatus, DataRequestType, DataRequestStatus } from '@prisma/client';
+import {
+  PrismaClient,
+  ConsentType,
+  ConsentStatus,
+  DataRequestType,
+  DataRequestStatus,
+} from '@prisma/client';
 import crypto from 'crypto';
+import { logger } from '@/lib/logger';
 
 const prisma = new PrismaClient();
 
@@ -30,7 +37,9 @@ export class PrivacyComplianceService {
   /**
    * Record user consent
    */
-  static async recordConsent(request: ConsentRequest): Promise<{ success: boolean; consentId?: string }> {
+  static async recordConsent(
+    request: ConsentRequest,
+  ): Promise<{ success: boolean; consentId?: string }> {
     try {
       // Check for existing active consent
       const existingConsent = await prisma.privacyConsent.findFirst({
@@ -95,7 +104,7 @@ export class PrivacyComplianceService {
 
       return { success: true, consentId: consent.id };
     } catch (error) {
-      console.error('Error recording consent:', error);
+      logger.error('Error recording consent:', error);
       return { success: false };
     }
   }
@@ -106,7 +115,7 @@ export class PrivacyComplianceService {
   static async withdrawConsent(
     userId: string,
     consentType: ConsentType,
-    reason?: string
+    reason?: string,
   ): Promise<{ success: boolean }> {
     try {
       const consent = await prisma.privacyConsent.findFirst({
@@ -148,7 +157,7 @@ export class PrivacyComplianceService {
 
       return { success: true };
     } catch (error) {
-      console.error('Error withdrawing consent:', error);
+      logger.error('Error withdrawing consent:', error);
       return { success: false };
     }
   }
@@ -159,7 +168,7 @@ export class PrivacyComplianceService {
   static async hasValidConsent(
     userId: string,
     consentType: ConsentType,
-    purposes?: string[]
+    purposes?: string[],
   ): Promise<boolean> {
     const consent = await prisma.privacyConsent.findFirst({
       where: {
@@ -178,7 +187,7 @@ export class PrivacyComplianceService {
 
     // Check if all required purposes are covered
     if (purposes && purposes.length > 0) {
-      return purposes.every(purpose => consent.purposes.includes(purpose));
+      return purposes.every((purpose) => consent.purposes.includes(purpose));
     }
 
     return true;
@@ -187,7 +196,9 @@ export class PrivacyComplianceService {
   /**
    * Create data access request
    */
-  static async createDataRequest(request: DataRequest): Promise<{ success: boolean; requestId?: string }> {
+  static async createDataRequest(
+    request: DataRequest,
+  ): Promise<{ success: boolean; requestId?: string }> {
     try {
       // Calculate due date (30 days as per Privacy Act)
       const dueDate = new Date();
@@ -222,7 +233,7 @@ export class PrivacyComplianceService {
 
       return { success: true, requestId: dataRequest.id };
     } catch (error) {
-      console.error('Error creating data request:', error);
+      logger.error('Error creating data request:', error);
       return { success: false };
     }
   }
@@ -232,7 +243,7 @@ export class PrivacyComplianceService {
    */
   static async processDataRequest(
     requestId: string,
-    processedBy: string
+    processedBy: string,
   ): Promise<{ success: boolean; exportUrl?: string }> {
     try {
       const request = await prisma.dataAccessRequest.findUnique({
@@ -290,7 +301,7 @@ export class PrivacyComplianceService {
 
       return { success: true, exportUrl };
     } catch (error) {
-      console.error('Error processing data request:', error);
+      logger.error('Error processing data request:', error);
       return { success: false };
     }
   }
@@ -325,12 +336,12 @@ export class PrivacyComplianceService {
 
     // Generate secure export token
     const exportToken = crypto.randomBytes(32).toString('hex');
-    
+
     // In production, this would:
     // 1. Save data to secure S3 bucket
     // 2. Generate signed URL with expiry
     // 3. Return the URL
-    
+
     // For now, return a placeholder URL
     return `/api/data-export/${exportToken}`;
   }
@@ -340,7 +351,7 @@ export class PrivacyComplianceService {
    */
   private static async generatePortableDataExport(userId: string): Promise<string> {
     const userData = await this.collectUserData(userId);
-    
+
     // Format data according to data portability standards
     const portableData = {
       version: '1.0',
@@ -435,7 +446,7 @@ export class PrivacyComplianceService {
    */
   private static async anonymizeUserData(userId: string): Promise<void> {
     const anonymizedEmail = `deleted-${crypto.randomBytes(16).toString('hex')}@anonymous.com`;
-    
+
     await prisma.user.update({
       where: { id: userId },
       data: {
@@ -463,7 +474,7 @@ export class PrivacyComplianceService {
     await prisma.budget.deleteMany({ where: { userId } });
     await prisma.goal.deleteMany({ where: { userId } });
     await prisma.financialInsight.deleteMany({ where: { userId } });
-    
+
     // Finally delete the user
     await prisma.user.delete({ where: { id: userId } });
   }

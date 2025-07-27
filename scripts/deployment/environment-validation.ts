@@ -38,41 +38,41 @@ class EnvironmentValidator {
     'NODE_ENV',
     'NEXTAUTH_URL',
     'NEXTAUTH_SECRET',
-    
+
     // Database
     'DATABASE_URL',
-    
+
     // Authentication
     'GOOGLE_CLIENT_ID',
     'GOOGLE_CLIENT_SECRET',
-    
+
     // Payment Processing
     'STRIPE_PUBLISHABLE_KEY',
     'STRIPE_SECRET_KEY',
     'STRIPE_WEBHOOK_SECRET',
-    
+
     // Email Service
     'SENDGRID_API_KEY',
     'EMAIL_FROM',
-    
+
     // AI Services
     'ANTHROPIC_API_KEY',
     'OPENROUTER_API_KEY',
     'GEMINI_API_KEY',
-    
+
     // Banking Integration
     'BASIQ_API_KEY',
-    
+
     // Security
     'ENCRYPTION_KEY',
     'JWT_SECRET',
-    
+
     // Backup Configuration
     'AWS_ACCESS_KEY_ID',
     'AWS_SECRET_ACCESS_KEY',
     'AWS_REGION',
     'BACKUP_BUCKET',
-    'BACKUP_ENCRYPTION_KEY'
+    'BACKUP_ENCRYPTION_KEY',
   ];
 
   private optionalEnvVars = [
@@ -81,7 +81,7 @@ class EnvironmentValidator {
     'SESSION_TIMEOUT',
     'LOG_LEVEL',
     'MONITORING_ENABLED',
-    'SENTRY_DSN'
+    'SENTRY_DSN',
   ];
 
   constructor() {
@@ -94,8 +94,8 @@ class EnvironmentValidator {
         total: 0,
         passed: 0,
         failed: 0,
-        warnings: 0
-      }
+        warnings: 0,
+      },
     };
   }
 
@@ -104,31 +104,31 @@ class EnvironmentValidator {
 
     // Check environment variables
     await this.validateEnvironmentVariables();
-    
+
     // Check database connectivity
     await this.validateDatabaseConnection();
-    
+
     // Check external API integrations
     await this.validateStripeIntegration();
     await this.validateSendGridIntegration();
     await this.validateBasiqIntegration();
     await this.validateAIServices();
-    
+
     // Check SSL certificates
     await this.validateSSLConfiguration();
-    
+
     // Check file permissions and directories
     await this.validateFileSystem();
-    
+
     // Check system resources
     await this.validateSystemResources();
-    
+
     // Calculate summary
     this.calculateSummary();
-    
+
     // Save report
     await this.saveReport();
-    
+
     // Display results
     this.displayResults();
 
@@ -139,12 +139,12 @@ class EnvironmentValidator {
     const units = ['B', 'KB', 'MB', 'GB', 'TB'];
     let size = bytes;
     let unitIndex = 0;
-    
+
     while (size >= 1024 && unitIndex < units.length - 1) {
       size /= 1024;
       unitIndex++;
     }
-    
+
     return `${size.toFixed(1)} ${units[unitIndex]}`;
   }
 
@@ -155,13 +155,13 @@ class EnvironmentValidator {
     for (const varName of this.requiredEnvVars) {
       const value = process.env[varName];
       const isSet = value !== undefined && value !== '';
-      
+
       this.addResult({
         category: 'Environment Variables',
         check: `Required: ${varName}`,
         status: isSet ? 'pass' : 'fail',
         details: isSet ? 'Variable is set' : 'Variable is missing or empty',
-        required: true
+        required: true,
       });
     }
 
@@ -169,13 +169,13 @@ class EnvironmentValidator {
     for (const varName of this.optionalEnvVars) {
       const value = process.env[varName];
       const isSet = value !== undefined && value !== '';
-      
+
       this.addResult({
         category: 'Environment Variables',
         check: `Optional: ${varName}`,
         status: isSet ? 'pass' : 'warning',
         details: isSet ? 'Variable is set' : 'Using default value',
-        required: false
+        required: false,
       });
     }
 
@@ -191,18 +191,18 @@ class EnvironmentValidator {
       {
         check: 'NEXTAUTH_URL uses HTTPS',
         condition: process.env.NEXTAUTH_URL?.startsWith('https://'),
-        details: process.env.NEXTAUTH_URL || 'Not set'
+        details: process.env.NEXTAUTH_URL || 'Not set',
       },
       {
         check: 'Debug mode disabled',
         condition: process.env.DEBUG !== 'true',
-        details: process.env.DEBUG === 'true' ? 'Debug enabled in production!' : 'Debug disabled'
+        details: process.env.DEBUG === 'true' ? 'Debug enabled in production!' : 'Debug disabled',
       },
       {
         check: 'Secure cookies enabled',
         condition: process.env.SECURE_COOKIES !== 'false',
-        details: 'Secure cookie flag set'
-      }
+        details: 'Secure cookie flag set',
+      },
     ];
 
     for (const check of productionChecks) {
@@ -211,7 +211,7 @@ class EnvironmentValidator {
         check: check.check,
         status: check.condition ? 'pass' : 'fail',
         details: check.details,
-        required: true
+        required: true,
       });
     }
   }
@@ -231,33 +231,33 @@ class EnvironmentValidator {
     try {
       // Get a client from the pool
       client = await pool.connect();
-      
+
       // Test basic query
       const result = await client.query('SELECT NOW()');
-      
+
       this.addResult({
         category: 'Database',
         check: 'Connection test',
         status: 'pass',
         details: `Connected successfully at ${result.rows[0].now}`,
-        required: true
+        required: true,
       });
 
       // Check database version
       const versionResult = await client.query('SELECT version()');
       const version = versionResult.rows[0].version;
-      
+
       // Parse PostgreSQL major version number
       // Version string format: "PostgreSQL 14.5 on x86_64-pc-linux-gnu..."
       const versionMatch = version.match(/PostgreSQL (\d+)\.(\d+)/);
       let majorVersion = 0;
       let versionStatus: 'pass' | 'fail' | 'warning' = 'warning';
       let versionDetails = version;
-      
+
       if (versionMatch) {
         majorVersion = parseInt(versionMatch[1], 10);
         const minorVersion = parseInt(versionMatch[2], 10);
-        
+
         if (majorVersion >= 14) {
           versionStatus = 'pass';
           versionDetails = `PostgreSQL ${majorVersion}.${minorVersion} (minimum required: 14.x)`;
@@ -268,25 +268,25 @@ class EnvironmentValidator {
       } else {
         versionDetails = `Could not parse version from: ${version}`;
       }
-      
+
       this.addResult({
         category: 'Database',
         check: 'PostgreSQL version',
         status: versionStatus,
         details: versionDetails,
-        required: false
+        required: false,
       });
 
       // Check SSL connection
       const sslResult = await client.query('SELECT ssl_is_used()');
       const sslEnabled = sslResult.rows[0].ssl_is_used;
-      
+
       this.addResult({
         category: 'Database',
         check: 'SSL connection',
         status: sslEnabled ? 'pass' : process.env.NODE_ENV === 'production' ? 'fail' : 'warning',
         details: sslEnabled ? 'SSL enabled' : 'SSL disabled',
-        required: process.env.NODE_ENV === 'production'
+        required: process.env.NODE_ENV === 'production',
       });
 
       // Check required tables
@@ -298,25 +298,24 @@ class EnvironmentValidator {
             WHERE table_schema = 'public' 
             AND table_name = $1
           )`,
-          [table]
+          [table],
         );
-        
+
         this.addResult({
           category: 'Database',
           check: `Table: ${table}`,
           status: tableResult.rows[0].exists ? 'pass' : 'fail',
           details: tableResult.rows[0].exists ? 'Table exists' : 'Table missing',
-          required: true
+          required: true,
         });
       }
-
     } catch (error: any) {
       this.addResult({
         category: 'Database',
         check: 'Connection test',
         status: 'fail',
         details: `Connection failed: ${error.message}`,
-        required: true
+        required: true,
       });
     } finally {
       // Properly release the client back to the pool
@@ -337,25 +336,25 @@ class EnvironmentValidator {
         check: 'API configuration',
         status: 'fail',
         details: 'Stripe secret key not configured',
-        required: true
+        required: true,
       });
       return;
     }
 
     try {
       const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-        apiVersion: '2023-10-16'
+        apiVersion: '2023-10-16',
       });
 
       // Test API connection
       const account = await stripe.accounts.retrieve();
-      
+
       this.addResult({
         category: 'Stripe',
         check: 'API connection',
         status: 'pass',
         details: `Connected to account: ${account.email}`,
-        required: true
+        required: true,
       });
 
       // Check webhook configuration
@@ -365,28 +364,27 @@ class EnvironmentValidator {
         check: 'Webhook secret',
         status: webhookSecret ? 'pass' : 'fail',
         details: webhookSecret ? 'Webhook secret configured' : 'Webhook secret missing',
-        required: true
+        required: true,
       });
 
       // Check for required products/prices
       const products = await stripe.products.list({ limit: 10 });
       const hasProducts = products.data.length > 0;
-      
+
       this.addResult({
         category: 'Stripe',
         check: 'Products configured',
         status: hasProducts ? 'pass' : 'warning',
         details: `${products.data.length} products found`,
-        required: false
+        required: false,
       });
-
     } catch (error: any) {
       this.addResult({
         category: 'Stripe',
         check: 'API connection',
         status: 'fail',
         details: `Connection failed: ${error.message}`,
-        required: true
+        required: true,
       });
     }
   }
@@ -400,29 +398,29 @@ class EnvironmentValidator {
         check: 'API configuration',
         status: 'fail',
         details: 'SendGrid API key not configured',
-        required: true
+        required: true,
       });
       return;
     }
 
     try {
       sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-      
+
       // Test API key validity by making an actual API call to SendGrid
       let keyValid = false;
       let apiDetails = '';
-      
+
       try {
         // Make a test API call to SendGrid to verify the key
         // Using axios to call SendGrid's user profile endpoint
         const response = await axios.get('https://api.sendgrid.com/v3/user/profile', {
           headers: {
-            'Authorization': `Bearer ${process.env.SENDGRID_API_KEY}`,
-            'Content-Type': 'application/json'
+            Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`,
+            'Content-Type': 'application/json',
           },
-          timeout: 10000 // 10 second timeout
+          timeout: 10000, // 10 second timeout
         });
-        
+
         if (response.status === 200) {
           keyValid = true;
           apiDetails = `Valid API key (Account: ${response.data.email || 'verified'})`;
@@ -442,34 +440,33 @@ class EnvironmentValidator {
           apiDetails = `API validation error: ${apiError.message}`;
         }
       }
-      
+
       this.addResult({
         category: 'SendGrid',
         check: 'API key validation',
         status: keyValid ? 'pass' : 'fail',
         details: apiDetails,
-        required: true
+        required: true,
       });
 
       // Check sender email
       const senderEmail = process.env.EMAIL_FROM;
       const emailValid = senderEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail);
-      
+
       this.addResult({
         category: 'SendGrid',
         check: 'Sender email',
         status: emailValid ? 'pass' : 'fail',
         details: emailValid ? `Sender: ${senderEmail}` : 'Invalid sender email',
-        required: true
+        required: true,
       });
-
     } catch (error: any) {
       this.addResult({
         category: 'SendGrid',
         check: 'Configuration',
         status: 'fail',
         details: `Configuration error: ${error.message}`,
-        required: true
+        required: true,
       });
     }
   }
@@ -483,39 +480,43 @@ class EnvironmentValidator {
         check: 'API configuration',
         status: 'warning',
         details: 'BASIQ API key not configured (optional feature)',
-        required: false
+        required: false,
       });
       return;
     }
 
     try {
       // Test BASIQ API connection
-      const response = await axios.post('https://au-api.basiq.io/token', {
-        grant_type: 'client_credentials'
-      }, {
-        headers: {
-          'Authorization': `Basic ${Buffer.from(process.env.BASIQ_API_KEY + ':').toString('base64')}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
+      const response = await axios.post(
+        'https://au-api.basiq.io/token',
+        {
+          grant_type: 'client_credentials',
         },
-        validateStatus: () => true,
-        timeout: 10000 // 10 second timeout
-      });
+        {
+          headers: {
+            Authorization: `Basic ${Buffer.from(process.env.BASIQ_API_KEY + ':').toString('base64')}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          validateStatus: () => true,
+          timeout: 10000, // 10 second timeout
+        },
+      );
 
       this.addResult({
         category: 'BASIQ',
         check: 'API authentication',
         status: response.status === 200 ? 'pass' : 'fail',
-        details: response.status === 200 ? 'Authentication successful' : `Auth failed: ${response.status}`,
-        required: false
+        details:
+          response.status === 200 ? 'Authentication successful' : `Auth failed: ${response.status}`,
+        required: false,
       });
-
     } catch (error: any) {
       this.addResult({
         category: 'BASIQ',
         check: 'API connection',
         status: 'fail',
         details: `Connection failed: ${error.message}`,
-        required: false
+        required: false,
       });
     }
   }
@@ -530,7 +531,7 @@ class EnvironmentValidator {
         check: 'Anthropic API key',
         status: 'pass',
         details: 'API key configured',
-        required: false
+        required: false,
       });
     } else {
       this.addResult({
@@ -538,7 +539,7 @@ class EnvironmentValidator {
         check: 'Anthropic API key',
         status: 'warning',
         details: 'API key not configured',
-        required: false
+        required: false,
       });
     }
 
@@ -549,7 +550,7 @@ class EnvironmentValidator {
         check: 'OpenRouter API key',
         status: 'pass',
         details: 'API key configured',
-        required: false
+        required: false,
       });
     }
 
@@ -560,21 +561,20 @@ class EnvironmentValidator {
         check: 'Gemini API key',
         status: 'pass',
         details: 'API key configured',
-        required: false
+        required: false,
       });
     }
 
     // At least one AI service should be configured
-    const hasAnyAI = process.env.ANTHROPIC_API_KEY || 
-                     process.env.OPENROUTER_API_KEY || 
-                     process.env.GEMINI_API_KEY;
+    const hasAnyAI =
+      process.env.ANTHROPIC_API_KEY || process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY;
 
     this.addResult({
       category: 'AI Services',
       check: 'At least one AI service',
       status: hasAnyAI ? 'pass' : 'fail',
       details: hasAnyAI ? 'AI services available' : 'No AI services configured',
-      required: true
+      required: true,
     });
   }
 
@@ -587,26 +587,26 @@ class EnvironmentValidator {
         check: 'SSL certificates',
         status: 'warning',
         details: 'SSL validation skipped (non-production)',
-        required: false
+        required: false,
       });
       return;
     }
 
     // Check if HTTPS is enforced
     const httpsUrl = process.env.NEXTAUTH_URL?.startsWith('https://');
-    
+
     this.addResult({
       category: 'SSL',
       check: 'HTTPS enforcement',
       status: httpsUrl ? 'pass' : 'fail',
       details: httpsUrl ? 'HTTPS enforced' : 'HTTPS not enforced',
-      required: true
+      required: true,
     });
 
     // Check certificate files (if custom SSL)
     const certPaths = {
       cert: process.env.SSL_CERT_PATH || '/etc/ssl/certs/cert.pem',
-      key: process.env.SSL_KEY_PATH || '/etc/ssl/private/key.pem'
+      key: process.env.SSL_KEY_PATH || '/etc/ssl/private/key.pem',
     };
 
     for (const [type, path] of Object.entries(certPaths)) {
@@ -616,7 +616,7 @@ class EnvironmentValidator {
           check: `${type} file`,
           status: 'pass',
           details: `File exists: ${path}`,
-          required: false
+          required: false,
         });
       }
     }
@@ -625,30 +625,25 @@ class EnvironmentValidator {
   private async validateFileSystem(): Promise<void> {
     console.log('📁 Validating File System...');
 
-    const requiredDirs = [
-      'logs',
-      'uploads',
-      'public',
-      '.next'
-    ];
+    const requiredDirs = ['logs', 'uploads', 'public', '.next'];
 
     for (const dir of requiredDirs) {
       const dirPath = path.join(process.cwd(), dir);
       const exists = fs.existsSync(dirPath);
-      
+
       if (exists) {
         // Check write permissions
         try {
           const testFile = path.join(dirPath, '.write-test');
           fs.writeFileSync(testFile, 'test');
           fs.unlinkSync(testFile);
-          
+
           this.addResult({
             category: 'File System',
             check: `Directory: ${dir}`,
             status: 'pass',
             details: 'Directory exists with write permissions',
-            required: true
+            required: true,
           });
         } catch {
           this.addResult({
@@ -656,7 +651,7 @@ class EnvironmentValidator {
             check: `Directory: ${dir}`,
             status: 'fail',
             details: 'Directory exists but no write permissions',
-            required: true
+            required: true,
           });
         }
       } else {
@@ -665,7 +660,7 @@ class EnvironmentValidator {
           check: `Directory: ${dir}`,
           status: 'fail',
           details: 'Directory does not exist',
-          required: true
+          required: true,
         });
       }
     }
@@ -673,13 +668,13 @@ class EnvironmentValidator {
     // Check disk space using Node.js built-in fs.statfs
     try {
       const fs = require('fs').promises;
-      
+
       // Get the current working directory
       const cwd = process.cwd();
-      
+
       // Use fs.statfs to get file system statistics
       const stats = await fs.statfs(cwd);
-      
+
       // Calculate disk usage percentage
       // stats.blocks = total blocks
       // stats.bfree = free blocks
@@ -688,38 +683,38 @@ class EnvironmentValidator {
       const availableSpace = stats.bavail * stats.bsize;
       const usedSpace = totalSpace - availableSpace;
       const usagePercent = Math.round((usedSpace / totalSpace) * 100);
-      
+
       // Format sizes for display
       const formatBytes = (bytes: number): string => {
         const units = ['B', 'KB', 'MB', 'GB', 'TB'];
         let size = bytes;
         let unitIndex = 0;
-        
+
         while (size >= 1024 && unitIndex < units.length - 1) {
           size /= 1024;
           unitIndex++;
         }
-        
+
         return `${size.toFixed(1)} ${units[unitIndex]}`;
       };
-      
+
       this.addResult({
         category: 'File System',
         check: 'Disk space',
         status: usagePercent < 80 ? 'pass' : usagePercent < 90 ? 'warning' : 'fail',
         details: `${usagePercent}% disk usage (${formatBytes(usedSpace)} / ${formatBytes(totalSpace)})`,
-        required: true
+        required: true,
       });
     } catch (error) {
       // Handle errors gracefully
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
+
       this.addResult({
         category: 'File System',
         check: 'Disk space',
         status: 'warning',
         details: `Could not check disk space: ${errorMessage}`,
-        required: false
+        required: false,
       });
     }
   }
@@ -730,13 +725,13 @@ class EnvironmentValidator {
     // Check Node.js version
     const nodeVersion = process.version;
     const majorVersion = parseInt(nodeVersion.split('.')[0].substring(1));
-    
+
     this.addResult({
       category: 'System',
       check: 'Node.js version',
       status: majorVersion >= 18 ? 'pass' : 'fail',
       details: `Node.js ${nodeVersion} (required: >= 18)`,
-      required: true
+      required: true,
     });
 
     // Check memory with enhanced thresholds
@@ -744,17 +739,17 @@ class EnvironmentValidator {
     const freeMemory = require('os').freemem();
     const usedMemory = totalMemory - freeMemory;
     const usedPercent = (usedMemory / totalMemory) * 100;
-    
+
     // More strict thresholds for production
     const memoryThresholds = {
-      pass: 70,     // Was 80
-      warning: 80,  // Was 90
-      critical: 90  // New critical level
+      pass: 70, // Was 80
+      warning: 80, // Was 90
+      critical: 90, // New critical level
     };
-    
+
     let memoryStatus: 'pass' | 'warning' | 'fail';
     let memoryDetails = `${usedPercent.toFixed(1)}% memory used (${this.formatBytes(usedMemory)} / ${this.formatBytes(totalMemory)})`;
-    
+
     if (usedPercent < memoryThresholds.pass) {
       memoryStatus = 'pass';
     } else if (usedPercent < memoryThresholds.warning) {
@@ -767,26 +762,26 @@ class EnvironmentValidator {
       memoryStatus = 'fail';
       memoryDetails += ' - CRITICAL: Immediate action required!';
     }
-    
+
     this.addResult({
       category: 'System',
       check: 'Memory usage',
       status: memoryStatus,
       details: memoryDetails,
-      required: true
+      required: true,
     });
 
     // Check CPU load
     const loadAverage = require('os').loadavg()[0];
     const cpuCount = require('os').cpus().length;
     const loadPerCpu = loadAverage / cpuCount;
-    
+
     this.addResult({
       category: 'System',
       check: 'CPU load',
       status: loadPerCpu < 0.7 ? 'pass' : loadPerCpu < 0.9 ? 'warning' : 'fail',
       details: `Load average: ${loadAverage.toFixed(2)} (${cpuCount} CPUs)`,
-      required: false
+      required: false,
     });
   }
 
@@ -796,13 +791,15 @@ class EnvironmentValidator {
 
   private calculateSummary(): void {
     this.report.summary.total = this.report.results.length;
-    this.report.summary.passed = this.report.results.filter(r => r.status === 'pass').length;
-    this.report.summary.failed = this.report.results.filter(r => r.status === 'fail').length;
-    this.report.summary.warnings = this.report.results.filter(r => r.status === 'warning').length;
+    this.report.summary.passed = this.report.results.filter((r) => r.status === 'pass').length;
+    this.report.summary.failed = this.report.results.filter((r) => r.status === 'fail').length;
+    this.report.summary.warnings = this.report.results.filter((r) => r.status === 'warning').length;
 
     // Check if any required checks failed
-    const requiredFailed = this.report.results.filter(r => r.required && r.status === 'fail').length;
-    
+    const requiredFailed = this.report.results.filter(
+      (r) => r.required && r.status === 'fail',
+    ).length;
+
     if (requiredFailed > 0) {
       this.report.overallStatus = 'not_ready';
     } else if (this.report.summary.warnings > 0) {
@@ -814,40 +811,34 @@ class EnvironmentValidator {
 
   private async saveReport(): Promise<void> {
     const reportPath = path.join(process.cwd(), 'logs', 'environment-validation.json');
-    
+
     try {
       // Ensure the logs directory exists
       const logsDir = path.dirname(reportPath);
       await fs.promises.mkdir(logsDir, { recursive: true });
-      
+
       // Write the report file
-      await fs.promises.writeFile(
-        reportPath,
-        JSON.stringify(this.report, null, 2)
-      );
-      
+      await fs.promises.writeFile(reportPath, JSON.stringify(this.report, null, 2));
+
       console.log(`\n✅ Report saved successfully to: ${reportPath}`);
     } catch (error) {
       // Handle the error appropriately
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`\n❌ Failed to save report: ${errorMessage}`);
-      
+
       // Add a warning to the report about the save failure
       this.addResult({
         category: 'System',
         check: 'Report save',
         status: 'warning',
         details: `Could not save report to file: ${errorMessage}`,
-        required: false
+        required: false,
       });
-      
+
       // Try to save to an alternative location if the primary fails
       try {
         const fallbackPath = path.join(process.cwd(), `environment-validation-${Date.now()}.json`);
-        await fs.promises.writeFile(
-          fallbackPath,
-          JSON.stringify(this.report, null, 2)
-        );
+        await fs.promises.writeFile(fallbackPath, JSON.stringify(this.report, null, 2));
         console.log(`\n⚠️  Report saved to fallback location: ${fallbackPath}`);
       } catch (fallbackError) {
         console.error('\n❌ Failed to save report to fallback location');
@@ -860,53 +851,54 @@ class EnvironmentValidator {
     console.log('\n' + '='.repeat(60));
     console.log('🔍 ENVIRONMENT VALIDATION REPORT');
     console.log('='.repeat(60));
-    
+
     console.log(`\nEnvironment: ${this.report.environment.toUpperCase()}`);
     console.log(`Timestamp: ${this.report.timestamp.toISOString()}`);
-    
+
     const statusEmoji = {
       ready: '✅',
       warnings: '⚠️',
-      not_ready: '❌'
+      not_ready: '❌',
     };
-    
-    console.log(`\nOverall Status: ${statusEmoji[this.report.overallStatus]} ${this.report.overallStatus.toUpperCase().replace('_', ' ')}`);
-    
+
+    console.log(
+      `\nOverall Status: ${statusEmoji[this.report.overallStatus]} ${this.report.overallStatus.toUpperCase().replace('_', ' ')}`,
+    );
+
     console.log('\n📊 Summary:');
     console.log(`  Total Checks: ${this.report.summary.total}`);
     console.log(`  Passed: ${this.report.summary.passed}`);
     console.log(`  Failed: ${this.report.summary.failed}`);
     console.log(`  Warnings: ${this.report.summary.warnings}`);
-    
+
     // Group results by category
-    const categories = [...new Set(this.report.results.map(r => r.category))];
-    
+    const categories = [...new Set(this.report.results.map((r) => r.category))];
+
     for (const category of categories) {
       console.log(`\n${category}:`);
-      const categoryResults = this.report.results.filter(r => r.category === category);
-      
+      const categoryResults = this.report.results.filter((r) => r.category === category);
+
       for (const result of categoryResults) {
-        const icon = result.status === 'pass' ? '✅' : 
-                    result.status === 'fail' ? '❌' : '⚠️';
+        const icon = result.status === 'pass' ? '✅' : result.status === 'fail' ? '❌' : '⚠️';
         const required = result.required ? ' (required)' : '';
-        
+
         console.log(`  ${icon} ${result.check}${required}`);
         if (result.status !== 'pass') {
           console.log(`     → ${result.details}`);
         }
       }
     }
-    
+
     // Show critical failures
-    const criticalFailures = this.report.results.filter(r => r.required && r.status === 'fail');
-    
+    const criticalFailures = this.report.results.filter((r) => r.required && r.status === 'fail');
+
     if (criticalFailures.length > 0) {
       console.log('\n🚨 CRITICAL FAILURES (must be fixed):');
-      criticalFailures.forEach(f => {
+      criticalFailures.forEach((f) => {
         console.log(`  - ${f.check}: ${f.details}`);
       });
     }
-    
+
     console.log('\n' + '='.repeat(60));
   }
 }
@@ -915,7 +907,7 @@ class EnvironmentValidator {
 async function main() {
   const validator = new EnvironmentValidator();
   const report = await validator.validate();
-  
+
   if (report.overallStatus === 'not_ready') {
     console.error('\n❌ Environment is NOT ready for deployment!');
     process.exit(1);

@@ -32,7 +32,9 @@ export class SubscriptionService {
 
     let customer: Stripe.Customer;
     if (user.subscription?.stripeCustomerId) {
-      customer = await stripe.customers.retrieve(user.subscription.stripeCustomerId) as Stripe.Customer;
+      customer = (await stripe.customers.retrieve(
+        user.subscription.stripeCustomerId,
+      )) as Stripe.Customer;
     } else {
       customer = await stripe.customers.create({
         email: user.email,
@@ -45,26 +47,24 @@ export class SubscriptionService {
     }
 
     const priceId = billingCycle === 'annual' ? plan.annualPriceId : plan.monthlyPriceId;
-    
-    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [{
-      price_data: {
-        currency: 'aud',
-        product_data: {
-          name: plan.name,
-          description: plan.description,
-          metadata: {
-            planId: plan.id,
+
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+      {
+        price_data: {
+          currency: 'aud',
+          product_data: {
+            name: plan.name,
+            description: plan.description,
+            metadata: {
+              planId: plan.id,
+            },
           },
+          unit_amount: billingCycle === 'annual' ? plan.annualPrice : plan.promotionalMonthlyPrice,
+          recurring: billingCycle === 'annual' ? { interval: 'year' } : { interval: 'month' },
         },
-        unit_amount: billingCycle === 'annual' 
-          ? plan.annualPrice 
-          : plan.promotionalMonthlyPrice,
-        recurring: billingCycle === 'annual' 
-          ? { interval: 'year' }
-          : { interval: 'month' },
+        quantity: 1,
       },
-      quantity: 1,
-    }];
+    ];
 
     const subscriptionData: Stripe.Checkout.SessionCreateParams.SubscriptionData = {
       trial_period_days: plan.trialDays,
@@ -76,17 +76,19 @@ export class SubscriptionService {
     };
 
     if (billingCycle === 'monthly' && plan.promotionalMonths > 0) {
-      subscriptionData.trial_end = Math.floor(Date.now() / 1000) + (plan.trialDays * 24 * 60 * 60);
-      subscriptionData.add_invoice_items = [{
-        price_data: {
-          currency: 'aud',
-          product_data: {
-            name: `${plan.name} - Regular Price (after promotional period)`,
+      subscriptionData.trial_end = Math.floor(Date.now() / 1000) + plan.trialDays * 24 * 60 * 60;
+      subscriptionData.add_invoice_items = [
+        {
+          price_data: {
+            currency: 'aud',
+            product_data: {
+              name: `${plan.name} - Regular Price (after promotional period)`,
+            },
+            unit_amount: plan.monthlyPrice,
+            recurring: { interval: 'month' },
           },
-          unit_amount: plan.monthlyPrice,
-          recurring: { interval: 'month' },
         },
-      }];
+      ];
     }
 
     const session = await stripe.checkout.sessions.create({
@@ -156,7 +158,10 @@ export class SubscriptionService {
       },
     });
 
-    if (subscription.metadata.promotionalMonths && parseInt(subscription.metadata.promotionalMonths) > 0) {
+    if (
+      subscription.metadata.promotionalMonths &&
+      parseInt(subscription.metadata.promotionalMonths) > 0
+    ) {
       await this.schedulePromotionalPriceEnd(subscription);
     }
   }
@@ -207,7 +212,7 @@ export class SubscriptionService {
     if (!invoice.subscription || !invoice.customer) return;
 
     const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
-    
+
     await prisma.payment.create({
       data: {
         userId: subscription.metadata.userId!,
@@ -258,7 +263,7 @@ export class SubscriptionService {
   private async transitionToRegularPricing(subscription: Stripe.Subscription) {
     const planId = subscription.metadata.planId || 'smart';
     const plan = SUBSCRIPTION_PLANS[planId.toUpperCase()];
-    
+
     if (!plan) return;
 
     const priceData = {
@@ -271,10 +276,12 @@ export class SubscriptionService {
     const price = await stripe.prices.create(priceData);
 
     await stripe.subscriptions.update(subscription.id, {
-      items: [{
-        id: subscription.items.data[0].id,
-        price: price.id,
-      }],
+      items: [
+        {
+          id: subscription.items.data[0].id,
+          price: price.id,
+        },
+      ],
       proration_behavior: 'none',
     });
   }
@@ -290,14 +297,14 @@ export class SubscriptionService {
 
   private mapStripeStatus(status: Stripe.Subscription.Status): string {
     const statusMap: Record<Stripe.Subscription.Status, string> = {
-      'active': 'ACTIVE',
-      'canceled': 'CANCELLED',
-      'incomplete': 'INCOMPLETE',
-      'incomplete_expired': 'EXPIRED',
-      'past_due': 'PAST_DUE',
-      'trialing': 'TRIALING',
-      'unpaid': 'UNPAID',
-      'paused': 'PAUSED',
+      active: 'ACTIVE',
+      canceled: 'CANCELLED',
+      incomplete: 'INCOMPLETE',
+      incomplete_expired: 'EXPIRED',
+      past_due: 'PAST_DUE',
+      trialing: 'TRIALING',
+      unpaid: 'UNPAID',
+      paused: 'PAUSED',
     };
 
     return statusMap[status] || 'UNKNOWN';

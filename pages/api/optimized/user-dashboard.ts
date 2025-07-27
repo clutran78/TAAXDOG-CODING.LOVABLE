@@ -318,16 +318,17 @@ async function dashboardHandler(
       }
     };
 
+    return dashboardData;
+      }
+    );
+
     // Set security headers for user-specific data
     res.setHeader('Cache-Control', 'private, no-store, must-revalidate');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
     
     // Return successful response
-    return apiResponse.success(res, {
-      success: true,
-      data: dashboardData,
-    });
+    return apiResponse.success(res, cachedDashboard);
 
   } catch (error) {
     // Log error with user context for debugging

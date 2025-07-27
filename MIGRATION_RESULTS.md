@@ -7,18 +7,23 @@
 ## Indexes Added
 
 ### 1. Users Table
+
 - ✅ `users_createdAt_idx` - NEW index on createdAt column
 
-### 2. Goals Table  
+### 2. Goals Table
+
 - ✅ `goals_userId_status_idx` - NEW composite index on (user_id, status)
 - Note: Other goal indexes already existed
 
 ### 3. Bank Transactions Table
+
 - ✅ `bank_transactions_transaction_date_idx` - NEW index on transaction_date
-- ✅ `bank_transactions_category_idx` - NEW index on category  
-- ✅ `bank_transactions_bank_account_id_transaction_date_idx` - NEW composite index
+- ✅ `bank_transactions_category_idx` - NEW index on category
+- ✅ `bank_transactions_bank_account_id_transaction_date_idx` - NEW composite
+  index
 
 ### 4. Receipts Table
+
 - ✅ `idx_receipts_processed_at` - NEW index on created_at column
 - Note: Other receipt indexes already existed
 
@@ -32,7 +37,7 @@ These new indexes will improve query performance for:
    - Sorting users by registration date
    - User analytics and reporting
 
-2. **Goal Queries**  
+2. **Goal Queries**
    - Fetching active goals per user (composite index)
    - Dashboard performance improvements
 
@@ -59,4 +64,5 @@ These new indexes will improve query performance for:
 
 ## Verification
 
-All indexes are now active and will automatically be used by PostgreSQL's query planner when appropriate.
+All indexes are now active and will automatically be used by PostgreSQL's query
+planner when appropriate.

@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client';
 import { sendPasswordResetEmail } from '../lib/email';
 import * as dotenv from 'dotenv';
 import { resolve } from 'path';
@@ -17,12 +17,12 @@ interface EmailStats {
 
 async function sendPasswordResetToMigratedUsers() {
   console.log('📧 Starting password reset email campaign for migrated users...\n');
-  
+
   const stats: EmailStats = {
     total: 0,
     sent: 0,
     failed: 0,
-    errors: []
+    errors: [],
   };
 
   try {
@@ -31,18 +31,18 @@ async function sendPasswordResetToMigratedUsers() {
     const migratedUsers = await prisma.user.findMany({
       where: {
         passwordResetToken: {
-          not: null
+          not: null,
         },
         passwordResetExpires: {
-          gt: new Date() // Token not expired
-        }
+          gt: new Date(), // Token not expired
+        },
       },
       select: {
         id: true,
         email: true,
         name: true,
-        passwordResetToken: true
-      }
+        passwordResetToken: true,
+      },
     });
 
     stats.total = migratedUsers.length;
@@ -55,18 +55,14 @@ async function sendPasswordResetToMigratedUsers() {
 
     // Send emails with rate limiting
     console.log('📨 Sending password reset emails...\n');
-    
+
     for (const user of migratedUsers) {
       try {
         console.log(`Sending to: ${user.email}`);
-        
+
         // Send the email
-        await sendPasswordResetEmail(
-          user.email,
-          user.name,
-          user.passwordResetToken!
-        );
-        
+        await sendPasswordResetEmail(user.email, user.name, user.passwordResetToken!);
+
         // Log successful email
         await prisma.auditLog.create({
           data: {
@@ -77,23 +73,22 @@ async function sendPasswordResetToMigratedUsers() {
             success: true,
             metadata: {
               source: 'migration_campaign',
-              emailSent: true
-            }
-          }
+              emailSent: true,
+            },
+          },
         });
 
         console.log(`✅ Sent: ${user.email}`);
         stats.sent++;
 
         // Rate limiting - wait 1 second between emails
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       } catch (error: any) {
         console.error(`❌ Failed: ${user.email} - ${error.message}`);
         stats.failed++;
         stats.errors.push({
           email: user.email,
-          error: error.message
+          error: error.message,
         });
       }
     }
@@ -107,13 +102,12 @@ async function sendPasswordResetToMigratedUsers() {
 
     if (stats.errors.length > 0) {
       console.log('\n❌ Errors:');
-      stats.errors.forEach(err => {
+      stats.errors.forEach((err) => {
         console.log(`   ${err.email}: ${err.error}`);
       });
     }
 
     console.log('\n✅ Email campaign completed!');
-
   } catch (error) {
     console.error('❌ Email campaign failed:', error);
     process.exit(1);
@@ -126,7 +120,7 @@ async function sendPasswordResetToMigratedUsers() {
 if (require.main === module) {
   sendPasswordResetToMigratedUsers()
     .then(() => process.exit(0))
-    .catch(error => {
+    .catch((error) => {
       console.error(error);
       process.exit(1);
     });

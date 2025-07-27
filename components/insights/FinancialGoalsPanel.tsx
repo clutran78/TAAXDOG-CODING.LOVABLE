@@ -28,7 +28,10 @@ export const FinancialGoalsPanel: React.FC<FinancialGoalsPanelProps> = ({ goals 
     return (
       <div className="card">
         <div className="card-body text-center">
-          <p>No financial goals available. Generate insights to see personalized goal recommendations.</p>
+          <p>
+            No financial goals available. Generate insights to see personalized goal
+            recommendations.
+          </p>
         </div>
       </div>
     );
@@ -36,27 +39,32 @@ export const FinancialGoalsPanel: React.FC<FinancialGoalsPanelProps> = ({ goals 
 
   const getPriorityColor = (priority: string) => {
     switch (priority?.toUpperCase()) {
-      case 'HIGH': return 'bg-danger';
-      case 'MEDIUM': return 'bg-warning';
-      case 'LOW': return 'bg-success';
-      default: return 'bg-secondary';
+      case 'HIGH':
+        return 'bg-danger';
+      case 'MEDIUM':
+        return 'bg-warning';
+      case 'LOW':
+        return 'bg-success';
+      default:
+        return 'bg-secondary';
     }
   };
 
   return (
     <div className="row">
       {goals.map((goal, index) => (
-        <div key={index} className="col-md-6 mb-4">
+        <div
+          key={index}
+          className="col-md-6 mb-4"
+        >
           <div className="card">
             <div className="card-header d-flex justify-content-between align-items-center">
               <h6 className="card-title mb-0">{goal.title}</h6>
-              <span className={`badge ${getPriorityColor(goal.priority)}`}>
-                {goal.priority}
-              </span>
+              <span className={`badge ${getPriorityColor(goal.priority)}`}>{goal.priority}</span>
             </div>
             <div className="card-body">
               <p className="card-text">{goal.description}</p>
-              
+
               {/* Progress bar */}
               <div className="mb-3">
                 <div className="d-flex justify-content-between mb-1">
@@ -64,10 +72,10 @@ export const FinancialGoalsPanel: React.FC<FinancialGoalsPanelProps> = ({ goals 
                   <small>{((goal.current_amount / goal.target_amount) * 100).toFixed(1)}%</small>
                 </div>
                 <div className="progress">
-                  <div 
+                  <div
                     className="progress-bar bg-primary"
-                    style={{ 
-                      width: `${Math.min((goal.current_amount / goal.target_amount) * 100, 100)}%` 
+                    style={{
+                      width: `${Math.min((goal.current_amount / goal.target_amount) * 100, 100)}%`,
                     }}
                   />
                 </div>
@@ -102,7 +110,10 @@ export const FinancialGoalsPanel: React.FC<FinancialGoalsPanelProps> = ({ goals 
                   <small className="text-muted">Action Steps:</small>
                   <ul className="list-unstyled mt-1">
                     {goal.action_steps.slice(0, 3).map((step, stepIndex) => (
-                      <li key={stepIndex} className="small">
+                      <li
+                        key={stepIndex}
+                        className="small"
+                      >
                         • {step}
                       </li>
                     ))}
@@ -115,4 +126,4 @@ export const FinancialGoalsPanel: React.FC<FinancialGoalsPanelProps> = ({ goals 
       ))}
     </div>
   );
-}; 
+};

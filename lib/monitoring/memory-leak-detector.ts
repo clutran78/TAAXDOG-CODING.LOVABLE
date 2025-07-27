@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events';
 import v8 from 'v8';
 import { performance } from 'perf_hooks';
+import { logger } from '@/lib/logger';
 
 interface HeapSnapshot {
   timestamp: number;
@@ -23,7 +24,7 @@ export class MemoryLeakDetector extends EventEmitter {
   private snapshots: HeapSnapshot[] = [];
   private isMonitoring = false;
   private monitoringInterval: NodeJS.Timer | null = null;
-  
+
   // Configuration
   private readonly config = {
     snapshotInterval: 30000, // 30 seconds
@@ -35,18 +36,18 @@ export class MemoryLeakDetector extends EventEmitter {
 
   constructor() {
     super();
-    
+
     // Force garbage collection if available
     if (global.gc) {
-      console.log('🔍 Garbage collection is available for accurate memory leak detection');
+      logger.info('🔍 Garbage collection is available for accurate memory leak detection');
     } else {
-      console.warn('⚠️  Run with --expose-gc flag for more accurate memory leak detection');
+      logger.warn('⚠️  Run with --expose-gc flag for more accurate memory leak detection');
     }
   }
 
   startMonitoring(interval?: number) {
     if (this.isMonitoring) {
-      console.log('Memory leak monitoring already active');
+      logger.info('Memory leak monitoring already active');
       return;
     }
 
@@ -54,7 +55,7 @@ export class MemoryLeakDetector extends EventEmitter {
     this.isMonitoring = true;
     this.snapshots = [];
 
-    console.log(`🔍 Starting memory leak detection (interval: ${snapshotInterval}ms)`);
+    logger.info(`🔍 Starting memory leak detection (interval: ${snapshotInterval}ms);`);
 
     // Take initial snapshot
     this.takeSnapshot();
@@ -62,11 +63,11 @@ export class MemoryLeakDetector extends EventEmitter {
     // Set up periodic snapshots
     this.monitoringInterval = setInterval(() => {
       this.takeSnapshot();
-      
+
       // Analyze after warmup period
       if (this.snapshots.length >= this.config.warmupPeriod) {
         const report = this.analyze();
-        
+
         if (report.detected) {
           this.emit('leak-detected', report);
         }
@@ -85,7 +86,7 @@ export class MemoryLeakDetector extends EventEmitter {
     }
 
     this.isMonitoring = false;
-    console.log('🛑 Stopped memory leak detection');
+    logger.info('🛑 Stopped memory leak detection');
   }
 
   private takeSnapshot() {
@@ -102,7 +103,7 @@ export class MemoryLeakDetector extends EventEmitter {
       heapUsed: memoryUsage.heapUsed,
       external: memoryUsage.external,
       arrayBuffers: memoryUsage.arrayBuffers || 0,
-      totalSize: heapStats.total_heap_size
+      totalSize: heapStats.total_heap_size,
     };
 
     this.snapshots.push(snapshot);
@@ -123,7 +124,7 @@ export class MemoryLeakDetector extends EventEmitter {
         trend: 'stable',
         growthRate: 0,
         snapshots: [...this.snapshots],
-        recommendations: ['Not enough data for analysis']
+        recommendations: ['Not enough data for analysis'],
       };
     }
 
@@ -131,7 +132,7 @@ export class MemoryLeakDetector extends EventEmitter {
     const firstSnapshot = this.snapshots[0];
     const lastSnapshot = this.snapshots[this.snapshots.length - 1];
     const timeElapsed = (lastSnapshot.timestamp - firstSnapshot.timestamp) / 1000 / 60; // minutes
-    
+
     const memoryGrowth = (lastSnapshot.heapUsed - firstSnapshot.heapUsed) / 1024 / 1024; // MB
     const growthRate = memoryGrowth / timeElapsed; // MB per minute
 
@@ -140,7 +141,7 @@ export class MemoryLeakDetector extends EventEmitter {
     const confidence = this.calculateConfidence(trend);
 
     // Determine if leak is detected
-    const detected = 
+    const detected =
       memoryGrowth > this.config.leakThreshold &&
       confidence > this.config.confidenceThreshold &&
       trend.slope > 0;
@@ -154,18 +155,21 @@ export class MemoryLeakDetector extends EventEmitter {
       trend: trend.slope > 0.1 ? 'growing' : trend.slope < -0.1 ? 'shrinking' : 'stable',
       growthRate,
       snapshots: [...this.snapshots],
-      recommendations
+      recommendations,
     };
   }
 
   private calculateTrend(): { slope: number; intercept: number } {
     const n = this.snapshots.length;
-    let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+    let sumX = 0,
+      sumY = 0,
+      sumXY = 0,
+      sumX2 = 0;
 
     this.snapshots.forEach((snapshot, i) => {
       const x = i;
       const y = snapshot.heapUsed / 1024 / 1024; // MB
-      
+
       sumX += x;
       sumY += y;
       sumXY += x * y;
@@ -182,19 +186,20 @@ export class MemoryLeakDetector extends EventEmitter {
     // Calculate R-squared value
     const n = this.snapshots.length;
     const meanY = this.snapshots.reduce((sum, s) => sum + s.heapUsed, 0) / n;
-    
+
     let ssTotal = 0;
     let ssResidual = 0;
 
     this.snapshots.forEach((snapshot, i) => {
       const y = snapshot.heapUsed;
-      const yPredicted = trend.slope * i * this.config.snapshotInterval + this.snapshots[0].heapUsed;
-      
+      const yPredicted =
+        trend.slope * i * this.config.snapshotInterval + this.snapshots[0].heapUsed;
+
       ssTotal += Math.pow(y - meanY, 2);
       ssResidual += Math.pow(y - yPredicted, 2);
     });
 
-    const rSquared = 1 - (ssResidual / ssTotal);
+    const rSquared = 1 - ssResidual / ssTotal;
     return Math.max(0, Math.min(1, rSquared));
   }
 
@@ -238,26 +243,26 @@ export class MemoryLeakDetector extends EventEmitter {
 
   generateReport(): string {
     const report = this.analyze();
-    
+
     let output = '=== Memory Leak Detection Report ===\n';
     output += `Status: ${report.detected ? '🚨 LEAK DETECTED' : '✅ No leak detected'}\n`;
     output += `Confidence: ${(report.confidence * 100).toFixed(1)}%\n`;
     output += `Trend: ${report.trend}\n`;
     output += `Growth Rate: ${report.growthRate.toFixed(2)} MB/minute\n`;
     output += `\nSnapshots: ${this.snapshots.length}\n`;
-    
+
     if (this.snapshots.length > 0) {
       const first = this.snapshots[0];
       const last = this.snapshots[this.snapshots.length - 1];
       output += `First: ${new Date(first.timestamp).toISOString()} - ${(first.heapUsed / 1024 / 1024).toFixed(2)} MB\n`;
       output += `Last: ${new Date(last.timestamp).toISOString()} - ${(last.heapUsed / 1024 / 1024).toFixed(2)} MB\n`;
     }
-    
+
     output += '\nRecommendations:\n';
-    report.recommendations.forEach(rec => {
+    report.recommendations.forEach((rec) => {
       output += `${rec}\n`;
     });
-    
+
     return output;
   }
 
@@ -265,7 +270,7 @@ export class MemoryLeakDetector extends EventEmitter {
   static getMemoryStats() {
     const usage = process.memoryUsage();
     const heapStats = v8.getHeapStatistics();
-    
+
     return {
       heapUsed: usage.heapUsed,
       heapTotal: usage.heapTotal,
@@ -273,7 +278,7 @@ export class MemoryLeakDetector extends EventEmitter {
       arrayBuffers: usage.arrayBuffers || 0,
       heapSizeLimit: heapStats.heap_size_limit,
       totalAvailable: heapStats.total_available_size,
-      percentUsed: (usage.heapUsed / heapStats.heap_size_limit) * 100
+      percentUsed: (usage.heapUsed / heapStats.heap_size_limit) * 100,
     };
   }
 }
@@ -284,10 +289,10 @@ export const memoryLeakDetector = new MemoryLeakDetector();
 // Export for use in monitoring
 export function enableMemoryLeakDetection() {
   memoryLeakDetector.on('leak-detected', (report: MemoryLeakReport) => {
-    console.error('🚨 MEMORY LEAK DETECTED!');
-    console.error(`Confidence: ${(report.confidence * 100).toFixed(1)}%`);
-    console.error(`Growth rate: ${report.growthRate.toFixed(2)} MB/minute`);
-    report.recommendations.forEach(rec => console.error(rec));
+    logger.error('🚨 MEMORY LEAK DETECTED!');
+    logger.error(`Confidence: ${(report.confidence * 100);.toFixed(1)}%`);
+    logger.error(`Growth rate: ${report.growthRate.toFixed(2);} MB/minute`);
+    report.recommendations.forEach((rec) => logger.error(rec););
   });
 
   memoryLeakDetector.startMonitoring();

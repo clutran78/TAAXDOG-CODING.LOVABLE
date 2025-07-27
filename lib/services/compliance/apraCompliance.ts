@@ -1,5 +1,6 @@
 import { PrismaClient, IncidentType, IncidentSeverity, IncidentStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import { logger } from '@/lib/logger';
 
 const prisma = new PrismaClient();
 
@@ -22,13 +23,13 @@ export interface DataResidencyCheck {
 export class APRAComplianceService {
   private static readonly INCIDENT_REPORT_HOURS = 72; // 72 hours to report to APRA
   private static readonly ALLOWED_REGIONS = ['au-syd', 'australia-southeast1', 'sydney'];
-  
+
   /**
    * Create and track an incident report
    */
   static async createIncidentReport(
     report: IncidentReport,
-    reportedBy: string
+    reportedBy: string,
   ): Promise<{ success: boolean; incidentId?: string }> {
     try {
       const incident = await prisma.aPRAIncidentReport.create({
@@ -55,7 +56,7 @@ export class APRAComplianceService {
 
       return { success: true, incidentId: incident.id };
     } catch (error) {
-      console.error('Error creating incident report:', error);
+      logger.error('Error creating incident report:', error);
       return { success: false };
     }
   }
@@ -72,7 +73,7 @@ export class APRAComplianceService {
       preventiveMeasures?: any;
       affectedUsers?: number;
       financialImpact?: number;
-    }
+    },
   ): Promise<void> {
     const updateData: any = { status };
 
@@ -110,7 +111,7 @@ export class APRAComplianceService {
       // Check if within reporting timeframe
       const hoursSinceDetection = (Date.now() - incident.detectedAt.getTime()) / (1000 * 60 * 60);
       if (hoursSinceDetection > this.INCIDENT_REPORT_HOURS) {
-        console.warn(`Incident ${incidentId} reported late: ${hoursSinceDetection} hours`);
+        logger.warn(`Incident ${incidentId} reported late: ${hoursSinceDetection} hours`);
       }
 
       // In production, this would integrate with APRA's reporting API
@@ -132,7 +133,7 @@ export class APRAComplianceService {
 
       return { success: true, reference: apraReference };
     } catch (error) {
-      console.error('Error submitting to APRA:', error);
+      logger.error('Error submitting to APRA:', error);
       return { success: false };
     }
   }
@@ -200,7 +201,9 @@ export class APRAComplianceService {
 
     // Check last backup
     const lastBackup = await this.getLastBackupTime();
-    const hoursSinceBackup = lastBackup ? (Date.now() - lastBackup.getTime()) / (1000 * 60 * 60) : Infinity;
+    const hoursSinceBackup = lastBackup
+      ? (Date.now() - lastBackup.getTime()) / (1000 * 60 * 60)
+      : Infinity;
 
     if (hoursSinceBackup > 24) {
       issues.push('Backup older than 24 hours');
@@ -239,8 +242,8 @@ export class APRAComplianceService {
     // Calculate metrics
     const metrics = {
       totalIncidents: incidents.length,
-      criticalIncidents: incidents.filter(i => i.severity === IncidentSeverity.CRITICAL).length,
-      dataBreaches: incidents.filter(i => i.dataCompromised).length,
+      criticalIncidents: incidents.filter((i) => i.severity === IncidentSeverity.CRITICAL).length,
+      dataBreaches: incidents.filter((i) => i.dataCompromised).length,
       averageResolutionTime: this.calculateAverageResolutionTime(incidents),
       reportingCompliance: this.calculateReportingCompliance(incidents),
     };
@@ -256,7 +259,7 @@ export class APRAComplianceService {
       metrics,
       dataResidency,
       businessContinuity,
-      incidents: incidents.map(i => ({
+      incidents: incidents.map((i) => ({
         id: i.id,
         type: i.incidentType,
         severity: i.severity,
@@ -278,9 +281,9 @@ export class APRAComplianceService {
     // 2. Activate incident response team
     // 3. Begin automated containment procedures
     // 4. Start audit trail preservation
-    
-    console.log(`CRITICAL INCIDENT ALERT: ${incidentId}`);
-    
+
+    logger.info(`CRITICAL INCIDENT ALERT: ${incidentId}`);
+
     // Log the critical incident activation
     await prisma.aPRAIncidentReport.update({
       where: { id: incidentId },
@@ -297,8 +300,8 @@ export class APRAComplianceService {
     // In production, this would schedule a job to remind about APRA reporting
     const reportDeadline = new Date();
     reportDeadline.setHours(reportDeadline.getHours() + this.INCIDENT_REPORT_HOURS - 24); // 24hr warning
-    
-    console.log(`Regulatory reporting deadline for ${incidentId}: ${reportDeadline}`);
+
+    logger.info(`Regulatory reporting deadline for ${incidentId}: ${reportDeadline}`);
   }
 
   /**
@@ -307,9 +310,7 @@ export class APRAComplianceService {
   private static async checkDatabaseLocation(): Promise<{ compliant: boolean }> {
     // Check DATABASE_URL for region indicators
     const dbUrl = process.env.DATABASE_URL || '';
-    const isCompliant = this.ALLOWED_REGIONS.some(region => 
-      dbUrl.toLowerCase().includes(region)
-    );
+    const isCompliant = this.ALLOWED_REGIONS.some((region) => dbUrl.toLowerCase().includes(region));
 
     return { compliant: isCompliant };
   }
@@ -331,8 +332,8 @@ export class APRAComplianceService {
   private static async checkBackupLocation(): Promise<{ compliant: boolean }> {
     // Check backup configuration
     const backupRegion = process.env.BACKUP_REGION || '';
-    const isCompliant = this.ALLOWED_REGIONS.some(region => 
-      backupRegion.toLowerCase().includes(region)
+    const isCompliant = this.ALLOWED_REGIONS.some((region) =>
+      backupRegion.toLowerCase().includes(region),
     );
 
     return { compliant: isCompliant };
@@ -353,7 +354,7 @@ export class APRAComplianceService {
    * Calculate average resolution time
    */
   private static calculateAverageResolutionTime(incidents: any[]): number {
-    const resolvedIncidents = incidents.filter(i => i.resolvedAt);
+    const resolvedIncidents = incidents.filter((i) => i.resolvedAt);
     if (resolvedIncidents.length === 0) return 0;
 
     const totalTime = resolvedIncidents.reduce((sum, incident) => {
@@ -370,12 +371,12 @@ export class APRAComplianceService {
   private static calculateReportingCompliance(incidents: any[]): number {
     if (incidents.length === 0) return 100;
 
-    const compliantReports = incidents.filter(incident => {
+    const compliantReports = incidents.filter((incident) => {
       if (!incident.reportedAt) return false;
-      
+
       const reportTime = incident.reportedAt.getTime() - incident.detectedAt.getTime();
       const reportHours = reportTime / (1000 * 60 * 60);
-      
+
       return reportHours <= this.INCIDENT_REPORT_HOURS;
     });
 

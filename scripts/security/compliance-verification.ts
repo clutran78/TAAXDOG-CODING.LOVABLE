@@ -53,7 +53,6 @@ class ComplianceVerificationService {
 
       // Display summary
       this.displaySummary();
-
     } catch (error) {
       console.error('Compliance verification error:', error);
     } finally {
@@ -74,7 +73,7 @@ class ComplianceVerificationService {
       overallCompliance: 0,
       status: 'compliant',
       checks: [],
-      summary: { total: 0, compliant: 0, nonCompliant: 0, partial: 0 }
+      summary: { total: 0, compliant: 0, nonCompliant: 0, partial: 0 },
     };
 
     // APP 1: Open and transparent management
@@ -123,7 +122,7 @@ class ComplianceVerificationService {
 
     if (exists) {
       const content = await fs.promises.readFile(privacyPolicyPath, 'utf-8');
-      const hasRequiredSections = 
+      const hasRequiredSections =
         content.includes('collection') &&
         content.includes('use') &&
         content.includes('disclosure') &&
@@ -135,12 +134,13 @@ class ComplianceVerificationService {
         requirement: 'APP 1: Privacy Policy',
         category: 'Transparency',
         status: hasRequiredSections ? 'compliant' : 'partial',
-        details: hasRequiredSections ? 
-          'Comprehensive privacy policy published' : 
-          'Privacy policy missing required sections',
+        details: hasRequiredSections
+          ? 'Comprehensive privacy policy published'
+          : 'Privacy policy missing required sections',
         evidence: [privacyPolicyPath],
-        remediation: !hasRequiredSections ? 
-          'Update privacy policy to include all required APP sections' : undefined
+        remediation: !hasRequiredSections
+          ? 'Update privacy policy to include all required APP sections'
+          : undefined,
       });
     } else {
       report.checks.push({
@@ -148,7 +148,7 @@ class ComplianceVerificationService {
         category: 'Transparency',
         status: 'non_compliant',
         details: 'No privacy policy found',
-        remediation: 'Create and publish a comprehensive privacy policy'
+        remediation: 'Create and publish a comprehensive privacy policy',
       });
     }
   }
@@ -162,26 +162,29 @@ class ComplianceVerificationService {
         WHERE table_name = 'users'
       `;
 
-      const unnecessaryFields = userFields.filter((f: any) => 
-        ['social_security', 'drivers_license', 'passport'].includes(f.column_name)
+      const unnecessaryFields = userFields.filter((f: any) =>
+        ['social_security', 'drivers_license', 'passport'].includes(f.column_name),
       );
 
       report.checks.push({
         requirement: 'APP 3: Collection of solicited information',
         category: 'Data Minimization',
         status: unnecessaryFields.length === 0 ? 'compliant' : 'non_compliant',
-        details: unnecessaryFields.length === 0 ? 
-          'Only necessary information collected' : 
-          `Collecting potentially unnecessary fields: ${unnecessaryFields.map((f: any) => f.column_name).join(', ')}`,
-        remediation: unnecessaryFields.length > 0 ? 
-          'Remove collection of unnecessary personal information' : undefined
+        details:
+          unnecessaryFields.length === 0
+            ? 'Only necessary information collected'
+            : `Collecting potentially unnecessary fields: ${unnecessaryFields.map((f: any) => f.column_name).join(', ')}`,
+        remediation:
+          unnecessaryFields.length > 0
+            ? 'Remove collection of unnecessary personal information'
+            : undefined,
       });
     } catch (error) {
       report.checks.push({
         requirement: 'APP 3: Collection of solicited information',
         category: 'Data Minimization',
         status: 'partial',
-        details: 'Could not verify data collection practices'
+        details: 'Could not verify data collection practices',
       });
     }
   }
@@ -208,7 +211,7 @@ class ComplianceVerificationService {
           category: 'Consent Management',
           status: 'compliant',
           details: `Active consent tracking with ${recentConsents[0].count} consents in last 30 days`,
-          evidence: ['user_consents table']
+          evidence: ['user_consents table'],
         });
       } else {
         report.checks.push({
@@ -216,7 +219,7 @@ class ComplianceVerificationService {
           category: 'Consent Management',
           status: 'non_compliant',
           details: 'No consent tracking mechanism found',
-          remediation: 'Implement user consent tracking system'
+          remediation: 'Implement user consent tracking system',
         });
       }
     } catch (error) {
@@ -224,7 +227,7 @@ class ComplianceVerificationService {
         requirement: 'APP 3: Consent mechanisms',
         category: 'Consent Management',
         status: 'partial',
-        details: 'Could not verify consent mechanisms'
+        details: 'Could not verify consent mechanisms',
       });
     }
   }
@@ -234,45 +237,45 @@ class ComplianceVerificationService {
       encryption: await this.checkEncryption(),
       accessControl: await this.checkAccessControl(),
       monitoring: await this.checkSecurityMonitoring(),
-      backups: await this.checkBackupSecurity()
+      backups: await this.checkBackupSecurity(),
     };
 
-    const allSecure = Object.values(securityMeasures).every(v => v);
+    const allSecure = Object.values(securityMeasures).every((v) => v);
 
     report.checks.push({
       requirement: 'APP 11: Security of personal information',
       category: 'Data Security',
-      status: allSecure ? 'compliant' : 
-              Object.values(securityMeasures).some(v => v) ? 'partial' : 'non_compliant',
-      details: `Security measures: Encryption ${securityMeasures.encryption ? '✓' : '✗'}, ` +
-               `Access Control ${securityMeasures.accessControl ? '✓' : '✗'}, ` +
-               `Monitoring ${securityMeasures.monitoring ? '✓' : '✗'}, ` +
-               `Backup Security ${securityMeasures.backups ? '✓' : '✗'}`,
+      status: allSecure
+        ? 'compliant'
+        : Object.values(securityMeasures).some((v) => v)
+          ? 'partial'
+          : 'non_compliant',
+      details:
+        `Security measures: Encryption ${securityMeasures.encryption ? '✓' : '✗'}, ` +
+        `Access Control ${securityMeasures.accessControl ? '✓' : '✗'}, ` +
+        `Monitoring ${securityMeasures.monitoring ? '✓' : '✗'}, ` +
+        `Backup Security ${securityMeasures.backups ? '✓' : '✗'}`,
       evidence: ['Security validation report'],
-      remediation: !allSecure ? 'Implement missing security measures' : undefined
+      remediation: !allSecure ? 'Implement missing security measures' : undefined,
     });
   }
 
   private async checkDataAccess(report: ComplianceReport): Promise<void> {
     // Check if users can access their own data
-    const endpoints = [
-      '/api/users/profile',
-      '/api/users/export-data'
-    ];
+    const endpoints = ['/api/users/profile', '/api/users/export-data'];
 
-    const hasAccessEndpoints = endpoints.every(ep => 
-      fs.existsSync(path.join(process.cwd(), 'pages', ep + '.ts'))
+    const hasAccessEndpoints = endpoints.every((ep) =>
+      fs.existsSync(path.join(process.cwd(), 'pages', ep + '.ts')),
     );
 
     report.checks.push({
       requirement: 'APP 12: Access to personal information',
       category: 'Data Rights',
       status: hasAccessEndpoints ? 'compliant' : 'partial',
-      details: hasAccessEndpoints ? 
-        'Users can access their personal information' : 
-        'Limited data access functionality',
-      remediation: !hasAccessEndpoints ? 
-        'Implement comprehensive data access API' : undefined
+      details: hasAccessEndpoints
+        ? 'Users can access their personal information'
+        : 'Limited data access functionality',
+      remediation: !hasAccessEndpoints ? 'Implement comprehensive data access API' : undefined,
     });
   }
 
@@ -291,14 +294,14 @@ class ComplianceVerificationService {
         category: 'Data Rights',
         status: updateLogs[0].count > 0 ? 'compliant' : 'partial',
         details: `${updateLogs[0].count} profile updates in last 30 days`,
-        evidence: ['Profile update functionality']
+        evidence: ['Profile update functionality'],
       });
     } catch (error) {
       report.checks.push({
         requirement: 'APP 13: Correction of personal information',
         category: 'Data Rights',
         status: 'partial',
-        details: 'Basic correction functionality available'
+        details: 'Basic correction functionality available',
       });
     }
   }
@@ -319,25 +322,24 @@ class ComplianceVerificationService {
         requirement: 'APP 7: Direct marketing',
         category: 'Marketing',
         status: hasOptOut ? 'compliant' : 'non_compliant',
-        details: hasOptOut ? 
-          `Marketing preferences tracked, ${marketingPrefs[0].opted_out} users opted out` :
-          'No marketing preference tracking',
-        remediation: !hasOptOut ? 
-          'Implement marketing consent and opt-out mechanisms' : undefined
+        details: hasOptOut
+          ? `Marketing preferences tracked, ${marketingPrefs[0].opted_out} users opted out`
+          : 'No marketing preference tracking',
+        remediation: !hasOptOut ? 'Implement marketing consent and opt-out mechanisms' : undefined,
       });
     } catch (error) {
       report.checks.push({
         requirement: 'APP 7: Direct marketing',
         category: 'Marketing',
         status: 'partial',
-        details: 'Could not verify marketing compliance'
+        details: 'Could not verify marketing compliance',
       });
     }
   }
 
   private async checkCrossBorderDisclosure(report: ComplianceReport): Promise<void> {
     // Check data residency
-    const isAustralianHosted = 
+    const isAustralianHosted =
       process.env.DATABASE_URL?.includes('syd') ||
       process.env.DATABASE_URL?.includes('sydney') ||
       process.env.AWS_REGION === 'ap-southeast-2';
@@ -346,12 +348,13 @@ class ComplianceVerificationService {
       requirement: 'APP 8: Cross-border disclosure',
       category: 'Data Residency',
       status: isAustralianHosted ? 'compliant' : 'non_compliant',
-      details: isAustralianHosted ? 
-        'Data stored within Australia' : 
-        'Data may be stored outside Australia',
+      details: isAustralianHosted
+        ? 'Data stored within Australia'
+        : 'Data may be stored outside Australia',
       evidence: ['Infrastructure configuration'],
-      remediation: !isAustralianHosted ? 
-        'Ensure all data is stored in Australian data centers' : undefined
+      remediation: !isAustralianHosted
+        ? 'Ensure all data is stored in Australian data centers'
+        : undefined,
     });
   }
 
@@ -361,7 +364,7 @@ class ComplianceVerificationService {
       category: 'Data Handling',
       status: 'compliant',
       details: 'Procedures in place to handle unsolicited information',
-      evidence: ['Data handling procedures']
+      evidence: ['Data handling procedures'],
     });
   }
 
@@ -373,11 +376,10 @@ class ComplianceVerificationService {
       requirement: 'APP 5: Collection notification',
       category: 'Transparency',
       status: hasNotices ? 'compliant' : 'non_compliant',
-      details: hasNotices ? 
-        'Collection notices displayed at point of collection' :
-        'No collection notices found',
-      remediation: !hasNotices ? 
-        'Add collection notices to all data collection points' : undefined
+      details: hasNotices
+        ? 'Collection notices displayed at point of collection'
+        : 'No collection notices found',
+      remediation: !hasNotices ? 'Add collection notices to all data collection points' : undefined,
     });
   }
 
@@ -387,7 +389,7 @@ class ComplianceVerificationService {
       category: 'Data Usage',
       status: 'compliant',
       details: 'Data usage limited to stated purposes',
-      evidence: ['Privacy policy', 'Data usage audit']
+      evidence: ['Privacy policy', 'Data usage audit'],
     });
   }
 
@@ -405,18 +407,19 @@ class ComplianceVerificationService {
         requirement: 'APP 10: Data quality',
         category: 'Data Management',
         status: invalidData[0].count === 0 ? 'compliant' : 'partial',
-        details: invalidData[0].count === 0 ? 
-          'Data quality validation in place' :
-          `${invalidData[0].count} records with quality issues`,
-        remediation: invalidData[0].count > 0 ? 
-          'Implement data quality validation and cleanup' : undefined
+        details:
+          invalidData[0].count === 0
+            ? 'Data quality validation in place'
+            : `${invalidData[0].count} records with quality issues`,
+        remediation:
+          invalidData[0].count > 0 ? 'Implement data quality validation and cleanup' : undefined,
       });
     } catch (error) {
       report.checks.push({
         requirement: 'APP 10: Data quality',
         category: 'Data Management',
         status: 'partial',
-        details: 'Basic data quality measures in place'
+        details: 'Basic data quality measures in place',
       });
     }
   }
@@ -429,12 +432,11 @@ class ComplianceVerificationService {
       requirement: 'APP 1: Data handling procedures',
       category: 'Governance',
       status: exists ? 'compliant' : 'partial',
-      details: exists ? 
-        'Documented data handling procedures' :
-        'Data handling procedures not fully documented',
+      details: exists
+        ? 'Documented data handling procedures'
+        : 'Data handling procedures not fully documented',
       evidence: exists ? [proceduresPath] : undefined,
-      remediation: !exists ? 
-        'Document comprehensive data handling procedures' : undefined
+      remediation: !exists ? 'Document comprehensive data handling procedures' : undefined,
     });
   }
 
@@ -447,7 +449,7 @@ class ComplianceVerificationService {
       overallCompliance: 0,
       status: 'compliant',
       checks: [],
-      summary: { total: 0, compliant: 0, nonCompliant: 0, partial: 0 }
+      summary: { total: 0, compliant: 0, nonCompliant: 0, partial: 0 },
     };
 
     // PCI DSS related checks (for payment processing)
@@ -479,8 +481,10 @@ class ComplianceVerificationService {
       status: stripeWebhookSecret && stripeSecretKey ? 'compliant' : 'non_compliant',
       details: 'Stripe integration with webhook verification',
       evidence: ['Stripe configuration'],
-      remediation: !stripeWebhookSecret || !stripeSecretKey ? 
-        'Configure Stripe webhook secret and API keys' : undefined
+      remediation:
+        !stripeWebhookSecret || !stripeSecretKey
+          ? 'Configure Stripe webhook secret and API keys'
+          : undefined,
     });
   }
 
@@ -508,18 +512,19 @@ class ComplianceVerificationService {
         requirement: 'Card Data Storage',
         category: 'PCI Compliance',
         status: !storingCardData ? 'compliant' : 'non_compliant',
-        details: !storingCardData ? 
-          'No card data stored in database' :
-          'Card data found in database - PCI violation',
-        remediation: storingCardData ? 
-          'Remove all card data from database, use tokenization' : undefined
+        details: !storingCardData
+          ? 'No card data stored in database'
+          : 'Card data found in database - PCI violation',
+        remediation: storingCardData
+          ? 'Remove all card data from database, use tokenization'
+          : undefined,
       });
     } catch (error) {
       report.checks.push({
         requirement: 'Card Data Storage',
         category: 'PCI Compliance',
         status: 'partial',
-        details: 'Could not verify card data storage'
+        details: 'Could not verify card data storage',
       });
     }
   }
@@ -538,18 +543,19 @@ class ComplianceVerificationService {
         requirement: 'Financial Data Encryption',
         category: 'Data Protection',
         status: sensitiveFields[0].unencrypted === 0 ? 'compliant' : 'non_compliant',
-        details: sensitiveFields[0].unencrypted === 0 ? 
-          'All financial data encrypted' :
-          `${sensitiveFields[0].unencrypted} unencrypted financial records`,
-        remediation: sensitiveFields[0].unencrypted > 0 ? 
-          'Encrypt all financial transaction data' : undefined
+        details:
+          sensitiveFields[0].unencrypted === 0
+            ? 'All financial data encrypted'
+            : `${sensitiveFields[0].unencrypted} unencrypted financial records`,
+        remediation:
+          sensitiveFields[0].unencrypted > 0 ? 'Encrypt all financial transaction data' : undefined,
       });
     } catch (error) {
       report.checks.push({
         requirement: 'Financial Data Encryption',
         category: 'Data Protection',
         status: 'partial',
-        details: 'Financial data encryption partially implemented'
+        details: 'Financial data encryption partially implemented',
       });
     }
   }
@@ -565,23 +571,28 @@ class ComplianceVerificationService {
         WHERE created_at > NOW() - INTERVAL '7 days'
       `;
 
-      const hashPercentage = integrityChecks[0].total > 0 ?
-        (integrityChecks[0].with_hash / integrityChecks[0].total) * 100 : 0;
+      const hashPercentage =
+        integrityChecks[0].total > 0
+          ? (integrityChecks[0].with_hash / integrityChecks[0].total) * 100
+          : 0;
 
       report.checks.push({
         requirement: 'Transaction Integrity',
         category: 'Data Integrity',
-        status: hashPercentage > 90 ? 'compliant' : hashPercentage > 50 ? 'partial' : 'non_compliant',
+        status:
+          hashPercentage > 90 ? 'compliant' : hashPercentage > 50 ? 'partial' : 'non_compliant',
         details: `${hashPercentage.toFixed(1)}% of transactions have integrity hashes`,
-        remediation: hashPercentage < 90 ? 
-          'Implement transaction hashing for all financial records' : undefined
+        remediation:
+          hashPercentage < 90
+            ? 'Implement transaction hashing for all financial records'
+            : undefined,
       });
     } catch (error) {
       report.checks.push({
         requirement: 'Transaction Integrity',
         category: 'Data Integrity',
         status: 'partial',
-        details: 'Transaction integrity controls in development'
+        details: 'Transaction integrity controls in development',
       });
     }
   }
@@ -598,19 +609,25 @@ class ComplianceVerificationService {
       report.checks.push({
         requirement: 'Financial Audit Trail',
         category: 'Audit & Compliance',
-        status: financialAudits[0].count > 100 ? 'compliant' : 
-                financialAudits[0].count > 0 ? 'partial' : 'non_compliant',
+        status:
+          financialAudits[0].count > 100
+            ? 'compliant'
+            : financialAudits[0].count > 0
+              ? 'partial'
+              : 'non_compliant',
         details: `${financialAudits[0].count} financial audit entries in last 30 days`,
         evidence: ['Audit logs'],
-        remediation: financialAudits[0].count === 0 ? 
-          'Implement comprehensive financial audit logging' : undefined
+        remediation:
+          financialAudits[0].count === 0
+            ? 'Implement comprehensive financial audit logging'
+            : undefined,
       });
     } catch (error) {
       report.checks.push({
         requirement: 'Financial Audit Trail',
         category: 'Audit & Compliance',
         status: 'partial',
-        details: 'Basic audit trail implemented'
+        details: 'Basic audit trail implemented',
       });
     }
   }
@@ -618,18 +635,17 @@ class ComplianceVerificationService {
   private async checkFraudDetection(report: ComplianceReport): Promise<void> {
     // Check for fraud detection mechanisms
     const hasFraudDetection = fs.existsSync(
-      path.join(process.cwd(), 'lib/services/fraudDetectionService.ts')
+      path.join(process.cwd(), 'lib/services/fraudDetectionService.ts'),
     );
 
     report.checks.push({
       requirement: 'Fraud Detection',
       category: 'Security Controls',
       status: hasFraudDetection ? 'compliant' : 'partial',
-      details: hasFraudDetection ? 
-        'Automated fraud detection system active' :
-        'Basic fraud detection measures',
-      remediation: !hasFraudDetection ? 
-        'Implement automated fraud detection system' : undefined
+      details: hasFraudDetection
+        ? 'Automated fraud detection system active'
+        : 'Basic fraud detection measures',
+      remediation: !hasFraudDetection ? 'Implement automated fraud detection system' : undefined,
     });
   }
 
@@ -647,18 +663,21 @@ class ComplianceVerificationService {
         requirement: 'Transaction Limits',
         category: 'Risk Management',
         status: limits[0].unlimited === 0 ? 'compliant' : 'partial',
-        details: limits[0].unlimited === 0 ? 
-          'All users have transaction limits' :
-          `${limits[0].unlimited} users without transaction limits`,
-        remediation: limits[0].unlimited > 0 ? 
-          'Implement default transaction limits for all users' : undefined
+        details:
+          limits[0].unlimited === 0
+            ? 'All users have transaction limits'
+            : `${limits[0].unlimited} users without transaction limits`,
+        remediation:
+          limits[0].unlimited > 0
+            ? 'Implement default transaction limits for all users'
+            : undefined,
       });
     } catch (error) {
       report.checks.push({
         requirement: 'Transaction Limits',
         category: 'Risk Management',
         status: 'partial',
-        details: 'Transaction limit system in development'
+        details: 'Transaction limit system in development',
       });
     }
   }
@@ -672,7 +691,7 @@ class ComplianceVerificationService {
       overallCompliance: 0,
       status: 'compliant',
       checks: [],
-      summary: { total: 0, compliant: 0, nonCompliant: 0, partial: 0 }
+      summary: { total: 0, compliant: 0, nonCompliant: 0, partial: 0 },
     };
 
     // Australian data residency
@@ -687,37 +706,43 @@ class ComplianceVerificationService {
   }
 
   private async checkAustralianHosting(report: ComplianceReport): Promise<void> {
-    const dbLocation = process.env.DATABASE_URL?.includes('syd') || 
-                      process.env.DATABASE_URL?.includes('sydney');
-    const appLocation = process.env.DEPLOYMENT_REGION === 'sydney' || 
-                       process.env.DO_REGION === 'syd1';
+    const dbLocation =
+      process.env.DATABASE_URL?.includes('syd') || process.env.DATABASE_URL?.includes('sydney');
+    const appLocation =
+      process.env.DEPLOYMENT_REGION === 'sydney' || process.env.DO_REGION === 'syd1';
 
     report.checks.push({
       requirement: 'Australian Data Hosting',
       category: 'Infrastructure',
-      status: dbLocation && appLocation ? 'compliant' : 
-              dbLocation || appLocation ? 'partial' : 'non_compliant',
-      details: `Database: ${dbLocation ? 'Australia' : 'Unknown'}, ` +
-               `Application: ${appLocation ? 'Australia' : 'Unknown'}`,
+      status:
+        dbLocation && appLocation
+          ? 'compliant'
+          : dbLocation || appLocation
+            ? 'partial'
+            : 'non_compliant',
+      details:
+        `Database: ${dbLocation ? 'Australia' : 'Unknown'}, ` +
+        `Application: ${appLocation ? 'Australia' : 'Unknown'}`,
       evidence: ['Infrastructure configuration'],
-      remediation: !dbLocation || !appLocation ? 
-        'Migrate all infrastructure to Australian data centers' : undefined
+      remediation:
+        !dbLocation || !appLocation
+          ? 'Migrate all infrastructure to Australian data centers'
+          : undefined,
     });
   }
 
   private async checkBackupLocation(report: ComplianceReport): Promise<void> {
-    const backupRegion = process.env.AWS_REGION === 'ap-southeast-2' ||
-                        process.env.BACKUP_REGION === 'sydney';
+    const backupRegion =
+      process.env.AWS_REGION === 'ap-southeast-2' || process.env.BACKUP_REGION === 'sydney';
 
     report.checks.push({
       requirement: 'Backup Data Residency',
       category: 'Backup & Recovery',
       status: backupRegion ? 'compliant' : 'non_compliant',
-      details: backupRegion ? 
-        'Backups stored in Australian region' :
-        'Backups may be stored outside Australia',
-      remediation: !backupRegion ? 
-        'Configure backups to use Australian storage only' : undefined
+      details: backupRegion
+        ? 'Backups stored in Australian region'
+        : 'Backups may be stored outside Australia',
+      remediation: !backupRegion ? 'Configure backups to use Australian storage only' : undefined,
     });
   }
 
@@ -728,7 +753,7 @@ class ComplianceVerificationService {
       category: 'Content Delivery',
       status: 'partial',
       details: 'CDN configured with Australian edge locations',
-      evidence: ['CDN configuration']
+      evidence: ['CDN configuration'],
     });
   }
 
@@ -739,15 +764,16 @@ class ComplianceVerificationService {
       { name: 'BASIQ', compliant: true }, // Australian company
     ];
 
-    const allCompliant = services.every(s => s.compliant);
+    const allCompliant = services.every((s) => s.compliant);
 
     report.checks.push({
       requirement: 'Third-Party Service Compliance',
       category: 'External Services',
       status: allCompliant ? 'compliant' : 'partial',
-      details: services.map(s => `${s.name}: ${s.compliant ? '✓' : '✗'}`).join(', '),
-      remediation: !allCompliant ? 
-        'Ensure all third-party services comply with data residency requirements' : undefined
+      details: services.map((s) => `${s.name}: ${s.compliant ? '✓' : '✗'}`).join(', '),
+      remediation: !allCompliant
+        ? 'Ensure all third-party services comply with data residency requirements'
+        : undefined,
     });
   }
 
@@ -760,7 +786,7 @@ class ComplianceVerificationService {
       overallCompliance: 0,
       status: 'compliant',
       checks: [],
-      summary: { total: 0, compliant: 0, nonCompliant: 0, partial: 0 }
+      summary: { total: 0, compliant: 0, nonCompliant: 0, partial: 0 },
     };
 
     // Audit trail completeness
@@ -782,7 +808,10 @@ class ComplianceVerificationService {
         { action: 'logout', events: ['LOGOUT'] },
         { action: 'password_change', events: ['PASSWORD_CHANGE', 'PASSWORD_RESET_SUCCESS'] },
         { action: 'two_factor', events: ['TWO_FACTOR_ENABLED', 'TWO_FACTOR_DISABLED'] },
-        { action: 'account_security', events: ['ACCOUNT_LOCKED', 'ACCOUNT_UNLOCKED', 'SUSPICIOUS_ACTIVITY'] }
+        {
+          action: 'account_security',
+          events: ['ACCOUNT_LOCKED', 'ACCOUNT_UNLOCKED', 'SUSPICIOUS_ACTIVITY'],
+        },
       ];
 
       // Calculate date 7 days ago
@@ -795,35 +824,39 @@ class ComplianceVerificationService {
         const count = await this.prisma.auditLog.count({
           where: {
             event: {
-              in: events as any[]
+              in: events as any[],
             },
             createdAt: {
-              gte: sevenDaysAgo
-            }
-          }
+              gte: sevenDaysAgo,
+            },
+          },
         });
         coverage.push({ action, logged: count > 0 });
       }
 
-      const coveredActions = coverage.filter(c => c.logged).length;
+      const coveredActions = coverage.filter((c) => c.logged).length;
       const coveragePercent = (coveredActions / criticalActionsMap.length) * 100;
 
       report.checks.push({
         requirement: 'Audit Coverage',
         category: 'Logging',
-        status: coveragePercent === 100 ? 'compliant' : 
-                coveragePercent >= 80 ? 'partial' : 'non_compliant',
+        status:
+          coveragePercent === 100
+            ? 'compliant'
+            : coveragePercent >= 80
+              ? 'partial'
+              : 'non_compliant',
         details: `${coveragePercent.toFixed(0)}% of critical actions logged`,
-        evidence: coverage.map(c => `${c.action}: ${c.logged ? '✓' : '✗'}`),
-        remediation: coveragePercent < 100 ? 
-          'Implement logging for all critical actions' : undefined
+        evidence: coverage.map((c) => `${c.action}: ${c.logged ? '✓' : '✗'}`),
+        remediation:
+          coveragePercent < 100 ? 'Implement logging for all critical actions' : undefined,
       });
     } catch (error) {
       report.checks.push({
         requirement: 'Audit Coverage',
         category: 'Logging',
         status: 'partial',
-        details: 'Basic audit logging implemented'
+        details: 'Basic audit logging implemented',
       });
     }
   }
@@ -835,8 +868,11 @@ class ComplianceVerificationService {
         FROM audit_logs
       `;
 
-      const retentionDays = oldestAudit[0].oldest ? 
-        Math.floor((Date.now() - new Date(oldestAudit[0].oldest).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+      const retentionDays = oldestAudit[0].oldest
+        ? Math.floor(
+            (Date.now() - new Date(oldestAudit[0].oldest).getTime()) / (1000 * 60 * 60 * 24),
+          )
+        : 0;
 
       // Require 7 years retention for financial data
       const requiredRetention = 365 * 7;
@@ -844,18 +880,24 @@ class ComplianceVerificationService {
       report.checks.push({
         requirement: 'Audit Retention',
         category: 'Compliance',
-        status: retentionDays >= requiredRetention ? 'compliant' : 
-                retentionDays >= 365 ? 'partial' : 'non_compliant',
+        status:
+          retentionDays >= requiredRetention
+            ? 'compliant'
+            : retentionDays >= 365
+              ? 'partial'
+              : 'non_compliant',
         details: `Audit logs retained for ${retentionDays} days (required: ${requiredRetention} days)`,
-        remediation: retentionDays < requiredRetention ? 
-          'Implement 7-year audit log retention policy' : undefined
+        remediation:
+          retentionDays < requiredRetention
+            ? 'Implement 7-year audit log retention policy'
+            : undefined,
       });
     } catch (error) {
       report.checks.push({
         requirement: 'Audit Retention',
         category: 'Compliance',
         status: 'partial',
-        details: 'Audit retention policy in development'
+        details: 'Audit retention policy in development',
       });
     }
   }
@@ -871,24 +913,26 @@ class ComplianceVerificationService {
         WHERE created_at > NOW() - INTERVAL '24 hours'
       `;
 
-      const hashPercentage = integrityChecks[0].total > 0 ?
-        (integrityChecks[0].with_hash / integrityChecks[0].total) * 100 : 0;
+      const hashPercentage =
+        integrityChecks[0].total > 0
+          ? (integrityChecks[0].with_hash / integrityChecks[0].total) * 100
+          : 0;
 
       report.checks.push({
         requirement: 'Audit Integrity',
         category: 'Security',
-        status: hashPercentage === 100 ? 'compliant' : 
-                hashPercentage > 0 ? 'partial' : 'non_compliant',
+        status:
+          hashPercentage === 100 ? 'compliant' : hashPercentage > 0 ? 'partial' : 'non_compliant',
         details: `${hashPercentage.toFixed(0)}% of audit logs have integrity hashes`,
-        remediation: hashPercentage < 100 ? 
-          'Implement cryptographic hashing for all audit logs' : undefined
+        remediation:
+          hashPercentage < 100 ? 'Implement cryptographic hashing for all audit logs' : undefined,
       });
     } catch (error) {
       report.checks.push({
         requirement: 'Audit Integrity',
         category: 'Security',
         status: 'partial',
-        details: 'Basic audit integrity measures in place'
+        details: 'Basic audit integrity measures in place',
       });
     }
   }
@@ -909,15 +953,17 @@ class ComplianceVerificationService {
         status: accessLogs[0].accessor_count <= 5 ? 'compliant' : 'partial',
         details: `${accessLogs[0].accessor_count} users accessed audit logs in last 30 days`,
         evidence: ['Audit access logs'],
-        remediation: accessLogs[0].accessor_count > 5 ? 
-          'Restrict audit log access to authorized personnel only' : undefined
+        remediation:
+          accessLogs[0].accessor_count > 5
+            ? 'Restrict audit log access to authorized personnel only'
+            : undefined,
       });
     } catch (error) {
       report.checks.push({
         requirement: 'Audit Access Control',
         category: 'Security',
         status: 'compliant',
-        details: 'Audit logs access restricted to administrators'
+        details: 'Audit logs access restricted to administrators',
       });
     }
   }
@@ -957,12 +1003,14 @@ class ComplianceVerificationService {
 
   private calculateCompliance(report: ComplianceReport): void {
     report.summary.total = report.checks.length;
-    report.summary.compliant = report.checks.filter(c => c.status === 'compliant').length;
-    report.summary.nonCompliant = report.checks.filter(c => c.status === 'non_compliant').length;
-    report.summary.partial = report.checks.filter(c => c.status === 'partial').length;
+    report.summary.compliant = report.checks.filter((c) => c.status === 'compliant').length;
+    report.summary.nonCompliant = report.checks.filter((c) => c.status === 'non_compliant').length;
+    report.summary.partial = report.checks.filter((c) => c.status === 'partial').length;
 
-    report.overallCompliance = report.summary.total > 0 ?
-      Math.round((report.summary.compliant / report.summary.total) * 100) : 0;
+    report.overallCompliance =
+      report.summary.total > 0
+        ? Math.round((report.summary.compliant / report.summary.total) * 100)
+        : 0;
 
     if (report.overallCompliance >= 90) {
       report.status = 'compliant';
@@ -980,11 +1028,8 @@ class ComplianceVerificationService {
     for (const [framework, report] of this.reports) {
       const filename = `${framework.toLowerCase().replace(/\s+/g, '-')}-${format(new Date(), 'yyyy-MM-dd')}.json`;
       const filepath = path.join(reportsDir, filename);
-      
-      await fs.promises.writeFile(
-        filepath,
-        JSON.stringify(report, null, 2)
-      );
+
+      await fs.promises.writeFile(filepath, JSON.stringify(report, null, 2));
     }
   }
 
@@ -994,8 +1039,8 @@ class ComplianceVerificationService {
     console.log('='.repeat(60));
 
     for (const [framework, report] of this.reports) {
-      const emoji = report.status === 'compliant' ? '✅' :
-                   report.status === 'needs_attention' ? '⚠️' : '❌';
+      const emoji =
+        report.status === 'compliant' ? '✅' : report.status === 'needs_attention' ? '⚠️' : '❌';
 
       console.log(`\n${emoji} ${framework}`);
       console.log(`  Overall Compliance: ${report.overallCompliance}%`);
@@ -1003,10 +1048,10 @@ class ComplianceVerificationService {
       console.log(`  Checks: ${report.summary.compliant}/${report.summary.total} compliant`);
 
       // Show non-compliant items
-      const nonCompliant = report.checks.filter(c => c.status === 'non_compliant');
+      const nonCompliant = report.checks.filter((c) => c.status === 'non_compliant');
       if (nonCompliant.length > 0) {
         console.log(`  ❌ Non-compliant items:`);
-        nonCompliant.forEach(nc => {
+        nonCompliant.forEach((nc) => {
           console.log(`    - ${nc.requirement}`);
           if (nc.remediation) {
             console.log(`      → ${nc.remediation}`);

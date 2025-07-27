@@ -2,6 +2,7 @@ import { EventEmitter } from 'events';
 import sgMail from '@sendgrid/mail';
 import { resourceMonitor } from './resources';
 import { memoryLeakDetector } from './memory-leak-detector';
+import { logger } from '@/lib/logger';
 
 interface Alert {
   id: string;
@@ -44,7 +45,7 @@ export class AlertingSystem extends EventEmitter {
 
   constructor(config: AlertConfig = {}) {
     super();
-    
+
     this.config = {
       console: { enabled: true },
       ...config,
@@ -52,8 +53,8 @@ export class AlertingSystem extends EventEmitter {
         memory: { warning: 80, critical: 90 },
         cpu: { warning: 80, critical: 95 },
         disk: { warning: 80, critical: 90 },
-        ...config.thresholds
-      }
+        ...config.thresholds,
+      },
     };
 
     if (this.config.email?.enabled && this.config.email.sendGridApiKey) {
@@ -93,18 +94,23 @@ export class AlertingSystem extends EventEmitter {
 
   private async sendConsoleAlert(alert: Alert) {
     const emoji = alert.severity === 'critical' ? '🚨' : alert.severity === 'warning' ? '⚠️' : 'ℹ️';
-    const color = alert.severity === 'critical' ? '\x1b[31m' : alert.severity === 'warning' ? '\x1b[33m' : '\x1b[36m';
+    const color =
+      alert.severity === 'critical'
+        ? '\x1b[31m'
+        : alert.severity === 'warning'
+          ? '\x1b[33m'
+          : '\x1b[36m';
     const reset = '\x1b[0m';
 
-    console.log(`\n${emoji} ${color}[${alert.severity.toUpperCase()}] ${alert.title}${reset}`);
-    console.log(`Type: ${alert.type}`);
-    console.log(`Time: ${alert.timestamp.toISOString()}`);
-    console.log(`Message: ${alert.message}`);
-    
+    logger.info(`\n${emoji} ${color}[${alert.severity.toUpperCase();}] ${alert.title}${reset}`);
+    logger.info(`Type: ${alert.type}`);
+    logger.info(`Time: ${alert.timestamp.toISOString();}`);
+    logger.info(`Message: ${alert.message}`);
+
     if (alert.metadata) {
-      console.log('Details:', JSON.stringify(alert.metadata, null, 2));
+      logger.info('Details:', JSON.stringify(alert.metadata, null, 2););
     }
-    console.log('---');
+    logger.info('---');
   }
 
   private async sendEmailAlert(alert: Alert) {
@@ -123,7 +129,7 @@ export class AlertingSystem extends EventEmitter {
     try {
       await sgMail.sendMultiple(msg);
     } catch (error) {
-      console.error('Failed to send email alert:', error);
+      logger.error('Failed to send email alert:', error);
     }
   }
 
@@ -137,20 +143,20 @@ export class AlertingSystem extends EventEmitter {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...this.config.webhook.headers
+          ...this.config.webhook.headers,
         },
         body: JSON.stringify({
           alert,
           timestamp: Date.now(),
-          environment: process.env.NODE_ENV
-        })
+          environment: process.env.NODE_ENV,
+        }),
       });
 
       if (!response.ok) {
-        console.error('Webhook alert failed:', response.statusText);
+        logger.error('Webhook alert failed:', response.statusText);
       }
     } catch (error) {
-      console.error('Failed to send webhook alert:', error);
+      logger.error('Failed to send webhook alert:', error);
     }
   }
 
@@ -160,7 +166,7 @@ export class AlertingSystem extends EventEmitter {
     text += `Type: ${alert.type}\n`;
     text += `Time: ${alert.timestamp.toISOString()}\n\n`;
     text += `Message:\n${alert.message}\n\n`;
-    
+
     if (alert.metadata) {
       text += `Details:\n${JSON.stringify(alert.metadata, null, 2)}\n`;
     }
@@ -169,9 +175,12 @@ export class AlertingSystem extends EventEmitter {
   }
 
   private formatEmailHtml(alert: Alert): string {
-    const severityColor = 
-      alert.severity === 'critical' ? '#dc3545' :
-      alert.severity === 'warning' ? '#ffc107' : '#17a2b8';
+    const severityColor =
+      alert.severity === 'critical'
+        ? '#dc3545'
+        : alert.severity === 'warning'
+          ? '#ffc107'
+          : '#17a2b8';
 
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -187,12 +196,16 @@ export class AlertingSystem extends EventEmitter {
           <p style="background-color: white; padding: 10px; border-radius: 3px; border: 1px solid #dee2e6;">
             ${alert.message.replace(/\n/g, '<br>')}
           </p>
-          ${alert.metadata ? `
+          ${
+            alert.metadata
+              ? `
             <p><strong>Additional Details:</strong></p>
             <pre style="background-color: white; padding: 10px; border-radius: 3px; border: 1px solid #dee2e6; overflow-x: auto;">
 ${JSON.stringify(alert.metadata, null, 2)}
             </pre>
-          ` : ''}
+          `
+              : ''
+          }
         </div>
       </div>
     `;
@@ -208,7 +221,7 @@ ${JSON.stringify(alert.metadata, null, 2)}
   }
 
   getActiveAlerts(): Alert[] {
-    return Array.from(this.alerts.values()).filter(a => !a.resolved);
+    return Array.from(this.alerts.values()).filter((a) => !a.resolved);
   }
 
   getAllAlerts(): Alert[] {
@@ -247,9 +260,9 @@ ${JSON.stringify(alert.metadata, null, 2)}
             metrics: {
               memory: metrics.memory,
               cpu: metrics.cpu,
-              disk: metrics.disk
-            }
-          }
+              disk: metrics.disk,
+            },
+          },
         });
       }
     }, 60000); // Check every minute
@@ -269,8 +282,8 @@ ${JSON.stringify(alert.metadata, null, 2)}
           confidence: report.confidence,
           growthRate: report.growthRate,
           trend: report.trend,
-          snapshots: report.snapshots.length
-        }
+          snapshots: report.snapshots.length,
+        },
       });
     });
 
@@ -284,10 +297,10 @@ export const alertingSystem = new AlertingSystem({
   email: {
     enabled: !!process.env.SENDGRID_API_KEY,
     recipients: process.env.ALERT_RECIPIENTS?.split(',') || [],
-    sendGridApiKey: process.env.SENDGRID_API_KEY
+    sendGridApiKey: process.env.SENDGRID_API_KEY,
   },
   webhook: {
     enabled: !!process.env.ALERT_WEBHOOK_URL,
-    url: process.env.ALERT_WEBHOOK_URL || ''
-  }
+    url: process.env.ALERT_WEBHOOK_URL || '',
+  },
 });

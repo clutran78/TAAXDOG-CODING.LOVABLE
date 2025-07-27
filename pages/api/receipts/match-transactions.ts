@@ -6,7 +6,7 @@ import { apiResponse } from '@/lib/api/response';
 import {
   autoMatchReceipts,
   findMatchingTransaction,
-} from '../../../lib/receipt-transaction-matching';
+} from '../../../lib/services/receipts/receipt-transaction-matching';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {

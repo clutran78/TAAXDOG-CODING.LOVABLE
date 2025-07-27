@@ -6,6 +6,7 @@ import BankConnectionWidget from '@/components/basiq/BankConnectionWidget';
 import AccountSummary from '@/components/basiq/AccountSummary';
 import TransactionList from '@/components/basiq/TransactionList';
 import { Tab } from '@headlessui/react';
+import { logger } from '@/lib/logger';
 
 function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ');
@@ -37,7 +38,8 @@ export default function BankingPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Banking & Transactions</h1>
           <p className="mt-2 text-gray-600">
-            Connect your Australian bank accounts to automatically import and categorize transactions for tax purposes.
+            Connect your Australian bank accounts to automatically import and categorize
+            transactions for tax purposes.
           </p>
         </div>
 
@@ -52,7 +54,7 @@ export default function BankingPage() {
                     'ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2',
                     selected
                       ? 'bg-white text-blue-700 shadow'
-                      : 'text-blue-100 hover:bg-white/[0.12] hover:text-white'
+                      : 'text-blue-100 hover:bg-white/[0.12] hover:text-white',
                   )
                 }
               >
@@ -67,13 +69,13 @@ export default function BankingPage() {
             </Tab.Panel>
 
             <Tab.Panel>
-              <BankConnectionWidget 
+              <BankConnectionWidget
                 onConnectionSuccess={() => {
                   // Refresh the page or show success message
                   window.location.reload();
                 }}
                 onConnectionError={(error) => {
-                  console.error('Connection error:', error);
+                  logger.error('Connection error:', error);
                 }}
               />
             </Tab.Panel>
@@ -93,10 +95,10 @@ export default function BankingPage() {
                 </div>
 
                 {selectedAccountId && (
-                  <TransactionList 
+                  <TransactionList
                     accountId={selectedAccountId}
                     onTransactionUpdate={(transactionId, updates) => {
-                      console.log('Transaction updated:', transactionId, updates);
+                      logger.info('Transaction updated:', transactionId, updates);
                     }}
                   />
                 )}
@@ -110,7 +112,9 @@ export default function BankingPage() {
           <h3 className="text-lg font-semibold text-blue-900 mb-2">Bank-Level Security</h3>
           <ul className="space-y-2 text-blue-800">
             <li>• Your banking credentials are encrypted and transmitted directly to your bank</li>
-            <li>• We use BASIQ's secure API infrastructure compliant with Australian banking standards</li>
+            <li>
+              • We use BASIQ's secure API infrastructure compliant with Australian banking standards
+            </li>
             <li>• We never store your banking passwords on our servers</li>
             <li>• All data is stored in Australian data centers in compliance with privacy laws</li>
             <li>• You can revoke access at any time through your bank's security settings</li>

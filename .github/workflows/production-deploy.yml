@@ -2,11 +2,11 @@ name: 🚀 TAAXDOG Production Deployment
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   release:
-    types: [ published ]
+    types: [published]
 
 env:
   PYTHON_VERSION: '3.11'
@@ -31,19 +31,19 @@ jobs:
       - name: Install security tools
         run: |
           pip install bandit safety semgrep
-          
+
       - name: Run Bandit security scan
         run: |
           bandit -r backend/ -f json -o bandit-report.json || true
-          
+
       - name: Run Safety dependency scan
         run: |
           safety check --json --output safety-report.json || true
-          
+
       - name: Run Semgrep SAST scan
         run: |
           semgrep --config=auto backend/ --json --output=semgrep-report.json || true
-          
+
       - name: Upload security reports
         uses: actions/upload-artifact@v3
         with:
@@ -333,7 +333,7 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H $PRODUCTION_SERVER >> ~/.ssh/known_hosts
-          
+
           # Deploy using docker-compose
           ssh -o StrictHostKeyChecking=no root@$PRODUCTION_SERVER << EOF
             # Pull latest image
@@ -370,16 +370,16 @@ jobs:
         run: |
           # Wait for deployment to settle
           sleep 60
-          
+
           # Comprehensive health check
           response=$(curl -s -w "%{http_code}" $PRODUCTION_URL/api/health/status)
           http_code="${response: -3}"
-          
+
           if [ "$http_code" != "200" ]; then
             echo "Production health check failed with status $http_code"
             exit 1
           fi
-          
+
           echo "✅ Production deployment successful!"
 
       - name: Update monitoring
@@ -420,7 +420,7 @@ jobs:
             
             sleep 30
           done
-          
+
           echo "✅ Post-deployment monitoring completed"
 
       - name: Generate deployment report
@@ -454,4 +454,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: deployment-report
-          path: deployment-report.md 
+          path: deployment-report.md

@@ -12,7 +12,7 @@ const prisma = new PrismaClient();
  */
 async function runPrivacyMonitoring() {
   console.log('Starting privacy compliance monitoring...');
-  
+
   try {
     // 1. Check for expiring consents
     const sevenDaysFromNow = addDays(new Date(), 7);
@@ -37,9 +37,11 @@ async function runPrivacyMonitoring() {
 
     if (expiringConsents.length > 0) {
       console.log(`\n⚠️  ${expiringConsents.length} consents expiring within 7 days:`);
-      expiringConsents.forEach(consent => {
+      expiringConsents.forEach((consent) => {
         const daysUntilExpiry = differenceInDays(consent.expiryDate!, new Date());
-        console.log(`  - User: ${consent.user.email} | Type: ${consent.consentType} | Expires in: ${daysUntilExpiry} days`);
+        console.log(
+          `  - User: ${consent.user.email} | Type: ${consent.consentType} | Expires in: ${daysUntilExpiry} days`,
+        );
       });
     }
 
@@ -72,9 +74,11 @@ async function runPrivacyMonitoring() {
 
     if (overdueRequests.length > 0) {
       console.log(`\n🚨 ${overdueRequests.length} OVERDUE data requests:`);
-      overdueRequests.forEach(request => {
+      overdueRequests.forEach((request) => {
         const daysOverdue = differenceInDays(new Date(), request.dueDate);
-        console.log(`  - Request: ${request.id} | Type: ${request.requestType} | User: ${request.user.email} | Overdue by: ${daysOverdue} days`);
+        console.log(
+          `  - Request: ${request.id} | Type: ${request.requestType} | User: ${request.user.email} | Overdue by: ${daysOverdue} days`,
+        );
       });
     }
 
@@ -124,13 +128,12 @@ async function runPrivacyMonitoring() {
       distinct: ['userId'],
     });
 
-    const consentRate = (usersWithConsent.length / totalUsers * 100).toFixed(2);
+    const consentRate = ((usersWithConsent.length / totalUsers) * 100).toFixed(2);
 
     console.log('\n📊 Privacy Compliance Summary:');
     console.log(`- Total users: ${totalUsers}`);
     console.log(`- Users with valid privacy consent: ${usersWithConsent.length} (${consentRate}%)`);
     console.log(`- Monitoring completion: ${new Date().toISOString()}`);
-
   } catch (error) {
     console.error('Privacy monitoring error:', error);
     process.exit(1);

@@ -1,48 +1,49 @@
-import { useState, useEffect } from "react";
-import { signIn, useSession } from "next-auth/react";
-import { useRouter } from "next/router";
-import Link from "next/link";
-import Head from "next/head";
+import { useState, useEffect } from 'react';
+import { signIn, useSession } from 'next-auth/react';
+import { useRouter } from 'next/router';
+import Link from 'next/link';
+import Head from 'next/head';
+import { logger } from '@/lib/logger';
 
 export default function SimpleLoginPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     // If already logged in, redirect to dashboard
-    if (session && status === "authenticated") {
-      router.push("/dashboard");
+    if (session && status === 'authenticated') {
+      router.push('/dashboard');
     }
   }, [session, status, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setError('');
     setLoading(true);
 
     try {
-      const result = await signIn("credentials", {
+      const result = await signIn('credentials', {
         email,
         password,
         redirect: false,
       });
 
-      console.log("Login result:", result); // Debug log
+      logger.info('Login result:', result); // Debug log
 
       if (result?.error) {
-        setError(result.error === "CredentialsSignin" ? "Invalid email or password" : result.error);
+        setError(result.error === 'CredentialsSignin' ? 'Invalid email or password' : result.error);
       } else if (result?.ok) {
         // Successful login
-        window.location.href = "/dashboard"; // Force redirect
+        window.location.href = '/dashboard'; // Force redirect
       } else {
-        setError("Login failed. Please try again.");
+        setError('Login failed. Please try again.');
       }
     } catch (err) {
-      setError("An error occurred. Please try again.");
+      setError('An error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -57,8 +58,11 @@ export default function SimpleLoginPage() {
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
           <h2 className="text-2xl font-bold text-center mb-6">Login</h2>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
+
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-4"
+          >
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
                 {error}
@@ -66,9 +70,7 @@ export default function SimpleLoginPage() {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
               <input
                 type="email"
                 required
@@ -80,9 +82,7 @@ export default function SimpleLoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
               <input
                 type="password"
                 required
@@ -98,17 +98,23 @@ export default function SimpleLoginPage() {
               disabled={loading}
               className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-blue-400 transition duration-200"
             >
-              {loading ? "Logging in..." : "Login"}
+              {loading ? 'Logging in...' : 'Login'}
             </button>
           </form>
 
           <div className="mt-6 text-center space-y-2">
-            <Link href="/auth/forgot-password" className="text-sm text-blue-600 hover:underline block">
+            <Link
+              href="/auth/forgot-password"
+              className="text-sm text-blue-600 hover:underline block"
+            >
               Forgot your password?
             </Link>
             <p className="text-sm text-gray-600">
-              Don't have an account?{" "}
-              <Link href="/auth/simple-register" className="text-blue-600 hover:underline">
+              Don't have an account?{' '}
+              <Link
+                href="/auth/simple-register"
+                className="text-blue-600 hover:underline"
+              >
                 Sign up
               </Link>
             </p>

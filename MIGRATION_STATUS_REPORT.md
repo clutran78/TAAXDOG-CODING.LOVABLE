@@ -5,7 +5,8 @@
 
 ## Executive Summary
 
-The Firebase to PostgreSQL migration cannot be completed due to Firebase authentication issues. The production PostgreSQL database is ready but empty.
+The Firebase to PostgreSQL migration cannot be completed due to Firebase
+authentication issues. The production PostgreSQL database is ready but empty.
 
 ## Current Status
 
@@ -34,9 +35,11 @@ The Firebase to PostgreSQL migration cannot be completed due to Firebase authent
 ### ❌ Blocked Issues
 
 1. **Firebase Authentication Failure:**
+
    ```
    Error: 16 UNAUTHENTICATED: Request had invalid authentication credentials
    ```
+
    - Service account JSON file exists but credentials are not valid
    - All Firebase collections are inaccessible
    - 0 documents exported from Firebase
@@ -49,8 +52,9 @@ The Firebase to PostgreSQL migration cannot be completed due to Firebase authent
 ## Technical Details
 
 ### Firebase Collections to Export:
+
 - users
-- bankAccounts  
+- bankAccounts
 - transactions
 - receipts
 - budgets
@@ -58,6 +62,7 @@ The Firebase to PostgreSQL migration cannot be completed due to Firebase authent
 - financialInsights
 
 ### PostgreSQL Tables Ready:
+
 - users
 - accounts (OAuth)
 - subscriptions
@@ -71,7 +76,9 @@ The Firebase to PostgreSQL migration cannot be completed due to Firebase authent
 - verification_tokens
 
 ### Missing BASIQ Tables:
+
 The current schema doesn't include BASIQ-specific tables:
+
 - basiq_users
 - bank_accounts
 - bank_transactions
@@ -79,13 +86,17 @@ The current schema doesn't include BASIQ-specific tables:
 ## Next Steps Required
 
 ### 1. Fix Firebase Authentication
+
 You need to:
+
 - Verify the Firebase project ID is correct: `taaxdog-coding`
 - Regenerate the service account key from Firebase Console
 - Update `/config/firebase-adminsdk.json` with new credentials
 
 ### 2. Update Database Schema (Optional)
+
 If BASIQ integration is needed:
+
 ```sql
 -- Add BASIQ tables
 CREATE TABLE basiq_users (...);
@@ -94,7 +105,9 @@ CREATE TABLE bank_transactions (...);
 ```
 
 ### 3. Run Migration Pipeline
+
 Once Firebase is accessible:
+
 ```bash
 # Export from Firebase
 npm run firebase:export
@@ -110,6 +123,7 @@ npm run migration:validate
 ```
 
 Or run complete pipeline:
+
 ```bash
 npm run migration:complete
 ```
@@ -117,16 +131,19 @@ npm run migration:complete
 ## Available Commands
 
 ### Quick Verification
+
 ```bash
 npm run verify:quick
 ```
 
 ### Full Verification
+
 ```bash
 npm run verify:full
 ```
 
 ### Individual Checks
+
 ```bash
 npm run verify:counts
 npm run verify:relationships
@@ -143,6 +160,9 @@ npm run verify:compliance
 
 ## Conclusion
 
-The migration infrastructure is fully prepared and tested. The only blocking issue is Firebase authentication. Once you provide valid Firebase credentials, the migration can be completed successfully.
+The migration infrastructure is fully prepared and tested. The only blocking
+issue is Firebase authentication. Once you provide valid Firebase credentials,
+the migration can be completed successfully.
 
-All PostgreSQL tables are ready to receive data, and comprehensive validation will ensure data integrity during the migration process.
+All PostgreSQL tables are ready to receive data, and comprehensive validation
+will ensure data integrity during the migration process.

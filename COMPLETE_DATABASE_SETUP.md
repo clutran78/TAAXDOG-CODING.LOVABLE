@@ -2,9 +2,13 @@
 
 ## ⚠️ SECURITY NOTICE
 
-**IMPORTANT**: All credentials in this document have been replaced with placeholders for security. Never commit actual database passwords to version control. Store them securely in environment variables or secret management systems.
+**IMPORTANT**: All credentials in this document have been replaced with
+placeholders for security. Never commit actual database passwords to version
+control. Store them securely in environment variables or secret management
+systems.
 
 ## Database Status
+
 - **Database**: Successfully created and configured
 - **Tables**: All tables created with proper relationships
 - **Permissions**: Full access granted to taaxdog-admin
@@ -14,30 +18,32 @@
 ## Connection Details
 
 ### Production Connection (VERIFIED WORKING)
+
 ```javascript
 const { Pool } = require('pg');
 
 const pool = new Pool({
   host: 'taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com',
-  port: 25060,  // Direct connection port
+  port: 25060, // Direct connection port
   user: 'taaxdog-admin',
-  password: '[DATABASE_PASSWORD]',  // Store in environment variable
+  password: '[DATABASE_PASSWORD]', // Store in environment variable
   database: 'taaxdog-production',
   ssl: {
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   },
   min: 5,
-  max: 20
+  max: 20,
 });
 ```
 
 ### Environment Variables
+
 ```env
 # .env.production
 DATABASE_URL=postgresql://taaxdog-admin:[DATABASE_PASSWORD]@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production
 DATABASE_SSL_REQUIRED=true
 
-# .env.development  
+# .env.development
 DATABASE_URL=postgresql://genesis@localhost:5432/taaxdog_development
 DATABASE_SSL_REQUIRED=false
 ```
@@ -45,6 +51,7 @@ DATABASE_SSL_REQUIRED=false
 ## Database Schema
 
 ### Tables Created
+
 1. **users**
    - id (UUID, primary key)
    - email (unique)
@@ -74,6 +81,7 @@ DATABASE_SSL_REQUIRED=false
    - Database version control
 
 ### Features Implemented
+
 - ✅ Automatic timestamp updates via triggers
 - ✅ Indexes for performance
 - ✅ Foreign key constraints
@@ -83,6 +91,7 @@ DATABASE_SSL_REQUIRED=false
 ## Using the Database in Your Application
 
 ### Next.js API Route Example
+
 ```typescript
 // pages/api/users/create.ts
 import { Pool } from 'pg';
@@ -93,12 +102,12 @@ const pool = new Pool(getDatabaseConfig('production', 'direct'));
 export default async function handler(req, res) {
   try {
     const { email, name } = req.body;
-    
+
     const result = await pool.query(
       'INSERT INTO users (email, name) VALUES ($1, $2) RETURNING *',
-      [email, name]
+      [email, name],
     );
-    
+
     res.status(201).json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -107,23 +116,24 @@ export default async function handler(req, res) {
 ```
 
 ### With Transactions
+
 ```typescript
 const client = await pool.connect();
 try {
   await client.query('BEGIN');
-  
+
   // Insert user
   const userResult = await client.query(
     'INSERT INTO users (email, name) VALUES ($1, $2) RETURNING id',
-    [email, name]
+    [email, name],
   );
-  
+
   // Create subscription
   await client.query(
     'INSERT INTO subscriptions (user_id, plan_type, status) VALUES ($1, $2, $3)',
-    [userResult.rows[0].id, 'smart', 'active']
+    [userResult.rows[0].id, 'smart', 'active'],
   );
-  
+
   await client.query('COMMIT');
 } catch (e) {
   await client.query('ROLLBACK');
@@ -136,16 +146,19 @@ try {
 ## Maintenance Scripts
 
 ### Check Database Health
+
 ```bash
 node verify-database.js
 ```
 
 ### Run Migrations
+
 ```bash
 npm run migrate up
 ```
 
 ### Test Connection
+
 ```bash
 node test-database.js production
 ```
@@ -153,10 +166,12 @@ node test-database.js production
 ## Connection Pool Notes
 
 DigitalOcean provides two ports:
+
 - **Port 25060**: Direct connections (use this)
 - **Port 25061**: Connection pooling (requires different setup)
 
-We're using port 25060 with Node.js pg library's built-in connection pooling, which works perfectly.
+We're using port 25060 with Node.js pg library's built-in connection pooling,
+which works perfectly.
 
 ## Security Reminders
 
@@ -168,6 +183,7 @@ We're using port 25060 with Node.js pg library's built-in connection pooling, wh
 ## 🎉 Your Database is Production Ready!
 
 All systems are operational. You can now:
+
 - Store user data securely
 - Manage Stripe subscriptions
 - Handle tax returns with JSONB flexibility

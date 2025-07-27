@@ -9,6 +9,7 @@ Before setting up automated monitoring, test that everything works:
 ```
 
 This will:
+
 - Run each monitoring script once
 - Show you any errors
 - Create log files in the `logs/` directory
@@ -18,6 +19,7 @@ This will:
 ### Option A: Using Cron (Traditional)
 
 1. Open crontab:
+
    ```bash
    crontab -e
    ```
@@ -34,16 +36,19 @@ This will:
 ### Option B: Using PM2 (Recommended for Production)
 
 1. Install PM2:
+
    ```bash
    npm install -g pm2
    ```
 
 2. Start with the ecosystem file:
+
    ```bash
    pm2 start ecosystem.config.js
    ```
 
 3. Save PM2 configuration:
+
    ```bash
    pm2 save
    pm2 startup
@@ -85,16 +90,19 @@ This will:
 ## 4. Monitor Your System
 
 ### Daily Checks:
+
 - Review logs: `ls -la logs/`
 - Check for alerts: `npm run compliance:check-alerts`
 - View recent AML flags: Check database or admin dashboard
 
 ### Weekly Tasks:
+
 - Review compliance summary
 - Check backup status
 - Verify cron/PM2 is running
 
 ### Monthly Tasks:
+
 - Review compliance report (generated automatically on 1st)
 - Update any changed thresholds
 - Train new staff if needed
@@ -102,6 +110,7 @@ This will:
 ## 5. Test Everything is Working
 
 ### Manual Test Commands:
+
 ```bash
 # Test individual features
 npm run compliance:aml        # Should check recent transactions
@@ -113,6 +122,7 @@ npx ts-node --project tsconfig.node.json scripts/test-compliance-features.ts
 ```
 
 ### Check Logs:
+
 ```bash
 # View recent logs
 tail -f logs/compliance-all.log
@@ -125,12 +135,14 @@ grep -i error logs/*.log
 ## Quick Reference
 
 ### 📁 Important Files:
+
 - `.env` - Your configuration
 - `logs/` - All monitoring output
 - `compliance-reports/` - Monthly reports
 - `ecosystem.config.js` - PM2 configuration
 
 ### 🔧 Useful Commands:
+
 ```bash
 # Test compliance features
 npm run test-compliance
@@ -146,6 +158,7 @@ npm run compliance:check-alerts
 ```
 
 ### 📚 Documentation:
+
 - Admin procedures: `docs/ADMIN_COMPLIANCE_TRAINING.md`
 - API setup: `PRODUCTION_API_SETUP.md`
 - Feature overview: `docs/COMPLIANCE.md`
@@ -159,4 +172,6 @@ npm run compliance:check-alerts
 
 ---
 
-Remember: The system is currently in **TEST MODE**. External API calls are disabled until you set `COMPLIANCE_TEST_MODE=false` and add real API credentials.
+Remember: The system is currently in **TEST MODE**. External API calls are
+disabled until you set `COMPLIANCE_TEST_MODE=false` and add real API
+credentials.

@@ -72,7 +72,7 @@ async function budgetsHandler(req: AuthenticatedRequest, res: NextApiResponse) {
           },
         },
       })
-      .catch((err) => logger.error('Audit log error:', err););
+      .catch((err) => logger.error('Audit log error:', err));
 
     switch (req.method) {
       case 'GET':
@@ -270,7 +270,7 @@ async function handlePost(req: AuthenticatedRequest, res: NextApiResponse, userI
           },
         },
       })
-      .catch((err) => logger.error('Audit log error:', err););
+      .catch((err) => logger.error('Audit log error:', err));
 
     // Set security headers
     res.setHeader('Cache-Control', 'private, no-store, must-revalidate');
@@ -304,7 +304,7 @@ async function handlePost(req: AuthenticatedRequest, res: NextApiResponse, userI
           },
         },
       })
-      .catch((err) => logger.error('Audit log error:', err););
+      .catch((err) => logger.error('Audit log error:', err));
 
     return apiResponse.internalError(res, {
       error: 'Failed to create budget',

@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
@@ -24,7 +24,7 @@ export function DarkModeProvider({ children }: { children: React.ReactNode }) {
     const newMode = !darkMode;
     setDarkMode(newMode);
     localStorage.setItem('darkMode', JSON.stringify(newMode));
-    
+
     // Apply dark mode class to document
     if (newMode) {
       document.documentElement.classList.add('dark');

@@ -1,20 +1,20 @@
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/router";
-import Link from "next/link";
-import Head from "next/head";
-import { useEffect } from "react";
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/router';
+import Link from 'next/link';
+import Head from 'next/head';
+import { useEffect } from 'react';
 
 export default function WelcomePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/auth/login");
+    if (status === 'unauthenticated') {
+      router.push('/auth/login');
     }
   }, [status, router]);
 
-  if (status === "loading") {
+  if (status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -29,7 +29,10 @@ export default function WelcomePage() {
     <>
       <Head>
         <title>Welcome to TaxReturnPro</title>
-        <meta name="description" content="Welcome to your TaxReturnPro account" />
+        <meta
+          name="description"
+          content="Welcome to your TaxReturnPro account"
+        />
       </Head>
 
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -52,7 +55,7 @@ export default function WelcomePage() {
                 </svg>
               </div>
               <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-                Welcome to TaxReturnPro, {session?.user?.name || "Tax Professional"}!
+                Welcome to TaxReturnPro, {session?.user?.name || 'Tax Professional'}!
               </h2>
               <p className="mt-2 text-lg text-gray-600">
                 Your account has been successfully created.
@@ -125,7 +128,10 @@ export default function WelcomePage() {
 
             <div className="mt-8 text-center text-sm text-gray-600">
               <p>Need help? Contact our support team at</p>
-              <a href="mailto:support@taxreturnpro.com.au" className="text-blue-600 hover:text-blue-500">
+              <a
+                href="mailto:support@taxreturnpro.com.au"
+                className="text-blue-600 hover:text-blue-500"
+              >
                 support@taxreturnpro.com.au
               </a>
             </div>

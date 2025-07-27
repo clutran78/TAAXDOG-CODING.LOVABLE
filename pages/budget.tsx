@@ -8,7 +8,10 @@ const BudgetPage: NextPage = () => {
     <>
       <Head>
         <title>Budget & Insights - TaxReturnPro</title>
-        <meta name="description" content="AI-powered budget management and financial insights" />
+        <meta
+          name="description"
+          content="AI-powered budget management and financial insights"
+        />
       </Head>
       <BudgetDashboard />
     </>

@@ -1,65 +1,126 @@
-"use client";
-import React, { useEffect, useState } from "react";
+'use client';
+import React, { useEffect, useState, useCallback, useMemo, memo } from 'react';
+import dynamic from 'next/dynamic';
+import { logger } from '@/lib/logger';
 import {
   formatCurrency,
   loadIncomeDetails,
   setupFinancialFeatureHandlers,
   updateBankConnectionsDisplay,
-} from "@/services/helperFunction";
-import AlertMessage from "@/shared/alerts";
-import NetIncomeModal from "@/shared/modals/NetIncomeModal";
-import NetBalanceDetails from "@/shared/modals/NetBalanceDetailsModal";
-import SubscriptionsModal from "@/shared/modals/ManageSubscriptionsModal";
-import GoalsDashboardCard from "../Goal/GoalDashboardCard";
-import GoalsModal from "../Goal/DashboardGoalModal";
-import Cookies from "js-cookie";
-import { getData } from "@/services/api/apiController";
-import StatCard from "./stats-card";
-import BankAccountsCard from "./bank-accounts-card";
+} from '@/lib/utils/helpers';
+import AlertMessage from '@/shared/alerts';
+import GoalsDashboardCard from '../Goal/GoalDashboardCard';
+import Cookies from 'js-cookie';
+import { getData } from '@/lib/services/api/apiController';
+import StatCard from './StatsCard';
+import BankAccountsCard from './BankAccountsCard';
 import {
   fetchBankTransactions,
   fetchSubscriptions,
-} from "@/services/firebase-service";
+} from '@/lib/services/firebase/firebase-service';
+import { lazyLoadModal } from '@/lib/utils/lazyLoad';
+
+// Lazy load modals - they're not needed on initial page load
+const NetIncomeModal = lazyLoadModal(() => import('@/shared/modals/NetIncomeModal'));
+
+const NetBalanceDetails = lazyLoadModal(() => import('@/shared/modals/NetBalanceDetailsModal'));
+
+const SubscriptionsModal = lazyLoadModal(() => import('@/shared/modals/ManageSubscriptionsModal'));
+
+const GoalsModal = lazyLoadModal(() => import('../Goal/DashboardGoalModal'));
+
+// Memoized components
+const MemoizedStatCard = memo(StatCard);
+const MemoizedBankAccountsCard = memo(BankAccountsCard);
+const MemoizedGoalsDashboardCard = memo(GoalsDashboardCard);
+const MemoizedAlertMessage = memo(AlertMessage);
+
+// Types for better type safety and performance
+interface TransactionData {
+  income: string;
+  expenses: string;
+  netBalance: string;
+  subscriptions: string;
+  activeSubscriptions: number;
+}
+
+interface Alert {
+  message: string;
+  type: string;
+}
+
+// Constants outside component to prevent recreation
+const INITIAL_TRANSACTIONS: TransactionData = {
+  income: '$0.00',
+  expenses: '$0.00',
+  netBalance: '$0.00',
+  subscriptions: '$0.00',
+  activeSubscriptions: 0,
+};
+
+// Utility function for subscription calculation (pure function)
+const calculateMonthlyCost = (amount: number, frequency: string): number => {
+  switch (frequency) {
+    case 'yearly':
+      return amount / 12;
+    case 'quarterly':
+      return amount / 3;
+    case 'weekly':
+      return amount * 4.33;
+    default:
+      return amount; // monthly
+  }
+};
 
 const GridBoxes = () => {
-  const [showNetIncomeModal, setShowNetIncomeModal] = useState(false);
-  const [showFullGoalsModal, setShowFullGoalsModal] = useState(false);
+  // State consolidation
+  const [modals, setModals] = useState({
+    netIncome: false,
+    fullGoals: false,
+    netBalanceDetails: false,
+  });
 
   const [connections, setConnections] = useState([]);
   const [connectionLoading, setConnectionLoading] = useState(false);
   const [connectionError, setConnectionError] = useState<any>(null);
-  const [transactions, setTransactions] = useState({
-    income: "$0.00",
-    expenses: "$0.00",
-    netBalance: "$0.00",
-    subscriptions: "$0.00",
-    activeSubscriptions: 0,
-  });
-
-  const [alert, setAlert] = useState<{ message: string; type: string } | null>(
-    null
-  );
+  const [transactions, setTransactions] = useState<TransactionData>(INITIAL_TRANSACTIONS);
+  const [alert, setAlert] = useState<Alert | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const [showNetBalanceDetailsModal, setShowNetBalanceDetailsModal] =
-    useState(false);
-
-  useEffect(() => {
-    if (showNetIncomeModal) {
-      loadIncomeDetails();
-    }
-  }, [showNetIncomeModal]);
-
-  useEffect(() => {
-    fetchConnections();
-    loadSubscriptions();
-    getBankTransactions();
+  // Memoized modal handlers
+  const toggleModal = useCallback((modalName: keyof typeof modals, value: boolean) => {
+    setModals((prev) => ({ ...prev, [modalName]: value }));
   }, []);
 
-  const fetchConnections = async () => {
-    const token = Cookies.get("auth-token");
+  const handleShowNetIncomeModal = useCallback(() => {
+    toggleModal('netIncome', true);
+  }, [toggleModal]);
+
+  const handleCloseNetIncomeModal = useCallback(() => {
+    toggleModal('netIncome', false);
+  }, [toggleModal]);
+
+  const handleShowNetBalanceDetails = useCallback(() => {
+    toggleModal('netBalanceDetails', true);
+  }, [toggleModal]);
+
+  const handleCloseNetBalanceDetails = useCallback(() => {
+    toggleModal('netBalanceDetails', false);
+  }, [toggleModal]);
+
+  const handleCloseGoalsModal = useCallback(() => {
+    toggleModal('fullGoals', false);
+  }, [toggleModal]);
+
+  const handleOpenGoalsModal = useCallback(() => {
+    toggleModal('fullGoals', true);
+  }, [toggleModal]);
+
+  // Optimized fetch connections
+  const fetchConnections = useCallback(async () => {
+    const token = Cookies.get('auth-token');
     if (!token) {
-      setConnectionError("Not authenticated");
+      setConnectionError('Not authenticated');
       return;
     }
 
@@ -73,43 +134,30 @@ const GridBoxes = () => {
         },
       };
 
-      const res = await getData("/api/banking/accounts", config);
+      const res = await getData('/api/banking/accounts', config);
 
       if (res.success) {
         setConnections(res.accounts?.data || []);
       } else {
-        setConnectionError(res.error || "Failed to load connections");
+        setConnectionError(res.error || 'Failed to load connections');
       }
     } catch (err: any) {
-      setConnectionError(err?.error || "Something went wrong");
+      setConnectionError(err?.error || 'Something went wrong');
     } finally {
       setConnectionLoading(false);
     }
-  };
+  }, []);
 
-  const loadSubscriptions = async () => {
+  // Optimized load subscriptions with memoized calculation
+  const loadSubscriptions = useCallback(async () => {
     try {
       const subscriptions = await fetchSubscriptions();
-      let totalMonthlyCost = 0;
 
-      subscriptions.forEach((subscription) => {
-        let amount = parseFloat(subscription.amount || 0);
-        if (isNaN(amount)) amount = 0;
-
-        switch (subscription.frequency) {
-          case "yearly":
-            amount = amount / 12;
-            break;
-          case "quarterly":
-            amount = amount / 3;
-            break;
-          case "weekly":
-            amount = amount * 4.33;
-            break;
-        }
-
-        totalMonthlyCost += amount;
-      });
+      // Use reduce for single pass calculation
+      const totalMonthlyCost = subscriptions.reduce((total, subscription) => {
+        const amount = parseFloat(subscription.amount || '0') || 0;
+        return total + calculateMonthlyCost(amount, subscription.frequency);
+      }, 0);
 
       setTransactions((prev) => ({
         ...prev,
@@ -117,40 +165,37 @@ const GridBoxes = () => {
         activeSubscriptions: subscriptions.length,
       }));
 
+      // These should ideally be moved to a separate effect or called once
       setupFinancialFeatureHandlers();
       updateBankConnectionsDisplay();
-      // updateSubscriptionDisplays(subscriptions);
     } catch (error) {
-      console.error("Failed to load subscriptions:", error);
+      logger.error('Failed to load subscriptions:', error);
     }
-  };
+  }, []);
 
-  const handleShowNetIncomeModal = () => setShowNetIncomeModal(true);
-
-  const handleCloseNetIncomeModal = () => setShowNetIncomeModal(false);
-
-  const handleShowNetBalanceDetails = () => setShowNetBalanceDetailsModal(true);
-
-  const handleCloseNetBalanceDetails = () =>
-    setShowNetBalanceDetailsModal(false);
-
-  const getBankTransactions = async () => {
+  // Optimized bank transactions with single reduce pass
+  const getBankTransactions = useCallback(async () => {
     try {
       setLoading(true);
       const transactions = await fetchBankTransactions();
+
       if (transactions.length === 0) {
         return;
       }
 
-      const income = transactions.reduce((sum, tx) => {
-        const amount = parseFloat(tx.amount || "0");
-        return sum + (amount > 0 ? amount : 0);
-      }, 0);
-
-      const expenses = transactions.reduce((sum, tx) => {
-        const amount = parseFloat(tx.amount || "0");
-        return sum + (amount < 0 ? Math.abs(amount) : 0);
-      }, 0);
+      // Single pass through transactions
+      const { income, expenses } = transactions.reduce(
+        (acc, tx) => {
+          const amount = parseFloat(tx.amount || '0');
+          if (amount > 0) {
+            acc.income += amount;
+          } else {
+            acc.expenses += Math.abs(amount);
+          }
+          return acc;
+        },
+        { income: 0, expenses: 0 },
+      );
 
       const netBalance = income - expenses;
 
@@ -161,92 +206,122 @@ const GridBoxes = () => {
         netBalance: formatCurrency(netBalance),
       }));
     } catch (error) {
-      console.error("Failed to load bank transactions:", error);
+      logger.error('Failed to load bank transactions:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Load net income details only when modal is shown
+  useEffect(() => {
+    if (modals.netIncome) {
+      loadIncomeDetails();
+    }
+  }, [modals.netIncome]);
+
+  // Initial data load - combine related calls
+  useEffect(() => {
+    let mounted = true;
+
+    const loadInitialData = async () => {
+      if (!mounted) return;
+
+      // Parallel data fetching
+      await Promise.all([fetchConnections(), loadSubscriptions(), getBankTransactions()]);
+    };
+
+    loadInitialData();
+
+    return () => {
+      mounted = false;
+    };
+  }, [fetchConnections, loadSubscriptions, getBankTransactions]);
+
+  // Memoized stat card props to prevent unnecessary re-renders
+  const statCardProps = useMemo(
+    () => ({
+      netIncome: {
+        id: 'net-income-card',
+        dataCard: 'net-income',
+        title: 'Net Income',
+        iconClass: 'fas fa-arrow-circle-up income-icon',
+        value: transactions.income,
+        valueId: 'net-income-value',
+        change: '+12.3% from last month',
+        changeType: 'positive' as const,
+        arrowIcon: <i className="fas fa-arrow-up"></i>,
+        onClick: handleShowNetIncomeModal,
+        loading,
+      },
+      totalExpenses: {
+        id: 'total-expenses-card',
+        dataCard: 'total-expenses',
+        title: 'Total Expenses',
+        iconClass: 'fas fa-arrow-circle-down expense-icon',
+        value: transactions.expenses,
+        valueId: 'total-expenses-value',
+        change: '-8.1% from last month',
+        changeType: 'negative' as const,
+        arrowIcon: <i className="fas fa-arrow-down"></i>,
+        loading,
+      },
+      netBalance: {
+        id: 'net-balance-card',
+        dataCard: 'net-balance',
+        title: 'Net Balance',
+        iconClass: 'fas fa-balance-scale balance-icon',
+        value: transactions.netBalance,
+        valueId: 'net-balance-value',
+        change: '+15.2% from last month',
+        changeType: 'positive' as const,
+        arrowIcon: <i className="fas fa-arrow-up"></i>,
+        onClick: handleShowNetBalanceDetails,
+        loading,
+      },
+      subscriptions: {
+        id: 'subscriptions-card',
+        dataCard: 'subscriptions',
+        title: 'Subscriptions',
+        iconClass: 'fas fa-repeat subscription-icon',
+        value: transactions.subscriptions,
+        valueId: '',
+        change: (
+          <>
+            <span id="subscription-count">{transactions.activeSubscriptions}</span> active
+            subscriptions
+          </>
+        ),
+        changeType: 'neutral' as const,
+        loading,
+      },
+    }),
+    [transactions, loading, handleShowNetIncomeModal, handleShowNetBalanceDetails],
+  );
 
   return (
     <>
       {alert && (
-        <AlertMessage message={alert.message} type={alert.type as any} />
+        <MemoizedAlertMessage
+          message={alert.message}
+          type={alert.type as any}
+        />
       )}
 
-      {showFullGoalsModal && (
-        <GoalsModal onClose={() => setShowFullGoalsModal(false)} />
-      )}
+      {modals.fullGoals && <GoalsModal onClose={handleCloseGoalsModal} />}
 
-      <StatCard
-        id="net-income-card"
-        dataCard="net-income"
-        title="Net Income"
-        iconClass="fas fa-arrow-circle-up income-icon"
-        value={transactions.income ? `${transactions.income}` : "$0.00"}
-        valueId="net-income-value"
-        change="+12.3% from last month"
-        changeType="positive"
-        arrowIcon={<i className="fas fa-arrow-up"></i>}
-        onClick={handleShowNetIncomeModal}
-        loading={loading}
-      />
-
-      <StatCard
-        id="total-expenses-card"
-        dataCard="total-expenses"
-        title="Total Expenses"
-        iconClass="fas fa-arrow-circle-down expense-icon"
-        value={transactions.expenses ? `${transactions.expenses}` : "$0.00"}
-        valueId="total-expenses-value"
-        change="-8.1% from last month"
-        changeType="negative"
-        arrowIcon={<i className="fas fa-arrow-down"></i>}
-        loading={loading}
-      />
-
-      <StatCard
-        id="net-balance-card"
-        dataCard="net-balance"
-        title="Net Balance"
-        iconClass="fas fa-balance-scale balance-icon"
-        value={transactions.netBalance ? `${transactions.netBalance}` : "$0.00"}
-        valueId="net-balance-value"
-        change="+15.2% from last month"
-        changeType="positive"
-        arrowIcon={<i className="fas fa-arrow-up"></i>}
-        onClick={handleShowNetBalanceDetails}
-        loading={loading}
-      />
-
-      <StatCard
-        id="subscriptions-card"
-        dataCard="subscriptions"
-        title="Subscriptions"
-        iconClass="fas fa-repeat subscription-icon"
-        value={
-          transactions.subscriptions ? transactions.subscriptions : "$0.00"
-        }
-        valueId=""
-        change={
-          <>
-            <span id="subscription-count">
-              {transactions.activeSubscriptions || 0}
-            </span>{" "}
-            active subscriptions
-          </>
-        }
-        changeType="neutral"
-        loading={loading}
-      />
+      <MemoizedStatCard {...statCardProps.netIncome} />
+      <MemoizedStatCard {...statCardProps.totalExpenses} />
+      <MemoizedStatCard {...statCardProps.netBalance} />
+      <MemoizedStatCard {...statCardProps.subscriptions} />
 
       {/* NetIncomeModal component */}
       <NetIncomeModal
-        show={showNetIncomeModal}
+        show={modals.netIncome}
         handleClose={handleCloseNetIncomeModal}
       />
 
       <NetBalanceDetails
-        show={showNetBalanceDetailsModal}
+        show={modals.netBalanceDetails}
         handleClose={handleCloseNetBalanceDetails}
       />
 
@@ -255,15 +330,14 @@ const GridBoxes = () => {
       {/* <!-- Second Row - Goals, Notifications, and Bank Accounts --> */}
       <div className="row mt-3 p-0 m-0">
         {/* <!-- Left Side - Goals --> */}
-
         <div className="col-md-12 col-lg-6">
           {/* <!-- Goals Card --> */}
-          <GoalsDashboardCard onOpenModal={() => setShowFullGoalsModal(true)} />
+          <MemoizedGoalsDashboardCard onOpenModal={handleOpenGoalsModal} />
         </div>
 
         {/* <!-- Right Side - Bank Accounts and Notifications --> */}
         <div className="col-md-12 col-lg-6 mt-4 mt-lg-0">
-          <BankAccountsCard
+          <MemoizedBankAccountsCard
             connections={connections}
             connectionLoading={connectionLoading}
             connectionError={connectionError}
@@ -274,4 +348,4 @@ const GridBoxes = () => {
   );
 };
 
-export default GridBoxes;
+export default memo(GridBoxes);

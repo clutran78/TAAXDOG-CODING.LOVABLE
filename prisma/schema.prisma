@@ -73,6 +73,15 @@ model User {
   
   @@index([email])
   @@index([createdAt])
+  @@index([role])
+  @@index([emailVerified])
+  @@index([lastLoginAt])
+  @@index([taxResidency])
+  @@index([abn])
+  @@index([failedLoginAttempts])
+  @@index([lockedUntil])
+  @@index([email, role])
+  @@index([createdAt, role])
   @@map("users")
 }
 
@@ -97,6 +106,9 @@ model Account {
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@index([provider])
+  @@index([userId, provider])
   @@map("accounts")
 }
 
@@ -110,6 +122,9 @@ model Session {
   
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
+  @@index([userId])
+  @@index([expires])
+  @@index([userId, expires])
   @@map("sessions")
 }
 
@@ -120,6 +135,7 @@ model VerificationToken {
   expires    DateTime
   
   @@unique([identifier, token])
+  @@index([expires])
   @@map("verification_tokens")
 }
 
@@ -217,6 +233,12 @@ model Subscription {
   
   @@index([userId])
   @@index([stripeCustomerId])
+  @@index([status])
+  @@index([plan])
+  @@index([currentPeriodEnd])
+  @@index([cancelAtPeriodEnd])
+  @@index([userId, status])
+  @@index([status, currentPeriodEnd])
   @@map("subscriptions")
 }
 
@@ -237,6 +259,10 @@ model TaxReturn {
   
   @@unique([userId, year])
   @@index([userId])
+  @@index([year])
+  @@index([status])
+  @@index([userId, status])
+  @@index([submittedAt])
   @@map("tax_returns")
 }
 
@@ -258,6 +284,8 @@ model Payment {
   
   @@index([userId])
   @@index([createdAt])
+  @@index([status])
+  @@index([userId, status])
   @@map("payments")
 }
 
@@ -284,6 +312,10 @@ model Invoice {
   @@index([invoiceNumber])
   @@index([stripeInvoiceId])
   @@index([customerEmail])
+  @@index([status])
+  @@index([invoiceDate])
+  @@index([customerABN])
+  @@index([customerEmail, status])
   @@map("invoices")
 }
 
@@ -412,6 +444,8 @@ model AIProviderHealth {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
   
+  @@index([status])
+  @@index([circuitOpenUntil])
   @@map("ai_provider_health")
 }
 
@@ -482,6 +516,10 @@ model basiq_users {
   user                User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
   bank_connections    bank_connections[]
   bank_accounts       bank_accounts[]
+  
+  @@index([connection_status])
+  @@index([consent_status])
+  @@index([consent_expires_at])
 }
 
 model bank_connections {
@@ -500,6 +538,11 @@ model bank_connections {
   // Relations
   basiq_user            basiq_users @relation(fields: [basiq_user_id], references: [id], onDelete: Cascade)
   bank_accounts         bank_accounts[]
+  
+  @@index([basiq_user_id])
+  @@index([status])
+  @@index([last_synced])
+  @@index([institution_id])
 }
 
 model bank_accounts {
@@ -526,6 +569,14 @@ model bank_accounts {
   basiq_user            basiq_users @relation(fields: [basiq_user_id], references: [id], onDelete: Cascade)
   connection            bank_connections @relation(fields: [connection_id], references: [id], onDelete: Cascade)
   bank_transactions     bank_transactions[]
+  
+  @@index([basiq_user_id])
+  @@index([connection_id])
+  @@index([account_type])
+  @@index([status])
+  @@index([is_business_account])
+  @@index([last_synced])
+  @@index([basiq_user_id, status])
 }
 
 model bank_transactions {
@@ -558,6 +609,14 @@ model bank_transactions {
   @@index([transaction_date])
   @@index([category])
   @@index([bank_account_id, transaction_date])
+  @@index([direction])
+  @@index([is_business_expense])
+  @@index([tax_category])
+  @@index([status])
+  @@index([merchant_name])
+  @@index([category, subcategory])
+  @@index([bank_account_id, is_business_expense])
+  @@index([transaction_date, direction])
   @@map("bank_transactions")
 }
 
@@ -573,6 +632,11 @@ model basiq_webhooks {
   error_message     String?
   retry_count       Int       @default(0)
   created_at        DateTime  @default(now())
+  
+  @@index([event_type])
+  @@index([status])
+  @@index([created_at])
+  @@index([status, retry_count])
 }
 
 model basiq_api_logs {
@@ -589,6 +653,13 @@ model basiq_api_logs {
   
   // Relations
   user              User?     @relation(fields: [user_id], references: [id])
+  
+  @@index([user_id])
+  @@index([endpoint])
+  @@index([method])
+  @@index([response_status])
+  @@index([created_at])
+  @@index([user_id, created_at])
 }
 
 // Receipt model for Australian tax compliance
@@ -870,6 +941,10 @@ model AMLTransactionMonitoring {
   @@index([requiresReview])
   @@index([riskScore])
   @@index([createdAt])
+  @@index([monitoringType])
+  @@index([reportedToAUSTRAC])
+  @@index([userId, requiresReview])
+  @@index([createdAt, requiresReview])
   @@map("aml_transaction_monitoring")
 }
 
@@ -910,6 +985,9 @@ model PrivacyConsent {
   @@index([consentType])
   @@index([consentStatus])
   @@index([expiryDate])
+  @@index([withdrawnAt])
+  @@index([userId, consentStatus])
+  @@index([consentType, consentStatus])
   @@map("privacy_consents")
 }
 
@@ -953,6 +1031,9 @@ model DataAccessRequest {
   @@index([requestType])
   @@index([requestStatus])
   @@index([dueDate])
+  @@index([requestDate])
+  @@index([userId, requestStatus])
+  @@index([requestStatus, dueDate])
   @@map("data_access_requests")
 }
 
@@ -1003,6 +1084,10 @@ model APRAIncidentReport {
   @@index([severity])
   @@index([status])
   @@index([detectedAt])
+  @@index([reportedAt])
+  @@index([reportedToAPRA])
+  @@index([status, severity])
+  @@index([incidentType, status])
   @@map("apra_incident_reports")
 }
 
@@ -1045,6 +1130,11 @@ model GSTTransactionDetail {
   @@index([invoiceId])
   @@index([taxPeriod])
   @@index([taxCategory])
+  @@index([gstTreatment])
+  @@index([reportedInBAS])
+  @@index([supplierABN])
+  @@index([taxPeriod, reportedInBAS])
+  @@index([taxCategory, inputTaxCredit])
   @@map("gst_transaction_details")
 }
 
@@ -1073,6 +1163,7 @@ model ComplianceConfiguration {
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
   
+  @@index([isActive])
   @@map("compliance_configuration")
 }
 
@@ -1159,5 +1250,7 @@ model PasswordResetToken {
   expires DateTime
   
   @@unique([email, token])
+  @@index([expires])
+  @@index([email])
   @@map("password_reset_tokens")
 }

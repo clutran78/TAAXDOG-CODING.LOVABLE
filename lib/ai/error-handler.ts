@@ -1,5 +1,6 @@
 import { AIProvider } from './config';
 import { prisma } from '../prisma';
+import { logger } from '@/lib/logger';
 
 export class AIError extends Error {
   constructor(
@@ -7,7 +8,7 @@ export class AIError extends Error {
     public code: string,
     public provider: AIProvider,
     public retryable: boolean = false,
-    public statusCode?: number
+    public statusCode?: number,
   ) {
     super(message);
     this.name = 'AIError';
@@ -49,7 +50,7 @@ export class CircuitBreaker {
    */
   static async isOpen(provider: AIProvider): Promise<boolean> {
     const state = this.states.get(provider) || 'closed';
-    
+
     if (state === 'closed') {
       return false;
     }
@@ -63,10 +64,10 @@ export class CircuitBreaker {
       if (timeSinceFailure > config.resetTimeout) {
         this.states.set(provider, 'half-open');
         this.halfOpenAttempts.set(provider, 0);
-        
+
         // Update database
         await this.updateProviderHealth(provider, 'half-open');
-        
+
         return false; // Allow request in half-open state
       }
 
@@ -76,7 +77,7 @@ export class CircuitBreaker {
     // Half-open state
     const attempts = this.halfOpenAttempts.get(provider) || 0;
     const config = this.configs[provider];
-    
+
     return attempts >= config.halfOpenRequests;
   }
 
@@ -85,18 +86,18 @@ export class CircuitBreaker {
    */
   static async recordSuccess(provider: AIProvider): Promise<void> {
     const state = this.states.get(provider) || 'closed';
-    
+
     if (state === 'half-open') {
       const attempts = (this.halfOpenAttempts.get(provider) || 0) + 1;
       this.halfOpenAttempts.set(provider, attempts);
-      
+
       const config = this.configs[provider];
       if (attempts >= config.halfOpenRequests) {
         // Transition to closed
         this.states.set(provider, 'closed');
         this.failures.set(provider, 0);
         this.halfOpenAttempts.set(provider, 0);
-        
+
         await this.updateProviderHealth(provider, 'healthy');
       }
     } else if (state === 'closed') {
@@ -134,12 +135,11 @@ export class CircuitBreaker {
   private static async updateProviderHealth(
     provider: AIProvider,
     status: 'healthy' | 'unhealthy' | 'half-open',
-    errorMessage?: string
+    errorMessage?: string,
   ): Promise<void> {
     try {
-      const circuitOpenUntil = status === 'unhealthy'
-        ? new Date(Date.now() + this.configs[provider].resetTimeout)
-        : null;
+      const circuitOpenUntil =
+        status === 'unhealthy' ? new Date(Date.now() + this.configs[provider].resetTimeout) : null;
 
       await prisma.aIProviderHealth.upsert({
         where: { provider },
@@ -161,7 +161,7 @@ export class CircuitBreaker {
         },
       });
     } catch (error) {
-      console.error('Failed to update provider health:', error);
+      logger.error('Failed to update provider health:', error);
     }
   }
 
@@ -178,10 +178,10 @@ export class CircuitBreaker {
   static async initialize(): Promise<void> {
     try {
       const healthRecords = await prisma.aIProviderHealth.findMany();
-      
-      healthRecords.forEach(record => {
+
+      healthRecords.forEach((record) => {
         const provider = record.provider as AIProvider;
-        
+
         if (record.status === 'unhealthy' && record.circuitOpenUntil) {
           if (record.circuitOpenUntil > new Date()) {
             this.states.set(provider, 'open');
@@ -195,7 +195,7 @@ export class CircuitBreaker {
         }
       });
     } catch (error) {
-      console.error('Failed to initialize circuit breaker:', error);
+      logger.error('Failed to initialize circuit breaker:', error);
     }
   }
 }
@@ -207,10 +207,7 @@ export class AIErrorHandler {
   /**
    * Handle provider-specific errors
    */
-  static handleProviderError(
-    provider: AIProvider,
-    error: any
-  ): AIError {
+  static handleProviderError(provider: AIProvider, error: any): AIError {
     switch (provider) {
       case AIProvider.ANTHROPIC:
         return this.handleAnthropicError(error);
@@ -219,12 +216,7 @@ export class AIErrorHandler {
       case AIProvider.GEMINI:
         return this.handleGeminiError(error);
       default:
-        return new AIError(
-          'Unknown provider error',
-          'UNKNOWN_PROVIDER',
-          provider,
-          false
-        );
+        return new AIError('Unknown provider error', 'UNKNOWN_PROVIDER', provider, false);
     }
   }
 
@@ -233,27 +225,15 @@ export class AIErrorHandler {
    */
   private static handleAnthropicError(error: any): AIError {
     const message = error.message || 'Unknown Anthropic error';
-    
+
     // Rate limit error
     if (error.status === 429 || message.includes('rate limit')) {
-      return new AIError(
-        'Rate limit exceeded',
-        'RATE_LIMIT',
-        AIProvider.ANTHROPIC,
-        true,
-        429
-      );
+      return new AIError('Rate limit exceeded', 'RATE_LIMIT', AIProvider.ANTHROPIC, true, 429);
     }
 
     // Authentication error
     if (error.status === 401) {
-      return new AIError(
-        'Invalid API key',
-        'AUTH_ERROR',
-        AIProvider.ANTHROPIC,
-        false,
-        401
-      );
+      return new AIError('Invalid API key', 'AUTH_ERROR', AIProvider.ANTHROPIC, false, 401);
     }
 
     // Server error
@@ -263,7 +243,7 @@ export class AIErrorHandler {
         'SERVER_ERROR',
         AIProvider.ANTHROPIC,
         true,
-        error.status
+        error.status,
       );
     }
 
@@ -274,17 +254,11 @@ export class AIErrorHandler {
         'INVALID_REQUEST',
         AIProvider.ANTHROPIC,
         false,
-        400
+        400,
       );
     }
 
-    return new AIError(
-      message,
-      'UNKNOWN_ERROR',
-      AIProvider.ANTHROPIC,
-      false,
-      error.status
-    );
+    return new AIError(message, 'UNKNOWN_ERROR', AIProvider.ANTHROPIC, false, error.status);
   }
 
   /**
@@ -292,14 +266,14 @@ export class AIErrorHandler {
    */
   private static handleOpenRouterError(error: any): AIError {
     const message = error.message || 'Unknown OpenRouter error';
-    
+
     if (error.status === 429) {
       return new AIError(
         'OpenRouter rate limit exceeded',
         'RATE_LIMIT',
         AIProvider.OPENROUTER,
         true,
-        429
+        429,
       );
     }
 
@@ -309,7 +283,7 @@ export class AIErrorHandler {
         'AUTH_ERROR',
         AIProvider.OPENROUTER,
         false,
-        401
+        401,
       );
     }
 
@@ -319,17 +293,11 @@ export class AIErrorHandler {
         'SERVER_ERROR',
         AIProvider.OPENROUTER,
         true,
-        error.status
+        error.status,
       );
     }
 
-    return new AIError(
-      message,
-      'UNKNOWN_ERROR',
-      AIProvider.OPENROUTER,
-      false,
-      error.status
-    );
+    return new AIError(message, 'UNKNOWN_ERROR', AIProvider.OPENROUTER, false, error.status);
   }
 
   /**
@@ -337,25 +305,13 @@ export class AIErrorHandler {
    */
   private static handleGeminiError(error: any): AIError {
     const message = error.message || 'Unknown Gemini error';
-    
+
     if (message.includes('quota') || error.status === 429) {
-      return new AIError(
-        'Gemini quota exceeded',
-        'QUOTA_EXCEEDED',
-        AIProvider.GEMINI,
-        true,
-        429
-      );
+      return new AIError('Gemini quota exceeded', 'QUOTA_EXCEEDED', AIProvider.GEMINI, true, 429);
     }
 
     if (error.status === 401) {
-      return new AIError(
-        'Invalid Gemini API key',
-        'AUTH_ERROR',
-        AIProvider.GEMINI,
-        false,
-        401
-      );
+      return new AIError('Invalid Gemini API key', 'AUTH_ERROR', AIProvider.GEMINI, false, 401);
     }
 
     if (error.status >= 500) {
@@ -364,17 +320,11 @@ export class AIErrorHandler {
         'SERVER_ERROR',
         AIProvider.GEMINI,
         true,
-        error.status
+        error.status,
       );
     }
 
-    return new AIError(
-      message,
-      'UNKNOWN_ERROR',
-      AIProvider.GEMINI,
-      false,
-      error.status
-    );
+    return new AIError(message, 'UNKNOWN_ERROR', AIProvider.GEMINI, false, error.status);
   }
 
   /**
@@ -383,7 +333,7 @@ export class AIErrorHandler {
   static calculateBackoff(
     attempt: number,
     baseDelay: number = 1000,
-    maxDelay: number = 60000
+    maxDelay: number = 60000,
   ): number {
     const exponentialDelay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
     const jitter = Math.random() * exponentialDelay * 0.1; // 10% jitter
@@ -396,7 +346,7 @@ export class AIErrorHandler {
   static async retryWithBackoff<T>(
     fn: () => Promise<T>,
     maxRetries: number = 3,
-    isRetryable: (error: any) => boolean = () => true
+    isRetryable: (error: any) => boolean = () => true,
   ): Promise<T> {
     let lastError: any;
 
@@ -405,13 +355,13 @@ export class AIErrorHandler {
         return await fn();
       } catch (error) {
         lastError = error;
-        
+
         if (!isRetryable(error) || attempt === maxRetries - 1) {
           throw error;
         }
 
         const delay = this.calculateBackoff(attempt);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
 

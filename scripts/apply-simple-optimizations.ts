@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -16,25 +16,25 @@ async function applyOptimizations() {
       'CREATE INDEX IF NOT EXISTS idx_transaction_category ON bank_transactions(category) WHERE category IS NOT NULL',
       'CREATE INDEX IF NOT EXISTS idx_transaction_business ON bank_transactions(is_business_expense) WHERE is_business_expense = true',
       'CREATE INDEX IF NOT EXISTS idx_transaction_tax_cat ON bank_transactions(tax_category) WHERE tax_category IS NOT NULL',
-      
+
       // Goal indexes
       'CREATE INDEX IF NOT EXISTS idx_goal_user ON goals(user_id)',
       'CREATE INDEX IF NOT EXISTS idx_goal_status ON goals(status)',
       'CREATE INDEX IF NOT EXISTS idx_goal_target_date ON goals(target_date) WHERE target_date IS NOT NULL',
-      
+
       // Receipt indexes
       'CREATE INDEX IF NOT EXISTS idx_receipt_user ON receipts("userId")',
       'CREATE INDEX IF NOT EXISTS idx_receipt_date ON receipts(date DESC)',
       'CREATE INDEX IF NOT EXISTS idx_receipt_tax_cat ON receipts(tax_category) WHERE tax_category IS NOT NULL',
-      
+
       // Bank connections indexes
       'CREATE INDEX IF NOT EXISTS idx_bank_conn_user ON bank_connections(basiq_user_id)',
       'CREATE INDEX IF NOT EXISTS idx_bank_conn_status ON bank_connections(status)',
-      
+
       // Bank accounts indexes
       'CREATE INDEX IF NOT EXISTS idx_bank_acc_user ON bank_accounts(basiq_user_id)',
       'CREATE INDEX IF NOT EXISTS idx_bank_acc_conn ON bank_accounts(connection_id)',
-      
+
       // User indexes
       'CREATE INDEX IF NOT EXISTS idx_user_email ON users(email)',
       'CREATE INDEX IF NOT EXISTS idx_user_role ON users(role)',
@@ -58,16 +58,16 @@ async function applyOptimizations() {
     // Analyze tables for query planner optimization
     console.log('\n📈 Analyzing tables for query optimization...');
     const tables = [
-      'users', 
-      'bank_transactions', 
-      'goals', 
-      'receipts', 
+      'users',
+      'bank_transactions',
+      'goals',
+      'receipts',
       'bank_connections',
       'bank_accounts',
       'audit_logs',
-      'sessions'
+      'sessions',
     ];
-    
+
     for (const table of tables) {
       try {
         console.log(`  Analyzing table: ${table}`);
@@ -80,7 +80,7 @@ async function applyOptimizations() {
 
     // Display current statistics
     console.log('\n📊 Database Statistics:');
-    
+
     // Table sizes
     const tableSizes = await prisma.$queryRaw<any[]>`
       SELECT 
@@ -121,7 +121,6 @@ async function applyOptimizations() {
     console.log('  2. Set up Redis for caching frequently accessed data');
     console.log('  3. Consider implementing materialized views for complex aggregations');
     console.log('  4. Use the health-check endpoint to monitor performance');
-
   } catch (error) {
     console.error('\n❌ Error applying optimizations:', error);
     process.exit(1);

@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { promises as fs } from 'fs';
+import { logger } from '@/lib/logger';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
@@ -57,11 +58,11 @@ Ensure all amounts are in AUD.
 export async function extractReceiptData(imagePath: string): Promise<ReceiptData> {
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    
+
     // Read image file
     const imageData = await fs.readFile(imagePath);
     const base64Image = imageData.toString('base64');
-    
+
     // Create image part for Gemini
     const imagePart = {
       inlineData: {
@@ -69,29 +70,29 @@ export async function extractReceiptData(imagePath: string): Promise<ReceiptData
         mimeType: 'image/jpeg',
       },
     };
-    
+
     // Generate content
     const result = await model.generateContent([RECEIPT_EXTRACTION_PROMPT, imagePart]);
     const response = await result.response;
     const text = response.text();
-    
+
     // Parse JSON response
     try {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
         throw new Error('No JSON found in response');
       }
-      
+
       const data = JSON.parse(jsonMatch[0]);
-      
+
       // Validate and clean data
       return validateReceiptData(data);
     } catch (parseError) {
-      console.error('JSON parse error:', parseError);
+      logger.error('JSON parse error:', parseError);
       throw new Error('Failed to parse AI response');
     }
   } catch (error) {
-    console.error('Gemini AI extraction error:', error);
+    logger.error('Gemini AI extraction error:', error);
     throw error;
   }
 }
@@ -106,22 +107,22 @@ function validateReceiptData(data: any): ReceiptData {
     items: Array.isArray(data.items) ? data.items.map(validateItem) : [],
     confidence: parseFloat(data.confidence) || 0.5,
   };
-  
+
   // Add optional fields if present
   if (data.abn) {
     validated.abn = data.abn.replace(/\s/g, '');
   }
-  
+
   if (data.invoiceNumber) {
     validated.invoiceNumber = data.invoiceNumber;
   }
-  
+
   // Calculate GST if not provided
   if (!validated.gstAmount && validated.totalAmount > 0) {
     // Assume GST inclusive pricing
     validated.gstAmount = validated.totalAmount / 11;
   }
-  
+
   return validated;
 }
 
@@ -138,11 +139,11 @@ function validateItem(item: any): ReceiptItem {
 export async function processReceipt(receiptId: string, imagePath: string) {
   try {
     const extractedData = await extractReceiptData(imagePath);
-    
+
     // Update receipt in database
     const { PrismaClient } = await import('@prisma/client');
     const prisma = new PrismaClient();
-    
+
     const updatedReceipt = await prisma.receipt.update({
       where: { id: receiptId },
       data: {
@@ -159,16 +160,16 @@ export async function processReceipt(receiptId: string, imagePath: string) {
         isGstRegistered: !!extractedData.abn,
       },
     });
-    
+
     await prisma.$disconnect();
     return updatedReceipt;
   } catch (error) {
-    console.error('Receipt processing error:', error);
-    
+    logger.error('Receipt processing error:', error);
+
     // Update status to failed
     const { PrismaClient } = await import('@prisma/client');
     const prisma = new PrismaClient();
-    
+
     await prisma.receipt.update({
       where: { id: receiptId },
       data: {
@@ -176,7 +177,7 @@ export async function processReceipt(receiptId: string, imagePath: string) {
         aiProcessed: true,
       },
     });
-    
+
     await prisma.$disconnect();
     throw error;
   }

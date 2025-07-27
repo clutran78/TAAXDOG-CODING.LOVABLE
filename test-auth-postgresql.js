@@ -7,7 +7,7 @@ const TEST_PASSWORD = 'TestPass123!';
 
 async function testAuthFlow() {
   console.log('🔵 Testing PostgreSQL Authentication Flow\n');
-  
+
   // 1. Test Signup
   console.log('1️⃣ Testing Signup...');
   try {
@@ -16,16 +16,16 @@ async function testAuthFlow() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: TEST_EMAIL,
-        password: TEST_PASSWORD
-      })
+        password: TEST_PASSWORD,
+      }),
     });
-    
+
     const signupData = await signupRes.json();
     console.log('Signup Response:', {
       status: signupRes.status,
-      data: signupData
+      data: signupData,
     });
-    
+
     if (!signupRes.ok) {
       console.error('❌ Signup failed:', signupData);
       return;
@@ -35,7 +35,7 @@ async function testAuthFlow() {
     console.error('❌ Signup error:', error.message);
     return;
   }
-  
+
   // 2. Test Login
   console.log('2️⃣ Testing Login...');
   try {
@@ -44,21 +44,21 @@ async function testAuthFlow() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: TEST_EMAIL,
-        password: TEST_PASSWORD
-      })
+        password: TEST_PASSWORD,
+      }),
     });
-    
+
     const loginData = await loginRes.json();
     console.log('Login Response:', {
       status: loginRes.status,
-      data: loginData
+      data: loginData,
     });
-    
+
     if (!loginRes.ok) {
       console.error('❌ Login failed:', loginData);
       return;
     }
-    
+
     const token = loginData.token;
     console.log('✅ Login successful!');
     console.log('🔑 Token received:', token ? 'Yes' : 'No');
@@ -67,7 +67,7 @@ async function testAuthFlow() {
     console.error('❌ Login error:', error.message);
     return;
   }
-  
+
   // 3. Test Forgot Password
   console.log('3️⃣ Testing Forgot Password...');
   try {
@@ -75,16 +75,16 @@ async function testAuthFlow() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: TEST_EMAIL
-      })
+        email: TEST_EMAIL,
+      }),
     });
-    
+
     const forgotData = await forgotRes.json();
     console.log('Forgot Password Response:', {
       status: forgotRes.status,
-      data: forgotData
+      data: forgotData,
     });
-    
+
     if (!forgotRes.ok) {
       console.error('❌ Forgot password failed:', forgotData);
       return;
@@ -94,7 +94,7 @@ async function testAuthFlow() {
     console.error('❌ Forgot password error:', error.message);
     return;
   }
-  
+
   console.log('🎉 All authentication tests completed successfully!');
   console.log('📝 Test user created:', TEST_EMAIL);
 }

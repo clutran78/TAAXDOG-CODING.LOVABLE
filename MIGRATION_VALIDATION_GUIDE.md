@@ -2,11 +2,14 @@
 
 ## Overview
 
-This comprehensive validation system ensures 100% data integrity for the Firebase to PostgreSQL migration, with specific focus on Australian compliance requirements and complete data verification.
+This comprehensive validation system ensures 100% data integrity for the
+Firebase to PostgreSQL migration, with specific focus on Australian compliance
+requirements and complete data verification.
 
 ## System Components
 
 ### 1. **Migration Validator** (`migration-validator.js`)
+
 - Comprehensive data validation across all aspects
 - Record count verification
 - Relationship integrity checks
@@ -15,6 +18,7 @@ This comprehensive validation system ensures 100% data integrity for the Firebas
 - Detailed issue tracking
 
 ### 2. **Rollback Manager** (`migration-rollback.js`)
+
 - Safe rollback procedures
 - Backup creation before rollback
 - Dry-run mode for testing
@@ -45,6 +49,7 @@ npm run migration:complete
 ### 1. Record Count Validation
 
 Verifies that all records were successfully migrated:
+
 - Compares Firebase export counts with PostgreSQL counts
 - Detects any missing records
 - Identifies duplicate records
@@ -53,6 +58,7 @@ Verifies that all records were successfully migrated:
 ### 2. Relationship Validation
 
 Ensures all foreign key relationships are intact:
+
 - Users → Bank Accounts
 - Bank Accounts → BASIQ Users
 - Transactions → Bank Accounts
@@ -63,6 +69,7 @@ Ensures all foreign key relationships are intact:
 ### 3. Data Integrity Validation
 
 Samples records for detailed comparison:
+
 - Field-by-field comparison
 - Data type conversion verification
 - Timestamp accuracy checks
@@ -73,47 +80,53 @@ Samples records for detailed comparison:
 
 Validates all Australian-specific requirements:
 
-| Check | Description | Format |
-|-------|-------------|--------|
-| BSB Numbers | 6-digit bank codes | XXX-XXX |
-| Phone Numbers | Australian mobiles/landlines | +61XXXXXXXXX |
-| GST Calculations | 10% GST rate | Amount/11 |
-| ATO Categories | Valid tax categories | INCOME, BUSINESS_EXPENSE, etc |
-| Currency | AUD with 2 decimals | X.XX |
+| Check            | Description                  | Format                        |
+| ---------------- | ---------------------------- | ----------------------------- |
+| BSB Numbers      | 6-digit bank codes           | XXX-XXX                       |
+| Phone Numbers    | Australian mobiles/landlines | +61XXXXXXXXX                  |
+| GST Calculations | 10% GST rate                 | Amount/11                     |
+| ATO Categories   | Valid tax categories         | INCOME, BUSINESS_EXPENSE, etc |
+| Currency         | AUD with 2 decimals          | X.XX                          |
 
 ### 5. Table-Specific Validations
 
 #### Users Table
+
 - Email uniqueness and format
 - Phone number validation
 - Required fields (email, name)
 - Timestamp conversions
 
 #### Bank Accounts
+
 - BSB format (XXX-XXX)
 - Account number format
 - Balance precision
 - Institution consistency
 
 #### Transactions
+
 - Amount precision
 - Date range validation
 - Tax category mapping
 - Receipt linkages
 
 #### Receipts
+
 - GST calculation accuracy (10%)
 - Image URL accessibility
 - AI metadata integrity
 - Merchant consistency
 
 #### Budgets & Tracking
+
 - Amount precision
 - Variance calculations
 - Australian tax year
 - AI predictions
 
 #### Financial Insights
+
 - Confidence scores (0-1)
 - JSONB structure
 - Expiration logic
@@ -122,6 +135,7 @@ Validates all Australian-specific requirements:
 ### 6. Performance Validation
 
 Tests query performance and database efficiency:
+
 - User lookup by email
 - Transaction aggregation
 - Budget tracking queries
@@ -165,6 +179,7 @@ validation-reports/
 ### When to Rollback
 
 Rollback is recommended when:
+
 - Critical validation issues are found
 - Data integrity is compromised
 - Foreign key relationships are broken
@@ -229,36 +244,40 @@ npm run migration:rollback restore rollback-backups/backup_1234567890
 ### Common Issues and Fixes
 
 #### Record Count Mismatch
+
 ```sql
 -- Check for duplicates
 SELECT id, COUNT(*) FROM table_name GROUP BY id HAVING COUNT(*) > 1;
 
 -- Find missing records
-SELECT f.id FROM firebase_export f 
-LEFT JOIN postgresql_table p ON f.id = p.id 
+SELECT f.id FROM firebase_export f
+LEFT JOIN postgresql_table p ON f.id = p.id
 WHERE p.id IS NULL;
 ```
 
 #### BSB Format Issues
+
 ```sql
 -- Fix BSB format
-UPDATE bank_accounts 
+UPDATE bank_accounts
 SET bsb = SUBSTRING(bsb FROM 1 FOR 3) || '-' || SUBSTRING(bsb FROM 4 FOR 3)
 WHERE bsb ~ '^[0-9]{6}$';
 ```
 
 #### Phone Number Format
+
 ```sql
 -- Fix Australian phone numbers
-UPDATE users 
+UPDATE users
 SET phone = '+61' || SUBSTRING(phone FROM 2)
 WHERE phone ~ '^0[0-9]{9}$';
 ```
 
 #### GST Calculations
+
 ```sql
 -- Recalculate GST
-UPDATE receipts 
+UPDATE receipts
 SET gst_amount = ROUND(total_amount / 11 * 100) / 100
 WHERE total_amount > 0;
 ```
@@ -266,24 +285,28 @@ WHERE total_amount > 0;
 ## Best Practices
 
 ### Before Migration
+
 1. Create full database backup
 2. Test on staging environment
 3. Verify Firebase export completeness
 4. Check available disk space
 
 ### During Migration
+
 1. Monitor system resources
 2. Keep detailed logs
 3. Run in off-peak hours
 4. Use batch mode for automation
 
 ### After Migration
+
 1. **Always run validation**
 2. Review all warnings
 3. Test application functionality
 4. Create post-migration backup
 
 ### Validation Schedule
+
 - Immediate: After initial migration
 - Daily: For first week
 - Weekly: For first month
@@ -292,6 +315,7 @@ WHERE total_amount > 0;
 ## Troubleshooting
 
 ### Validation Fails to Run
+
 ```bash
 # Check database connection
 psql $DATABASE_URL -c "SELECT 1"
@@ -304,12 +328,14 @@ chmod +x scripts/migration-validator.js
 ```
 
 ### High Number of Issues
+
 1. Review transformation logs
 2. Check data quality in source
 3. Verify transformation rules
 4. Consider re-running specific collections
 
 ### Performance Issues
+
 1. Check database indexes
 2. Verify connection pooling
 3. Review query plans
@@ -318,6 +344,7 @@ chmod +x scripts/migration-validator.js
 ## Automation
 
 ### CI/CD Integration
+
 ```yaml
 # Example GitHub Action
 - name: Validate Migration
@@ -328,6 +355,7 @@ chmod +x scripts/migration-validator.js
 ```
 
 ### Scheduled Validation
+
 ```bash
 # Add to cron for daily validation
 0 2 * * * cd /path/to/project && npm run migration:validate
@@ -336,6 +364,7 @@ chmod +x scripts/migration-validator.js
 ## Summary
 
 The validation system provides:
+
 - ✅ 100% data integrity verification
 - 🇦🇺 Complete Australian compliance checking
 - 🔄 Safe rollback procedures

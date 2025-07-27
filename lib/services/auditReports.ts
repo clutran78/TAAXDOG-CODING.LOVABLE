@@ -1,7 +1,7 @@
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import prisma from '../prisma';
-import { FinancialOperation } from "@prisma/client";
+import { FinancialOperation } from '@prisma/client';
 
 export interface AuditReportFilter {
   userId?: string;
@@ -52,9 +52,7 @@ function toAustralianTime(date: Date): Date {
 /**
  * Generate audit report for compliance
  */
-export async function generateAuditReport(
-  filter: AuditReportFilter
-): Promise<{
+export async function generateAuditReport(filter: AuditReportFilter): Promise<{
   summary: AuditReportSummary;
   entries: AuditReportEntry[];
   metadata: {
@@ -66,19 +64,19 @@ export async function generateAuditReport(
   // Ensure dates are in Australian timezone
   const startDate = startOfDay(toAustralianTime(filter.startDate));
   const endDate = endOfDay(toAustralianTime(filter.endDate));
-  
+
   // Build where clause
   const where: any = {
     createdAt: {
       gte: startDate,
-      lte: endDate
-    }
+      lte: endDate,
+    },
   };
-  
+
   if (filter.userId) {
     where.userId = filter.userId;
   }
-  
+
   if (filter.operationType) {
     if (Array.isArray(filter.operationType)) {
       where.operationType = { in: filter.operationType };
@@ -86,15 +84,15 @@ export async function generateAuditReport(
       where.operationType = filter.operationType;
     }
   }
-  
+
   if (filter.resourceType) {
     where.resourceType = filter.resourceType;
   }
-  
+
   if (filter.success !== undefined) {
     where.success = filter.success;
   }
-  
+
   // Fetch audit logs with user details
   const logs = await prisma.financialAuditLog.findMany({
     where,
@@ -103,35 +101,35 @@ export async function generateAuditReport(
         select: {
           id: true,
           name: true,
-          email: true
-        }
-      }
+          email: true,
+        },
+      },
     },
-    orderBy: { createdAt: 'desc' }
+    orderBy: { createdAt: 'desc' },
   });
-  
+
   // Calculate summary
   const summary: AuditReportSummary = {
     totalOperations: logs.length,
-    successfulOperations: logs.filter(log => log.success).length,
-    failedOperations: logs.filter(log => !log.success).length,
+    successfulOperations: logs.filter((log) => log.success).length,
+    failedOperations: logs.filter((log) => !log.success).length,
     operationsByType: {},
     operationsByResource: {},
-    uniqueUsers: new Set(logs.map(log => log.userId)).size,
+    uniqueUsers: new Set(logs.map((log) => log.userId)).size,
     totalAmount: 0,
-    totalGstAmount: 0
+    totalGstAmount: 0,
   };
-  
+
   // Count operations by type and resource
-  logs.forEach(log => {
+  logs.forEach((log) => {
     // By operation type
-    summary.operationsByType[log.operationType] = 
+    summary.operationsByType[log.operationType] =
       (summary.operationsByType[log.operationType] || 0) + 1;
-    
+
     // By resource type
-    summary.operationsByResource[log.resourceType] = 
+    summary.operationsByResource[log.resourceType] =
       (summary.operationsByResource[log.resourceType] || 0) + 1;
-    
+
     // Sum amounts
     if (log.amount) {
       summary.totalAmount! += Number(log.amount);
@@ -140,9 +138,9 @@ export async function generateAuditReport(
       summary.totalGstAmount! += Number(log.gstAmount);
     }
   });
-  
+
   // Format entries
-  const entries: AuditReportEntry[] = logs.map(log => ({
+  const entries: AuditReportEntry[] = logs.map((log) => ({
     id: log.id,
     timestamp: format(toAustralianTime(log.createdAt), 'yyyy-MM-dd HH:mm:ss zzz'),
     userId: log.userId,
@@ -157,85 +155,85 @@ export async function generateAuditReport(
     amount: log.amount ? Number(log.amount) : undefined,
     gstAmount: log.gstAmount ? Number(log.gstAmount) : undefined,
     changedFields: filter.includeDetails ? log.changedFields : undefined,
-    endpoint: filter.includeDetails ? log.endpoint || undefined : undefined
+    endpoint: filter.includeDetails ? log.endpoint || undefined : undefined,
   }));
-  
+
   return {
     summary,
     entries,
     metadata: {
       reportGeneratedAt: format(toAustralianTime(new Date()), 'yyyy-MM-dd HH:mm:ss zzz'),
       reportPeriod: `${format(startDate, 'yyyy-MM-dd')} to ${format(endDate, 'yyyy-MM-dd')}`,
-      timezone: 'Australia/Sydney'
-    }
+      timezone: 'Australia/Sydney',
+    },
   };
 }
 
 /**
  * Generate monthly compliance report
  */
-export async function generateMonthlyComplianceReport(
-  year: number,
-  month: number
-): Promise<any> {
+export async function generateMonthlyComplianceReport(year: number, month: number): Promise<any> {
   const startDate = startOfMonth(new Date(year, month - 1));
   const endDate = endOfMonth(new Date(year, month - 1));
-  
+
   const report = await generateAuditReport({
     startDate,
     endDate,
-    includeDetails: true
+    includeDetails: true,
   });
-  
+
   // Add additional compliance-specific information
   const financialOperations = await prisma.financialAuditLog.findMany({
     where: {
       createdAt: {
         gte: startDate,
-        lte: endDate
+        lte: endDate,
       },
       amount: {
-        not: null
-      }
+        not: null,
+      },
     },
     select: {
       operationType: true,
       amount: true,
       gstAmount: true,
       currency: true,
-      taxYear: true
-    }
+      taxYear: true,
+    },
   });
-  
+
   // Group financial operations by tax year
-  const operationsByTaxYear: Record<string, {
-    totalAmount: number;
-    totalGst: number;
-    count: number;
-  }> = {};
-  
-  financialOperations.forEach(op => {
+  const operationsByTaxYear: Record<
+    string,
+    {
+      totalAmount: number;
+      totalGst: number;
+      count: number;
+    }
+  > = {};
+
+  financialOperations.forEach((op) => {
     const taxYear = op.taxYear || 'Unknown';
     if (!operationsByTaxYear[taxYear]) {
       operationsByTaxYear[taxYear] = {
         totalAmount: 0,
         totalGst: 0,
-        count: 0
+        count: 0,
       };
     }
-    
+
     operationsByTaxYear[taxYear].totalAmount += Number(op.amount || 0);
     operationsByTaxYear[taxYear].totalGst += Number(op.gstAmount || 0);
     operationsByTaxYear[taxYear].count += 1;
   });
-  
+
   return {
     ...report,
     compliance: {
       operationsByTaxYear,
       totalFinancialOperations: financialOperations.length,
-      auditIntegrityCheck: await verifyMonthlyAuditIntegrity(year, month)
-    }
+      auditIntegrityCheck: await verifyMonthlyAuditIntegrity(year, month),
+    },
   };
 }
 
@@ -244,27 +242,25 @@ export async function generateMonthlyComplianceReport(
  */
 async function verifyMonthlyAuditIntegrity(
   year: number,
-  month: number
+  month: number,
 ): Promise<{ valid: boolean; issues: string[] }> {
   const { verifyAuditLogIntegrity } = await import('./auditLogger');
-  
+
   const startDate = startOfMonth(new Date(year, month - 1));
   const endDate = endOfMonth(new Date(year, month - 1));
-  
+
   const result = await verifyAuditLogIntegrity(startDate, endDate);
-  
+
   return {
     valid: result.valid,
-    issues: result.errors
+    issues: result.errors,
   };
 }
 
 /**
  * Export audit report to CSV format
  */
-export function exportAuditReportToCSV(
-  entries: AuditReportEntry[]
-): string {
+export function exportAuditReportToCSV(entries: AuditReportEntry[]): string {
   const headers = [
     'Timestamp',
     'User ID',
@@ -279,10 +275,10 @@ export function exportAuditReportToCSV(
     'Amount',
     'GST Amount',
     'Changed Fields',
-    'Endpoint'
+    'Endpoint',
   ];
-  
-  const rows = entries.map(entry => [
+
+  const rows = entries.map((entry) => [
     entry.timestamp,
     entry.userId,
     entry.userName || '',
@@ -296,14 +292,14 @@ export function exportAuditReportToCSV(
     entry.amount?.toString() || '',
     entry.gstAmount?.toString() || '',
     entry.changedFields?.join('; ') || '',
-    entry.endpoint || ''
+    entry.endpoint || '',
   ]);
-  
+
   const csvContent = [
     headers.join(','),
-    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
   ].join('\n');
-  
+
   return csvContent;
 }
 
@@ -313,15 +309,15 @@ export function exportAuditReportToCSV(
 export async function generateUserAuditReport(
   userId: string,
   startDate: Date,
-  endDate: Date
+  endDate: Date,
 ): Promise<any> {
   const report = await generateAuditReport({
     userId,
     startDate,
     endDate,
-    includeDetails: true
+    includeDetails: true,
   });
-  
+
   // Add user-specific summary
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -332,22 +328,26 @@ export async function generateUserAuditReport(
       role: true,
       abn: true,
       taxResidency: true,
-      createdAt: true
-    }
+      createdAt: true,
+    },
   });
-  
+
   return {
     user,
     ...report,
     userSummary: {
       totalOperations: report.summary.totalOperations,
-      successRate: report.summary.totalOperations > 0 
-        ? (report.summary.successfulOperations / report.summary.totalOperations * 100).toFixed(2) + '%'
-        : '0%',
-      mostFrequentOperation: Object.entries(report.summary.operationsByType)
-        .sort(([,a], [,b]) => b - a)[0]?.[0] || 'None',
+      successRate:
+        report.summary.totalOperations > 0
+          ? ((report.summary.successfulOperations / report.summary.totalOperations) * 100).toFixed(
+              2,
+            ) + '%'
+          : '0%',
+      mostFrequentOperation:
+        Object.entries(report.summary.operationsByType).sort(([, a], [, b]) => b - a)[0]?.[0] ||
+        'None',
       totalFinancialValue: report.summary.totalAmount || 0,
-      totalGstCollected: report.summary.totalGstAmount || 0
-    }
+      totalGstCollected: report.summary.totalGstAmount || 0,
+    },
   };
 }

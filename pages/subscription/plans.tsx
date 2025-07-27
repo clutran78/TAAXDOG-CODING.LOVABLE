@@ -56,7 +56,8 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     select: { status: true },
   });
 
-  const hasActiveSubscription = subscription?.status === 'ACTIVE' || subscription?.status === 'TRIALING';
+  const hasActiveSubscription =
+    subscription?.status === 'ACTIVE' || subscription?.status === 'TRIALING';
 
   return {
     props: {

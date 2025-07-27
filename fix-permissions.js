@@ -9,7 +9,7 @@ async function fixPermissions() {
     user: process.env.DB_ADMIN_USER || 'doadmin',
     password: process.env.DB_ADMIN_PASSWORD,
     database: process.env.DB_NAME || 'taaxdog-production', // Connect to the target database
-    ssl: { rejectUnauthorized: false }
+    ssl: { rejectUnauthorized: false },
   };
 
   if (!adminConfig.password) {
@@ -22,13 +22,15 @@ async function fixPermissions() {
 
   try {
     console.log('=== Fixing Database Permissions ===\n');
-    
+
     await adminClient.connect();
     console.log('✅ Connected as doadmin\n');
 
     // Grant all privileges on the database
     console.log('Granting database privileges...');
-    await adminClient.query('GRANT ALL PRIVILEGES ON DATABASE "taaxdog-production" TO "taaxdog-admin"');
+    await adminClient.query(
+      'GRANT ALL PRIVILEGES ON DATABASE "taaxdog-production" TO "taaxdog-admin"',
+    );
     console.log('✅ Granted all privileges on database\n');
 
     // Grant schema permissions
@@ -50,14 +52,14 @@ async function fixPermissions() {
 
     // Now test with taaxdog-admin user
     console.log('=== Testing Permissions ===\n');
-    
+
     const userConfig = {
       host: process.env.DB_HOST || 'taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com',
       port: parseInt(process.env.DB_PORT || '25060'),
       user: process.env.DB_USER || 'taaxdog-admin',
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME || 'taaxdog-production',
-      ssl: { rejectUnauthorized: false }
+      ssl: { rejectUnauthorized: false },
     };
 
     if (!userConfig.password) {
@@ -188,9 +190,15 @@ async function fixPermissions() {
     // Create indexes
     console.log('Creating indexes...');
     await userClient.query('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)');
-    await userClient.query('CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id)');
-    await userClient.query('CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe_customer_id ON subscriptions(stripe_customer_id)');
-    await userClient.query('CREATE INDEX IF NOT EXISTS idx_tax_returns_user_id ON tax_returns(user_id)');
+    await userClient.query(
+      'CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id)',
+    );
+    await userClient.query(
+      'CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe_customer_id ON subscriptions(stripe_customer_id)',
+    );
+    await userClient.query(
+      'CREATE INDEX IF NOT EXISTS idx_tax_returns_user_id ON tax_returns(user_id)',
+    );
     console.log('✅ Created indexes');
 
     // List all tables
@@ -203,7 +211,7 @@ async function fixPermissions() {
 
     console.log('\n=== Database Setup Complete ===');
     console.log('\nTables created:');
-    tablesResult.rows.forEach(row => {
+    tablesResult.rows.forEach((row) => {
       console.log('-', row.table_name);
     });
 
@@ -214,11 +222,10 @@ async function fixPermissions() {
     console.log('- User: taaxdog-admin');
     console.log('- Database: taaxdog-production');
     console.log('- All tables and permissions are configured');
-
   } catch (error) {
     console.error('❌ Error:', error.message);
     console.error('Code:', error.code);
-    
+
     if (error.detail) {
       console.error('Detail:', error.detail);
     }

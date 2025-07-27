@@ -1,7 +1,30 @@
 import React from 'react';
+import { logger } from '@/lib/logger';
+
+// Type definitions
+type InsightType = 'spending_pattern' | 'tax_optimization' | 'cash_flow' | 'business_expense';
+type Priority = 'HIGH' | 'MEDIUM' | 'LOW';
+
+interface InsightRecommendation {
+  action: string;
+  impact: string;
+  timeframe: string;
+  estimatedSavings?: number;
+}
+
+interface Insight {
+  id: string;
+  title: string;
+  description: string;
+  insightType: InsightType;
+  priority: Priority;
+  confidenceScore?: number;
+  recommendations?: InsightRecommendation[];
+  createdAt: string;
+}
 
 interface InsightsPanelProps {
-  insights: any[];
+  insights: Insight[];
   onDismiss: (id: string) => void;
 }
 
@@ -37,19 +60,19 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({ insights, onDismis
       const response = await fetch(`/api/insights/${id}/dismiss`, {
         method: 'POST',
       });
-      
+
       if (response.ok) {
         onDismiss(id);
       }
     } catch (error) {
-      console.error('Failed to dismiss insight:', error);
+      logger.error('Failed to dismiss insight:', error);
     }
   };
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <h3 className="text-lg font-semibold mb-4">Financial Insights</h3>
-      
+
       {insights.length === 0 ? (
         <p className="text-gray-500 text-center py-8">
           No active insights. Generate new insights to see AI-powered recommendations.
@@ -76,12 +99,15 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({ insights, onDismis
                   ✕
                 </button>
               </div>
-              
+
               {insight.recommendations && insight.recommendations.length > 0 && (
                 <div className="mt-3 space-y-2">
                   <p className="text-sm font-medium">Recommendations:</p>
-                  {insight.recommendations.map((rec: any, index: number) => (
-                    <div key={index} className="bg-white bg-opacity-50 rounded p-2">
+                  {insight.recommendations.map((rec, index) => (
+                    <div
+                      key={index}
+                      className="bg-white bg-opacity-50 rounded p-2"
+                    >
                       <p className="text-sm font-medium">{rec.action}</p>
                       <p className="text-xs text-gray-600">
                         Impact: {rec.impact} • {rec.timeframe}
@@ -91,7 +117,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({ insights, onDismis
                   ))}
                 </div>
               )}
-              
+
               <div className="flex justify-between items-center mt-3 text-xs">
                 <span className="opacity-75">
                   Confidence: {((insight.confidenceScore || 0) * 100).toFixed(0)}%

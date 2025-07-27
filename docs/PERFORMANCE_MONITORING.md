@@ -73,7 +73,7 @@ export default withApiMonitoring(handler);
 Use the monitored Prisma client:
 
 ```typescript
-import { prisma } from '@/lib/db/monitoredPrisma';
+import { prisma } from '@/lib/prisma';
 
 // All queries will be automatically monitored
 const users = await prisma.user.findMany();
@@ -138,7 +138,7 @@ Default thresholds:
 
 ## Best Practices
 
-1. **Always use monitored clients**: Use `monitoredPrisma` instead of raw Prisma client
+1. **Always use the Prisma client**: Use the standard `prisma` client from `@/lib/prisma`
 2. **Wrap API handlers**: Use `withApiMonitoring` for all API endpoints
 3. **Track important operations**: Use `withPerformanceMonitoring` for critical business logic
 4. **Monitor client-side**: Import the client monitor in your app

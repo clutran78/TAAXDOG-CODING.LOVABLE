@@ -5,7 +5,8 @@
 ### 1. Navigate to DigitalOcean DNS Management
 
 1. **Log in** to DigitalOcean: https://cloud.digitalocean.com
-2. **Click "Networking"** in the left sidebar (it might be under "Manage" section)
+2. **Click "Networking"** in the left sidebar (it might be under "Manage"
+   section)
 3. **Find "taxreturnpro.com.au"** in your domains list and click on it
 4. You'll see the DNS management page with existing records
 
@@ -14,6 +15,7 @@
 You need to add 3 CNAME records. For each one:
 
 #### First CNAME Record:
+
 1. Click **"Create new record"** or **"Add record"**
 2. Select **"CNAME"** from the dropdown
 3. Fill in:
@@ -23,6 +25,7 @@ You need to add 3 CNAME records. For each one:
 4. Click **"Create record"**
 
 #### Second CNAME Record:
+
 1. Click **"Create new record"** again
 2. Select **"CNAME"**
 3. Fill in:
@@ -32,6 +35,7 @@ You need to add 3 CNAME records. For each one:
 4. Click **"Create record"**
 
 #### Third CNAME Record:
+
 1. Click **"Create new record"** again
 2. Select **"CNAME"**
 3. Fill in:
@@ -74,7 +78,8 @@ TXT Record:
 
 ## Important Notes
 
-- **DO NOT** include ".taxreturnpro.com.au" in the hostname field - DigitalOcean adds it automatically
+- **DO NOT** include ".taxreturnpro.com.au" in the hostname field - DigitalOcean
+  adds it automatically
 - **DO NOT** add a trailing dot (.) to any values
 - The records should appear in your DNS list as:
   - `em3628.taxreturnpro.com.au`
@@ -93,6 +98,7 @@ TXT Record:
 ## Troubleshooting
 
 If verification fails:
+
 - Double-check you didn't include the domain name in the hostname field
 - Ensure there are no typos in the long SendGrid values
 - Wait up to 1 hour for full propagation
@@ -101,9 +107,9 @@ If verification fails:
 ## Quick Checklist
 
 - [ ] Added em3628 CNAME record
-- [ ] Added s1._domainkey CNAME record
-- [ ] Added s2._domainkey CNAME record
-- [ ] Added _dmarc TXT record
+- [ ] Added s1.\_domainkey CNAME record
+- [ ] Added s2.\_domainkey CNAME record
+- [ ] Added \_dmarc TXT record
 - [ ] Waited 10 minutes
 - [ ] Clicked "Verify" in SendGrid
 - [ ] All records show verified ✓

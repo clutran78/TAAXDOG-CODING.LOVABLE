@@ -5,7 +5,7 @@ import fetch from 'node-fetch';
 async function testPasswordReset() {
   const testEmail = process.argv[2] || 'test@example.com';
   const apiUrl = 'https://taxreturnpro.com.au/api/auth/forgot-password';
-  
+
   console.log('🧪 Testing password reset functionality...');
   console.log(`📧 Sending password reset to: ${testEmail}\n`);
 

@@ -10,7 +10,12 @@ dotenv.config();
 
 interface SecurityEvent {
   timestamp: Date;
-  type: 'authentication' | 'authorization' | 'suspicious_activity' | 'vulnerability' | 'configuration';
+  type:
+    | 'authentication'
+    | 'authorization'
+    | 'suspicious_activity'
+    | 'vulnerability'
+    | 'configuration';
   severity: 'critical' | 'high' | 'medium' | 'low';
   source: string;
   description: string;
@@ -45,7 +50,7 @@ class SecurityMonitoringService {
     failedLogins: { count: 5, window: 300000 }, // 5 attempts in 5 minutes
     suspiciousRequests: { count: 50, window: 60000 }, // 50 requests in 1 minute
     privilegedActions: { count: 10, window: 3600000 }, // 10 actions in 1 hour
-    dataExports: { count: 3, window: 3600000 } // 3 exports in 1 hour
+    dataExports: { count: 3, window: 3600000 }, // 3 exports in 1 hour
   };
 
   async startMonitoring(): Promise<void> {
@@ -68,7 +73,6 @@ class SecurityMonitoringService {
 
       // Generate metrics every hour
       setInterval(() => this.generateMetrics('1h'), 3600000);
-
     } catch (error) {
       console.error('Security monitoring error:', error);
     }
@@ -121,7 +125,7 @@ class SecurityMonitoringService {
           description: `Multiple failed login attempts: ${record.attempts} attempts from ${record.ip_address}`,
           metadata: { attempts: record.attempts },
           userId: record.user_id,
-          ipAddress: record.ip_address
+          ipAddress: record.ip_address,
         });
       }
 
@@ -153,7 +157,7 @@ class SecurityMonitoringService {
           description: `Login from new location: ${login.country || login.ip_address}`,
           metadata: { country: login.country },
           userId: login.user_id,
-          ipAddress: login.ip_address
+          ipAddress: login.ip_address,
         });
       }
 
@@ -176,10 +180,9 @@ class SecurityMonitoringService {
           source: 'Session Monitor',
           description: `User has ${user.session_count} concurrent sessions`,
           metadata: { sessionCount: user.session_count },
-          userId: user.user_id
+          userId: user.user_id,
         });
       }
-
     } catch (error) {
       console.error('Authentication monitoring error:', error);
     }
@@ -208,12 +211,12 @@ class SecurityMonitoringService {
           severity: access.attempts >= 10 ? 'high' : 'medium',
           source: 'Authorization Monitor',
           description: `Repeated unauthorized access attempts to ${access.resource}`,
-          metadata: { 
+          metadata: {
             resource: access.resource,
             attempts: access.attempts,
-            action: access.action
+            action: access.action,
           },
-          userId: access.user_id
+          userId: access.user_id,
         });
       }
 
@@ -238,12 +241,11 @@ class SecurityMonitoringService {
           description: 'Privilege escalation detected - user promoted to ADMIN',
           metadata: {
             previousRole: change.details.old_role,
-            newRole: change.details.new_role
+            newRole: change.details.new_role,
           },
-          userId: change.user_id
+          userId: change.user_id,
         });
       }
-
     } catch (error) {
       console.error('Authorization monitoring error:', error);
     }
@@ -272,9 +274,9 @@ class SecurityMonitoringService {
           description: `Abnormally high request rate: ${activity.request_count} requests/minute`,
           metadata: {
             requestCount: activity.request_count,
-            uniqueActions: activity.unique_actions
+            uniqueActions: activity.unique_actions,
           },
-          ipAddress: activity.ip_address
+          ipAddress: activity.ip_address,
         });
       }
 
@@ -300,9 +302,9 @@ class SecurityMonitoringService {
           description: `Potential data exfiltration: ${exporter.export_count} exports, ${exporter.total_records} records`,
           metadata: {
             exportCount: exporter.export_count,
-            totalRecords: exporter.total_records
+            totalRecords: exporter.total_records,
           },
-          userId: exporter.user_id
+          userId: exporter.user_id,
         });
       }
 
@@ -313,7 +315,7 @@ class SecurityMonitoringService {
         'UNION SELECT',
         '<script>',
         'javascript:',
-        '../..'
+        '../..',
       ];
 
       const suspiciousQueries = await this.prisma.$queryRaw`
@@ -342,10 +344,10 @@ class SecurityMonitoringService {
           description: 'Potential injection attack detected',
           metadata: {
             action: query.action,
-            pattern: 'SQL/XSS injection attempt'
+            pattern: 'SQL/XSS injection attempt',
           },
           userId: query.user_id,
-          ipAddress: query.ip_address
+          ipAddress: query.ip_address,
         });
       }
 
@@ -375,12 +377,11 @@ class SecurityMonitoringService {
           metadata: {
             email: account.email,
             ipCount: account.ip_count,
-            countryCount: account.country_count
+            countryCount: account.country_count,
           },
-          userId: account.user_id
+          userId: account.user_id,
         });
       }
-
     } catch (error) {
       console.error('Suspicious activity detection error:', error);
     }
@@ -403,7 +404,7 @@ class SecurityMonitoringService {
           severity: 'medium',
           source: 'Session Scanner',
           description: `${outdatedSessions[0].count} sessions older than 30 days still active`,
-          metadata: { count: outdatedSessions[0].count }
+          metadata: { count: outdatedSessions[0].count },
         });
       }
 
@@ -422,7 +423,7 @@ class SecurityMonitoringService {
           severity: 'medium',
           source: 'Password Scanner',
           description: `${weakPasswords[0].count} users haven't changed passwords in 90+ days`,
-          metadata: { count: weakPasswords[0].count }
+          metadata: { count: weakPasswords[0].count },
         });
       }
 
@@ -444,8 +445,8 @@ class SecurityMonitoringService {
           description: `${no2FA[0].privileged} privileged users without 2FA enabled`,
           metadata: {
             total: no2FA[0].total,
-            privileged: no2FA[0].privileged
-          }
+            privileged: no2FA[0].privileged,
+          },
         });
       }
 
@@ -464,10 +465,9 @@ class SecurityMonitoringService {
           severity: 'critical',
           source: 'Encryption Scanner',
           description: `${unencrypted[0].count} unencrypted sensitive records found`,
-          metadata: { count: unencrypted[0].count }
+          metadata: { count: unencrypted[0].count },
         });
       }
-
     } catch (error) {
       console.error('Vulnerability check error:', error);
     }
@@ -497,9 +497,9 @@ class SecurityMonitoringService {
           description: `Configuration change: ${change.action}`,
           metadata: {
             action: change.action,
-            details: change.details
+            details: change.details,
           },
-          userId: change.user_id
+          userId: change.user_id,
         });
       }
 
@@ -525,11 +525,10 @@ class SecurityMonitoringService {
           metadata: {
             schema: table.schemaname,
             table: table.tablename,
-            owner: table.tableowner
-          }
+            owner: table.tableowner,
+          },
         });
       }
-
     } catch (error) {
       console.error('Configuration monitoring error:', error);
     }
@@ -542,13 +541,18 @@ class SecurityMonitoringService {
   private async processEvents(): Promise<void> {
     if (this.events.length === 0) return;
 
-    console.log(`[${format(new Date(), 'HH:mm:ss')}] Processing ${this.events.length} security events`);
+    console.log(
+      `[${format(new Date(), 'HH:mm:ss')}] Processing ${this.events.length} security events`,
+    );
 
     // Group events by severity
-    const eventsBySeverity = this.events.reduce((acc, event) => {
-      acc[event.severity] = (acc[event.severity] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const eventsBySeverity = this.events.reduce(
+      (acc, event) => {
+        acc[event.severity] = (acc[event.severity] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     // Log summary
     console.log('Event Summary:', eventsBySeverity);
@@ -557,7 +561,7 @@ class SecurityMonitoringService {
     await this.saveEvents();
 
     // Send alerts for critical events
-    const criticalEvents = this.events.filter(e => e.severity === 'critical');
+    const criticalEvents = this.events.filter((e) => e.severity === 'critical');
     if (criticalEvents.length > 0) {
       await this.sendAlerts(criticalEvents);
     }
@@ -568,13 +572,16 @@ class SecurityMonitoringService {
 
   private async saveEvents(): Promise<void> {
     const logPath = path.join(process.cwd(), 'logs', 'security-events.jsonl');
-    
-    const logEntries = this.events.map(event => 
-      JSON.stringify({
-        ...event,
-        timestamp: event.timestamp.toISOString()
-      })
-    ).join('\n') + '\n';
+
+    const logEntries =
+      this.events
+        .map((event) =>
+          JSON.stringify({
+            ...event,
+            timestamp: event.timestamp.toISOString(),
+          }),
+        )
+        .join('\n') + '\n';
 
     await fs.promises.appendFile(logPath, logEntries);
   }
@@ -586,7 +593,7 @@ class SecurityMonitoringService {
 
   private async sendAlerts(events: SecurityEvent[]): Promise<void> {
     console.log('\n🚨 SECURITY ALERTS:');
-    
+
     for (const event of events) {
       console.log(`\n[${event.severity.toUpperCase()}] ${event.description}`);
       console.log(`  Source: ${event.source}`);
@@ -612,18 +619,21 @@ class SecurityMonitoringService {
       events: {
         total: 0,
         bySeverity: {},
-        byType: {}
+        byType: {},
       },
       threats: [],
       riskScore: 0,
-      recommendations: []
+      recommendations: [],
     };
 
     try {
       // Calculate time range
-      const startTime = period === '1h' ? subHours(new Date(), 1) :
-                       period === '24h' ? subDays(new Date(), 1) :
-                       subDays(new Date(), 7);
+      const startTime =
+        period === '1h'
+          ? subHours(new Date(), 1)
+          : period === '24h'
+            ? subDays(new Date(), 1)
+            : subDays(new Date(), 7);
 
       // Get events from database
       const events = await this.prisma.$queryRaw`
@@ -646,7 +656,7 @@ class SecurityMonitoringService {
         critical: events.reduce((sum: number, e: any) => sum + parseInt(e.critical), 0),
         high: events.reduce((sum: number, e: any) => sum + parseInt(e.high), 0),
         medium: events.reduce((sum: number, e: any) => sum + parseInt(e.medium), 0),
-        low: events.reduce((sum: number, e: any) => sum + parseInt(e.low), 0)
+        low: events.reduce((sum: number, e: any) => sum + parseInt(e.low), 0),
       };
 
       // Identify threats
@@ -662,7 +672,6 @@ class SecurityMonitoringService {
       await this.saveMetrics(metrics);
 
       return metrics;
-
     } catch (error) {
       console.error('Metrics generation error:', error);
       return metrics;
@@ -684,7 +693,7 @@ class SecurityMonitoringService {
         metrics.threats.push({
           name: 'Brute Force Attack',
           score: Math.min(bruteForce[0].sources * 20, 100),
-          details: `Detected from ${bruteForce[0].sources} sources`
+          details: `Detected from ${bruteForce[0].sources} sources`,
         });
       }
 
@@ -700,10 +709,9 @@ class SecurityMonitoringService {
         metrics.threats.push({
           name: 'Potential Data Exfiltration',
           score: Math.min(dataExfil[0].total_records / 1000, 100),
-          details: `${dataExfil[0].total_records} records exported`
+          details: `${dataExfil[0].total_records} records exported`,
         });
       }
-
     } catch (error) {
       console.error('Threat identification error:', error);
     }
@@ -734,11 +742,11 @@ class SecurityMonitoringService {
       metrics.recommendations.push('Address critical security events immediately');
     }
 
-    if (metrics.threats.some(t => t.name === 'Brute Force Attack')) {
+    if (metrics.threats.some((t) => t.name === 'Brute Force Attack')) {
       metrics.recommendations.push('Enable account lockout and rate limiting');
     }
 
-    if (metrics.threats.some(t => t.name === 'Potential Data Exfiltration')) {
+    if (metrics.threats.some((t) => t.name === 'Potential Data Exfiltration')) {
       metrics.recommendations.push('Review data export permissions and audit logs');
     }
 
@@ -749,13 +757,13 @@ class SecurityMonitoringService {
 
   private async saveMetrics(metrics: SecurityMetrics): Promise<void> {
     const metricsPath = path.join(process.cwd(), 'logs', 'security-metrics.jsonl');
-    
+
     await fs.promises.appendFile(
       metricsPath,
       JSON.stringify({
         ...metrics,
-        timestamp: metrics.timestamp.toISOString()
-      }) + '\n'
+        timestamp: metrics.timestamp.toISOString(),
+      }) + '\n',
     );
   }
 
@@ -770,9 +778,9 @@ class SecurityMonitoringService {
     const dailyMetrics = await this.generateMetrics('24h');
 
     // Display risk score
-    const riskEmoji = hourlyMetrics.riskScore > 80 ? '🔴' :
-                     hourlyMetrics.riskScore > 50 ? '🟡' : '🟢';
-    
+    const riskEmoji =
+      hourlyMetrics.riskScore > 80 ? '🔴' : hourlyMetrics.riskScore > 50 ? '🟡' : '🟢';
+
     console.log(`\n${riskEmoji} Current Risk Score: ${hourlyMetrics.riskScore}/100`);
 
     // Display event summary
@@ -786,7 +794,7 @@ class SecurityMonitoringService {
     // Display active threats
     if (hourlyMetrics.threats.length > 0) {
       console.log('\n⚠️  Active Threats:');
-      hourlyMetrics.threats.forEach(threat => {
+      hourlyMetrics.threats.forEach((threat) => {
         console.log(`  - ${threat.name} (Score: ${threat.score})`);
         console.log(`    ${threat.details}`);
       });
@@ -802,7 +810,7 @@ class SecurityMonitoringService {
     // Display recommendations
     if (hourlyMetrics.recommendations.length > 0) {
       console.log('\n💡 Recommendations:');
-      hourlyMetrics.recommendations.forEach(rec => {
+      hourlyMetrics.recommendations.forEach((rec) => {
         console.log(`  - ${rec}`);
       });
     }
@@ -827,7 +835,9 @@ class SecurityMonitoringService {
         console.log('\n🚨 Recent Critical Events:');
         criticalEvents.forEach((event: any) => {
           console.log(`  - ${format(new Date(event.created_at), 'HH:mm:ss')} - ${event.action}`);
-          console.log(`    User: ${event.user_id || 'Unknown'}, IP: ${event.ip_address || 'Unknown'}`);
+          console.log(
+            `    User: ${event.user_id || 'Unknown'}, IP: ${event.ip_address || 'Unknown'}`,
+          );
         });
       }
     } catch (error) {
@@ -866,11 +876,11 @@ class IncidentResponseService {
       '2. Invalidate all active sessions',
       '3. Force password reset',
       '4. Review access logs for compromised period',
-      '5. Notify user of security incident'
+      '5. Notify user of security incident',
     ];
 
     console.log('\nAuthentication Incident Response:');
-    procedures.forEach(p => console.log(`  ${p}`));
+    procedures.forEach((p) => console.log(`  ${p}`));
 
     // In production, execute these procedures automatically
   }
@@ -881,11 +891,11 @@ class IncidentResponseService {
       '2. Increase monitoring for affected resources',
       '3. Review all recent activities from source',
       '4. Check for data exfiltration',
-      '5. Preserve evidence for investigation'
+      '5. Preserve evidence for investigation',
     ];
 
     console.log('\nSuspicious Activity Response:');
-    procedures.forEach(p => console.log(`  ${p}`));
+    procedures.forEach((p) => console.log(`  ${p}`));
   }
 
   private async handleVulnerability(event: SecurityEvent): Promise<void> {
@@ -894,11 +904,11 @@ class IncidentResponseService {
       '2. Apply immediate mitigation',
       '3. Plan permanent fix',
       '4. Test fix in staging',
-      '5. Deploy to production with monitoring'
+      '5. Deploy to production with monitoring',
     ];
 
     console.log('\nVulnerability Response:');
-    procedures.forEach(p => console.log(`  ${p}`));
+    procedures.forEach((p) => console.log(`  ${p}`));
   }
 
   private async handleGenericIncident(event: SecurityEvent): Promise<void> {
@@ -908,18 +918,18 @@ class IncidentResponseService {
       '3. Contain the incident',
       '4. Eradicate the threat',
       '5. Recover normal operations',
-      '6. Post-incident review'
+      '6. Post-incident review',
     ];
 
     console.log('\nGeneric Incident Response:');
-    procedures.forEach(p => console.log(`  ${p}`));
+    procedures.forEach((p) => console.log(`  ${p}`));
   }
 }
 
 // Main execution
 async function main() {
   const monitor = new SecurityMonitoringService();
-  
+
   if (process.argv[2] === '--dashboard') {
     await monitor.generateDashboard();
   } else if (process.argv[2] === '--scan') {
@@ -927,9 +937,9 @@ async function main() {
   } else {
     // Start continuous monitoring
     await monitor.startMonitoring();
-    
+
     console.log('\nPress Ctrl+C to stop monitoring');
-    
+
     // Keep process running
     process.on('SIGINT', () => {
       console.log('\n\nStopping security monitoring...');

@@ -157,7 +157,7 @@ jobs:
     needs: [security-scan, test-backend, test-frontend]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -213,10 +213,10 @@ jobs:
         run: |
           # Wait for deployment to be ready
           sleep 30
-          
+
           # Run basic health checks
           curl -f https://staging.taaxdog.com/api/health/status
-          
+
           # Run E2E tests against staging
           # Add your end-to-end test commands here
 
@@ -245,10 +245,10 @@ jobs:
         run: |
           # Wait for deployment to be ready
           sleep 60
-          
+
           # Check application health
           curl -f https://api.taaxdog.com/api/health/status
-          
+
           # Check key endpoints
           curl -f https://api.taaxdog.com/api/health/detailed
 
@@ -281,10 +281,10 @@ jobs:
         run: |
           # Run performance tests against production
           echo "Starting performance monitoring..."
-          
+
           # Check response times
           curl -w "Response time: %{time_total}s\n" -o /dev/null -s https://api.taaxdog.com/api/health/status
-          
+
           # Check if Prometheus metrics are available
           curl -f https://api.taaxdog.com/metrics || echo "Prometheus metrics not available"
 
@@ -292,4 +292,4 @@ jobs:
         run: |
           echo "Deployment monitoring completed"
           # Update status in monitoring system
-          # Post to status page or monitoring dashboard 
+          # Post to status page or monitoring dashboard

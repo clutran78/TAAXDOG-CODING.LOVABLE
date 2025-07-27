@@ -2,7 +2,14 @@ import { AIService } from '../ai-service';
 import { AnthropicProvider } from '../providers/anthropic';
 import { AIMessage, ATO_TAX_CATEGORIES } from '../types';
 import { getAIConfig } from '../../config';
-import { AI_MODELS, SYSTEM_PROMPTS, AI_PROVIDERS, AUSTRALIAN_TAX_CONFIG, AIOperationType } from '../config';
+import { logger } from '@/lib/logger';
+import {
+  AI_MODELS,
+  SYSTEM_PROMPTS,
+  AI_PROVIDERS,
+  AUSTRALIAN_TAX_CONFIG,
+  AIOperationType,
+} from '../config';
 import { prisma } from '../../prisma';
 
 export class TaxConsultationService {
@@ -13,10 +20,7 @@ export class TaxConsultationService {
     this.aiService = new AIService();
     const anthropicConfig = AI_PROVIDERS.primary;
     // Use Claude 4 Sonnet as primary provider for tax consultation
-    this.anthropic = new AnthropicProvider(
-      anthropicConfig.apiKey,
-      AI_MODELS.CLAUDE_4_SONNET
-    );
+    this.anthropic = new AnthropicProvider(anthropicConfig.apiKey, AI_MODELS.CLAUDE_4_SONNET);
   }
 
   async consultTaxQuery(
@@ -26,7 +30,7 @@ export class TaxConsultationService {
       taxYear?: string;
       userProfile?: any;
       previousReturns?: any[];
-    }
+    },
   ): Promise<{
     answer: string;
     references: string[];
@@ -45,7 +49,7 @@ export class TaxConsultationService {
 
     // Use Anthropic Claude 4 Sonnet directly for tax consultation
     const response = await this.anthropic.sendMessage(messages);
-    
+
     // Track usage
     await this.trackUsage({
       userId,
@@ -75,7 +79,7 @@ export class TaxConsultationService {
       amount: number;
       date: Date;
       category?: string;
-    }>
+    }>,
   ): Promise<{
     eligibleDeductions: Array<{
       expense: any;
@@ -101,7 +105,7 @@ export class TaxConsultationService {
 
     // Use Anthropic for deduction analysis
     const response = await this.anthropic.sendMessage(messages);
-    
+
     // Track usage
     await this.trackUsage({
       userId,
@@ -115,7 +119,7 @@ export class TaxConsultationService {
     });
 
     const analysis = JSON.parse(response.content);
-    
+
     // Validate and enhance with ATO categories
     const eligibleDeductions = analysis.deductions.map((deduction: any) => ({
       ...deduction,
@@ -126,7 +130,7 @@ export class TaxConsultationService {
       eligibleDeductions,
       totalDeductible: eligibleDeductions
         .filter((d: any) => d.deductible)
-        .reduce((sum: number, d: any) => sum + (d.expense.amount * d.percentage / 100), 0),
+        .reduce((sum: number, d: any) => sum + (d.expense.amount * d.percentage) / 100, 0),
       recommendations: analysis.recommendations || [],
     };
   }
@@ -138,7 +142,7 @@ export class TaxConsultationService {
       expenses: Record<string, number>;
       assets?: any[];
       previousReturns?: any[];
-    }
+    },
   ): Promise<{
     strategies: Array<{
       title: string;
@@ -163,7 +167,7 @@ export class TaxConsultationService {
 
     // Use Anthropic for tax strategy generation
     const response = await this.anthropic.sendMessage(messages);
-    
+
     // Track usage
     await this.trackUsage({
       userId,
@@ -199,7 +203,7 @@ export class TaxConsultationService {
     const currentTaxYearStart = AUSTRALIAN_TAX_CONFIG.TAX_YEAR_START;
     const currentTaxYearEnd = AUSTRALIAN_TAX_CONFIG.TAX_YEAR_END;
     const gstRate = (AUSTRALIAN_TAX_CONFIG.GST_RATE * 100).toFixed(0);
-    
+
     return `You are an expert Australian tax consultant AI assistant specializing in ATO compliance and tax optimization.
 
 IMPORTANT GUIDELINES:
@@ -230,7 +234,7 @@ KEY KNOWLEDGE AREAS:
 
 DEDUCTION LIMITS TO CONSIDER:
 - Home Office Shortcut Method: $${AUSTRALIAN_TAX_CONFIG.DEDUCTION_LIMITS.HOME_OFFICE_SHORTCUT}/hour
-- Meal & Entertainment: ${(AUSTRALIAN_TAX_CONFIG.DEDUCTION_LIMITS.MEAL_ENTERTAINMENT * 100)}% deductible
+- Meal & Entertainment: ${AUSTRALIAN_TAX_CONFIG.DEDUCTION_LIMITS.MEAL_ENTERTAINMENT * 100}% deductible
 - Travel Allowance: $${AUSTRALIAN_TAX_CONFIG.DEDUCTION_LIMITS.TRAVEL_ALLOWANCE} threshold
 
 When answering:
@@ -251,9 +255,9 @@ For each expense, determine:
 4. Relevant ATO reference or ruling
 
 Use these ATO categories:
-${Object.entries(ATO_TAX_CATEGORIES).map(([code, cat]) => 
-  `${code}: ${cat.name} - ${cat.description}`
-).join('\n')}
+${Object.entries(ATO_TAX_CATEGORIES)
+  .map(([code, cat]) => `${code}: ${cat.name} - ${cat.description}`)
+  .join('\n')}
 
 Provide response as JSON with structure:
 {
@@ -322,7 +326,8 @@ Ensure all strategies are:
     references: string[];
   } {
     // Extract ATO references from the response
-    const referencePattern = /(?:ATO|TR|TD|ID|CR|PS LA|MT|QC)\s*\d{4}\/\d+|(?:ATO|TR|TD|ID|CR|PS LA|MT|QC)\s*\d{4}-\d+/gi;
+    const referencePattern =
+      /(?:ATO|TR|TD|ID|CR|PS LA|MT|QC)\s*\d{4}\/\d+|(?:ATO|TR|TD|ID|CR|PS LA|MT|QC)\s*\d{4}-\d+/gi;
     const references = content.match(referencePattern) || [];
 
     return {
@@ -333,20 +338,20 @@ Ensure all strategies are:
 
   private mapToATOCategory(suggestedCategory: string): string {
     const categoryMap: Record<string, string> = {
-      'car': 'D1',
-      'vehicle': 'D1',
-      'travel': 'D2',
-      'accommodation': 'D2',
-      'clothing': 'D3',
-      'uniform': 'D3',
-      'education': 'D4',
-      'course': 'D4',
-      'training': 'D4',
-      'tools': 'D5',
-      'equipment': 'D5',
-      'membership': 'D5',
-      'tax': 'D10',
-      'accounting': 'D10',
+      car: 'D1',
+      vehicle: 'D1',
+      travel: 'D2',
+      accommodation: 'D2',
+      clothing: 'D3',
+      uniform: 'D3',
+      education: 'D4',
+      course: 'D4',
+      training: 'D4',
+      tools: 'D5',
+      equipment: 'D5',
+      membership: 'D5',
+      tax: 'D10',
+      accounting: 'D10',
     };
 
     const lowerCategory = suggestedCategory.toLowerCase();
@@ -399,7 +404,7 @@ Tax laws and interpretations can change.`;
         },
       });
     } catch (error) {
-      console.error('Usage tracking error:', error);
+      logger.error('Usage tracking error:', error);
     }
   }
 }

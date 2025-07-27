@@ -8,7 +8,6 @@
 //     const [showManageSubscriptionsModal, setShowManageSubscriptionsModal] =
 //         useState(false);
 
-
 //     useEffect(() => {
 //         setShowManageSubscriptionsModal(true)
 //     }, [])

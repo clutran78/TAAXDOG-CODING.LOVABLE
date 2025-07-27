@@ -10,7 +10,7 @@ import {
 import { prisma } from '../../../lib/prisma';
 import bcrypt from 'bcryptjs';
 import { AuthEvent } from '@prisma/client';
-import { sendPasswordChangeNotification } from '../../../lib/email';
+import { sendPasswordChangeNotification } from '../../../lib/services/email/email';
 import { apiResponse } from '@/lib/api/response';
 
 // Security configuration

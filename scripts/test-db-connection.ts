@@ -40,7 +40,7 @@ async function testConnection(environment: 'development' | 'production') {
           ssl_version() as ssl_version,
           ssl_cipher() as ssl_cipher
       `);
-      
+
       const sslInfo = sslResult.rows[0];
       if (sslInfo.ssl_active) {
         console.log('✓ SSL is active');
@@ -53,9 +53,9 @@ async function testConnection(environment: 'development' | 'production') {
 
     // Test connection pooling
     console.log('\n4. Testing connection pooling...');
-    const poolPromises = Array(10).fill(null).map((_, i) => 
-      db.query('SELECT $1::int as number', [i])
-    );
+    const poolPromises = Array(10)
+      .fill(null)
+      .map((_, i) => db.query('SELECT $1::int as number', [i]));
     await Promise.all(poolPromises);
     console.log('✓ Connection pool handled 10 concurrent queries');
 
@@ -89,7 +89,6 @@ async function testConnection(environment: 'development' | 'production') {
     }
 
     console.log(`\n✅ All ${environment} database tests passed!\n`);
-
   } catch (error) {
     console.error(`\n❌ ${environment} database test failed:`, error);
   } finally {

@@ -19,16 +19,16 @@ interface TaxDeductionsPanelProps {
 
 export const TaxDeductionsPanel: React.FC<TaxDeductionsPanelProps> = ({ deductions }) => {
   if (!deductions) return <div className="text-center py-4">Loading tax analysis...</div>;
-  
+
   const getConfidenceBadge = (confidence: 'high' | 'medium' | 'low'): string => {
     const colors = {
       high: 'bg-success text-white',
       medium: 'bg-warning text-dark',
-      low: 'bg-danger text-white'
+      low: 'bg-danger text-white',
     };
     return colors[confidence] || colors.low;
   };
-  
+
   return (
     <div className="mb-4">
       <div className="card">
@@ -41,14 +41,15 @@ export const TaxDeductionsPanel: React.FC<TaxDeductionsPanelProps> = ({ deductio
         <div className="card-body">
           <div className="row g-3">
             {deductions.potential_deductions?.map((deduction, index) => (
-              <div key={index} className="col-12">
+              <div
+                key={index}
+                className="col-12"
+              >
                 <div className="d-flex justify-content-between align-items-center p-3 border rounded">
                   <div className="flex-grow-1">
                     <h6 className="fw-bold mb-1">{deduction.category}</h6>
                     <p className="text-muted small mb-2">{deduction.description}</p>
-                    <p className="h5 fw-bold text-success mb-0">
-                      ${deduction.amount.toFixed(2)}
-                    </p>
+                    <p className="h5 fw-bold text-success mb-0">${deduction.amount.toFixed(2)}</p>
                   </div>
                   <div className="d-flex align-items-center gap-2">
                     <span className={`badge ${getConfidenceBadge(deduction.confidence)}`}>
@@ -68,4 +69,4 @@ export const TaxDeductionsPanel: React.FC<TaxDeductionsPanelProps> = ({ deductio
       </div>
     </div>
   );
-}; 
+};

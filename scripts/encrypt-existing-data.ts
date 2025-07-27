@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client';
 import { encrypt, isEncrypted, generateEncryptionKey } from '../lib/encryption';
 import { encryptionConfig } from '../lib/prisma-encryption-middleware';
 import { config } from 'dotenv';
@@ -129,7 +129,9 @@ async function encryptBankAccountData(): Promise<MigrationStats> {
           console.log(`✅ Encrypted bank account ${account.id}`);
         } else {
           stats.skipped++;
-          console.log(`⏭️  Skipped bank account ${account.id} (already encrypted or no sensitive data)`);
+          console.log(
+            `⏭️  Skipped bank account ${account.id} (already encrypted or no sensitive data)`,
+          );
         }
       } catch (error) {
         stats.failed++;
@@ -212,7 +214,7 @@ async function main() {
     console.log('⚠️  Warning: FIELD_ENCRYPTION_KEY not found in environment variables.');
     console.log('📝 Generated new encryption key:', generateEncryptionKey());
     console.log('   Please add this to your .env file as FIELD_ENCRYPTION_KEY\n');
-    
+
     const proceed = process.argv.includes('--force');
     if (!proceed) {
       console.log('❌ Aborting migration. Set FIELD_ENCRYPTION_KEY and run again.');
@@ -255,7 +257,7 @@ async function main() {
   console.log('2. Back up the encryption key in a secure location');
   console.log('3. Test decryption on a few records');
   console.log('4. Update your application to use the encrypted Prisma client');
-  
+
   await prisma.$disconnect();
 }
 

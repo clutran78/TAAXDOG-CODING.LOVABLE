@@ -38,7 +38,7 @@ class SecurityValidationService {
       overallStatus: 'secure',
       checks: [],
       score: 100,
-      recommendations: []
+      recommendations: [],
     };
   }
 
@@ -71,11 +71,15 @@ class SecurityValidationService {
 
       // Display summary
       this.displaySummary();
-
     } catch (error) {
       console.error('Security validation error:', error);
-      this.addCheck('system', 'Security Validation System', 'fail', 
-        `System error: ${error}`, 'critical');
+      this.addCheck(
+        'system',
+        'Security Validation System',
+        'fail',
+        `System error: ${error}`,
+        'critical',
+      );
     } finally {
       if (this.prisma) {
         await this.prisma.$disconnect();
@@ -93,15 +97,22 @@ class SecurityValidationService {
       const sslCheck = await this.prisma.$queryRaw`
         SELECT ssl_is_used() as ssl_enabled
       `;
-      
-      this.addCheck('encryption', 'Database SSL/TLS', 
+
+      this.addCheck(
+        'encryption',
+        'Database SSL/TLS',
         sslCheck[0].ssl_enabled ? 'pass' : 'fail',
         `Database SSL is ${sslCheck[0].ssl_enabled ? 'enabled' : 'disabled'}`,
-        'critical'
+        'critical',
       );
     } catch (error) {
-      this.addCheck('encryption', 'Database SSL/TLS', 'fail', 
-        'Could not verify SSL status', 'critical');
+      this.addCheck(
+        'encryption',
+        'Database SSL/TLS',
+        'fail',
+        'Could not verify SSL status',
+        'critical',
+      );
     }
 
     // Check sensitive data encryption
@@ -113,14 +124,21 @@ class SecurityValidationService {
         AND two_factor_secret NOT LIKE 'encrypted:%'
       `;
 
-      this.addCheck('encryption', 'Sensitive Data Encryption',
+      this.addCheck(
+        'encryption',
+        'Sensitive Data Encryption',
         encryptedFields[0].count === 0 ? 'pass' : 'fail',
         `${encryptedFields[0].count} unencrypted sensitive fields found`,
-        'high'
+        'high',
       );
     } catch (error) {
-      this.addCheck('encryption', 'Sensitive Data Encryption', 'warning',
-        'Could not verify field encryption', 'high');
+      this.addCheck(
+        'encryption',
+        'Sensitive Data Encryption',
+        'warning',
+        'Could not verify field encryption',
+        'high',
+      );
     }
 
     // Check password hashing
@@ -132,22 +150,31 @@ class SecurityValidationService {
         AND LENGTH(password_hash) < 60
       `;
 
-      this.addCheck('encryption', 'Password Hashing',
+      this.addCheck(
+        'encryption',
+        'Password Hashing',
         unhashed[0].count === 0 ? 'pass' : 'fail',
         `${unhashed[0].count} weak password hashes found`,
-        'critical'
+        'critical',
       );
     } catch (error) {
-      this.addCheck('encryption', 'Password Hashing', 'warning',
-        'Could not verify password hashing', 'critical');
+      this.addCheck(
+        'encryption',
+        'Password Hashing',
+        'warning',
+        'Could not verify password hashing',
+        'critical',
+      );
     }
 
     // Check backup encryption
     const backupConfig = process.env.BACKUP_ENCRYPTION_KEY;
-    this.addCheck('encryption', 'Backup Encryption',
+    this.addCheck(
+      'encryption',
+      'Backup Encryption',
       backupConfig ? 'pass' : 'fail',
       backupConfig ? 'Backup encryption configured' : 'Backup encryption not configured',
-      'high'
+      'high',
     );
   }
 
@@ -155,8 +182,13 @@ class SecurityValidationService {
     console.log('🛡️  Validating Row-Level Security...');
 
     const rlsTables = [
-      'users', 'subscriptions', 'transactions', 'goals',
-      'receipts', 'tax_returns', 'bank_accounts'
+      'users',
+      'subscriptions',
+      'transactions',
+      'goals',
+      'receipts',
+      'tax_returns',
+      'bank_accounts',
     ];
 
     for (const table of rlsTables) {
@@ -176,14 +208,15 @@ class SecurityValidationService {
         const enabled = rlsStatus[0]?.relrowsecurity || false;
         const policies = policiesCount[0]?.count || 0;
 
-        this.addCheck('rls', `RLS for ${table}`,
+        this.addCheck(
+          'rls',
+          `RLS for ${table}`,
           enabled && policies > 0 ? 'pass' : 'fail',
           `RLS ${enabled ? 'enabled' : 'disabled'}, ${policies} policies`,
-          'high'
+          'high',
         );
       } catch (error) {
-        this.addCheck('rls', `RLS for ${table}`, 'fail',
-          'Could not verify RLS status', 'high');
+        this.addCheck('rls', `RLS for ${table}`, 'fail', 'Could not verify RLS status', 'high');
       }
     }
   }
@@ -195,10 +228,12 @@ class SecurityValidationService {
     const rateLimiterPath = path.join(process.cwd(), 'lib/middleware/rateLimiter.ts');
     const rateLimiterExists = fs.existsSync(rateLimiterPath);
 
-    this.addCheck('rate-limiting', 'Rate Limiter Implementation',
+    this.addCheck(
+      'rate-limiting',
+      'Rate Limiter Implementation',
       rateLimiterExists ? 'pass' : 'fail',
       rateLimiterExists ? 'Rate limiter middleware found' : 'Rate limiter not implemented',
-      'high'
+      'high',
     );
 
     // Check for rate limiting in API routes
@@ -207,21 +242,24 @@ class SecurityValidationService {
       'auth/login.ts',
       'auth/register.ts',
       'stripe/create-checkout-session.ts',
-      'banking/connect.ts'
+      'banking/connect.ts',
     ];
 
     for (const endpoint of criticalEndpoints) {
       const endpointPath = path.join(apiDir, endpoint);
       if (fs.existsSync(endpointPath)) {
         const content = await fs.promises.readFile(endpointPath, 'utf-8');
-        const hasRateLimiting = content.includes('rateLimiter') || 
-                               content.includes('rateLimit') ||
-                               content.includes('RateLimiter');
+        const hasRateLimiting =
+          content.includes('rateLimiter') ||
+          content.includes('rateLimit') ||
+          content.includes('RateLimiter');
 
-        this.addCheck('rate-limiting', `Rate limiting for ${endpoint}`,
+        this.addCheck(
+          'rate-limiting',
+          `Rate limiting for ${endpoint}`,
           hasRateLimiting ? 'pass' : 'warning',
           hasRateLimiting ? 'Rate limiting configured' : 'No rate limiting detected',
-          'medium'
+          'medium',
         );
       }
     }
@@ -239,10 +277,12 @@ class SecurityValidationService {
         ) as exists
       `;
 
-      this.addCheck('audit', 'Audit Log Table',
+      this.addCheck(
+        'audit',
+        'Audit Log Table',
         auditTable[0].exists ? 'pass' : 'fail',
         auditTable[0].exists ? 'Audit table exists' : 'Audit table missing',
-        'high'
+        'high',
       );
 
       if (auditTable[0].exists) {
@@ -253,10 +293,12 @@ class SecurityValidationService {
           WHERE created_at > NOW() - INTERVAL '24 hours'
         `;
 
-        this.addCheck('audit', 'Audit Log Activity',
+        this.addCheck(
+          'audit',
+          'Audit Log Activity',
           recentLogs[0].count > 0 ? 'pass' : 'warning',
           `${recentLogs[0].count} audit entries in last 24 hours`,
-          'medium'
+          'medium',
         );
 
         // Check critical events logging
@@ -269,16 +311,17 @@ class SecurityValidationService {
             AND created_at > NOW() - INTERVAL '7 days'
           `;
 
-          this.addCheck('audit', `Logging ${event} events`,
+          this.addCheck(
+            'audit',
+            `Logging ${event} events`,
             eventLogs[0].count > 0 ? 'pass' : 'warning',
             `${eventLogs[0].count} ${event} events logged in last 7 days`,
-            'medium'
+            'medium',
           );
         }
       }
     } catch (error) {
-      this.addCheck('audit', 'Audit System', 'fail',
-        'Could not verify audit system', 'high');
+      this.addCheck('audit', 'Audit System', 'fail', 'Could not verify audit system', 'high');
     }
   }
 
@@ -291,7 +334,7 @@ class SecurityValidationService {
       requireUppercase: true,
       requireLowercase: true,
       requireNumbers: true,
-      requireSpecialChars: true
+      requireSpecialChars: true,
     };
 
     // Check for weak passwords (length check only for privacy)
@@ -303,14 +346,21 @@ class SecurityValidationService {
         AND LENGTH(password_hash) < 60
       `;
 
-      this.addCheck('auth', 'Password Strength',
+      this.addCheck(
+        'auth',
+        'Password Strength',
         weakPasswords[0].count === 0 ? 'pass' : 'fail',
         `${weakPasswords[0].count} weak passwords detected`,
-        'critical'
+        'critical',
       );
     } catch (error) {
-      this.addCheck('auth', 'Password Strength', 'warning',
-        'Could not verify password strength', 'high');
+      this.addCheck(
+        'auth',
+        'Password Strength',
+        'warning',
+        'Could not verify password strength',
+        'high',
+      );
     }
 
     // Check 2FA adoption
@@ -323,18 +373,18 @@ class SecurityValidationService {
         WHERE role IN ('ADMIN', 'ACCOUNTANT')
       `;
 
-      const tfaPercentage = tfaStats[0].total_users > 0 
-        ? (tfaStats[0].tfa_enabled / tfaStats[0].total_users) * 100 
-        : 0;
+      const tfaPercentage =
+        tfaStats[0].total_users > 0 ? (tfaStats[0].tfa_enabled / tfaStats[0].total_users) * 100 : 0;
 
-      this.addCheck('auth', '2FA for Privileged Users',
+      this.addCheck(
+        'auth',
+        '2FA for Privileged Users',
         tfaPercentage === 100 ? 'pass' : tfaPercentage >= 80 ? 'warning' : 'fail',
         `${tfaPercentage.toFixed(1)}% of privileged users have 2FA enabled`,
-        'high'
+        'high',
       );
     } catch (error) {
-      this.addCheck('auth', '2FA Adoption', 'warning',
-        'Could not verify 2FA status', 'high');
+      this.addCheck('auth', '2FA Adoption', 'warning', 'Could not verify 2FA status', 'high');
     }
 
     // Check account lockout policy
@@ -346,14 +396,21 @@ class SecurityValidationService {
         OR failed_login_attempts >= 5
       `;
 
-      this.addCheck('auth', 'Account Lockout Policy',
+      this.addCheck(
+        'auth',
+        'Account Lockout Policy',
         'pass',
         `${lockoutPolicy[0].locked_accounts} accounts currently locked`,
-        'medium'
+        'medium',
       );
     } catch (error) {
-      this.addCheck('auth', 'Account Lockout', 'warning',
-        'Could not verify lockout policy', 'medium');
+      this.addCheck(
+        'auth',
+        'Account Lockout',
+        'warning',
+        'Could not verify lockout policy',
+        'medium',
+      );
     }
   }
 
@@ -365,13 +422,15 @@ class SecurityValidationService {
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
       sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
     };
 
-    this.addCheck('session', 'Secure Session Cookies',
+    this.addCheck(
+      'session',
+      'Secure Session Cookies',
       sessionConfig.secure || process.env.NODE_ENV !== 'production' ? 'pass' : 'fail',
       `Secure cookies ${sessionConfig.secure ? 'enabled' : 'disabled'} in ${process.env.NODE_ENV}`,
-      'high'
+      'high',
     );
 
     // Check for expired sessions
@@ -382,22 +441,31 @@ class SecurityValidationService {
         WHERE expires < NOW()
       `;
 
-      this.addCheck('session', 'Session Cleanup',
+      this.addCheck(
+        'session',
+        'Session Cleanup',
         expiredSessions[0].count < 100 ? 'pass' : 'warning',
         `${expiredSessions[0].count} expired sessions found`,
-        'low'
+        'low',
       );
     } catch (error) {
-      this.addCheck('session', 'Session Management', 'warning',
-        'Could not verify session status', 'medium');
+      this.addCheck(
+        'session',
+        'Session Management',
+        'warning',
+        'Could not verify session status',
+        'medium',
+      );
     }
 
     // Check CSRF protection
     const csrfProtection = process.env.NEXTAUTH_SECRET ? true : false;
-    this.addCheck('session', 'CSRF Protection',
+    this.addCheck(
+      'session',
+      'CSRF Protection',
       csrfProtection ? 'pass' : 'fail',
       csrfProtection ? 'CSRF protection configured' : 'CSRF protection not configured',
-      'high'
+      'high',
     );
   }
 
@@ -416,32 +484,43 @@ class SecurityValidationService {
         AND created_at > NOW() - INTERVAL '7 days'
       `;
 
-      this.addCheck('input', 'SQL Injection Detection',
+      this.addCheck(
+        'input',
+        'SQL Injection Detection',
         suspiciousQueries[0].count === 0 ? 'pass' : 'fail',
         `${suspiciousQueries[0].count} suspicious queries detected`,
-        'critical'
+        'critical',
       );
     } catch (error) {
-      this.addCheck('input', 'SQL Injection Detection', 'warning',
-        'Could not check for SQL injection attempts', 'high');
+      this.addCheck(
+        'input',
+        'SQL Injection Detection',
+        'warning',
+        'Could not check for SQL injection attempts',
+        'high',
+      );
     }
 
     // Check for XSS prevention
     const sanitizerPath = path.join(process.cwd(), 'lib/middleware/validation.ts');
     const hasSanitizer = fs.existsSync(sanitizerPath);
 
-    this.addCheck('input', 'Input Sanitization Middleware',
+    this.addCheck(
+      'input',
+      'Input Sanitization Middleware',
       hasSanitizer ? 'pass' : 'fail',
       hasSanitizer ? 'Input sanitization implemented' : 'No input sanitization found',
-      'high'
+      'high',
     );
 
     // Check Content Security Policy
     const cspConfigured = true; // This would check actual headers in production
-    this.addCheck('input', 'Content Security Policy',
+    this.addCheck(
+      'input',
+      'Content Security Policy',
       cspConfigured ? 'pass' : 'warning',
       'CSP headers configured',
-      'medium'
+      'medium',
     );
   }
 
@@ -449,30 +528,37 @@ class SecurityValidationService {
     console.log('🌏 Validating Data Residency...');
 
     // Check database location
-    const dbHost = process.env.DATABASE_URL?.includes('syd') || 
-                   process.env.DATABASE_URL?.includes('sydney') ||
-                   process.env.DATABASE_URL?.includes('au-');
+    const dbHost =
+      process.env.DATABASE_URL?.includes('syd') ||
+      process.env.DATABASE_URL?.includes('sydney') ||
+      process.env.DATABASE_URL?.includes('au-');
 
-    this.addCheck('compliance', 'Data Residency (Australia)',
+    this.addCheck(
+      'compliance',
+      'Data Residency (Australia)',
       dbHost ? 'pass' : 'fail',
       dbHost ? 'Data hosted in Australian region' : 'Data not in Australian region',
-      'critical'
+      'critical',
     );
 
     // Check backup location
     const backupRegion = process.env.AWS_REGION === 'ap-southeast-2';
-    this.addCheck('compliance', 'Backup Residency',
+    this.addCheck(
+      'compliance',
+      'Backup Residency',
       backupRegion ? 'pass' : 'warning',
       backupRegion ? 'Backups in Sydney region' : 'Backups not in Australian region',
-      'high'
+      'high',
     );
 
     // Check CDN/cache configuration
     const cacheRegion = true; // Would check actual CDN config
-    this.addCheck('compliance', 'Cache Data Residency',
+    this.addCheck(
+      'compliance',
+      'Cache Data Residency',
       cacheRegion ? 'pass' : 'warning',
       'Cache configured for Australian region',
-      'medium'
+      'medium',
     );
   }
 
@@ -481,10 +567,12 @@ class SecurityValidationService {
 
     // Check HTTPS enforcement
     const httpsEnforced = process.env.NODE_ENV === 'production';
-    this.addCheck('network', 'HTTPS Enforcement',
+    this.addCheck(
+      'network',
+      'HTTPS Enforcement',
       httpsEnforced ? 'pass' : 'warning',
       `HTTPS ${httpsEnforced ? 'enforced' : 'not enforced'} in ${process.env.NODE_ENV}`,
-      'high'
+      'high',
     );
 
     // Check security headers
@@ -492,26 +580,24 @@ class SecurityValidationService {
       'X-Frame-Options',
       'X-Content-Type-Options',
       'Strict-Transport-Security',
-      'X-XSS-Protection'
+      'X-XSS-Protection',
     ];
 
     const middlewarePath = path.join(process.cwd(), 'lib/middleware/securityHeaders.ts');
     const hasSecurityHeaders = fs.existsSync(middlewarePath);
 
     for (const header of securityHeaders) {
-      this.addCheck('network', `Security Header: ${header}`,
+      this.addCheck(
+        'network',
+        `Security Header: ${header}`,
         hasSecurityHeaders ? 'pass' : 'warning',
         hasSecurityHeaders ? 'Header configured' : 'Header not configured',
-        'medium'
+        'medium',
       );
     }
 
     // Check for exposed ports
-    this.addCheck('network', 'Port Security',
-      'pass',
-      'Only standard HTTPS port exposed',
-      'high'
-    );
+    this.addCheck('network', 'Port Security', 'pass', 'Only standard HTTPS port exposed', 'high');
   }
 
   private async validateAccessControls(): Promise<void> {
@@ -526,10 +612,12 @@ class SecurityValidationService {
       `;
 
       const hasRoles = roles.length > 1;
-      this.addCheck('access', 'Role-Based Access Control',
+      this.addCheck(
+        'access',
+        'Role-Based Access Control',
         hasRoles ? 'pass' : 'warning',
         `${roles.length} roles configured`,
-        'high'
+        'high',
       );
 
       // Check for excessive privileges
@@ -537,38 +625,47 @@ class SecurityValidationService {
       const totalUsers = roles.reduce((sum: number, r: any) => sum + parseInt(r.count), 0);
       const adminPercentage = totalUsers > 0 ? (adminCount / totalUsers) * 100 : 0;
 
-      this.addCheck('access', 'Principle of Least Privilege',
+      this.addCheck(
+        'access',
+        'Principle of Least Privilege',
         adminPercentage < 5 ? 'pass' : adminPercentage < 10 ? 'warning' : 'fail',
         `${adminPercentage.toFixed(1)}% of users have admin access`,
-        'high'
+        'high',
       );
     } catch (error) {
-      this.addCheck('access', 'Access Control System', 'warning',
-        'Could not verify access controls', 'high');
+      this.addCheck(
+        'access',
+        'Access Control System',
+        'warning',
+        'Could not verify access controls',
+        'high',
+      );
     }
 
     // Check API key security
-    const apiKeys = [
-      'STRIPE_SECRET_KEY',
-      'BASIQ_API_KEY',
-      'ANTHROPIC_API_KEY',
-      'SENDGRID_API_KEY'
-    ];
+    const apiKeys = ['STRIPE_SECRET_KEY', 'BASIQ_API_KEY', 'ANTHROPIC_API_KEY', 'SENDGRID_API_KEY'];
 
     for (const key of apiKeys) {
       const configured = process.env[key] ? true : false;
       const inCode = false; // Would check codebase for hardcoded keys
 
-      this.addCheck('access', `API Key Security: ${key}`,
+      this.addCheck(
+        'access',
+        `API Key Security: ${key}`,
         configured && !inCode ? 'pass' : 'fail',
         configured ? 'Securely configured' : 'Not configured',
-        'critical'
+        'critical',
       );
     }
   }
 
-  private addCheck(category: string, check: string, status: 'pass' | 'fail' | 'warning', 
-                   details: string, severity: 'critical' | 'high' | 'medium' | 'low'): void {
+  private addCheck(
+    category: string,
+    check: string,
+    status: 'pass' | 'fail' | 'warning',
+    details: string,
+    severity: 'critical' | 'high' | 'medium' | 'low',
+  ): void {
     this.report.checks.push({ category, check, status, details, severity });
   }
 
@@ -577,7 +674,7 @@ class SecurityValidationService {
       critical: 10,
       high: 5,
       medium: 2,
-      low: 1
+      low: 1,
     };
 
     let totalWeight = 0;
@@ -586,7 +683,7 @@ class SecurityValidationService {
     for (const check of this.report.checks) {
       const weight = weights[check.severity];
       totalWeight += weight;
-      
+
       if (check.status === 'pass') {
         passedWeight += weight;
       } else if (check.status === 'warning') {
@@ -608,31 +705,31 @@ class SecurityValidationService {
 
   private generateRecommendations(): void {
     const failedCritical = this.report.checks.filter(
-      c => c.status === 'fail' && c.severity === 'critical'
+      (c) => c.status === 'fail' && c.severity === 'critical',
     );
 
     const failedHigh = this.report.checks.filter(
-      c => c.status === 'fail' && c.severity === 'high'
+      (c) => c.status === 'fail' && c.severity === 'high',
     );
 
     if (failedCritical.length > 0) {
       this.report.recommendations.push(
-        '🚨 URGENT: Address all critical security failures immediately'
+        '🚨 URGENT: Address all critical security failures immediately',
       );
     }
 
     if (failedHigh.length > 0) {
       this.report.recommendations.push(
-        '⚠️  HIGH PRIORITY: Fix high-severity security issues within 24 hours'
+        '⚠️  HIGH PRIORITY: Fix high-severity security issues within 24 hours',
       );
     }
 
     // Specific recommendations based on failures
-    const categories = [...new Set(this.report.checks.map(c => c.category))];
-    
+    const categories = [...new Set(this.report.checks.map((c) => c.category))];
+
     for (const category of categories) {
       const categoryFailures = this.report.checks.filter(
-        c => c.category === category && c.status !== 'pass'
+        (c) => c.category === category && c.status !== 'pass',
       );
 
       if (categoryFailures.length > 0) {
@@ -641,16 +738,22 @@ class SecurityValidationService {
             this.report.recommendations.push('🔐 Enable encryption for all sensitive data fields');
             break;
           case 'rls':
-            this.report.recommendations.push('🛡️  Implement Row-Level Security on all user data tables');
+            this.report.recommendations.push(
+              '🛡️  Implement Row-Level Security on all user data tables',
+            );
             break;
           case 'auth':
             this.report.recommendations.push('🔑 Enforce 2FA for all privileged accounts');
             break;
           case 'audit':
-            this.report.recommendations.push('📝 Ensure comprehensive audit logging for all critical operations');
+            this.report.recommendations.push(
+              '📝 Ensure comprehensive audit logging for all critical operations',
+            );
             break;
           case 'rate-limiting':
-            this.report.recommendations.push('⏱️  Implement rate limiting on all public API endpoints');
+            this.report.recommendations.push(
+              '⏱️  Implement rate limiting on all public API endpoints',
+            );
             break;
         }
       }
@@ -659,7 +762,7 @@ class SecurityValidationService {
 
   private async saveReport(): Promise<void> {
     const reportPath = path.join(process.cwd(), 'logs', 'security-validation-report.json');
-    
+
     let reports = [];
     try {
       const existing = await fs.promises.readFile(reportPath, 'utf-8');
@@ -670,7 +773,7 @@ class SecurityValidationService {
 
     reports.push({
       ...this.report,
-      timestamp: this.report.timestamp.toISOString()
+      timestamp: this.report.timestamp.toISOString(),
     });
 
     // Keep only last 30 reports
@@ -685,37 +788,39 @@ class SecurityValidationService {
     console.log('\n' + '='.repeat(60));
     console.log('🔒 SECURITY VALIDATION REPORT');
     console.log('='.repeat(60));
-    
+
     const statusEmoji = {
       secure: '✅',
       at_risk: '⚠️',
-      vulnerable: '🚨'
+      vulnerable: '🚨',
     };
 
-    console.log(`\nOverall Status: ${statusEmoji[this.report.overallStatus]} ${this.report.overallStatus.toUpperCase()}`);
+    console.log(
+      `\nOverall Status: ${statusEmoji[this.report.overallStatus]} ${this.report.overallStatus.toUpperCase()}`,
+    );
     console.log(`Security Score: ${this.report.score}/100`);
     console.log(`Timestamp: ${format(this.report.timestamp, 'yyyy-MM-dd HH:mm:ss')}`);
 
     // Summary by category
     console.log('\n📊 Summary by Category:');
-    const categories = [...new Set(this.report.checks.map(c => c.category))];
-    
+    const categories = [...new Set(this.report.checks.map((c) => c.category))];
+
     for (const category of categories) {
-      const categoryChecks = this.report.checks.filter(c => c.category === category);
-      const passed = categoryChecks.filter(c => c.status === 'pass').length;
+      const categoryChecks = this.report.checks.filter((c) => c.category === category);
+      const passed = categoryChecks.filter((c) => c.status === 'pass').length;
       const total = categoryChecks.length;
-      
+
       console.log(`  ${category}: ${passed}/${total} passed`);
     }
 
     // Critical failures
     const criticalFailures = this.report.checks.filter(
-      c => c.status === 'fail' && c.severity === 'critical'
+      (c) => c.status === 'fail' && c.severity === 'critical',
     );
 
     if (criticalFailures.length > 0) {
       console.log('\n🚨 CRITICAL FAILURES:');
-      criticalFailures.forEach(f => {
+      criticalFailures.forEach((f) => {
         console.log(`  - ${f.check}: ${f.details}`);
       });
     }
@@ -723,7 +828,7 @@ class SecurityValidationService {
     // Recommendations
     if (this.report.recommendations.length > 0) {
       console.log('\n💡 Recommendations:');
-      this.report.recommendations.forEach(r => {
+      this.report.recommendations.forEach((r) => {
         console.log(`  ${r}`);
       });
     }
@@ -736,7 +841,7 @@ class SecurityValidationService {
 async function main() {
   const validator = new SecurityValidationService();
   const report = await validator.runValidation();
-  
+
   if (report.overallStatus === 'vulnerable') {
     process.exit(1);
   }

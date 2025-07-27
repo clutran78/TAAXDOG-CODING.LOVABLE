@@ -15,7 +15,9 @@ export default function AccountSummary() {
   const [error, setError] = useState<string | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState({
-    fromDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+    fromDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+      .toISOString()
+      .split('T')[0],
     toDate: new Date().toISOString().split('T')[0],
   });
 
@@ -44,8 +46,8 @@ export default function AccountSummary() {
       if (!summaryResponse.ok) throw new Error('Failed to fetch summary');
       const summaryData = await summaryResponse.json();
       setSummary(summaryData.summary);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -161,11 +163,13 @@ export default function AccountSummary() {
               <div className="pt-3 border-t">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-700 font-medium">Net Income</span>
-                  <span className={`font-bold text-lg ${
-                    summary.totalIncome - summary.totalExpenses >= 0 
-                      ? 'text-green-600' 
-                      : 'text-red-600'
-                  }`}>
+                  <span
+                    className={`font-bold text-lg ${
+                      summary.totalIncome - summary.totalExpenses >= 0
+                        ? 'text-green-600'
+                        : 'text-red-600'
+                    }`}
+                  >
                     {formatCurrency(summary.totalIncome - summary.totalExpenses)}
                   </span>
                 </div>
@@ -178,29 +182,22 @@ export default function AccountSummary() {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-gray-700">Business Expenses</span>
-                <span className="font-semibold">
-                  {formatCurrency(summary.businessExpenses)}
-                </span>
+                <span className="font-semibold">{formatCurrency(summary.businessExpenses)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-700">Personal Expenses</span>
-                <span className="font-semibold">
-                  {formatCurrency(summary.personalExpenses)}
-                </span>
+                <span className="font-semibold">{formatCurrency(summary.personalExpenses)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-700">GST Paid</span>
-                <span className="font-semibold">
-                  {formatCurrency(summary.gstTotal)}
-                </span>
+                <span className="font-semibold">{formatCurrency(summary.gstTotal)}</span>
               </div>
               <div className="pt-3 border-t">
                 <div className="text-sm text-gray-600">
-                  Business expense ratio: {
-                    summary.totalExpenses > 0 
-                      ? `${((summary.businessExpenses / summary.totalExpenses) * 100).toFixed(1)}%`
-                      : '0%'
-                  }
+                  Business expense ratio:{' '}
+                  {summary.totalExpenses > 0
+                    ? `${((summary.businessExpenses / summary.totalExpenses) * 100).toFixed(1)}%`
+                    : '0%'}
                 </div>
               </div>
             </div>
@@ -215,12 +212,12 @@ export default function AccountSummary() {
         </div>
         <div className="divide-y">
           {accounts.map((account) => (
-            <div 
-              key={account.accountId} 
+            <div
+              key={account.accountId}
               className="p-6 hover:bg-gray-50 cursor-pointer"
-              onClick={() => setSelectedAccount(
-                selectedAccount === account.accountId ? null : account.accountId
-              )}
+              onClick={() =>
+                setSelectedAccount(selectedAccount === account.accountId ? null : account.accountId)
+              }
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -279,11 +276,12 @@ export default function AccountSummary() {
               {Object.entries(summary.categorizedExpenses)
                 .sort((a, b) => b[1].total - a[1].total)
                 .map(([category, data]) => (
-                  <div key={category} className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                  <div
+                    key={category}
+                    className="flex justify-between items-center p-3 bg-gray-50 rounded"
+                  >
                     <div>
-                      <p className="font-medium capitalize">
-                        {category.replace(/_/g, ' ')}
-                      </p>
+                      <p className="font-medium capitalize">{category.replace(/_/g, ' ')}</p>
                       <p className="text-sm text-gray-600">
                         {data.count} transactions
                         {data.gst > 0 && ` • GST: ${formatCurrency(data.gst)}`}

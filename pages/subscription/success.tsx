@@ -11,7 +11,7 @@ export default function SubscriptionSuccess() {
 
   useEffect(() => {
     const { session_id } = router.query;
-    
+
     if (session_id && typeof session_id === 'string') {
       // Verify the session and update subscription status
       verifyCheckoutSession(session_id);
@@ -35,7 +35,10 @@ export default function SubscriptionSuccess() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <svg className="animate-spin h-12 w-12 text-blue-600 mx-auto" viewBox="0 0 24 24">
+          <svg
+            className="animate-spin h-12 w-12 text-blue-600 mx-auto"
+            viewBox="0 0 24 24"
+          >
             <circle
               className="opacity-25"
               cx="12"
@@ -105,14 +108,10 @@ export default function SubscriptionSuccess() {
               />
             </svg>
           </div>
-          
-          <h2 className="mt-4 text-2xl font-bold text-gray-900">
-            Welcome to TAAX!
-          </h2>
-          
-          <p className="mt-2 text-gray-600">
-            Your subscription has been activated successfully.
-          </p>
+
+          <h2 className="mt-4 text-2xl font-bold text-gray-900">Welcome to TAAX!</h2>
+
+          <p className="mt-2 text-gray-600">Your subscription has been activated successfully.</p>
 
           <div className="mt-6 bg-blue-50 rounded-lg p-4">
             <h3 className="text-sm font-medium text-blue-900">What's next?</h3>
@@ -131,7 +130,7 @@ export default function SubscriptionSuccess() {
             >
               Go to Dashboard
             </Link>
-            
+
             <Link
               href="/account/subscription"
               className="w-full block bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 text-center"

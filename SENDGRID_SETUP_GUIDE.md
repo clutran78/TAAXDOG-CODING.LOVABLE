@@ -1,9 +1,13 @@
 # SendGrid Email Configuration Guide for TaxReturnPro
 
 ## Overview
-This guide will help you set up SendGrid as your email provider for TaxReturnPro. SendGrid offers better deliverability, detailed analytics, and easier configuration compared to traditional SMTP services.
+
+This guide will help you set up SendGrid as your email provider for
+TaxReturnPro. SendGrid offers better deliverability, detailed analytics, and
+easier configuration compared to traditional SMTP services.
 
 ## Prerequisites
+
 - A SendGrid account (sign up at https://sendgrid.com)
 - Access to your domain's DNS settings
 - Access to DigitalOcean App Platform
@@ -29,6 +33,7 @@ This guide will help you set up SendGrid as your email provider for TaxReturnPro
 ## Step 2: Configure Sender Authentication
 
 ### Option A: Domain Authentication (Recommended)
+
 This proves you own the domain and improves deliverability.
 
 1. **Start Domain Authentication**
@@ -38,18 +43,18 @@ This proves you own the domain and improves deliverability.
    - Choose your DNS provider
    - Select "No" for branding links
 
-2. **Add DNS Records**
-   SendGrid will provide several DNS records. Add these to your domain:
-   
+2. **Add DNS Records** SendGrid will provide several DNS records. Add these to
+   your domain:
+
    ```
    Type: CNAME
    Name: em1234.taxreturnpro.com.au
    Value: u1234567.wl123.sendgrid.net
-   
+
    Type: CNAME
    Name: s1._domainkey.taxreturnpro.com.au
    Value: s1.domainkey.u1234567.wl123.sendgrid.net
-   
+
    Type: CNAME
    Name: s2._domainkey.taxreturnpro.com.au
    Value: s2.domainkey.u1234567.wl123.sendgrid.net
@@ -60,7 +65,9 @@ This proves you own the domain and improves deliverability.
    - DNS propagation may take up to 48 hours
 
 ### Option B: Single Sender Verification (Quick Start)
-Use this to start sending emails immediately while setting up domain authentication.
+
+Use this to start sending emails immediately while setting up domain
+authentication.
 
 1. Go to Settings → Sender Authentication → Single Sender Verification
 2. Click "Create New Sender"
@@ -75,6 +82,7 @@ Use this to start sending emails immediately while setting up domain authenticat
 ## Step 3: Configure DigitalOcean Environment Variables
 
 ### Via Web Console:
+
 1. Log in to DigitalOcean
 2. Go to Apps → taaxdog → Settings
 3. Click "Edit" on Environment Variables
@@ -86,7 +94,9 @@ Use this to start sending emails immediately while setting up domain authenticat
 6. Save and Deploy
 
 ### Via Git (Already configured):
-The `digitalocean-app-spec.yaml` has been updated. Just replace `YOUR_SENDGRID_API_KEY` with your actual key:
+
+The `digitalocean-app-spec.yaml` has been updated. Just replace
+`YOUR_SENDGRID_API_KEY` with your actual key:
 
 ```bash
 # Edit the file
@@ -103,12 +113,13 @@ git push origin main
 ## Step 4: Test Email Functionality
 
 1. **Test in Development**
+
    ```bash
    # Set environment variables
    export EMAIL_PROVIDER=sendgrid
    export SENDGRID_API_KEY=your-api-key
    export EMAIL_FROM=noreply@taxreturnpro.com.au
-   
+
    # Run development server
    npm run dev
    ```
@@ -137,18 +148,21 @@ SendGrid supports dynamic templates for consistent branding:
 ## Troubleshooting
 
 ### Email not sending:
+
 1. Check SendGrid Activity feed for errors
 2. Verify API key is correct
 3. Check sender authentication status
 4. Review DigitalOcean logs
 
 ### Common SendGrid Errors:
+
 - **401**: Invalid API key
 - **403**: Sender not verified
 - **413**: Email too large (limit 30MB)
 - **429**: Rate limit exceeded
 
 ### Checking Logs in DigitalOcean:
+
 ```bash
 # Via CLI
 doctl apps logs <APP_ID> --type=run
@@ -167,6 +181,7 @@ doctl apps logs <APP_ID> --type=run
 ## Fallback to SMTP
 
 The email system supports fallback to SMTP. To use Gmail SMTP instead:
+
 1. Set `EMAIL_PROVIDER` to `smtp` or remove it
 2. Configure SMTP variables:
    - `SMTP_HOST` = `smtp.gmail.com`

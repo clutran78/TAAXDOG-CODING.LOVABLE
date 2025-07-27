@@ -1,14 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { CategoryBreakdown } from './CategoryBreakdown';
 import { VarianceChart } from './VarianceChart';
+import { Budget, BudgetCategory } from '@/lib/types';
+import { logger } from '@/lib/logger';
+
+interface BudgetVariance {
+  id: string;
+  budgetId: string;
+  month: number;
+  year: number;
+  totalBudgeted: number;
+  totalSpent: number;
+  variance: number;
+  percentageUsed: number;
+  categories: Array<{
+    category: string;
+    budgeted: number;
+    spent: number;
+    variance: number;
+    percentageUsed: number;
+  }>;
+}
 
 interface BudgetOverviewProps {
-  budget: any;
+  budget: Budget & { tracking?: BudgetCategory[] };
   onUpdate: () => void;
 }
 
 export const BudgetOverview: React.FC<BudgetOverviewProps> = ({ budget, onUpdate }) => {
-  const [variance, setVariance] = useState<any>(null);
+  const [variance, setVariance] = useState<BudgetVariance | null>(null);
   const [loadingVariance, setLoadingVariance] = useState(false);
   const [currentMonth] = useState(new Date().getMonth() + 1);
   const [currentYear] = useState(new Date().getFullYear());
@@ -21,15 +41,15 @@ export const BudgetOverview: React.FC<BudgetOverviewProps> = ({ budget, onUpdate
     setLoadingVariance(true);
     try {
       const response = await fetch(
-        `/api/budgets/${budget.id}/variance?month=${currentMonth}&year=${currentYear}`
+        `/api/budgets/${budget.id}/variance?month=${currentMonth}&year=${currentYear}`,
       );
-      
+
       if (response.ok) {
         const data = await response.json();
         setVariance(data.analysis);
       }
     } catch (error) {
-      console.error('Failed to fetch variance:', error);
+      logger.error('Failed to fetch variance:', error);
     } finally {
       setLoadingVariance(false);
     }
@@ -51,7 +71,7 @@ export const BudgetOverview: React.FC<BudgetOverviewProps> = ({ budget, onUpdate
         onUpdate();
       }
     } catch (error) {
-      console.error('Failed to update tracking:', error);
+      logger.error('Failed to update tracking:', error);
     }
   };
 
@@ -108,7 +128,7 @@ export const BudgetOverview: React.FC<BudgetOverviewProps> = ({ budget, onUpdate
       {variance && (
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4">Current Month Performance</h3>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div>
               <p className="text-sm text-gray-500">Predicted</p>
@@ -138,7 +158,12 @@ export const BudgetOverview: React.FC<BudgetOverviewProps> = ({ budget, onUpdate
               <h4 className="font-medium mb-2">Insights</h4>
               <ul className="space-y-1">
                 {variance.insights.map((insight: string, index: number) => (
-                  <li key={index} className="text-sm text-gray-700">• {insight}</li>
+                  <li
+                    key={index}
+                    className="text-sm text-gray-700"
+                  >
+                    • {insight}
+                  </li>
                 ))}
               </ul>
             </div>
@@ -147,9 +172,7 @@ export const BudgetOverview: React.FC<BudgetOverviewProps> = ({ budget, onUpdate
       )}
 
       {/* Category Breakdown */}
-      {variance && (
-        <CategoryBreakdown categories={variance.categories} />
-      )}
+      {variance && <CategoryBreakdown categories={variance.categories} />}
 
       {/* Historical Variance Chart */}
       {budget.budgetTracking && budget.budgetTracking.length > 0 && (
@@ -170,16 +193,21 @@ export const BudgetOverview: React.FC<BudgetOverviewProps> = ({ budget, onUpdate
                     style={{ width: `${(budget.confidenceScore || 0) * 100}%` }}
                   />
                 </div>
-                <span className="ml-2 text-sm">{((budget.confidenceScore || 0) * 100).toFixed(0)}%</span>
+                <span className="ml-2 text-sm">
+                  {((budget.confidenceScore || 0) * 100).toFixed(0)}%
+                </span>
               </div>
             </div>
-            
+
             {budget.predictions.recommendations && (
               <div>
                 <p className="text-sm text-gray-500 mb-2">Recommendations</p>
                 <ul className="space-y-2">
                   {budget.predictions.recommendations.map((rec: string, index: number) => (
-                    <li key={index} className="text-sm bg-gray-50 p-2 rounded">
+                    <li
+                      key={index}
+                      className="text-sm bg-gray-50 p-2 rounded"
+                    >
                       {rec}
                     </li>
                   ))}

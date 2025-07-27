@@ -1,6 +1,7 @@
 import { config } from 'dotenv';
 import { resolve } from 'path';
 import { existsSync } from 'fs';
+import { logger } from '@/lib/logger';
 
 // Environment file priority order
 const ENV_FILE_PRIORITY = [
@@ -16,16 +17,16 @@ const ENV_FILE_PRIORITY = [
 export function loadEnvironment(): void {
   const nodeEnv = process.env.NODE_ENV || 'development';
   const rootDir = process.cwd();
-  
+
   // Load environment files in priority order
   for (const envFile of ENV_FILE_PRIORITY) {
     const filePath = resolve(rootDir, envFile);
-    
+
     // Skip if file doesn't exist
     if (!existsSync(filePath)) {
       continue;
     }
-    
+
     // Skip production files in development and vice versa
     if (nodeEnv === 'development' && envFile.includes('production')) {
       continue;
@@ -33,39 +34,35 @@ export function loadEnvironment(): void {
     if (nodeEnv === 'production' && envFile.includes('development')) {
       continue;
     }
-    
+
     // Load the environment file
     const result = config({ path: filePath });
-    
+
     if (result.error) {
-      console.warn(`Failed to load ${envFile}:`, result.error.message);
+      logger.warn(`Failed to load ${envFile}:`, result.error.message);
     } else {
-      console.log(`Loaded environment from ${envFile}`);
+      logger.info(`Loaded environment from ${envFile}`);
     }
   }
-  
+
   // Validate critical environment variables
   validateEnvironment();
 }
 
 // Validate required environment variables
 function validateEnvironment(): void {
-  const required = [
-    'DATABASE_URL',
-    'NEXTAUTH_URL',
-    'NEXTAUTH_SECRET',
-  ];
-  
+  const required = ['DATABASE_URL', 'NEXTAUTH_URL', 'NEXTAUTH_SECRET'];
+
   const missing: string[] = [];
-  
+
   for (const key of required) {
     if (!process.env[key]) {
       missing.push(key);
     }
   }
-  
+
   if (missing.length > 0) {
-    console.warn(`Missing required environment variables: ${missing.join(', ')}`);
+    logger.warn(`Missing required environment variables: ${missing.join(', ');}`);
   }
 }
 

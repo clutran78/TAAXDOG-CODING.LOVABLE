@@ -2,12 +2,13 @@
 import { Stripe } from 'stripe';
 import { getStripe } from './config';
 import { prisma } from '../prisma';
-import { 
-  SUBSCRIPTION_PLANS, 
+import { logger } from '@/lib/logger';
+import {
+  SUBSCRIPTION_PLANS,
   getPlanByPriceId,
   getPromotionalEndDate,
   formatAUDAmount,
-  BUSINESS_DETAILS
+  BUSINESS_DETAILS,
 } from './pricing';
 
 export interface CreateSubscriptionParams {
@@ -36,7 +37,11 @@ export class SubscriptionManager {
   }
 
   // Create or get Stripe customer
-  async getOrCreateCustomer(userId: string, email: string, metadata?: any): Promise<Stripe.Customer> {
+  async getOrCreateCustomer(
+    userId: string,
+    email: string,
+    metadata?: any,
+  ): Promise<Stripe.Customer> {
     // Check if customer exists in database
     const existingSubscription = await prisma.subscription.findUnique({
       where: { userId },
@@ -44,7 +49,9 @@ export class SubscriptionManager {
 
     if (existingSubscription?.stripeCustomerId) {
       try {
-        const customer = await this.stripe.customers.retrieve(existingSubscription.stripeCustomerId);
+        const customer = await this.stripe.customers.retrieve(
+          existingSubscription.stripeCustomerId,
+        );
         if (!customer.deleted) {
           return customer as Stripe.Customer;
         }
@@ -76,10 +83,14 @@ export class SubscriptionManager {
       address: {
         country: 'AU', // Default to Australia
       },
-      tax_id_data: user.abn ? [{
-        type: 'au_abn',
-        value: user.abn,
-      }] : undefined,
+      tax_id_data: user.abn
+        ? [
+            {
+              type: 'au_abn',
+              value: user.abn,
+            },
+          ]
+        : undefined,
     });
 
     return customer;
@@ -106,7 +117,7 @@ export class SubscriptionManager {
       await this.stripe.paymentMethods.attach(paymentMethodId, {
         customer: customer.id,
       });
-      
+
       // Set as default payment method
       await this.stripe.customers.update(customer.id, {
         invoice_settings: {
@@ -122,22 +133,24 @@ export class SubscriptionManager {
       // Annual subscription - simple creation
       subscription = await this.stripe.subscriptions.create({
         customer: customer.id,
-        items: [{ 
-          price_data: {
-            currency: 'aud',
-            product_data: {
-              name: plan.name,
-              description: plan.description,
-              metadata: {
-                planType,
+        items: [
+          {
+            price_data: {
+              currency: 'aud',
+              product_data: {
+                name: plan.name,
+                description: plan.description,
+                metadata: {
+                  planType,
+                },
+              },
+              unit_amount: plan.prices.annual.amount,
+              recurring: {
+                interval: 'year',
               },
             },
-            unit_amount: plan.prices.annual.amount,
-            recurring: {
-              interval: 'year',
-            },
           },
-        }],
+        ],
         trial_period_days: plan.trialDays,
         payment_behavior: 'default_incomplete',
         payment_settings: { save_default_payment_method: 'on_subscription' },
@@ -153,7 +166,7 @@ export class SubscriptionManager {
       // Monthly subscription with promotional pricing
       const promotionalEndDate = getPromotionalEndDate(
         new Date(),
-        plan.prices.promotional.metadata.promotionalMonths || 2
+        plan.prices.promotional.metadata.promotionalMonths || 2,
       );
 
       // Create subscription schedule for promotional pricing
@@ -163,23 +176,25 @@ export class SubscriptionManager {
         end_behavior: 'release',
         phases: [
           {
-            items: [{
-              price_data: {
-                currency: 'aud',
-                product_data: {
-                  name: `${plan.name} - Early Access`,
-                  description: plan.description,
-                  metadata: {
-                    planType,
-                    tier: 'promotional',
+            items: [
+              {
+                price_data: {
+                  currency: 'aud',
+                  product_data: {
+                    name: `${plan.name} - Early Access`,
+                    description: plan.description,
+                    metadata: {
+                      planType,
+                      tier: 'promotional',
+                    },
+                  },
+                  unit_amount: plan.prices.promotional.amount,
+                  recurring: {
+                    interval: 'month',
                   },
                 },
-                unit_amount: plan.prices.promotional.amount,
-                recurring: {
-                  interval: 'month',
-                },
               },
-            }],
+            ],
             trial_period_days: plan.trialDays,
             end_date: Math.floor(promotionalEndDate.getTime() / 1000),
             metadata: {
@@ -188,23 +203,25 @@ export class SubscriptionManager {
             },
           },
           {
-            items: [{
-              price_data: {
-                currency: 'aud',
-                product_data: {
-                  name: plan.name,
-                  description: plan.description,
-                  metadata: {
-                    planType,
-                    tier: 'regular',
+            items: [
+              {
+                price_data: {
+                  currency: 'aud',
+                  product_data: {
+                    name: plan.name,
+                    description: plan.description,
+                    metadata: {
+                      planType,
+                      tier: 'regular',
+                    },
+                  },
+                  unit_amount: plan.prices.regular.amount,
+                  recurring: {
+                    interval: 'month',
                   },
                 },
-                unit_amount: plan.prices.regular.amount,
-                recurring: {
-                  interval: 'month',
-                },
               },
-            }],
+            ],
             metadata: {
               phase: 'regular',
               planType,
@@ -229,7 +246,7 @@ export class SubscriptionManager {
     await this.saveSubscriptionToDatabase(subscription, userId);
 
     // Return subscription with client secret for payment confirmation
-    const clientSecret = 
+    const clientSecret =
       (subscription.latest_invoice as Stripe.Invoice)?.payment_intent?.client_secret ||
       (subscription.pending_setup_intent as Stripe.SetupIntent)?.client_secret;
 
@@ -242,7 +259,7 @@ export class SubscriptionManager {
 
     // Get current subscription
     const subscription = await this.stripe.subscriptions.retrieve(subscriptionId);
-    
+
     if (cancelAtPeriodEnd !== undefined) {
       // Cancel or uncancel at period end
       const updatedSubscription = await this.stripe.subscriptions.update(subscriptionId, {
@@ -258,7 +275,7 @@ export class SubscriptionManager {
       // Change plan
       const plan = SUBSCRIPTION_PLANS[planType];
       const subscriptionItem = subscription.items.data[0];
-      
+
       // Create new price
       const newPrice = await this.stripe.prices.create({
         currency: 'aud',
@@ -269,9 +286,8 @@ export class SubscriptionManager {
             billingInterval,
           },
         },
-        unit_amount: billingInterval === 'annual' 
-          ? plan.prices.annual.amount 
-          : plan.prices.regular.amount,
+        unit_amount:
+          billingInterval === 'annual' ? plan.prices.annual.amount : plan.prices.regular.amount,
         recurring: {
           interval: billingInterval === 'annual' ? 'year' : 'month',
         },
@@ -279,10 +295,12 @@ export class SubscriptionManager {
 
       // Update subscription
       const updatedSubscription = await this.stripe.subscriptions.update(subscriptionId, {
-        items: [{
-          id: subscriptionItem.id,
-          price: newPrice.id,
-        }],
+        items: [
+          {
+            id: subscriptionItem.id,
+            price: newPrice.id,
+          },
+        ],
         proration_behavior: 'create_prorations',
         metadata: {
           ...subscription.metadata,
@@ -302,7 +320,10 @@ export class SubscriptionManager {
   }
 
   // Cancel subscription
-  async cancelSubscription(subscriptionId: string, immediately = false): Promise<Stripe.Subscription> {
+  async cancelSubscription(
+    subscriptionId: string,
+    immediately = false,
+  ): Promise<Stripe.Subscription> {
     let subscription: Stripe.Subscription;
 
     if (immediately) {
@@ -361,7 +382,7 @@ export class SubscriptionManager {
   // Get or create portal configuration
   private async getOrCreatePortalConfiguration(): Promise<string> {
     const configurations = await this.stripe.billingPortal.configurations.list({ limit: 1 });
-    
+
     if (configurations.data.length > 0) {
       return configurations.data[0].id;
     }
@@ -380,18 +401,12 @@ export class SubscriptionManager {
         },
         invoice_history: { enabled: true },
         payment_method_update: { enabled: true },
-        subscription_cancel: { 
+        subscription_cancel: {
           enabled: true,
           mode: 'at_period_end',
           cancellation_reason: {
             enabled: true,
-            options: [
-              'too_expensive',
-              'missing_features',
-              'switched_service',
-              'unused',
-              'other',
-            ],
+            options: ['too_expensive', 'missing_features', 'switched_service', 'unused', 'other'],
           },
         },
         subscription_pause: { enabled: false },
@@ -399,19 +414,22 @@ export class SubscriptionManager {
           enabled: true,
           default_allowed_updates: ['price', 'quantity'],
           proration_behavior: 'create_prorations',
-          products: [{
-            product: SUBSCRIPTION_PLANS.SMART.productId,
-            prices: [
-              SUBSCRIPTION_PLANS.SMART.prices.regular.id,
-              SUBSCRIPTION_PLANS.SMART.prices.annual.id,
-            ],
-          }, {
-            product: SUBSCRIPTION_PLANS.PRO.productId,
-            prices: [
-              SUBSCRIPTION_PLANS.PRO.prices.regular.id,
-              SUBSCRIPTION_PLANS.PRO.prices.annual.id,
-            ],
-          }],
+          products: [
+            {
+              product: SUBSCRIPTION_PLANS.SMART.productId,
+              prices: [
+                SUBSCRIPTION_PLANS.SMART.prices.regular.id,
+                SUBSCRIPTION_PLANS.SMART.prices.annual.id,
+              ],
+            },
+            {
+              product: SUBSCRIPTION_PLANS.PRO.productId,
+              prices: [
+                SUBSCRIPTION_PLANS.PRO.prices.regular.id,
+                SUBSCRIPTION_PLANS.PRO.prices.annual.id,
+              ],
+            },
+          ],
         },
       },
     });
@@ -422,10 +440,10 @@ export class SubscriptionManager {
   // Save subscription to database
   private async saveSubscriptionToDatabase(
     subscription: Stripe.Subscription,
-    userId?: string
+    userId?: string,
   ): Promise<void> {
     const price = subscription.items.data[0]?.price;
-    
+
     const data = {
       stripeCustomerId: subscription.customer as string,
       stripeSubscriptionId: subscription.id,
@@ -492,19 +510,19 @@ export class SubscriptionManager {
       case 'customer.subscription.updated':
         await this.handleSubscriptionChange(event.data.object as Stripe.Subscription);
         break;
-      
+
       case 'customer.subscription.deleted':
         await this.handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
         break;
-      
+
       case 'customer.subscription.trial_will_end':
         await this.handleTrialEnding(event.data.object as Stripe.Subscription);
         break;
-      
+
       case 'invoice.paid':
         await this.handleInvoicePaid(event.data.object as Stripe.Invoice);
         break;
-      
+
       case 'invoice.payment_failed':
         await this.handlePaymentFailed(event.data.object as Stripe.Invoice);
         break;
@@ -533,7 +551,7 @@ export class SubscriptionManager {
 
   private async handleTrialEnding(subscription: Stripe.Subscription): Promise<void> {
     // Send trial ending notification
-    console.log(`Trial ending for subscription ${subscription.id}`);
+    logger.info(`Trial ending for subscription ${subscription.id}`);
     // Implement email notification here
   }
 

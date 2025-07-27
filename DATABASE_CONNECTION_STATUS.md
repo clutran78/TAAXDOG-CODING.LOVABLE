@@ -2,13 +2,17 @@
 
 ## ⚠️ SECURITY NOTICE
 
-**IMPORTANT**: All credentials in this document have been replaced with placeholders for security. Never expose actual database passwords in documentation or commit them to version control.
+**IMPORTANT**: All credentials in this document have been replaced with
+placeholders for security. Never expose actual database passwords in
+documentation or commit them to version control.
 
 ## ✅ Connection Successful!
 
-The PostgreSQL database connection to DigitalOcean is working properly with SSL encryption.
+The PostgreSQL database connection to DigitalOcean is working properly with SSL
+encryption.
 
 ### Connection Details (Verified Working)
+
 - **Host**: taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com
 - **Port**: 25060
 - **Database**: taaxdog-production
@@ -17,6 +21,7 @@ The PostgreSQL database connection to DigitalOcean is working properly with SSL 
 - **PostgreSQL Version**: 15.13
 
 ### Updated Configuration Files
+
 1. **CLAUDE.md** - Updated with correct production database URL
 2. **.env.production** - Updated with correct hostname
 3. **lib/database.ts** - SSL configuration for DigitalOcean
@@ -24,9 +29,11 @@ The PostgreSQL database connection to DigitalOcean is working properly with SSL 
 
 ## ⚠️ Action Required: Database Permissions
 
-The database user `taaxdog-admin` needs CREATE permissions on the public schema to create tables.
+The database user `taaxdog-admin` needs CREATE permissions on the public schema
+to create tables.
 
 ### Option 1: DigitalOcean Control Panel (Recommended)
+
 1. Log into your DigitalOcean account
 2. Navigate to your database cluster
 3. Go to "Users & Databases" tab
@@ -34,7 +41,9 @@ The database user `taaxdog-admin` needs CREATE permissions on the public schema 
 5. Ensure it has full permissions on the `taaxdog-production` database
 
 ### Option 2: SQL Commands
+
 If you have superuser access, run:
+
 ```sql
 GRANT CREATE ON SCHEMA public TO "taaxdog-admin";
 GRANT ALL ON SCHEMA public TO "taaxdog-admin";
@@ -51,21 +60,23 @@ const pool = new Pool({
   host: 'taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com',
   port: 25060,
   user: 'taaxdog-admin',
-  password: '[DATABASE_PASSWORD]',  // Store in environment variable
+  password: '[DATABASE_PASSWORD]', // Store in environment variable
   database: 'taaxdog-production',
   ssl: {
-    rejectUnauthorized: false // Required for DigitalOcean
-  }
+    rejectUnauthorized: false, // Required for DigitalOcean
+  },
 });
 ```
 
 Or using connection string:
+
 ```javascript
-const connectionString = 'postgresql://taaxdog-admin:[DATABASE_PASSWORD]@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production';
+const connectionString =
+  'postgresql://taaxdog-admin:[DATABASE_PASSWORD]@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25060/taaxdog-production';
 
 const pool = new Pool({
   connectionString,
-  ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: false },
 });
 ```
 
@@ -78,16 +89,20 @@ const pool = new Pool({
 ## Next Steps
 
 1. **Grant Permissions**: Update user permissions in DigitalOcean control panel
-2. **Run Setup**: Execute `node scripts/setup-database.js` to create initial tables
+2. **Run Setup**: Execute `node scripts/setup-database.js` to create initial
+   tables
 3. **Run Migrations**: Use `npm run migrate up` to apply database schema
-4. **Test Application**: The database connection is ready for your Next.js application
+4. **Test Application**: The database connection is ready for your Next.js
+   application
 
 ## Security Notes
 
 - SSL is properly configured and verified
 - Connection uses secure authentication
-- The `rejectUnauthorized: false` is required for DigitalOcean's self-signed certificates
+- The `rejectUnauthorized: false` is required for DigitalOcean's self-signed
+  certificates
 - All credentials are properly isolated in environment files
 - Never commit `.env.production` to version control
 
-The database connection is fully functional and ready for use once permissions are granted!
+The database connection is fully functional and ready for use once permissions
+are granted!

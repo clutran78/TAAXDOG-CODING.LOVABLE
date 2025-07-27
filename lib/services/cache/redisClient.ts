@@ -1,4 +1,5 @@
 import { createClient, RedisClientType } from 'redis';
+import { logger } from '@/lib/logger';
 
 export class RedisCache {
   private client: RedisClientType | null = null;
@@ -8,7 +9,7 @@ export class RedisCache {
     private config = {
       url: process.env.REDIS_URL || 'redis://localhost:6379',
       ttl: 300, // Default 5 minutes
-    }
+    },
   ) {}
 
   async connect(): Promise<void> {
@@ -20,7 +21,7 @@ export class RedisCache {
         socket: {
           reconnectStrategy: (retries) => {
             if (retries > 10) {
-              console.error('Redis: Max reconnection attempts reached');
+              logger.error('Redis: Max reconnection attempts reached');
               return new Error('Max reconnection attempts reached');
             }
             return Math.min(retries * 100, 3000);
@@ -29,17 +30,17 @@ export class RedisCache {
       });
 
       this.client.on('error', (err) => {
-        console.error('Redis Client Error:', err);
+        logger.error('Redis Client Error:', err);
       });
 
       this.client.on('connect', () => {
-        console.log('Redis Client Connected');
+        logger.info('Redis Client Connected');
       });
 
       await this.client.connect();
       this.isConnected = true;
     } catch (error) {
-      console.error('Failed to connect to Redis:', error);
+      logger.error('Failed to connect to Redis:', error);
       // Don't throw - allow app to run without cache
     }
   }
@@ -61,7 +62,7 @@ export class RedisCache {
       const value = await this.client!.get(key);
       return value ? JSON.parse(value) : null;
     } catch (error) {
-      console.error(`Cache get error for key ${key}:`, error);
+      logger.error(`Cache get error for key ${key}:`, error);
       return null;
     }
   }
@@ -75,10 +76,10 @@ export class RedisCache {
     try {
       const serialized = JSON.stringify(value);
       const expiry = ttl || this.config.ttl;
-      
+
       await this.client!.setEx(key, expiry, serialized);
     } catch (error) {
-      console.error(`Cache set error for key ${key}:`, error);
+      logger.error(`Cache set error for key ${key}:`, error);
     }
   }
 
@@ -94,7 +95,7 @@ export class RedisCache {
         await this.client!.del(keys);
       }
     } catch (error) {
-      console.error(`Cache delete error:`, error);
+      logger.error(`Cache delete error:`, error);
     }
   }
 
@@ -110,7 +111,7 @@ export class RedisCache {
         await this.client!.del(keys);
       }
     } catch (error) {
-      console.error(`Cache delete pattern error:`, error);
+      logger.error(`Cache delete pattern error:`, error);
     }
   }
 
@@ -124,7 +125,7 @@ export class RedisCache {
       const result = await this.client!.exists(key);
       return result === 1;
     } catch (error) {
-      console.error(`Cache exists error for key ${key}:`, error);
+      logger.error(`Cache exists error for key ${key}:`, error);
       return false;
     }
   }
@@ -138,7 +139,7 @@ export class RedisCache {
     try {
       await this.client!.expire(key, seconds);
     } catch (error) {
-      console.error(`Cache expire error for key ${key}:`, error);
+      logger.error(`Cache expire error for key ${key}:`, error);
     }
   }
 
@@ -151,7 +152,7 @@ export class RedisCache {
     try {
       return await this.client!.ttl(key);
     } catch (error) {
-      console.error(`Cache TTL error for key ${key}:`, error);
+      logger.error(`Cache TTL error for key ${key}:`, error);
       return -1;
     }
   }
@@ -165,7 +166,7 @@ export class RedisCache {
     try {
       return await this.client!.incr(key);
     } catch (error) {
-      console.error(`Cache increment error for key ${key}:`, error);
+      logger.error(`Cache increment error for key ${key}:`, error);
       return 0;
     }
   }
@@ -179,7 +180,7 @@ export class RedisCache {
     try {
       await this.client!.flushAll();
     } catch (error) {
-      console.error('Cache flush error:', error);
+      logger.error('Cache flush error:', error);
     }
   }
 }

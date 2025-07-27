@@ -1,4 +1,5 @@
 import { prisma } from '../prisma';
+import { logger } from '@/lib/logger';
 import {
   getBasiqConfiguration,
   buildBasiqUrl,
@@ -13,58 +14,58 @@ import {
 export class BasiqService {
   private accessToken: string | null = null;
   private tokenExpiry: Date | null = null;
-  
+
   // Authenticate with BASIQ
   private async authenticate(): Promise<string> {
     if (this.accessToken && this.tokenExpiry && this.tokenExpiry > new Date()) {
       return this.accessToken;
     }
-    
+
     const config = getBasiqConfiguration();
     const authHeader = Buffer.from(config.apiKey).toString('base64');
-    
+
     const response = await fetch(buildBasiqUrl(BASIQ_ENDPOINTS.TOKEN), {
       method: 'POST',
       headers: {
-        'Authorization': `Basic ${authHeader}`,
+        Authorization: `Basic ${authHeader}`,
         'Content-Type': 'application/x-www-form-urlencoded',
         'basiq-version': config.version,
       },
       body: 'grant_type=client_credentials',
     });
-    
+
     if (!response.ok) {
       throw new Error(`BASIQ authentication failed: ${response.statusText}`);
     }
-    
+
     const data = await response.json();
     this.accessToken = data.access_token;
-    this.tokenExpiry = new Date(Date.now() + (data.expires_in * 1000));
-    
+    this.tokenExpiry = new Date(Date.now() + data.expires_in * 1000);
+
     return this.accessToken;
   }
-  
+
   // Make authenticated request to BASIQ
   private async makeRequest(options: BasiqRequestOptions): Promise<any> {
     const token = await this.authenticate();
     const config = getBasiqConfiguration();
-    
+
     const url = buildBasiqUrl(options.endpoint, options.params);
-    const urlWithQuery = options.query 
+    const urlWithQuery = options.query
       ? `${url}?${new URLSearchParams(options.query).toString()}`
       : url;
-    
+
     const response = await fetch(urlWithQuery, {
       method: options.method,
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
         'basiq-version': config.version,
         ...options.headers,
       },
       body: options.body ? JSON.stringify(options.body) : undefined,
     });
-    
+
     // Log API call
     await this.logApiCall({
       endpoint: options.endpoint,
@@ -73,14 +74,14 @@ export class BasiqService {
       responseStatus: response.status,
       responseBody: await response.text(),
     });
-    
+
     if (!response.ok) {
       throw new Error(`BASIQ API error: ${response.statusText}`);
     }
-    
+
     return response.json();
   }
-  
+
   // Create BASIQ user
   async createUser(userId: string, email: string, mobile?: string): Promise<string> {
     const response = await this.makeRequest({
@@ -91,7 +92,7 @@ export class BasiqService {
         mobile,
       },
     });
-    
+
     // Save to database
     await prisma.basiq_users.create({
       data: {
@@ -102,38 +103,38 @@ export class BasiqService {
         connection_status: 'active',
       },
     });
-    
+
     return response.id;
   }
-  
+
   // Get or create BASIQ user
   async getOrCreateBasiqUser(userId: string): Promise<string> {
     // Check if user already exists
     const existingUser = await prisma.basiq_users.findUnique({
       where: { user_id: userId },
     });
-    
+
     if (existingUser) {
       return existingUser.basiq_user_id;
     }
-    
+
     // Get user details
     const user = await prisma.user.findUnique({
       where: { id: userId },
     });
-    
+
     if (!user) {
       throw new Error('User not found');
     }
-    
+
     // Create BASIQ user
     return await this.createUser(userId, user.email, user.phone || undefined);
   }
-  
+
   // Create consent
   async createConsent(userId: string, institutionId: string): Promise<any> {
     const basiqUserId = await this.getOrCreateBasiqUser(userId);
-    
+
     const response = await this.makeRequest({
       method: 'POST',
       endpoint: BASIQ_ENDPOINTS.CONSENTS,
@@ -142,13 +143,10 @@ export class BasiqService {
         institution: institutionId,
         purpose: 'Tax management and financial insights',
         duration: 365, // 1 year
-        permissions: [
-          'ACCOUNTS',
-          'TRANSACTIONS',
-        ],
+        permissions: ['ACCOUNTS', 'TRANSACTIONS'],
       },
     });
-    
+
     // Update consent in database
     await prisma.basiq_users.update({
       where: { user_id: userId },
@@ -158,14 +156,14 @@ export class BasiqService {
         consent_expires_at: new Date(response.expiresAt),
       },
     });
-    
+
     return response;
   }
-  
+
   // Create bank connection
   async createConnection(userId: string, institutionId: string, credentials: any): Promise<any> {
     const basiqUserId = await this.getOrCreateBasiqUser(userId);
-    
+
     const response = await this.makeRequest({
       method: 'POST',
       endpoint: BASIQ_ENDPOINTS.CONNECTIONS,
@@ -175,7 +173,7 @@ export class BasiqService {
         credentials,
       },
     });
-    
+
     // Save connection to database
     await prisma.bank_connections.create({
       data: {
@@ -188,20 +186,20 @@ export class BasiqService {
         status: response.status,
       },
     });
-    
+
     return response;
   }
-  
+
   // Sync accounts
   async syncAccounts(userId: string): Promise<void> {
     const basiqUserId = await this.getOrCreateBasiqUser(userId);
-    
+
     const response = await this.makeRequest({
       method: 'GET',
       endpoint: BASIQ_ENDPOINTS.ACCOUNTS,
       params: { userId: basiqUserId },
     });
-    
+
     for (const account of response.data) {
       await prisma.bank_accounts.upsert({
         where: { basiq_account_id: account.id },
@@ -229,46 +227,46 @@ export class BasiqService {
       });
     }
   }
-  
+
   // Sync transactions
   async syncTransactions(userId: string, fromDate?: Date): Promise<void> {
     const basiqUserId = await this.getOrCreateBasiqUser(userId);
-    
+
     // Get all accounts
     const accounts = await prisma.bank_accounts.findMany({
       where: { basiq_user_id: basiqUserId },
     });
-    
+
     for (const account of accounts) {
       let hasMore = true;
       let cursor: string | undefined;
-      
+
       while (hasMore) {
         const query: Record<string, string> = {
           'filter[account]': account.basiq_account_id,
           'page[size]': '500',
         };
-        
+
         if (fromDate) {
           query['filter[transactionDate.from]'] = fromDate.toISOString().split('T')[0];
         }
-        
+
         if (cursor) {
           query['page[after]'] = cursor;
         }
-        
+
         const response = await this.makeRequest({
           method: 'GET',
           endpoint: BASIQ_ENDPOINTS.TRANSACTIONS,
           params: { userId: basiqUserId },
           query,
         });
-        
+
         for (const transaction of response.data) {
           const category = this.categorizeTransaction(transaction);
           const taxCategory = this.getTaxCategory(transaction, category);
           const gstAmount = this.calculateGST(transaction);
-          
+
           await prisma.bank_transactions.upsert({
             where: { basiq_transaction_id: transaction.id },
             create: {
@@ -301,18 +299,18 @@ export class BasiqService {
             },
           });
         }
-        
+
         hasMore = response.links?.next !== undefined;
         cursor = response.links?.next?.after;
       }
     }
   }
-  
+
   // Categorize transaction
   private categorizeTransaction(transaction: any): string {
     const description = transaction.description.toLowerCase();
     const merchant = transaction.merchant?.name?.toLowerCase() || '';
-    
+
     // Income categories
     if (transaction.direction === 'credit') {
       if (description.includes('salary') || description.includes('wage')) {
@@ -325,25 +323,37 @@ export class BasiqService {
         return TRANSACTION_CATEGORIES.GOVERNMENT_BENEFITS;
       }
     }
-    
+
     // Expense categories
     if (description.includes('rent') || description.includes('mortgage')) {
       return TRANSACTION_CATEGORIES.RENT_MORTGAGE;
     }
-    if (description.includes('electricity') || description.includes('gas') || description.includes('water')) {
+    if (
+      description.includes('electricity') ||
+      description.includes('gas') ||
+      description.includes('water')
+    ) {
       return TRANSACTION_CATEGORIES.UTILITIES;
     }
-    if (merchant.includes('woolworths') || merchant.includes('coles') || merchant.includes('aldi')) {
+    if (
+      merchant.includes('woolworths') ||
+      merchant.includes('coles') ||
+      merchant.includes('aldi')
+    ) {
       return TRANSACTION_CATEGORIES.GROCERIES;
     }
-    if (description.includes('uber') || description.includes('taxi') || description.includes('fuel')) {
+    if (
+      description.includes('uber') ||
+      description.includes('taxi') ||
+      description.includes('fuel')
+    ) {
       return TRANSACTION_CATEGORIES.TRANSPORT;
     }
-    
+
     // Default
     return TRANSACTION_CATEGORIES.OTHER;
   }
-  
+
   // Get tax category
   private getTaxCategory(transaction: any, category: string): string | null {
     if (transaction.direction === 'credit') {
@@ -354,7 +364,7 @@ export class BasiqService {
         return TAX_CATEGORIES.DIVIDENDS;
       }
     }
-    
+
     // Check for deductible expenses
     const description = transaction.description.toLowerCase();
     if (description.includes('donation') || description.includes('charity')) {
@@ -366,28 +376,28 @@ export class BasiqService {
     if (description.includes('education') || description.includes('course')) {
       return TAX_CATEGORIES.SELF_EDUCATION;
     }
-    
+
     return null;
   }
-  
+
   // Calculate GST (10% if applicable)
   private calculateGST(transaction: any): number | null {
     // Only calculate GST for expenses
     if (transaction.direction !== 'debit') {
       return null;
     }
-    
+
     // Check if merchant is GST registered (simplified logic)
     const gstMerchants = ['woolworths', 'coles', 'bunnings', 'officeworks'];
     const merchant = transaction.merchant?.name?.toLowerCase() || '';
-    
-    if (gstMerchants.some(m => merchant.includes(m))) {
+
+    if (gstMerchants.some((m) => merchant.includes(m))) {
       return Math.round(Math.abs(transaction.amount) * 0.0909); // GST included price
     }
-    
+
     return null;
   }
-  
+
   // Check if business expense
   private isBusinessExpense(transaction: any, category: string): boolean {
     const businessCategories = [
@@ -396,10 +406,10 @@ export class BasiqService {
       TRANSACTION_CATEGORIES.TRAVEL_BUSINESS,
       TRANSACTION_CATEGORIES.PROFESSIONAL_SERVICES,
     ];
-    
+
     return businessCategories.includes(category);
   }
-  
+
   // Log API calls
   private async logApiCall(data: {
     endpoint: string;
@@ -420,10 +430,10 @@ export class BasiqService {
         },
       });
     } catch (error) {
-      console.error('Failed to log BASIQ API call:', error);
+      logger.error('Failed to log BASIQ API call:', error);
     }
   }
-  
+
   // Handle webhook
   async handleWebhook(event: string, data: any): Promise<void> {
     await prisma.basiq_webhooks.create({
@@ -436,7 +446,7 @@ export class BasiqService {
         status: 'pending',
       },
     });
-    
+
     // Process webhook based on event type
     switch (event) {
       case 'connection.status.changed':
@@ -448,7 +458,7 @@ export class BasiqService {
       // Add more handlers as needed
     }
   }
-  
+
   // Handle connection status change
   private async handleConnectionStatusChange(data: any): Promise<void> {
     await prisma.bank_connections.update({
@@ -459,7 +469,7 @@ export class BasiqService {
       },
     });
   }
-  
+
   // Handle new transactions
   private async handleTransactionsCreated(data: any): Promise<void> {
     // Sync new transactions for the user
@@ -467,7 +477,7 @@ export class BasiqService {
       where: { connection_id: data.connectionId },
       include: { basiq_user: true },
     });
-    
+
     if (connection?.basiq_user?.user_id) {
       await this.syncTransactions(connection.basiq_user.user_id);
     }

@@ -1,12 +1,14 @@
 # RLS Migration Guide for API Routes
 
-This guide shows how to migrate existing API routes to use Row-Level Security (RLS) middleware.
+This guide shows how to migrate existing API routes to use Row-Level Security
+(RLS) middleware.
 
 ## Migration Steps
 
 ### 1. Import RLS Dependencies
 
 Replace standard imports:
+
 ```typescript
 // OLD
 import { NextApiRequest, NextApiResponse } from 'next';
@@ -16,18 +18,23 @@ import prisma from '@/lib/prisma';
 
 // NEW
 import type { NextApiResponse } from 'next';
-import { withRLSMiddleware, NextApiRequestWithRLS, handleRLSError } from '@/lib/middleware/rls-middleware';
+import {
+  withRLSMiddleware,
+  NextApiRequestWithRLS,
+  handleRLSError,
+} from '@/lib/middleware/rls-middleware';
 import prismaWithRLS from '@/lib/prisma-rls';
 ```
 
 ### 2. Update Handler Function
 
 Convert the handler to use RLS:
+
 ```typescript
 // OLD
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse,
 ) {
   const session = await getServerSession(req, res, authOptions);
   if (!session || !session.user) {
@@ -38,10 +45,7 @@ export default async function handler(
 }
 
 // NEW
-async function handler(
-  req: NextApiRequestWithRLS,
-  res: NextApiResponse
-) {
+async function handler(req: NextApiRequestWithRLS, res: NextApiResponse) {
   if (!req.rlsContext) {
     return res.status(500).json({ error: 'RLS context not initialized' });
   }
@@ -56,10 +60,11 @@ export default withRLSMiddleware(handler);
 ### 3. Update Database Queries
 
 Remove manual userId filtering:
+
 ```typescript
 // OLD - Manual filtering
 const goals = await prisma.goal.findMany({
-  where: { userId: session.user.id }
+  where: { userId: session.user.id },
 });
 
 // NEW - RLS automatic filtering
@@ -71,6 +76,7 @@ const goals = await req.rlsContext.execute(async () => {
 ### 4. Error Handling
 
 Use the RLS error handler:
+
 ```typescript
 // OLD
 try {
@@ -93,13 +99,17 @@ try {
 ### Example 1: Goals API Routes
 
 #### Before (pages/api/goals/index.ts):
+
 ```typescript
 import { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { GoalService } from '@/lib/goals/goal-service';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse,
+) {
   const session = await getServerSession(req, res, authOptions);
   if (!session || !session.user) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -119,9 +129,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 ```
 
 #### After (pages/api/goals/index.ts):
+
 ```typescript
 import type { NextApiResponse } from 'next';
-import { withRLSMiddleware, NextApiRequestWithRLS, handleRLSError } from '@/lib/middleware/rls-middleware';
+import {
+  withRLSMiddleware,
+  NextApiRequestWithRLS,
+  handleRLSError,
+} from '@/lib/middleware/rls-middleware';
 import { GoalServiceRLS } from '@/lib/goals/goal-service-rls';
 
 async function handler(req: NextApiRequestWithRLS, res: NextApiResponse) {
@@ -147,24 +162,26 @@ export default withRLSMiddleware(handler);
 ### Example 2: Receipts API Routes
 
 #### Before:
+
 ```typescript
 const receipts = await prisma.receipt.findMany({
-  where: { 
+  where: {
     userId: session.user.id,
-    processingStatus: 'PROCESSED'
+    processingStatus: 'PROCESSED',
   },
-  orderBy: { date: 'desc' }
+  orderBy: { date: 'desc' },
 });
 ```
 
 #### After:
+
 ```typescript
 const receipts = await req.rlsContext.execute(async () => {
   return await prismaWithRLS.receipt.findMany({
-    where: { 
-      processingStatus: 'PROCESSED' // No need for userId filter
+    where: {
+      processingStatus: 'PROCESSED', // No need for userId filter
     },
-    orderBy: { date: 'desc' }
+    orderBy: { date: 'desc' },
   });
 });
 ```
@@ -172,6 +189,7 @@ const receipts = await req.rlsContext.execute(async () => {
 ## API Routes to Update
 
 ### High Priority (User Data):
+
 - [x] `/api/goals/*` - Goals management
 - [ ] `/api/receipts/*` - Receipt processing
 - [ ] `/api/budgets/*` - Budget tracking
@@ -179,12 +197,15 @@ const receipts = await req.rlsContext.execute(async () => {
 - [ ] `/api/ai/*` - AI insights and conversations
 
 ### Medium Priority (Settings/Profile):
+
 - [ ] `/api/auth/profile` - User profile
 - [ ] `/api/auth/sessions` - Active sessions
 - [ ] `/api/stripe/*` - Subscription management
 
 ### Admin Routes:
+
 For admin-only routes, use the `requireAdmin` middleware:
+
 ```typescript
 import { requireAdmin } from '@/lib/middleware/rls-middleware';
 
@@ -205,17 +226,22 @@ export default requireAdmin(handler);
 ## Common Issues and Solutions
 
 ### Issue: "Goal not found" when it exists
+
 **Solution**: This means RLS is working! The user doesn't own that resource.
 
 ### Issue: Performance degradation
+
 **Solution**: Ensure indexes exist on foreign key columns used in RLS policies.
 
 ### Issue: Admin operations failing
-**Solution**: Make sure admin bypass policies are in place and user role is set correctly.
+
+**Solution**: Make sure admin bypass policies are in place and user role is set
+correctly.
 
 ## Rollback Plan
 
 If you need to temporarily disable RLS:
+
 ```sql
 -- Disable RLS on a table
 ALTER TABLE goals DISABLE ROW LEVEL SECURITY;

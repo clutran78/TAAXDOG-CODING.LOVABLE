@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import envConfig from './environment';
+import { logger } from '@/lib/logger';
 
 // Environment enum
 export const Environment = {
@@ -8,12 +9,12 @@ export const Environment = {
   TEST: 'test',
 } as const;
 
-export type Environment = typeof Environment[keyof typeof Environment];
+export type Environment = (typeof Environment)[keyof typeof Environment];
 
 // Base configuration schema
 const baseConfigSchema = z.object({
   env: z.enum(['development', 'production', 'test']),
-  
+
   // Database
   database: z.object({
     url: z.string().url().or(z.string().startsWith('postgresql://')),
@@ -23,26 +24,28 @@ const baseConfigSchema = z.object({
     sslRequired: z.boolean().default(false),
     slowQueryThreshold: z.number().int().positive().default(1000),
   }),
-  
+
   // NextAuth
   auth: z.object({
     url: z.string().url(),
     secret: z.string().min(32),
     providers: z.object({
-      google: z.object({
-        clientId: z.string().optional(),
-        clientSecret: z.string().optional(),
-      }).optional(),
+      google: z
+        .object({
+          clientId: z.string().optional(),
+          clientSecret: z.string().optional(),
+        })
+        .optional(),
     }),
   }),
-  
+
   // Stripe
   stripe: z.object({
     publishableKey: z.string().startsWith('pk_'),
     secretKey: z.string().startsWith('sk_'),
     webhookSecret: z.string().startsWith('whsec_'),
   }),
-  
+
   // AI Providers
   ai: z.object({
     anthropic: z.object({
@@ -55,27 +58,27 @@ const baseConfigSchema = z.object({
       apiKey: z.string().startsWith('AIzaSy'),
     }),
   }),
-  
+
   // BASIQ Banking
   basiq: z.object({
     apiKey: z.string(),
     serverUrl: z.string().url().default('https://au-api.basiq.io'),
   }),
-  
+
   // Application
   app: z.object({
     url: z.string().url(),
     apiUrl: z.string().url(),
     domain: z.string().default('taxreturnpro.com.au'),
   }),
-  
+
   // Feature Flags
   features: z.object({
     stripeWebhooks: z.boolean().default(true),
     aiFeatures: z.boolean().default(true),
     bankingIntegration: z.boolean().default(true),
   }),
-  
+
   // Security
   security: z.object({
     enableRateLimiting: z.boolean().default(false),
@@ -83,7 +86,7 @@ const baseConfigSchema = z.object({
     sessionCookieSecure: z.boolean().default(false),
     healthCheckToken: z.string(),
   }),
-  
+
   // Logging
   logging: z.object({
     level: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
@@ -229,14 +232,14 @@ let configEnvironment: string | null = null;
 // Load configuration based on environment
 export function loadConfig(forceReload = false): Config {
   const currentEnv = process.env.NODE_ENV || 'development';
-  
+
   // Return cached config if environment hasn't changed and not forcing reload
   if (!forceReload && cachedConfig && configEnvironment === currentEnv) {
     return cachedConfig;
   }
-  
+
   let config: Config;
-  
+
   switch (currentEnv) {
     case 'production':
       config = loadProductionConfig();
@@ -245,12 +248,13 @@ export function loadConfig(forceReload = false): Config {
       // For tests, use development config with test database
       config = loadDevelopmentConfig();
       config.env = 'test';
-      config.database.url = process.env.DATABASE_URL || 'postgresql://genesis@localhost:5432/taaxdog_test';
+      config.database.url =
+        process.env.DATABASE_URL || 'postgresql://genesis@localhost:5432/taaxdog_test';
       break;
     default:
       config = loadDevelopmentConfig();
   }
-  
+
   // Validate configuration
   try {
     const validatedConfig = baseConfigSchema.parse(config);
@@ -258,7 +262,7 @@ export function loadConfig(forceReload = false): Config {
     configEnvironment = currentEnv;
     return validatedConfig;
   } catch (error) {
-    console.error('Configuration validation error:', error);
+    logger.error('Configuration validation error:', error);
     throw new Error('Invalid configuration');
   }
 }
@@ -327,7 +331,7 @@ export function getFeatureFlags() {
 export function detectConfigurationDrift(): Record<string, any> {
   const config = getConfig();
   const drift: Record<string, any> = {};
-  
+
   // Check if environment variables match configuration
   if (process.env.DATABASE_URL && process.env.DATABASE_URL !== config.database.url) {
     drift.database_url = {
@@ -335,13 +339,13 @@ export function detectConfigurationDrift(): Record<string, any> {
       config: config.database.url,
     };
   }
-  
+
   if (process.env.NEXTAUTH_URL && process.env.NEXTAUTH_URL !== config.auth.url) {
     drift.nextauth_url = {
       env: process.env.NEXTAUTH_URL,
       config: config.auth.url,
     };
   }
-  
+
   return drift;
 }

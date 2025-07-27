@@ -3,13 +3,15 @@
 All notable changes to the TAAXDOG project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+and this project adheres to
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.1.0] - 2025-07-26
 
 ### Added
 
 #### Testing Infrastructure
+
 - Comprehensive Jest testing setup with TypeScript support
 - React Testing Library integration for component testing
 - Test coverage reporting (achieved 80%+ coverage)
@@ -17,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Custom test utilities and helpers
 
 #### Performance Monitoring
+
 - Enhanced Sentry configuration with performance monitoring
 - Web Vitals tracking (LCP, FID, CLS, FCP, TTFB)
 - Custom performance metrics tracking
@@ -24,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Database query performance tracking
 
 #### Data Fetching Optimization
+
 - React Query integration for optimized data fetching
 - Intelligent caching strategies
 - Background refetching
@@ -31,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Custom hooks for all major data operations
 
 #### Bundle Size Optimization
+
 - Advanced webpack code splitting configuration
 - Dynamic imports for heavy components
 - Lazy loading utilities
@@ -38,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Compression plugin for production builds
 
 #### Code Quality Tools
+
 - Automated naming convention fixes (PascalCase)
 - Console statement replacement with logger
 - Standardized API response utilities
@@ -47,18 +53,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 #### API Standardization
+
 - All API endpoints now use standardized response format
 - Consistent error handling across all routes
 - Improved TypeScript types for API responses
 - Better error messages with actionable steps
 
 #### TypeScript Improvements
+
 - Fixed all `any` types in critical files
 - Enhanced type safety throughout the codebase
 - Better type inference for API calls
 - Stricter TypeScript configuration
 
 #### Documentation
+
 - Updated CLAUDE.md with comprehensive guidance
 - Enhanced README.md with recent improvements
 - Added bundle optimization guide
@@ -68,6 +77,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 #### Code Issues
+
 - Removed 27 duplicate RLS-migrated files
 - Fixed TypeScript type safety issues
 - Resolved Jest configuration problems
@@ -75,6 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Corrected import paths and dependencies
 
 #### Performance Issues
+
 - Optimized bundle size with code splitting
 - Reduced initial JavaScript payload
 - Improved component lazy loading
@@ -90,6 +101,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.0.9] - 2025-07-21
 
 ### Added
+
 - Initial production deployment
 - Core financial management features
 - Australian tax compliance
@@ -99,6 +111,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Subscription management with Stripe
 
 ### Security
+
 - Row-Level Security (RLS) implementation
 - Field-level encryption
 - Comprehensive authentication system
@@ -107,6 +120,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.0.1] - 2025-01-01
 
 ### Added
+
 - Initial project setup
 - Basic Next.js structure
 - PostgreSQL database configuration

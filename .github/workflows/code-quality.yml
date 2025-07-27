@@ -1,0 +1,149 @@
+name: Code Quality Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main, develop]
+
+jobs:
+  quality-checks:
+    name: Code Quality Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run TypeScript compiler
+        run: npm run type-check
+        
+      - name: Run ESLint
+        run: npm run lint
+        
+      - name: Check formatting
+        run: npm run format:check
+        
+      - name: Check for console statements
+        run: |
+          if grep -r "console\.\(log\|error\|warn\|debug\)" --include="*.ts" --include="*.tsx" --exclude-dir=node_modules --exclude-dir=scripts --exclude-dir=tests .; then
+            echo "❌ Found console statements in production code!"
+            exit 1
+          else
+            echo "✅ No console statements found"
+          fi
+          
+      - name: Check for 'any' types
+        run: |
+          COUNT=$(grep -r ": any" --include="*.ts" --include="*.tsx" --exclude-dir=node_modules --exclude-dir=tests . | wc -l)
+          echo "Found $COUNT instances of 'any' type"
+          if [ $COUNT -gt 50 ]; then
+            echo "❌ Too many 'any' types (found: $COUNT, max allowed: 50)"
+            exit 1
+          else
+            echo "✅ Acceptable number of 'any' types"
+          fi
+          
+      - name: Check file naming conventions
+        run: |
+          # Check for component files that don't start with capital letter
+          BAD_NAMES=$(find components -name "*.tsx" | grep -E "/[a-z][^/]*\.tsx$" | grep -v index.tsx || true)
+          if [ -n "$BAD_NAMES" ]; then
+            echo "❌ Found component files not using PascalCase:"
+            echo "$BAD_NAMES"
+            exit 1
+          else
+            echo "✅ All component files use PascalCase"
+          fi
+          
+      - name: Run tests
+        run: npm test -- --ci --coverage --maxWorkers=2
+        
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          
+      - name: Check test coverage
+        run: |
+          COVERAGE=$(cat coverage/coverage-summary.json | jq '.total.lines.pct')
+          echo "Test coverage: $COVERAGE%"
+          if (( $(echo "$COVERAGE < 60" | bc -l) )); then
+            echo "❌ Test coverage too low (current: $COVERAGE%, required: 60%)"
+            exit 1
+          else
+            echo "✅ Test coverage acceptable"
+          fi
+
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Run npm audit
+        run: npm audit --audit-level=high
+        
+      - name: Check for hardcoded secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          
+      - name: Check for sensitive data patterns
+        run: |
+          # Check for potential API keys, passwords, etc.
+          if grep -r -E "(api[_-]?key|password|secret|token)" --include="*.ts" --include="*.tsx" --include="*.js" . | grep -E "=\s*['\"][^'\"]+['\"]" | grep -v -E "(process\.env|\.example|test|mock)"; then
+            echo "❌ Found potential hardcoded secrets!"
+            exit 1
+          else
+            echo "✅ No hardcoded secrets found"
+          fi
+
+  bundle-analysis:
+    name: Bundle Size Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build and analyze bundle
+        run: |
+          npm run build
+          echo "Bundle size analysis:"
+          du -sh .next/static/chunks/*.js | sort -h
+          
+      - name: Check bundle size limits
+        run: |
+          TOTAL_SIZE=$(du -sb .next/static/chunks/*.js | awk '{sum += $1} END {print sum}')
+          TOTAL_SIZE_MB=$((TOTAL_SIZE / 1024 / 1024))
+          echo "Total bundle size: ${TOTAL_SIZE_MB}MB"
+          
+          if [ $TOTAL_SIZE_MB -gt 5 ]; then
+            echo "❌ Bundle size too large (${TOTAL_SIZE_MB}MB > 5MB limit)"
+            exit 1
+          else
+            echo "✅ Bundle size acceptable"
+          fi

@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger';
+
 /**
  * Sanitized error logging utility
  * Prevents sensitive information from being exposed in logs
@@ -25,14 +27,14 @@ export function sanitizeError(
     endpoint?: string;
     userId?: string;
     requestId?: string;
-  }
+  },
 ): SanitizedError {
   const isProduction = process.env.NODE_ENV === 'production';
-  
+
   const sanitized: SanitizedError = {
     message: 'An error occurred',
     timestamp: new Date().toISOString(),
-    ...context
+    ...context,
   };
 
   if (error) {
@@ -63,10 +65,10 @@ export function logError(
     endpoint?: string;
     userId?: string;
     requestId?: string;
-  }
+  },
 ): void {
   const sanitized = sanitizeError(error, context);
-  console.error(`[${label}]`, sanitized);
+  logger.error(`[${label}]`, sanitized);
 }
 
 /**
@@ -75,12 +77,12 @@ export function logError(
  */
 export function getClientErrorMessage(error: any): string {
   const isProduction = process.env.NODE_ENV === 'production';
-  
+
   if (!isProduction && error?.message) {
     // In development, return the actual error message for debugging
     return error.message;
   }
-  
+
   // In production, return generic messages based on error type
   if (error?.code === 'UNAUTHORIZED') {
     return 'Authentication required';
@@ -97,7 +99,7 @@ export function getClientErrorMessage(error: any): string {
   } else if (error?.type === 'StripeInvalidRequestError') {
     return 'Invalid payment request';
   }
-  
+
   // Default generic message
   return 'An unexpected error occurred. Please try again later or contact support if the issue persists';
 }
@@ -107,7 +109,7 @@ export function getClientErrorMessage(error: any): string {
  */
 export function createErrorResponse(
   error: any,
-  statusCode = 500
+  statusCode = 500,
 ): {
   error: string;
   message: string;
@@ -116,6 +118,8 @@ export function createErrorResponse(
   return {
     error: 'Request failed',
     message: getClientErrorMessage(error),
-    ...(process.env.NODE_ENV !== 'production' && error?.requestId ? { requestId: error.requestId } : {})
+    ...(process.env.NODE_ENV !== 'production' && error?.requestId
+      ? { requestId: error.requestId }
+      : {}),
   };
 }

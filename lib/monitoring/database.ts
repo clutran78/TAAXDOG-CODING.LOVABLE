@@ -4,17 +4,14 @@ import winston from 'winston';
 // Configure logger for database monitoring
 const dbLogger = winston.createLogger({
   level: 'info',
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json()
-  ),
+  format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
   transports: [
     new winston.transports.File({ filename: 'logs/db-queries.log' }),
-    new winston.transports.File({ 
-      filename: 'logs/slow-queries.log', 
-      level: 'warn' 
-    })
-  ]
+    new winston.transports.File({
+      filename: 'logs/slow-queries.log',
+      level: 'warn',
+    }),
+  ],
 });
 
 interface QueryMetrics {
@@ -55,11 +52,11 @@ class DatabaseMonitor {
       duration,
       timestamp: new Date(),
       params,
-      error
+      error,
     };
 
     this.queryMetrics.push(metric);
-    
+
     // Keep only last 1000 queries in memory
     if (this.queryMetrics.length > 1000) {
       this.queryMetrics.shift();
@@ -77,11 +74,11 @@ class DatabaseMonitor {
   logConnectionPool(metrics: Omit<ConnectionPoolMetrics, 'timestamp'>) {
     const poolMetric: ConnectionPoolMetrics = {
       ...metrics,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
     this.connectionPoolMetrics.push(poolMetric);
-    
+
     // Keep only last 1000 metrics in memory
     if (this.connectionPoolMetrics.length > 1000) {
       this.connectionPoolMetrics.shift();
@@ -92,25 +89,29 @@ class DatabaseMonitor {
 
   // Get slow query patterns
   getSlowQueryPatterns(limit = 10): any[] {
-    const patterns = new Map<string, { count: number; avgDuration: number; examples: QueryMetrics[] }>();
-    
-    const slowQueries = this.queryMetrics.filter(q => q.duration > this.slowQueryThreshold);
-    
-    slowQueries.forEach(query => {
+    const patterns = new Map<
+      string,
+      { count: number; avgDuration: number; examples: QueryMetrics[] }
+    >();
+
+    const slowQueries = this.queryMetrics.filter((q) => q.duration > this.slowQueryThreshold);
+
+    slowQueries.forEach((query) => {
       // Normalize query for pattern matching (remove specific values)
       const pattern = query.query
         .replace(/\d+/g, '?')
         .replace(/'[^']*'/g, '?')
         .replace(/\s+/g, ' ')
         .trim();
-      
+
       if (!patterns.has(pattern)) {
         patterns.set(pattern, { count: 0, avgDuration: 0, examples: [] });
       }
-      
+
       const patternData = patterns.get(pattern)!;
       patternData.count++;
-      patternData.avgDuration = (patternData.avgDuration * (patternData.count - 1) + query.duration) / patternData.count;
+      patternData.avgDuration =
+        (patternData.avgDuration * (patternData.count - 1) + query.duration) / patternData.count;
       if (patternData.examples.length < 3) {
         patternData.examples.push(query);
       }
@@ -121,30 +122,31 @@ class DatabaseMonitor {
       .slice(0, limit)
       .map(([pattern, data]) => ({
         pattern,
-        ...data
+        ...data,
       }));
   }
 
   // Get current metrics
   getMetrics() {
     const recentQueries = this.queryMetrics.slice(-100);
-    const slowQueries = recentQueries.filter(q => q.duration > this.slowQueryThreshold);
-    const avgDuration = recentQueries.reduce((sum, q) => sum + q.duration, 0) / recentQueries.length || 0;
-    
+    const slowQueries = recentQueries.filter((q) => q.duration > this.slowQueryThreshold);
+    const avgDuration =
+      recentQueries.reduce((sum, q) => sum + q.duration, 0) / recentQueries.length || 0;
+
     return {
       totalQueries: this.queryMetrics.length,
       slowQueries: slowQueries.length,
       avgQueryDuration: avgDuration,
       slowQueryPatterns: this.getSlowQueryPatterns(),
       connectionPool: this.connectionPoolMetrics[this.connectionPoolMetrics.length - 1] || null,
-      recentSlowQueries: slowQueries.slice(-10)
+      recentSlowQueries: slowQueries.slice(-10),
     };
   }
 
   // Clear old metrics
   clearOldMetrics(olderThan: Date) {
-    this.queryMetrics = this.queryMetrics.filter(m => m.timestamp > olderThan);
-    this.connectionPoolMetrics = this.connectionPoolMetrics.filter(m => m.timestamp > olderThan);
+    this.queryMetrics = this.queryMetrics.filter((m) => m.timestamp > olderThan);
+    this.connectionPoolMetrics = this.connectionPoolMetrics.filter((m) => m.timestamp > olderThan);
   }
 }
 
@@ -154,8 +156,8 @@ export function createPrismaWithMonitoring() {
     log: [
       { emit: 'event', level: 'query' },
       { emit: 'event', level: 'error' },
-      { emit: 'event', level: 'warn' }
-    ]
+      { emit: 'event', level: 'warn' },
+    ],
   });
 
   const monitor = DatabaseMonitor.getInstance();
@@ -183,11 +185,11 @@ export function createPrismaWithMonitoring() {
               monitor.logQuery(args[0], duration, undefined, error.message);
               throw error;
             }
-          }
+          },
         });
       }
       return target[prop];
-    }
+    },
   });
 }
 

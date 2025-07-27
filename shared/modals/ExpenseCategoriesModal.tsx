@@ -6,7 +6,11 @@ interface ExpenseCategoriesModalProps {
   categories?: any[];
 }
 
-const ExpenseCategoriesModal: React.FC<ExpenseCategoriesModalProps> = ({ show, onClose, categories = [] }) => {
+const ExpenseCategoriesModal: React.FC<ExpenseCategoriesModalProps> = ({
+  show,
+  onClose,
+  categories = [],
+}) => {
   if (!show) return null;
 
   return (
@@ -18,7 +22,10 @@ const ExpenseCategoriesModal: React.FC<ExpenseCategoriesModalProps> = ({ show, o
             <p className="text-gray-500">No expense categories found</p>
           ) : (
             categories.map((category, index) => (
-              <div key={index} className="border p-4 rounded">
+              <div
+                key={index}
+                className="border p-4 rounded"
+              >
                 <h3 className="font-semibold">{category.name}</h3>
                 <p className="text-sm text-gray-600">Total: ${category.total}</p>
                 <p className="text-sm text-gray-600">Transactions: {category.count}</p>

@@ -16,7 +16,7 @@ async function testEndpoint(
   method: string,
   path: string,
   body?: any,
-  expectedStatus: number = 200
+  expectedStatus: number = 200,
 ): Promise<any> {
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -60,66 +60,37 @@ async function runGoalTests() {
   console.log('🎯 Testing Goal Operations with PostgreSQL...\n');
 
   // Test 1: Create a new goal
-  const newGoal = await testEndpoint(
-    'Create new goal',
-    'POST',
-    '/api/goals',
-    {
-      title: 'Test Goal',
-      description: 'This is a test goal',
-      targetAmount: 1000,
-      currentAmount: 0,
-      deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
-      category: 'savings',
-    }
-  );
+  const newGoal = await testEndpoint('Create new goal', 'POST', '/api/goals', {
+    title: 'Test Goal',
+    description: 'This is a test goal',
+    targetAmount: 1000,
+    currentAmount: 0,
+    deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
+    category: 'savings',
+  });
 
   const goalId = newGoal?.id;
 
   if (goalId) {
     // Test 2: Get all goals
-    await testEndpoint(
-      'Get all goals',
-      'GET',
-      '/api/goals'
-    );
+    await testEndpoint('Get all goals', 'GET', '/api/goals');
 
     // Test 3: Get specific goal
-    await testEndpoint(
-      'Get specific goal',
-      'GET',
-      `/api/goals/${goalId}`
-    );
+    await testEndpoint('Get specific goal', 'GET', `/api/goals/${goalId}`);
 
     // Test 4: Update goal progress
-    await testEndpoint(
-      'Update goal progress',
-      'PUT',
-      `/api/goals/${goalId}/progress`,
-      {
-        currentAmount: 250,
-      }
-    );
+    await testEndpoint('Update goal progress', 'PUT', `/api/goals/${goalId}/progress`, {
+      currentAmount: 250,
+    });
 
     // Test 5: Update goal details
-    await testEndpoint(
-      'Update goal details',
-      'PUT',
-      `/api/goals/${goalId}`,
-      {
-        title: 'Updated Test Goal',
-        targetAmount: 1500,
-      }
-    );
+    await testEndpoint('Update goal details', 'PUT', `/api/goals/${goalId}`, {
+      title: 'Updated Test Goal',
+      targetAmount: 1500,
+    });
 
     // Test 6: Delete goal
-    await testEndpoint(
-      'Delete goal',
-      'DELETE',
-      `/api/goals/${goalId}`,
-      null,
-      204
-    );
+    await testEndpoint('Delete goal', 'DELETE', `/api/goals/${goalId}`, null, 204);
   }
 
   // Print results
@@ -132,11 +103,11 @@ async function runGoalTests() {
     }
   });
 
-  const passed = results.filter(r => r.status === 'PASS').length;
-  const failed = results.filter(r => r.status === 'FAIL').length;
+  const passed = results.filter((r) => r.status === 'PASS').length;
+  const failed = results.filter((r) => r.status === 'FAIL').length;
 
   console.log(`\n📈 Summary: ${passed} passed, ${failed} failed`);
-  
+
   if (failed > 0) {
     process.exit(1);
   }

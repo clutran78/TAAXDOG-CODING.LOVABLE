@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useDarkMode } from '@/providers/dark-mode-provider';
-import { BasiqAccount } from '@/services/basiq-accounts-service';
-import { fetchUserBankAccounts } from '@/services/basiq-accounts-service';
+import { BasiqAccount } from '@/lib/services/banking/basiq-accounts-service';
+import { fetchUserBankAccounts } from '@/lib/services/banking/basiq-accounts-service';
 import { Goal } from '@/lib/types/goal';
 import { Subaccount } from '@/lib/types/subaccount';
+import { logger } from '@/lib/logger';
 
 interface TransferRule {
   id?: string;
@@ -67,10 +68,10 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
   goal,
   subaccount,
   onRuleCreated,
-  existingRule
+  existingRule,
 }) => {
   const { darkMode } = useDarkMode();
-  
+
   // Form state
   const [transferRule, setTransferRule] = useState<Partial<TransferRule>>({
     goal_id: goal.id,
@@ -82,37 +83,38 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
     income_detection_enabled: false,
     minimum_income_threshold: 500,
     maximum_transfer_per_period: 1000,
-    surplus_calculation_enabled: false
+    surplus_calculation_enabled: false,
   });
-  
+
   // Data state
   const [bankAccounts, setBankAccounts] = useState<BasiqAccount[]>([]);
   const [incomeAnalysis, setIncomeAnalysis] = useState<IncomeAnalysis | null>(null);
-  const [transferRecommendations, setTransferRecommendations] = useState<TransferRecommendation | null>(null);
-  
+  const [transferRecommendations, setTransferRecommendations] =
+    useState<TransferRecommendation | null>(null);
+
   // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [activeTab, setActiveTab] = useState<'basic' | 'smart' | 'advanced'>('basic');
-  
+
   // Load existing rule data if editing
   useEffect(() => {
     if (existingRule && isOpen) {
       setTransferRule({
         ...existingRule,
         start_date: existingRule.start_date.split('T')[0], // Convert to date format
-        end_date: existingRule.end_date?.split('T')[0]
+        end_date: existingRule.end_date?.split('T')[0],
       });
     }
   }, [existingRule, isOpen]);
-  
+
   // Load bank accounts
   useEffect(() => {
     const loadBankAccounts = async () => {
       if (!isOpen) return;
-      
+
       try {
         const response = await fetchUserBankAccounts();
         if (response.success && response.data) {
@@ -122,159 +124,172 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
         }
       } catch (error) {
         setError('Error loading bank accounts');
-        console.error('Failed to load bank accounts:', error);
+        logger.error('Failed to load bank accounts:', error);
       }
     };
-    
+
     loadBankAccounts();
   }, [isOpen]);
-  
+
   // Auto-select first account if none selected
   useEffect(() => {
     if (bankAccounts.length > 0 && !transferRule.source_account_id) {
-      setTransferRule(prev => ({
+      setTransferRule((prev) => ({
         ...prev,
-        source_account_id: bankAccounts[0].id
+        source_account_id: bankAccounts[0].id,
       }));
     }
   }, [bankAccounts, transferRule.source_account_id]);
-  
-  const handleInputChange = (field: keyof TransferRule, value: any) => {
-    setTransferRule(prev => ({
+
+  const handleInputChange = (
+    field: keyof TransferRule,
+    value: TransferRule[keyof TransferRule],
+  ) => {
+    setTransferRule((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
-  
+
   const analyzeIncome = async () => {
     if (!transferRule.source_account_id) {
       setError('Please select a source account first');
       return;
     }
-    
+
     setAnalyzing(true);
     setError(null);
-    
+
     try {
       // Analyze income patterns
-      const incomeResponse = await fetch(`/api/automated-transfers/income-analysis/${transferRule.source_account_id}`, {
-        headers: {
-          'X-User-ID': 'current-user-id' // Replace with actual user ID
-        }
-      });
-      
+      const incomeResponse = await fetch(
+        `/api/automated-transfers/income-analysis/${transferRule.source_account_id}`,
+        {
+          headers: {
+            'X-User-ID': 'current-user-id', // Replace with actual user ID
+          },
+        },
+      );
+
       if (incomeResponse.ok) {
         const incomeData = await incomeResponse.json();
         if (incomeData.success) {
           setIncomeAnalysis(incomeData.data);
         }
       }
-      
+
       // Get transfer recommendations
-      const recommendationsResponse = await fetch(`/api/automated-transfers/transfer-recommendations/${transferRule.source_account_id}?target_percentage=20`, {
-        headers: {
-          'X-User-ID': 'current-user-id' // Replace with actual user ID
-        }
-      });
-      
+      const recommendationsResponse = await fetch(
+        `/api/automated-transfers/transfer-recommendations/${transferRule.source_account_id}?target_percentage=20`,
+        {
+          headers: {
+            'X-User-ID': 'current-user-id', // Replace with actual user ID
+          },
+        },
+      );
+
       if (recommendationsResponse.ok) {
         const recommendationsData = await recommendationsResponse.json();
         if (recommendationsData.success) {
           setTransferRecommendations(recommendationsData.data);
-          
+
           // Auto-suggest amount based on recommendations
           if (transferRule.transfer_type === 'fixed_amount') {
-            handleInputChange('amount', Math.round(recommendationsData.data.recommended_monthly_amount));
+            handleInputChange(
+              'amount',
+              Math.round(recommendationsData.data.recommended_monthly_amount),
+            );
           }
         }
       }
-      
     } catch (error) {
-      console.error('Error analyzing income:', error);
+      logger.error('Error analyzing income:', error);
       setError('Failed to analyze income patterns');
     } finally {
       setAnalyzing(false);
     }
   };
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    
+
     try {
       // Validate required fields
       if (!transferRule.source_account_id || !transferRule.target_subaccount_id) {
         throw new Error('Please select both source account and target subaccount');
       }
-      
+
       if (!transferRule.amount || transferRule.amount <= 0) {
         throw new Error('Please enter a valid transfer amount');
       }
-      
+
       // Prepare request data
       const requestData = {
         ...transferRule,
         start_date: new Date(transferRule.start_date!).toISOString(),
-        end_date: transferRule.end_date ? new Date(transferRule.end_date).toISOString() : undefined
+        end_date: transferRule.end_date ? new Date(transferRule.end_date).toISOString() : undefined,
       };
-      
+
       // API call to create or update transfer rule
-      const url = existingRule 
+      const url = existingRule
         ? `/api/automated-transfers/rules/${existingRule.id}`
         : '/api/automated-transfers/rules';
-      
+
       const method = existingRule ? 'PUT' : 'POST';
-      
+
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'X-User-ID': 'current-user-id' // Replace with actual user ID
+          'X-User-ID': 'current-user-id', // Replace with actual user ID
         },
-        body: JSON.stringify(requestData)
+        body: JSON.stringify(requestData),
       });
-      
+
       const result = await response.json();
-      
+
       if (result.success) {
         if (onRuleCreated) {
-          onRuleCreated(result.data || requestData as TransferRule);
+          onRuleCreated(result.data || (requestData as TransferRule));
         }
         onClose();
       } else {
         throw new Error(result.error || 'Failed to save transfer rule');
       }
-      
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to save transfer rule');
     } finally {
       setLoading(false);
     }
   };
-  
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-AU', {
       style: 'currency',
-      currency: 'AUD'
+      currency: 'AUD',
     }).format(amount);
   };
-  
+
   const getFrequencyLabel = (frequency: string) => {
     const labels: Record<string, string> = {
       daily: 'Daily',
       weekly: 'Weekly',
       bi_weekly: 'Bi-weekly',
       monthly: 'Monthly',
-      quarterly: 'Quarterly'
+      quarterly: 'Quarterly',
     };
     return labels[frequency] || frequency;
   };
-  
+
   if (!isOpen) return null;
-  
+
   return (
-    <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+    <div
+      className="modal fade show d-block"
+      style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+    >
       <div className="modal-dialog modal-xl">
         <div className={`modal-content ${darkMode ? 'bg-dark text-light' : ''}`}>
           <div className="modal-header">
@@ -288,15 +303,18 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
               aria-label="Close"
             ></button>
           </div>
-          
+
           <div className="modal-body">
             {error && (
-              <div className="alert alert-danger" role="alert">
+              <div
+                className="alert alert-danger"
+                role="alert"
+              >
                 <i className="fas fa-exclamation-triangle me-2"></i>
                 {error}
               </div>
             )}
-            
+
             {/* Navigation Tabs */}
             <ul className="nav nav-tabs mb-4">
               <li className="nav-item">
@@ -327,7 +345,7 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
                 </button>
               </li>
             </ul>
-            
+
             <form onSubmit={handleSubmit}>
               {/* Basic Setup Tab */}
               {activeTab === 'basic' && (
@@ -345,14 +363,17 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
                         required
                       >
                         <option value="">Select account...</option>
-                        {bankAccounts.map(account => (
-                          <option key={account.id} value={account.id}>
+                        {bankAccounts.map((account) => (
+                          <option
+                            key={account.id}
+                            value={account.id}
+                          >
                             {account.name} - {formatCurrency(account.balance || 0)}
                           </option>
                         ))}
                       </select>
                     </div>
-                    
+
                     <div className="mb-3">
                       <label className="form-label">
                         <i className="fas fa-piggy-bank me-2"></i>
@@ -368,7 +389,7 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
                         Transfers will go to the subaccount for this goal
                       </small>
                     </div>
-                    
+
                     <div className="mb-3">
                       <label className="form-label">
                         <i className="fas fa-exchange-alt me-2"></i>
@@ -384,11 +405,13 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
                         <option value="smart_surplus">Smart Surplus Detection</option>
                       </select>
                     </div>
-                    
+
                     <div className="mb-3">
                       <label className="form-label">
                         <i className="fas fa-dollar-sign me-2"></i>
-                        {transferRule.transfer_type === 'percentage_income' ? 'Percentage (%)' : 'Amount (AUD)'}
+                        {transferRule.transfer_type === 'percentage_income'
+                          ? 'Percentage (%)'
+                          : 'Amount (AUD)'}
                       </label>
                       <input
                         type="number"
@@ -407,7 +430,7 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="col-md-6">
                     <div className="mb-3">
                       <label className="form-label">
@@ -425,7 +448,7 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
                         <option value="quarterly">Quarterly</option>
                       </select>
                     </div>
-                    
+
                     <div className="mb-3">
                       <label className="form-label">
                         <i className="fas fa-calendar-alt me-2"></i>
@@ -440,7 +463,7 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
                         required
                       />
                     </div>
-                    
+
                     <div className="mb-3">
                       <label className="form-label">
                         <i className="fas fa-calendar-times me-2"></i>
@@ -453,11 +476,9 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
                         onChange={(e) => handleInputChange('end_date', e.target.value || undefined)}
                         min={transferRule.start_date}
                       />
-                      <small className="text-muted">
-                        Leave empty for ongoing transfers
-                      </small>
+                      <small className="text-muted">Leave empty for ongoing transfers</small>
                     </div>
-                    
+
                     <div className="card">
                       <div className="card-body">
                         <h6 className="card-title">
@@ -470,8 +491,7 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
                             <div className="fw-bold">
                               {transferRule.transfer_type === 'percentage_income'
                                 ? `${transferRule.amount}% of income`
-                                : formatCurrency(transferRule.amount || 0)
-                              }
+                                : formatCurrency(transferRule.amount || 0)}
                             </div>
                           </div>
                           <div className="col-6">
@@ -486,7 +506,7 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
                   </div>
                 </div>
               )}
-              
+
               {/* Smart Analysis Tab */}
               {activeTab === 'smart' && (
                 <div>
@@ -514,7 +534,7 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
                       )}
                     </button>
                   </div>
-                  
+
                   {incomeAnalysis && (
                     <div className="row">
                       <div className="col-md-6">
@@ -532,7 +552,7 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
                                 {formatCurrency(incomeAnalysis.total_monthly_income)}
                               </h4>
                             </div>
-                            
+
                             <div className="mb-3">
                               <small className="text-muted">Confidence Level</small>
                               <div className="progress">
@@ -541,11 +561,16 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
                                   style={{ width: `${incomeAnalysis.confidence_level * 100}%` }}
                                 ></div>
                               </div>
-                              <small>{Math.round(incomeAnalysis.confidence_level * 100)}% confident</small>
+                              <small>
+                                {Math.round(incomeAnalysis.confidence_level * 100)}% confident
+                              </small>
                             </div>
-                            
+
                             {incomeAnalysis.income_patterns.map((pattern, index) => (
-                              <div key={index} className="border-bottom py-2">
+                              <div
+                                key={index}
+                                className="border-bottom py-2"
+                              >
                                 <div className="d-flex justify-content-between">
                                   <span className="fw-bold">{pattern.source_description}</span>
                                   <span className="text-success">
@@ -560,7 +585,7 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="col-md-6">
                         {transferRecommendations && (
                           <div className="card">
@@ -574,20 +599,22 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
                               <div className="mb-3">
                                 <small className="text-muted">Recommended Monthly Savings</small>
                                 <h4 className="text-primary">
-                                  {formatCurrency(transferRecommendations.recommended_monthly_amount)}
+                                  {formatCurrency(
+                                    transferRecommendations.recommended_monthly_amount,
+                                  )}
                                 </h4>
                                 <small className="text-muted">
                                   {transferRecommendations.target_percentage}% of your income
                                 </small>
                               </div>
-                              
+
                               <div className="mb-3">
                                 <small className="text-muted">Available Surplus</small>
                                 <div className="fw-bold text-info">
                                   {formatCurrency(transferRecommendations.available_surplus)}
                                 </div>
                               </div>
-                              
+
                               <h6>Frequency Options:</h6>
                               {transferRecommendations.frequency_options.map((option, index) => (
                                 <button
@@ -606,14 +633,19 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
                                   {option.description}
                                 </button>
                               ))}
-                              
+
                               <div className="mt-3">
                                 <button
                                   type="button"
                                   className="btn btn-primary btn-sm"
                                   onClick={() => {
                                     handleInputChange('transfer_type', 'fixed_amount');
-                                    handleInputChange('amount', Math.round(transferRecommendations.recommended_monthly_amount));
+                                    handleInputChange(
+                                      'amount',
+                                      Math.round(
+                                        transferRecommendations.recommended_monthly_amount,
+                                      ),
+                                    );
                                     handleInputChange('frequency', 'monthly');
                                     setActiveTab('basic');
                                   }}
@@ -627,19 +659,19 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
                       </div>
                     </div>
                   )}
-                  
+
                   {!incomeAnalysis && !analyzing && (
                     <div className="text-center py-5">
                       <i className="fas fa-search fa-3x text-muted mb-3"></i>
                       <p className="text-muted">
-                        Click "Analyze Income" to get smart transfer recommendations
-                        based on your transaction history.
+                        Click "Analyze Income" to get smart transfer recommendations based on your
+                        transaction history.
                       </p>
                     </div>
                   )}
                 </div>
               )}
-              
+
               {/* Advanced Options Tab */}
               {activeTab === 'advanced' && (
                 <div className="row">
@@ -650,16 +682,21 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
                         type="checkbox"
                         id="incomeDetection"
                         checked={transferRule.income_detection_enabled || false}
-                        onChange={(e) => handleInputChange('income_detection_enabled', e.target.checked)}
+                        onChange={(e) =>
+                          handleInputChange('income_detection_enabled', e.target.checked)
+                        }
                       />
-                      <label className="form-check-label" htmlFor="incomeDetection">
+                      <label
+                        className="form-check-label"
+                        htmlFor="incomeDetection"
+                      >
                         Enable Income Detection
                       </label>
                       <small className="d-block text-muted">
                         Automatically detect income patterns for percentage-based transfers
                       </small>
                     </div>
-                    
+
                     {transferRule.income_detection_enabled && (
                       <div className="mb-3">
                         <label className="form-label">Minimum Income Threshold</label>
@@ -667,7 +704,12 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
                           type="number"
                           className="form-control"
                           value={transferRule.minimum_income_threshold}
-                          onChange={(e) => handleInputChange('minimum_income_threshold', parseFloat(e.target.value))}
+                          onChange={(e) =>
+                            handleInputChange(
+                              'minimum_income_threshold',
+                              parseFloat(e.target.value),
+                            )
+                          }
                           min={0}
                           step={50}
                         />
@@ -676,14 +718,19 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
                         </small>
                       </div>
                     )}
-                    
+
                     <div className="mb-3">
                       <label className="form-label">Maximum Transfer Per Period</label>
                       <input
                         type="number"
                         className="form-control"
                         value={transferRule.maximum_transfer_per_period}
-                        onChange={(e) => handleInputChange('maximum_transfer_per_period', parseFloat(e.target.value))}
+                        onChange={(e) =>
+                          handleInputChange(
+                            'maximum_transfer_per_period',
+                            parseFloat(e.target.value),
+                          )
+                        }
                         min={0}
                         step={50}
                       />
@@ -692,7 +739,7 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
                       </small>
                     </div>
                   </div>
-                  
+
                   <div className="col-md-6">
                     <div className="form-check form-switch mb-3">
                       <input
@@ -700,16 +747,21 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
                         type="checkbox"
                         id="surplusCalculation"
                         checked={transferRule.surplus_calculation_enabled || false}
-                        onChange={(e) => handleInputChange('surplus_calculation_enabled', e.target.checked)}
+                        onChange={(e) =>
+                          handleInputChange('surplus_calculation_enabled', e.target.checked)
+                        }
                       />
-                      <label className="form-check-label" htmlFor="surplusCalculation">
+                      <label
+                        className="form-check-label"
+                        htmlFor="surplusCalculation"
+                      >
                         Enable Smart Surplus Calculation
                       </label>
                       <small className="d-block text-muted">
                         Calculate transfers based on available surplus after expenses
                       </small>
                     </div>
-                    
+
                     <div className="card">
                       <div className="card-body">
                         <h6 className="card-title">
@@ -739,7 +791,7 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
                   </div>
                 </div>
               )}
-              
+
               <div className="modal-footer">
                 <button
                   type="button"
@@ -775,4 +827,4 @@ const TransferScheduler: React.FC<TransferSchedulerProps> = ({
   );
 };
 
-export default TransferScheduler; 
+export default TransferScheduler;

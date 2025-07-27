@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { formatCurrency } from '../../lib/stripe';
+import { logger } from '@/lib/logger';
 
 interface PaymentMethod {
   id: string;
@@ -41,7 +42,7 @@ export const BillingPortal: React.FC = () => {
       const data = await response.json();
       setPaymentMethods(data.paymentMethods);
     } catch (error) {
-      console.error('Error fetching payment methods:', error);
+      logger.error('Error fetching payment methods:', error);
     }
   };
 
@@ -51,7 +52,7 @@ export const BillingPortal: React.FC = () => {
       const data = await response.json();
       setInvoices(data.invoices);
     } catch (error) {
-      console.error('Error fetching billing history:', error);
+      logger.error('Error fetching billing history:', error);
     }
   };
 
@@ -64,7 +65,7 @@ export const BillingPortal: React.FC = () => {
       const data = await response.json();
       window.location.href = data.url;
     } catch (error) {
-      console.error('Error opening customer portal:', error);
+      logger.error('Error opening customer portal:', error);
     } finally {
       setLoading(false);
     }
@@ -79,20 +80,20 @@ export const BillingPortal: React.FC = () => {
       });
       await fetchPaymentMethods();
     } catch (error) {
-      console.error('Error setting default payment method:', error);
+      logger.error('Error setting default payment method:', error);
     }
   };
 
   const removePaymentMethod = async (paymentMethodId: string) => {
     if (!confirm('Are you sure you want to remove this payment method?')) return;
-    
+
     try {
       await fetch(`/api/stripe/payment-methods?paymentMethodId=${paymentMethodId}`, {
         method: 'DELETE',
       });
       await fetchPaymentMethods();
     } catch (error) {
-      console.error('Error removing payment method:', error);
+      logger.error('Error removing payment method:', error);
     }
   };
 
@@ -140,7 +141,8 @@ export const BillingPortal: React.FC = () => {
               <h3 className="text-lg font-medium mb-4">Billing Overview</h3>
               <div className="bg-gray-50 rounded-lg p-4 mb-6">
                 <p className="text-sm text-gray-600 mb-4">
-                  Manage your subscription, payment methods, and download invoices through the Stripe Customer Portal.
+                  Manage your subscription, payment methods, and download invoices through the
+                  Stripe Customer Portal.
                 </p>
                 <button
                   onClick={openCustomerPortal}
@@ -167,8 +169,16 @@ export const BillingPortal: React.FC = () => {
                     >
                       <div className="flex items-center">
                         <div className="mr-4">
-                          <svg className="w-10 h-10" viewBox="0 0 40 24">
-                            <rect width="40" height="24" rx="4" fill="#E5E7EB" />
+                          <svg
+                            className="w-10 h-10"
+                            viewBox="0 0 40 24"
+                          >
+                            <rect
+                              width="40"
+                              height="24"
+                              rx="4"
+                              fill="#E5E7EB"
+                            />
                           </svg>
                         </div>
                         <div>
@@ -244,9 +254,7 @@ export const BillingPortal: React.FC = () => {
                           <td className="px-4 py-3 text-sm">
                             {invoice.invoiceNumber || invoice.id}
                           </td>
-                          <td className="px-4 py-3 text-sm">
-                            {formatCurrency(invoice.amount)}
-                          </td>
+                          <td className="px-4 py-3 text-sm">{formatCurrency(invoice.amount)}</td>
                           <td className="px-4 py-3 text-sm">
                             <span
                               className={`px-2 py-1 text-xs rounded-full ${

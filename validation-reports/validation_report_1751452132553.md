@@ -1,8 +1,7 @@
 # Firebase to PostgreSQL Migration Validation Report
 
-**Date:** 7/2/2025, 8:28:52 PM
-**Overall Status:** ❌ FAILED
-**Success Rate:** 100.00%
+**Date:** 7/2/2025, 8:28:52 PM **Overall Status:** ❌ FAILED **Success Rate:**
+100.00%
 
 ## Summary
 
@@ -14,84 +13,77 @@
 
 ## Record Count Validation
 
-| Collection | Firebase | PostgreSQL | Difference | Duplicates | Status |
-|------------|----------|------------|------------|------------|--------|
-| users | 0 | 0 | 0 | No | ✅ |
-| receipts | 0 | 0 | 0 | No | ✅ |
-| budgets | 0 | 0 | 0 | No | ✅ |
-| budgetTracking | 0 | 0 | 0 | No | ✅ |
-| financialInsights | 0 | 0 | 0 | No | ✅ |
+| Collection        | Firebase | PostgreSQL | Difference | Duplicates | Status |
+| ----------------- | -------- | ---------- | ---------- | ---------- | ------ |
+| users             | 0        | 0          | 0          | No         | ✅     |
+| receipts          | 0        | 0          | 0          | No         | ✅     |
+| budgets           | 0        | 0          | 0          | No         | ✅     |
+| budgetTracking    | 0        | 0          | 0          | No         | ✅     |
+| financialInsights | 0        | 0          | 0          | No         | ✅     |
 
 ## Relationship Validation
 
-| Relationship | Orphaned Records | Status |
-|--------------|------------------|--------|
-| Budget Tracking → Budgets | 0 | ✅ |
-| Financial Insights → Users | 0 | ✅ |
+| Relationship               | Orphaned Records | Status |
+| -------------------------- | ---------------- | ------ |
+| Budget Tracking → Budgets  | 0                | ✅     |
+| Financial Insights → Users | 0                | ✅     |
 
 ## Data Integrity
 
-
-
 ## Australian Compliance
 
-| Check | Invalid Records | Status |
-|-------|-----------------|--------|
-| Phone number format (+61XXXXXXXXX) | 0 | ✅ |
-| GST calculations (10%) | 0 | ✅ |
+| Check                              | Invalid Records | Status |
+| ---------------------------------- | --------------- | ------ |
+| Phone number format (+61XXXXXXXXX) | 0               | ✅     |
+| GST calculations (10%)             | 0               | ✅     |
 
 ## Performance Tests
 
-| Test | Duration | Status |
-|------|----------|--------|
-| User lookup by email | 1ms | ✅ |
-| Budget tracking query | 3ms | ✅ |
-| connectionPooling | 113ms | ✅ |
+| Test                  | Duration | Status |
+| --------------------- | -------- | ------ |
+| User lookup by email  | 1ms      | ✅     |
+| Budget tracking query | 3ms      | ✅     |
+| connectionPooling     | 113ms    | ✅     |
 
 ## Issues Found
 
-
 ### VALIDATION_ERROR (medium)
+
 - **Message:** Failed to validate basiqUsers
 - **Time:** 8:28:52 PM
 - **Details:** "relation \"basiq_users\" does not exist"
 
-
 ### VALIDATION_ERROR (medium)
+
 - **Message:** Failed to validate bankAccounts
 - **Time:** 8:28:52 PM
 - **Details:** "relation \"bank_accounts\" does not exist"
 
-
 ### VALIDATION_ERROR (medium)
+
 - **Message:** Failed to validate transactions
 - **Time:** 8:28:52 PM
 - **Details:** "relation \"bank_transactions\" does not exist"
 
-
 ### VALIDATION_ERROR (medium)
+
 - **Message:** Failed to validate aiConversations
 - **Time:** 8:28:52 PM
 - **Details:** "relation \"ai_conversations\" does not exist"
 
-
 ### VALIDATION_ERROR (medium)
+
 - **Message:** Failed to validate aiUsageTracking
 - **Time:** 8:28:52 PM
 - **Details:** "relation \"ai_usage_tracking\" does not exist"
 
-
 ## Recommendations
-
-
-
 
 ### 📋 Action Items
 
 1. Review and fix all validation issues
 2. Re-import affected collections
 3. Run validation again to confirm fixes
-
 
 ## Next Steps
 

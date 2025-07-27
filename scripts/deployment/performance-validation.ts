@@ -67,9 +67,9 @@ class PerformanceValidator {
         failed: 0,
         warnings: 0,
         avgResponseTime: 0,
-        successRate: 0
+        successRate: 0,
       },
-      recommendations: []
+      recommendations: [],
     };
   }
 
@@ -100,7 +100,6 @@ class PerformanceValidator {
 
       // Display results
       this.displayResults();
-
     } catch (error) {
       console.error('Performance validation error:', error);
     }
@@ -112,7 +111,7 @@ class PerformanceValidator {
     try {
       const response = await axios.post(`${this.baseUrl}/api/auth/login`, {
         email: process.env.TEST_USER_EMAIL || 'test@example.com',
-        password: process.env.TEST_USER_PASSWORD || 'testpassword'
+        password: process.env.TEST_USER_PASSWORD || 'testpassword',
       });
 
       if (response.data.token) {
@@ -131,38 +130,38 @@ class PerformanceValidator {
         name: 'Homepage',
         endpoint: '/',
         method: 'GET',
-        expectedTime: 200
+        expectedTime: 200,
       },
       {
         name: 'Login Page',
         endpoint: '/login',
         method: 'GET',
-        expectedTime: 150
+        expectedTime: 150,
       },
       {
         name: 'Dashboard',
         endpoint: '/dashboard',
         method: 'GET',
-        expectedTime: 500
+        expectedTime: 500,
       },
       {
         name: 'API Health Check',
         endpoint: '/api/health',
         method: 'GET',
-        expectedTime: 50
+        expectedTime: 50,
       },
       {
         name: 'User Profile API',
         endpoint: '/api/users/profile',
         method: 'GET',
-        expectedTime: 200
+        expectedTime: 200,
       },
       {
         name: 'Transactions List',
         endpoint: '/api/transactions?limit=20',
         method: 'GET',
-        expectedTime: 300
-      }
+        expectedTime: 300,
+      },
     ];
 
     for (const test of criticalTests) {
@@ -178,26 +177,26 @@ class PerformanceValidator {
         name: 'Complex Query - User Analytics',
         endpoint: '/api/analytics/user-summary',
         method: 'GET',
-        expectedTime: 500
+        expectedTime: 500,
       },
       {
         name: 'Bulk Data Fetch - Transactions',
         endpoint: '/api/transactions?limit=100',
         method: 'GET',
-        expectedTime: 800
+        expectedTime: 800,
       },
       {
         name: 'Search Operation',
         endpoint: '/api/search?q=test&type=all',
         method: 'GET',
-        expectedTime: 400
+        expectedTime: 400,
       },
       {
         name: 'Aggregation Query',
         endpoint: '/api/reports/monthly-summary',
         method: 'GET',
-        expectedTime: 600
-      }
+        expectedTime: 600,
+      },
     ];
 
     for (const test of dbTests) {
@@ -215,22 +214,22 @@ class PerformanceValidator {
         method: 'POST',
         payload: { email: 'test@example.com', password: 'test' },
         expectedTime: 500,
-        concurrentUsers: 10
+        concurrentUsers: 10,
       },
       {
         name: 'Dashboard - 20 concurrent users',
         endpoint: '/dashboard',
         method: 'GET',
         expectedTime: 1000,
-        concurrentUsers: 20
+        concurrentUsers: 20,
       },
       {
         name: 'API Load - 50 concurrent requests',
         endpoint: '/api/transactions',
         method: 'GET',
         expectedTime: 2000,
-        concurrentUsers: 50
-      }
+        concurrentUsers: 50,
+      },
     ];
 
     for (const test of concurrentTests) {
@@ -247,22 +246,22 @@ class PerformanceValidator {
         endpoint: '/api/ai/process-receipt',
         method: 'POST',
         payload: { imageUrl: 'test.jpg' },
-        expectedTime: 3000
+        expectedTime: 3000,
       },
       {
         name: 'Report Generation',
         endpoint: '/api/reports/generate',
         method: 'POST',
         payload: { type: 'annual', year: 2024 },
-        expectedTime: 5000
+        expectedTime: 5000,
       },
       {
         name: 'Data Export',
         endpoint: '/api/export/transactions',
         method: 'POST',
         payload: { format: 'csv', dateRange: 'year' },
-        expectedTime: 4000
-      }
+        expectedTime: 4000,
+      },
     ];
 
     for (const test of intensiveTests) {
@@ -277,7 +276,7 @@ class PerformanceValidator {
       '/_next/static/css/main.css',
       '/_next/static/js/main.js',
       '/images/logo.png',
-      '/favicon.ico'
+      '/favicon.ico',
     ];
 
     for (const asset of staticAssets) {
@@ -285,9 +284,9 @@ class PerformanceValidator {
         name: `Static Asset: ${asset}`,
         endpoint: asset,
         method: 'GET',
-        expectedTime: 100
+        expectedTime: 100,
       };
-      
+
       await this.runPerformanceTest(test);
     }
   }
@@ -301,28 +300,28 @@ class PerformanceValidator {
         name: 'API Cache - User Profile',
         endpoint: '/api/users/profile',
         method: 'GET',
-        expectedTime: 50
+        expectedTime: 50,
       },
       {
         name: 'Page Cache - Dashboard',
         endpoint: '/dashboard',
         method: 'GET',
-        expectedTime: 100
-      }
+        expectedTime: 100,
+      },
     ];
 
     for (const test of cacheTests) {
       // First request (cache miss)
       await this.runPerformanceTest({
         ...test,
-        name: `${test.name} (First Request)`
+        name: `${test.name} (First Request)`,
       });
 
       // Second request (cache hit)
       await this.runPerformanceTest({
         ...test,
         name: `${test.name} (Cached)`,
-        expectedTime: test.expectedTime / 2
+        expectedTime: test.expectedTime / 2,
       });
     }
   }
@@ -334,7 +333,7 @@ class PerformanceValidator {
 
     for (let i = 0; i < iterations; i++) {
       const startTime = performance.now();
-      
+
       try {
         const response = await axios({
           method: test.method,
@@ -342,12 +341,12 @@ class PerformanceValidator {
           data: test.payload,
           headers: this.authToken ? { Authorization: `Bearer ${this.authToken}` } : {},
           timeout: 30000,
-          validateStatus: (status) => status < 500
+          validateStatus: (status) => status < 500,
         });
 
         const endTime = performance.now();
         const responseTime = endTime - startTime;
-        
+
         if (response.status < 400) {
           successCount++;
           responseTimes.push(responseTime);
@@ -357,13 +356,13 @@ class PerformanceValidator {
       }
 
       // Small delay between requests
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
     // Calculate metrics
     if (responseTimes.length > 0) {
       responseTimes.sort((a, b) => a - b);
-      
+
       const metrics = {
         avgResponseTime: responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length,
         minResponseTime: responseTimes[0],
@@ -371,17 +370,21 @@ class PerformanceValidator {
         successRate: (successCount / iterations) * 100,
         requestsPerSecond: 1000 / (responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length),
         p95ResponseTime: responseTimes[Math.floor(responseTimes.length * 0.95)],
-        p99ResponseTime: responseTimes[Math.floor(responseTimes.length * 0.99)]
+        p99ResponseTime: responseTimes[Math.floor(responseTimes.length * 0.99)],
       };
 
-      const status = metrics.avgResponseTime <= test.expectedTime ? 'pass' :
-                    metrics.avgResponseTime <= test.expectedTime * 1.5 ? 'warning' : 'fail';
+      const status =
+        metrics.avgResponseTime <= test.expectedTime
+          ? 'pass'
+          : metrics.avgResponseTime <= test.expectedTime * 1.5
+            ? 'warning'
+            : 'fail';
 
       this.report.results.push({
         test: test.name,
         status,
         metrics,
-        details: `Avg: ${metrics.avgResponseTime.toFixed(0)}ms (expected: <${test.expectedTime}ms)`
+        details: `Avg: ${metrics.avgResponseTime.toFixed(0)}ms (expected: <${test.expectedTime}ms)`,
       });
     } else {
       this.report.results.push({
@@ -394,9 +397,9 @@ class PerformanceValidator {
           successRate: 0,
           requestsPerSecond: 0,
           p95ResponseTime: 0,
-          p99ResponseTime: 0
+          p99ResponseTime: 0,
         },
-        details: 'All requests failed'
+        details: 'All requests failed',
       });
     }
   }
@@ -419,16 +422,18 @@ class PerformanceValidator {
           data: test.payload,
           headers: this.authToken ? { Authorization: `Bearer ${this.authToken}` } : {},
           timeout: 30000,
-          validateStatus: (status) => status < 500
-        }).then(response => {
-          const endTime = performance.now();
-          if (response.status < 400) {
-            successCount++;
-            responseTimes.push(endTime - startTime);
-          }
-        }).catch(() => {
-          // Request failed
+          validateStatus: (status) => status < 500,
         })
+          .then((response) => {
+            const endTime = performance.now();
+            if (response.status < 400) {
+              successCount++;
+              responseTimes.push(endTime - startTime);
+            }
+          })
+          .catch(() => {
+            // Request failed
+          }),
       );
     }
 
@@ -436,7 +441,7 @@ class PerformanceValidator {
 
     if (responseTimes.length > 0) {
       responseTimes.sort((a, b) => a - b);
-      
+
       const metrics = {
         avgResponseTime: responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length,
         minResponseTime: responseTimes[0],
@@ -444,17 +449,21 @@ class PerformanceValidator {
         successRate: (successCount / concurrentUsers) * 100,
         requestsPerSecond: (concurrentUsers * 1000) / responseTimes[responseTimes.length - 1],
         p95ResponseTime: responseTimes[Math.floor(responseTimes.length * 0.95)],
-        p99ResponseTime: responseTimes[Math.floor(responseTimes.length * 0.99)]
+        p99ResponseTime: responseTimes[Math.floor(responseTimes.length * 0.99)],
       };
 
-      const status = metrics.avgResponseTime <= test.expectedTime ? 'pass' :
-                    metrics.avgResponseTime <= test.expectedTime * 1.5 ? 'warning' : 'fail';
+      const status =
+        metrics.avgResponseTime <= test.expectedTime
+          ? 'pass'
+          : metrics.avgResponseTime <= test.expectedTime * 1.5
+            ? 'warning'
+            : 'fail';
 
       this.report.results.push({
         test: test.name,
         status,
         metrics,
-        details: `Avg: ${metrics.avgResponseTime.toFixed(0)}ms, Success: ${metrics.successRate.toFixed(1)}%`
+        details: `Avg: ${metrics.avgResponseTime.toFixed(0)}ms, Success: ${metrics.successRate.toFixed(1)}%`,
       });
     } else {
       this.report.results.push({
@@ -467,34 +476,34 @@ class PerformanceValidator {
           successRate: 0,
           requestsPerSecond: 0,
           p95ResponseTime: 0,
-          p99ResponseTime: 0
+          p99ResponseTime: 0,
         },
-        details: 'All concurrent requests failed'
+        details: 'All concurrent requests failed',
       });
     }
   }
 
   private calculateSummary(): void {
     this.report.summary.totalTests = this.report.results.length;
-    this.report.summary.passed = this.report.results.filter(r => r.status === 'pass').length;
-    this.report.summary.failed = this.report.results.filter(r => r.status === 'fail').length;
-    this.report.summary.warnings = this.report.results.filter(r => r.status === 'warning').length;
+    this.report.summary.passed = this.report.results.filter((r) => r.status === 'pass').length;
+    this.report.summary.failed = this.report.results.filter((r) => r.status === 'fail').length;
+    this.report.summary.warnings = this.report.results.filter((r) => r.status === 'warning').length;
 
     const allResponseTimes = this.report.results
-      .filter(r => r.metrics.avgResponseTime > 0)
-      .map(r => r.metrics.avgResponseTime);
+      .filter((r) => r.metrics.avgResponseTime > 0)
+      .map((r) => r.metrics.avgResponseTime);
 
     if (allResponseTimes.length > 0) {
-      this.report.summary.avgResponseTime = 
+      this.report.summary.avgResponseTime =
         allResponseTimes.reduce((a, b) => a + b, 0) / allResponseTimes.length;
     }
 
     const allSuccessRates = this.report.results
-      .filter(r => r.metrics.successRate >= 0)
-      .map(r => r.metrics.successRate);
+      .filter((r) => r.metrics.successRate >= 0)
+      .map((r) => r.metrics.successRate);
 
     if (allSuccessRates.length > 0) {
-      this.report.summary.successRate = 
+      this.report.summary.successRate =
         allSuccessRates.reduce((a, b) => a + b, 0) / allSuccessRates.length;
     }
 
@@ -511,82 +520,69 @@ class PerformanceValidator {
   private generateRecommendations(): void {
     // Analyze results and generate recommendations
     const slowEndpoints = this.report.results.filter(
-      r => r.status === 'fail' || r.status === 'warning'
+      (r) => r.status === 'fail' || r.status === 'warning',
     );
 
     if (slowEndpoints.length > 0) {
-      this.report.recommendations.push(
-        `Optimize ${slowEndpoints.length} slow endpoints`
-      );
+      this.report.recommendations.push(`Optimize ${slowEndpoints.length} slow endpoints`);
     }
 
     const avgResponseTime = this.report.summary.avgResponseTime;
     if (avgResponseTime > 500) {
-      this.report.recommendations.push(
-        'Consider implementing more aggressive caching strategies'
-      );
+      this.report.recommendations.push('Consider implementing more aggressive caching strategies');
     }
 
-    const lowSuccessRate = this.report.results.filter(
-      r => r.metrics.successRate < 95
-    );
+    const lowSuccessRate = this.report.results.filter((r) => r.metrics.successRate < 95);
 
     if (lowSuccessRate.length > 0) {
       this.report.recommendations.push(
-        'Investigate and fix reliability issues in failing endpoints'
+        'Investigate and fix reliability issues in failing endpoints',
       );
     }
 
     // Check for database performance issues
-    const dbTests = this.report.results.filter(r => 
-      r.test.includes('Database') || r.test.includes('Query')
+    const dbTests = this.report.results.filter(
+      (r) => r.test.includes('Database') || r.test.includes('Query'),
     );
-    
-    const slowDbTests = dbTests.filter(r => r.status !== 'pass');
+
+    const slowDbTests = dbTests.filter((r) => r.status !== 'pass');
     if (slowDbTests.length > 0) {
-      this.report.recommendations.push(
-        'Optimize database queries and consider adding indexes'
-      );
+      this.report.recommendations.push('Optimize database queries and consider adding indexes');
     }
 
     // Check concurrent user performance
-    const concurrentTests = this.report.results.filter(r => 
-      r.test.includes('concurrent')
-    );
-    
-    const failedConcurrent = concurrentTests.filter(r => r.status === 'fail');
+    const concurrentTests = this.report.results.filter((r) => r.test.includes('concurrent'));
+
+    const failedConcurrent = concurrentTests.filter((r) => r.status === 'fail');
     if (failedConcurrent.length > 0) {
-      this.report.recommendations.push(
-        'Scale infrastructure to handle concurrent load'
-      );
+      this.report.recommendations.push('Scale infrastructure to handle concurrent load');
     }
   }
 
   private async saveReport(): Promise<void> {
     const reportPath = path.join(process.cwd(), 'logs', 'performance-validation.json');
-    
-    await fs.promises.writeFile(
-      reportPath,
-      JSON.stringify(this.report, null, 2)
-    );
+
+    await fs.promises.writeFile(reportPath, JSON.stringify(this.report, null, 2));
   }
 
   private displayResults(): void {
     console.log('\n' + '='.repeat(60));
     console.log('🚀 PERFORMANCE VALIDATION REPORT');
     console.log('='.repeat(60));
-    
+
     console.log(`\nTarget: ${this.report.baseUrl}`);
     console.log(`Timestamp: ${this.report.timestamp.toISOString()}`);
-    
+
     const statusEmoji = {
       pass: '✅',
       warning: '⚠️',
-      fail: '❌'
+      fail: '❌',
     };
-    
-    console.log(`\nOverall Status: ${statusEmoji[this.report.overallStatus]} ${this.report.overallStatus.toUpperCase()}`);
-    
+
+    console.log(
+      `\nOverall Status: ${statusEmoji[this.report.overallStatus]} ${this.report.overallStatus.toUpperCase()}`,
+    );
+
     console.log('\n📊 Summary:');
     console.log(`  Total Tests: ${this.report.summary.totalTests}`);
     console.log(`  Passed: ${this.report.summary.passed}`);
@@ -594,44 +590,44 @@ class PerformanceValidator {
     console.log(`  Warnings: ${this.report.summary.warnings}`);
     console.log(`  Average Response Time: ${this.report.summary.avgResponseTime.toFixed(0)}ms`);
     console.log(`  Overall Success Rate: ${this.report.summary.successRate.toFixed(1)}%`);
-    
+
     // Show failed tests
-    const failedTests = this.report.results.filter(r => r.status === 'fail');
+    const failedTests = this.report.results.filter((r) => r.status === 'fail');
     if (failedTests.length > 0) {
       console.log('\n❌ Failed Tests:');
-      failedTests.forEach(test => {
+      failedTests.forEach((test) => {
         console.log(`  - ${test.test}: ${test.details}`);
       });
     }
-    
+
     // Show warnings
-    const warningTests = this.report.results.filter(r => r.status === 'warning');
+    const warningTests = this.report.results.filter((r) => r.status === 'warning');
     if (warningTests.length > 0) {
       console.log('\n⚠️  Warning Tests:');
-      warningTests.forEach(test => {
+      warningTests.forEach((test) => {
         console.log(`  - ${test.test}: ${test.details}`);
       });
     }
-    
+
     // Show recommendations
     if (this.report.recommendations.length > 0) {
       console.log('\n💡 Recommendations:');
-      this.report.recommendations.forEach(rec => {
+      this.report.recommendations.forEach((rec) => {
         console.log(`  - ${rec}`);
       });
     }
-    
+
     // Show top 5 slowest endpoints
     const sortedByTime = [...this.report.results]
-      .filter(r => r.metrics.avgResponseTime > 0)
+      .filter((r) => r.metrics.avgResponseTime > 0)
       .sort((a, b) => b.metrics.avgResponseTime - a.metrics.avgResponseTime)
       .slice(0, 5);
-    
+
     console.log('\n🐌 Slowest Endpoints:');
-    sortedByTime.forEach(test => {
+    sortedByTime.forEach((test) => {
       console.log(`  - ${test.test}: ${test.metrics.avgResponseTime.toFixed(0)}ms`);
     });
-    
+
     console.log('\n' + '='.repeat(60));
   }
 }
@@ -640,9 +636,9 @@ class PerformanceValidator {
 async function main() {
   const baseUrl = process.argv[2] || process.env.NEXTAUTH_URL || 'http://localhost:3000';
   const validator = new PerformanceValidator(baseUrl);
-  
+
   const report = await validator.runValidation();
-  
+
   if (report.overallStatus === 'fail') {
     console.error('\n❌ Performance validation FAILED!');
     process.exit(1);

@@ -6,14 +6,17 @@ const sgMail = require('@sendgrid/mail');
 
 async function testEmailConfiguration() {
   console.log('🔍 Testing Email Configuration\n');
-  
+
   // Check environment variables
   console.log('Environment Check:');
   console.log('- SENDGRID_API_KEY:', process.env.SENDGRID_API_KEY ? '✅ Set' : '❌ Missing');
   console.log('- EMAIL_FROM:', process.env.EMAIL_FROM || '❌ Missing');
-  console.log('- EMAIL_PROVIDER:', process.env.EMAIL_PROVIDER || 'Not set (will use default logic)');
+  console.log(
+    '- EMAIL_PROVIDER:',
+    process.env.EMAIL_PROVIDER || 'Not set (will use default logic)',
+  );
   console.log('- NODE_ENV:', process.env.NODE_ENV || 'Not set');
-  
+
   if (!process.env.SENDGRID_API_KEY) {
     console.error('\n❌ SENDGRID_API_KEY is not set in environment variables');
     console.log('\nTo configure SendGrid:');
@@ -23,16 +26,16 @@ async function testEmailConfiguration() {
     console.log('4. Verify your sender domain in SendGrid dashboard');
     process.exit(1);
   }
-  
+
   // Validate API key format
   if (!process.env.SENDGRID_API_KEY.startsWith('SG.')) {
     console.error('\n⚠️  Warning: SendGrid API key should start with "SG."');
   }
-  
+
   // Test SendGrid connection
   try {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-    
+
     // Create a test email (but don't send it)
     const msg = {
       to: 'test@example.com',
@@ -41,24 +44,22 @@ async function testEmailConfiguration() {
       text: 'This is a test email',
       html: '<p>This is a test email</p>',
     };
-    
+
     console.log('\n✅ SendGrid API key is valid format');
     console.log('✅ Email configuration appears correct');
-    
+
     console.log('\nEmail will be sent from:', msg.from);
     console.log('\n📧 To send a test email, run:');
     console.log('   node scripts/send-test-email.js your-email@example.com');
-    
   } catch (error) {
     console.error('\n❌ SendGrid configuration error:', error.message);
   }
-  
+
   // Production readiness check
   console.log('\n🏁 Production Readiness:');
-  const isReady = process.env.SENDGRID_API_KEY && 
-                   process.env.EMAIL_FROM && 
-                   process.env.NODE_ENV === 'production';
-  
+  const isReady =
+    process.env.SENDGRID_API_KEY && process.env.EMAIL_FROM && process.env.NODE_ENV === 'production';
+
   if (isReady) {
     console.log('✅ Email service is ready for production');
   } else {

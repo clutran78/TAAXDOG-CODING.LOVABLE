@@ -40,14 +40,14 @@ async function testProductionMode() {
       body: JSON.stringify({
         email: testEmail,
         password: testPassword,
-        name: testName
-      })
+        name: testName,
+      }),
     });
-    
+
     const registerData = await registerResponse.json();
     console.log(`   Status: ${registerResponse.status}`);
     console.log(`   Response:`, registerData);
-    
+
     if (registerResponse.ok) {
       console.log('   ✅ Registration successful!');
     } else {
@@ -65,14 +65,14 @@ async function testProductionMode() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: testEmail,
-        password: testPassword
-      })
+        password: testPassword,
+      }),
     });
-    
+
     const loginData = await loginResponse.json();
     console.log(`   Status: ${loginResponse.status}`);
     console.log(`   Response:`, loginData);
-    
+
     if (loginResponse.ok) {
       console.log('   ✅ Login successful!');
     } else if (loginData.requiresVerification) {

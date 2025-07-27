@@ -17,19 +17,29 @@ interface CheckResult {
 
 const results: CheckResult[] = [];
 
-function addResult(category: string, check: string, status: 'pass' | 'fail' | 'warn', message: string) {
+function addResult(
+  category: string,
+  check: string,
+  status: 'pass' | 'fail' | 'warn',
+  message: string,
+) {
   results.push({ category, check, status, message });
 }
 
 async function checkEnvironment() {
   console.log('🔍 Checking Environment Configuration...\n');
-  
+
   // Check encryption key
   if (process.env.FIELD_ENCRYPTION_KEY) {
     if (process.env.FIELD_ENCRYPTION_KEY.length === 64) {
       addResult('Environment', 'Encryption Key', 'pass', 'Valid 64-character key found');
     } else {
-      addResult('Environment', 'Encryption Key', 'fail', `Invalid key length: ${process.env.FIELD_ENCRYPTION_KEY.length}`);
+      addResult(
+        'Environment',
+        'Encryption Key',
+        'fail',
+        `Invalid key length: ${process.env.FIELD_ENCRYPTION_KEY.length}`,
+      );
     }
   } else {
     addResult('Environment', 'Encryption Key', 'fail', 'FIELD_ENCRYPTION_KEY not set');
@@ -56,7 +66,7 @@ async function checkEnvironment() {
 
 async function checkMigrations() {
   console.log('🔍 Checking API Migrations...\n');
-  
+
   const apiDir = resolve(__dirname, '../pages/api');
   let totalFiles = 0;
   let migratedFiles = 0;
@@ -64,18 +74,20 @@ async function checkMigrations() {
 
   async function scanDir(dir: string) {
     const entries = await readdir(dir, { withFileTypes: true });
-    
+
     for (const entry of entries) {
       const fullPath = join(dir, entry.name);
-      
+
       if (entry.isDirectory()) {
         await scanDir(fullPath);
       } else if (entry.isFile() && entry.name.endsWith('.ts')) {
-        if (!entry.name.includes('[...nextauth]') && 
-            !entry.name.includes('test') &&
-            !entry.name.includes('health')) {
+        if (
+          !entry.name.includes('[...nextauth]') &&
+          !entry.name.includes('test') &&
+          !entry.name.includes('health')
+        ) {
           totalFiles++;
-          
+
           // Check if file has RLS middleware
           const content = await readFile(fullPath, 'utf-8');
           if (content.includes('withRLSMiddleware')) {
@@ -83,10 +95,15 @@ async function checkMigrations() {
           } else if (content.includes('getServerSession') && content.includes('userId')) {
             pendingMigrations++;
           }
-          
+
           // Check for pending migration files
           if (entry.name.includes('-rls-migrated')) {
-            addResult('Migrations', 'Pending Files', 'warn', `Found unmigrated file: ${entry.name}`);
+            addResult(
+              'Migrations',
+              'Pending Files',
+              'warn',
+              `Found unmigrated file: ${entry.name}`,
+            );
           }
         }
       }
@@ -94,17 +111,27 @@ async function checkMigrations() {
   }
 
   await scanDir(apiDir);
-  
-  const migrationRate = totalFiles > 0 ? (migratedFiles / totalFiles * 100).toFixed(1) : 0;
-  
+
+  const migrationRate = totalFiles > 0 ? ((migratedFiles / totalFiles) * 100).toFixed(1) : 0;
+
   if (migrationRate === '100.0') {
     addResult('Migrations', 'API Routes', 'pass', `All ${totalFiles} API routes migrated`);
   } else if (parseInt(migrationRate as string) >= 80) {
-    addResult('Migrations', 'API Routes', 'warn', `${migratedFiles}/${totalFiles} routes migrated (${migrationRate}%)`);
+    addResult(
+      'Migrations',
+      'API Routes',
+      'warn',
+      `${migratedFiles}/${totalFiles} routes migrated (${migrationRate}%)`,
+    );
   } else {
-    addResult('Migrations', 'API Routes', 'fail', `Only ${migratedFiles}/${totalFiles} routes migrated (${migrationRate}%)`);
+    addResult(
+      'Migrations',
+      'API Routes',
+      'fail',
+      `Only ${migratedFiles}/${totalFiles} routes migrated (${migrationRate}%)`,
+    );
   }
-  
+
   if (pendingMigrations > 0) {
     addResult('Migrations', 'Pending Routes', 'warn', `${pendingMigrations} routes need migration`);
   }
@@ -112,7 +139,7 @@ async function checkMigrations() {
 
 async function checkSecurity() {
   console.log('🔍 Checking Security Configuration...\n');
-  
+
   // Check if RLS migration has been applied
   const rlsMigration = resolve(__dirname, '../migrations/add_row_level_security.sql');
   if (existsSync(rlsMigration)) {
@@ -140,12 +167,12 @@ async function checkSecurity() {
 
 async function checkDocumentation() {
   console.log('🔍 Checking Documentation...\n');
-  
+
   const docs = [
     'RLS_IMPLEMENTATION_GUIDE.md',
     'RLS_MIGRATION_GUIDE.md',
     'SECURITY_IMPLEMENTATION_SUMMARY.md',
-    'SECURITY_DEPLOYMENT_CHECKLIST.md'
+    'SECURITY_DEPLOYMENT_CHECKLIST.md',
   ];
 
   for (const doc of docs) {
@@ -160,13 +187,13 @@ async function checkDocumentation() {
 
 async function checkScripts() {
   console.log('🔍 Checking Utility Scripts...\n');
-  
+
   const scripts = [
     'test-rls-policies.ts',
     'test-encryption.ts',
     'encrypt-existing-data.ts',
     'test-security-complete.ts',
-    'monitor-rls-performance.ts'
+    'monitor-rls-performance.ts',
   ];
 
   for (const script of scripts) {
@@ -184,13 +211,13 @@ function generateReport() {
   console.log('📊 PRODUCTION READINESS REPORT');
   console.log('='.repeat(80) + '\n');
 
-  const categories = [...new Set(results.map(r => r.category))];
-  
+  const categories = [...new Set(results.map((r) => r.category))];
+
   for (const category of categories) {
     console.log(`\n${category}:`);
     console.log('-'.repeat(category.length + 1));
-    
-    const categoryResults = results.filter(r => r.category === category);
+
+    const categoryResults = results.filter((r) => r.category === category);
     for (const result of categoryResults) {
       const icon = result.status === 'pass' ? '✅' : result.status === 'warn' ? '⚠️ ' : '❌';
       console.log(`${icon} ${result.check}: ${result.message}`);
@@ -198,9 +225,9 @@ function generateReport() {
   }
 
   // Summary
-  const passed = results.filter(r => r.status === 'pass').length;
-  const warnings = results.filter(r => r.status === 'warn').length;
-  const failed = results.filter(r => r.status === 'fail').length;
+  const passed = results.filter((r) => r.status === 'pass').length;
+  const warnings = results.filter((r) => r.status === 'warn').length;
+  const failed = results.filter((r) => r.status === 'fail').length;
   const total = results.length;
 
   console.log('\n' + '='.repeat(80));
@@ -210,7 +237,7 @@ function generateReport() {
   console.log(`⚠️  Warnings: ${warnings}/${total}`);
   console.log(`❌ Failed: ${failed}/${total}`);
 
-  const score = (passed / total * 100).toFixed(1);
+  const score = ((passed / total) * 100).toFixed(1);
   console.log(`\n🎯 Readiness Score: ${score}%`);
 
   if (failed === 0 && warnings <= 2) {
@@ -224,17 +251,21 @@ function generateReport() {
   // Action items
   console.log('\n📋 Action Items:');
   let actionCount = 1;
-  
+
   for (const result of results) {
     if (result.status === 'fail') {
-      console.log(`${actionCount}. [CRITICAL] Fix ${result.category} - ${result.check}: ${result.message}`);
+      console.log(
+        `${actionCount}. [CRITICAL] Fix ${result.category} - ${result.check}: ${result.message}`,
+      );
       actionCount++;
     }
   }
-  
+
   for (const result of results) {
     if (result.status === 'warn') {
-      console.log(`${actionCount}. [RECOMMENDED] Address ${result.category} - ${result.check}: ${result.message}`);
+      console.log(
+        `${actionCount}. [RECOMMENDED] Address ${result.category} - ${result.check}: ${result.message}`,
+      );
       actionCount++;
     }
   }
@@ -249,7 +280,7 @@ async function main() {
   await checkSecurity();
   await checkDocumentation();
   await checkScripts();
-  
+
   generateReport();
 }
 

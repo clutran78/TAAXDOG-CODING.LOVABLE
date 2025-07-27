@@ -3,7 +3,7 @@
 **Status:** ✅ Code pushed to GitHub  
 **Repository:** https://github.com/TaaxDog/TAAXDOG-CODING  
 **Branch:** main  
-**Last Commit:** 0924c15  
+**Last Commit:** 0924c15
 
 ## 🚀 Next Steps
 
@@ -15,7 +15,6 @@
 6. Configure environment variables from .env.production
 7. Deploy\!
 
-Build Command: npm run build
-Run Command: npm start
+Build Command: npm run build Run Command: npm start
 
 The application is ready for deployment\!

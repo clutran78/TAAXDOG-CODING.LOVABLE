@@ -13,19 +13,19 @@ function validateABNChecksum(abn: string): boolean {
 
   // Convert string to array of numbers
   const digits = abn.split('').map(Number);
-  
+
   // Subtract 1 from the first digit
   digits[0] -= 1;
-  
+
   // Apply weighting factors
   const weights = [10, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19];
-  
+
   // Calculate the sum of (digit * weight) for each position
   let sum = 0;
   for (let i = 0; i < 11; i++) {
     sum += digits[i] * weights[i];
   }
-  
+
   // Check if sum is divisible by 89
   return sum % 89 === 0;
 }
@@ -37,7 +37,11 @@ const testCases = [
   { abn: '53004085616', expected: true, description: 'Valid ABN - Example company' },
   { abn: '11000000000', expected: false, description: 'Invalid ABN - all zeros pattern' },
   { abn: '12345678901', expected: false, description: 'Invalid ABN - sequential numbers' },
-  { abn: '51824753557', expected: false, description: 'Invalid ABN - wrong checksum (last digit changed)' },
+  {
+    abn: '51824753557',
+    expected: false,
+    description: 'Invalid ABN - wrong checksum (last digit changed)',
+  },
   { abn: '1234567890', expected: false, description: 'Invalid ABN - too short' },
   { abn: '123456789012', expected: false, description: 'Invalid ABN - too long' },
   { abn: 'abcdefghijk', expected: false, description: 'Invalid ABN - non-numeric' },
@@ -52,13 +56,13 @@ let failed = 0;
 testCases.forEach(({ abn, expected, description }) => {
   const result = validateABNChecksum(abn);
   const status = result === expected ? '✅ PASS' : '❌ FAIL';
-  
+
   if (result === expected) {
     passed++;
   } else {
     failed++;
   }
-  
+
   console.log(`${status} | ABN: ${abn}`);
   console.log(`     | ${description}`);
   console.log(`     | Expected: ${expected}, Got: ${result}\n`);

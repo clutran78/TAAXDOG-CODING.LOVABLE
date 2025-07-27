@@ -1,167 +1,351 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
-import { Role } from "@prisma/client";
+import { NextApiRequest, NextApiResponse } from 'next';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '../../pages/api/auth/[...nextauth]';
+import { prisma } from '../prisma';
+import { getClientIp } from 'request-ip';
+import { logger } from '@/lib/logger';
 
-export interface AuthUser {
-  id: string;
-  email: string;
-  role: Role;
+// Types
+export interface AuthenticatedRequest extends NextApiRequest {
+  userId: string;
+  userEmail: string;
+  userRole: string;
+  session: any;
 }
 
-// Role hierarchy for permission checking
-const roleHierarchy: Record<Role, number> = {
-  [Role.USER]: 1,
-  [Role.ACCOUNTANT]: 2,
-  [Role.SUPPORT]: 3,
-  [Role.ADMIN]: 4,
+export interface AuthMiddlewareOptions {
+  requireAuth?: boolean;
+  allowedRoles?: string[];
+  checkOwnership?: boolean;
+  logAccess?: boolean;
+}
+
+// Error responses
+export const AuthErrors = {
+  UNAUTHORIZED: {
+    error: 'Unauthorized',
+    message: 'Authentication required. Please log in to access this resource.',
+    code: 'AUTH_REQUIRED',
+  },
+  FORBIDDEN: {
+    error: 'Forbidden',
+    message: 'You do not have permission to access this resource.',
+    code: 'INSUFFICIENT_PERMISSIONS',
+  },
+  INVALID_SESSION: {
+    error: 'Invalid Session',
+    message: 'Your session has expired or is invalid. Please log in again.',
+    code: 'SESSION_INVALID',
+  },
+  ROLE_REQUIRED: (role: string) => ({
+    error: 'Insufficient Role',
+    message: `This action requires ${role} role.`,
+    code: 'ROLE_REQUIRED',
+  }),
+  OWNERSHIP_REQUIRED: {
+    error: 'Access Denied',
+    message: 'You can only access your own data.',
+    code: 'OWNERSHIP_REQUIRED',
+  },
 };
 
-// Check if user has required role or higher
-export function hasRole(userRole: Role, requiredRole: Role): boolean {
-  return roleHierarchy[userRole] >= roleHierarchy[requiredRole];
+// Main authentication middleware
+export function withAuth(
+  handler: (req: AuthenticatedRequest, res: NextApiResponse) => Promise<void>,
+  options: AuthMiddlewareOptions = {},
+) {
+  const {
+    requireAuth = true,
+    allowedRoles = [],
+    checkOwnership = true,
+    logAccess = true,
+  } = options;
+
+  return async (req: NextApiRequest, res: NextApiResponse) => {
+    try {
+      // Get session from NextAuth
+      const session = await getServerSession(req, res, authOptions);
+
+      // Check if authentication is required
+      if (requireAuth && !session?.user?.id) {
+        if (logAccess) {
+          await logUnauthorizedAccess(req);
+        }
+        return res.status(401).json(AuthErrors.UNAUTHORIZED);
+      }
+
+      // If authenticated, verify session is still valid
+      if (session?.user?.id) {
+        const user = await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            emailVerified: true,
+            lockedUntil: true,
+          },
+        });
+
+        if (!user) {
+          return res.status(401).json(AuthErrors.INVALID_SESSION);
+        }
+
+        // Check if account is locked
+        if (user.lockedUntil && user.lockedUntil > new Date()) {
+          return res.status(403).json({
+            error: 'Account Locked',
+            message: 'Your account is temporarily locked due to suspicious activity.',
+            lockedUntil: user.lockedUntil,
+          });
+        }
+
+        // Check role permissions
+        if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+          if (logAccess) {
+            await logForbiddenAccess(req, user.id, user.role);
+          }
+          return res.status(403).json(AuthErrors.ROLE_REQUIRED(allowedRoles.join(' or ')));
+        }
+
+        // Attach user info to request
+        (req as AuthenticatedRequest).userId = user.id;
+        (req as AuthenticatedRequest).userEmail = user.email;
+        (req as AuthenticatedRequest).userRole = user.role;
+        (req as AuthenticatedRequest).session = session;
+      }
+
+      // Call the actual handler
+      return handler(req as AuthenticatedRequest, res);
+    } catch (error) {
+      logger.error('Authentication middleware error:', error);
+      return res.status(500).json({
+        error: 'Internal Server Error',
+        message: 'An error occurred during authentication.',
+      });
+    }
+  };
 }
 
-// Middleware for protected routes
-export async function withAuth(
-  request: NextRequest,
-  requiredRole?: Role
-): Promise<NextResponse | null> {
+// Helper function to ensure user can only access their own data
+export function ensureOwnership(
+  userId: string,
+  resourceOwnerId: string,
+  userRole: string = 'USER',
+): boolean {
+  // Admins can access any resource
+  if (userRole === 'ADMIN' || userRole === 'SUPPORT') {
+    return true;
+  }
+
+  // Regular users can only access their own resources
+  return userId === resourceOwnerId;
+}
+
+// Helper to create user-scoped Prisma queries
+export function createUserScopedQuery(userId: string, userRole: string = 'USER') {
+  // Admins can see all data
+  if (userRole === 'ADMIN') {
+    return {};
+  }
+
+  // Regular users can only see their own data
+  return {
+    where: {
+      userId: userId,
+    },
+  };
+}
+
+// Helper to validate resource ownership before operations
+export async function validateResourceOwnership<T extends { userId: string }>(
+  req: AuthenticatedRequest,
+  res: NextApiResponse,
+  resourceId: string,
+  model: any,
+  allowedRoles: string[] = ['ADMIN'],
+): Promise<T | null> {
   try {
-    const token = await getToken({
-      req: request as any,
-      secret: process.env.NEXTAUTH_SECRET,
+    const resource = await model.findUnique({
+      where: { id: resourceId },
     });
 
-    if (!token) {
-      return NextResponse.redirect(new URL("/auth/login", request.url));
+    if (!resource) {
+      res.status(404).json({
+        error: 'Not Found',
+        message: 'Resource not found.',
+      });
+      return null;
     }
 
-    // Check role if required
-    if (requiredRole && !hasRole(token.role as Role, requiredRole)) {
-      return NextResponse.json(
-        { error: "Insufficient permissions" },
-        { status: 403 }
-      );
+    // Check ownership
+    if (
+      !ensureOwnership(req.userId, resource.userId, req.userRole) &&
+      !allowedRoles.includes(req.userRole)
+    ) {
+      res.status(403).json(AuthErrors.OWNERSHIP_REQUIRED);
+      return null;
     }
 
-    // Add user info to headers for downstream use
-    const requestHeaders = new Headers(request.headers);
-    requestHeaders.set("x-user-id", token.id as string);
-    requestHeaders.set("x-user-email", token.email as string);
-    requestHeaders.set("x-user-role", token.role as string);
+    return resource;
+  } catch (error) {
+    logger.error('Resource validation error:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Failed to validate resource ownership.',
+    });
+    return null;
+  }
+}
 
-    return NextResponse.next({
-      request: {
-        headers: requestHeaders,
+// Logging functions for security audit
+async function logUnauthorizedAccess(req: NextApiRequest) {
+  try {
+    const ip = getClientIp(req) || 'unknown';
+    await prisma.auditLog.create({
+      data: {
+        event: 'UNAUTHORIZED_ACCESS',
+        ipAddress: ip,
+        userAgent: req.headers['user-agent'] || '',
+        success: false,
+        metadata: {
+          path: req.url,
+          method: req.method,
+          timestamp: new Date().toISOString(),
+        },
       },
     });
   } catch (error) {
-    console.error("Auth middleware error:", error);
-    return NextResponse.redirect(new URL("/auth/login", request.url));
+    logger.error('Failed to log unauthorized access:', error);
   }
 }
 
-// API route authentication wrapper
-export function requireAuth(handler: Function, requiredRole?: Role) {
-  return async (req: any, res: any) => {
-    const session = await getToken({
-      req,
-      secret: process.env.NEXTAUTH_SECRET,
+async function logForbiddenAccess(req: NextApiRequest, userId: string, userRole: string) {
+  try {
+    const ip = getClientIp(req) || 'unknown';
+    await prisma.auditLog.create({
+      data: {
+        event: 'FORBIDDEN_ACCESS',
+        userId,
+        ipAddress: ip,
+        userAgent: req.headers['user-agent'] || '',
+        success: false,
+        metadata: {
+          path: req.url,
+          method: req.method,
+          userRole,
+          timestamp: new Date().toISOString(),
+        },
+      },
     });
-
-    if (!session) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    if (requiredRole && !hasRole(session.role as Role, requiredRole)) {
-      return res.status(403).json({ error: "Insufficient permissions" });
-    }
-
-    // Add user to request
-    req.user = {
-      id: session.id,
-      email: session.email,
-      role: session.role,
-    };
-
-    return handler(req, res);
-  };
+  } catch (error) {
+    logger.error('Failed to log forbidden access:', error);
+  }
 }
 
-// Rate limiting middleware
-const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+// Middleware combinations for common patterns
+export const authMiddleware = {
+  // Require authentication only
+  authenticated: (handler: any) =>
+    withAuth(handler, {
+      requireAuth: true,
+      checkOwnership: true,
+    }),
 
-export function rateLimit(
-  windowMs: number = 60000, // 1 minute
-  maxRequests: number = 60
-) {
-  return (req: NextRequest): boolean => {
-    const forwarded = req.headers.get("x-forwarded-for");
-    const ip = forwarded?.split(",")[0] || "unknown";
-    const key = `${req.nextUrl.pathname}:${ip}`;
-    const now = Date.now();
-    const limit = rateLimitStore.get(key);
+  // Require admin role
+  admin: (handler: any) =>
+    withAuth(handler, {
+      requireAuth: true,
+      allowedRoles: ['ADMIN'],
+      checkOwnership: false,
+    }),
 
-    if (!limit || now > limit.resetTime) {
-      rateLimitStore.set(key, {
-        count: 1,
-        resetTime: now + windowMs,
-      });
-      return true;
-    }
+  // Require admin or support role
+  adminOrSupport: (handler: any) =>
+    withAuth(handler, {
+      requireAuth: true,
+      allowedRoles: ['ADMIN', 'SUPPORT'],
+      checkOwnership: false,
+    }),
 
-    if (limit.count >= maxRequests) {
-      return false;
-    }
+  // Require accountant role
+  accountant: (handler: any) =>
+    withAuth(handler, {
+      requireAuth: true,
+      allowedRoles: ['ACCOUNTANT', 'ADMIN'],
+      checkOwnership: false,
+    }),
 
-    limit.count++;
-    return true;
-  };
-}
+  // Optional authentication (public endpoints that benefit from auth)
+  optional: (handler: any) =>
+    withAuth(handler, {
+      requireAuth: false,
+      checkOwnership: true,
+    }),
+};
 
-// CSRF token validation
-export function validateCSRFToken(req: NextRequest): boolean {
-  const token = req.headers.get("x-csrf-token");
-  const cookieToken = req.cookies.get("csrf-token")?.value;
-
-  if (!token || !cookieToken || token !== cookieToken) {
-    return false;
+// Helper function to extract user ID from various auth methods
+export function extractUserId(req: NextApiRequest): string | null {
+  // Try to get from authenticated request
+  if ((req as any).userId) {
+    return (req as any).userId;
   }
 
-  return true;
+  // Try to get from session
+  if ((req as any).session?.user?.id) {
+    return (req as any).session.user.id;
+  }
+
+  // Try to get from NextAuth session (fallback)
+  // This would need to be async in practice
+  return null;
 }
 
-// Security headers middleware
-export function securityHeaders(response: NextResponse): NextResponse {
-  // HSTS
-  response.headers.set(
-    "Strict-Transport-Security",
-    "max-age=31536000; includeSubDomains"
-  );
-
-  // Prevent clickjacking
-  response.headers.set("X-Frame-Options", "DENY");
-
-  // Prevent MIME type sniffing
-  response.headers.set("X-Content-Type-Options", "nosniff");
-
-  // Enable XSS protection
-  response.headers.set("X-XSS-Protection", "1; mode=block");
-
-  // Referrer policy
-  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-
-  // Content Security Policy
-  response.headers.set(
-    "Content-Security-Policy",
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.stripe.com; frame-src https://js.stripe.com https://hooks.stripe.com;"
-  );
-
-  // Permissions policy
-  response.headers.set(
-    "Permissions-Policy",
-    "camera=(), microphone=(), geolocation=(), payment=(self)"
-  );
-
-  return response;
+// Type guard to check if request is authenticated
+export function isAuthenticated(req: NextApiRequest): req is AuthenticatedRequest {
+  return !!(req as any).userId && !!(req as any).session;
 }
+
+// Helper to build user-scoped filters for Prisma queries
+export function buildUserScopedFilters(req: AuthenticatedRequest, additionalFilters: any = {}) {
+  if (req.userRole === 'ADMIN') {
+    return additionalFilters;
+  }
+
+  return {
+    ...additionalFilters,
+    userId: req.userId,
+  };
+}
+
+// Helper to check if user has permission for specific action
+export function hasPermission(userRole: string, action: string, resource?: string): boolean {
+  const permissions: Record<string, string[]> = {
+    ADMIN: ['*'], // Admin can do everything
+    ACCOUNTANT: ['read:transactions', 'read:users', 'read:reports', 'create:reports'],
+    SUPPORT: ['read:users', 'read:transactions', 'update:users'],
+    USER: ['read:own', 'update:own', 'delete:own'],
+  };
+
+  const userPermissions = permissions[userRole] || [];
+
+  // Check for wildcard permission
+  if (userPermissions.includes('*')) {
+    return true;
+  }
+
+  // Check for specific permission
+  if (userPermissions.includes(action)) {
+    return true;
+  }
+
+  // Check for own resource permission
+  if (resource === 'own' && userPermissions.includes(`${action}:own`)) {
+    return true;
+  }
+
+  return false;
+}
+
+// Export types for use in other files
+export type { AuthenticatedRequest, AuthMiddlewareOptions };

@@ -1,18 +1,17 @@
-"use client";
-import React, { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Goal } from "@/lib/types/goal";
-import { fetchGoals } from "@/services/goal-service";
+'use client';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Goal } from '@/lib/types/goal';
+import { fetchGoals } from '@/lib/services/goals/client-goal-service';
+import { logger } from '@/lib/logger';
 
 const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
+  new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
   }).format(amount);
 
-const GoalsDashboardCard: React.FC<{ onOpenModal: () => void }> = ({
-  onOpenModal,
-}) => {
+const GoalsDashboardCard: React.FC<{ onOpenModal: () => void }> = ({ onOpenModal }) => {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -23,7 +22,7 @@ const GoalsDashboardCard: React.FC<{ onOpenModal: () => void }> = ({
         const fetchedGoals = await fetchGoals();
         setGoals(fetchedGoals);
       } catch (error) {
-        console.error("Error fetching goals:", error);
+        logger.error('Error fetching goals:', error);
       } finally {
         setLoading(false);
       }
@@ -32,19 +31,13 @@ const GoalsDashboardCard: React.FC<{ onOpenModal: () => void }> = ({
     fetchData();
   }, []);
 
-  const totalSaved = useMemo(
-    () => goals.reduce((sum, g) => sum + g.currentAmount, 0),
-    [goals]
-  );
+  const totalSaved = useMemo(() => goals.reduce((sum, g) => sum + g.currentAmount, 0), [goals]);
 
-  const totalTarget = useMemo(
-    () => goals.reduce((sum, g) => sum + g.targetAmount, 0),
-    [goals]
-  );
+  const totalTarget = useMemo(() => goals.reduce((sum, g) => sum + g.targetAmount, 0), [goals]);
 
   const overallProgress = useMemo(
     () => (totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0),
-    [totalSaved, totalTarget]
+    [totalSaved, totalTarget],
   );
 
   const topGoals = useMemo(
@@ -56,14 +49,12 @@ const GoalsDashboardCard: React.FC<{ onOpenModal: () => void }> = ({
           return bProg - aProg;
         })
         .slice(0, 3),
-    [goals]
+    [goals],
   );
 
   return (
     <div
-      className={`card tile-card h-100 ${
-        topGoals.length > 0 ? "cursor-pointer" : ""
-      }`}
+      className={`card tile-card h-100 ${topGoals.length > 0 ? 'cursor-pointer' : ''}`}
       onClick={() => {
         if (topGoals.length > 0) {
           onOpenModal();
@@ -78,7 +69,10 @@ const GoalsDashboardCard: React.FC<{ onOpenModal: () => void }> = ({
       <div className="card-body">
         {goals.length === 0 && loading ? (
           <div className="text-center p-5">
-            <div className="spinner-border text-primary" role="status">
+            <div
+              className="spinner-border text-primary"
+              role="status"
+            >
               <span className="visually-hidden">Loading...</span>
             </div>
             <p className="mt-3">Loading Goals data...</p>
@@ -86,12 +80,11 @@ const GoalsDashboardCard: React.FC<{ onOpenModal: () => void }> = ({
         ) : (
           <div className="scrollable-content">
             <h3>
-              {goals.length} Active Goal{goals.length !== 1 ? "s" : ""}
+              {goals.length} Active Goal{goals.length !== 1 ? 's' : ''}
             </h3>
             {overallProgress !== 0 && (
               <div className="stat-change positive-change mb-4">
-                <i className="fas fa-check-circle"></i>{" "}
-                {overallProgress.toFixed(0)}% Complete
+                <i className="fas fa-check-circle"></i> {overallProgress.toFixed(0)}% Complete
               </div>
             )}
 
@@ -101,12 +94,13 @@ const GoalsDashboardCard: React.FC<{ onOpenModal: () => void }> = ({
                 const due = new Date(goal.dueDate).toLocaleDateString();
 
                 return (
-                  <div className="goal-item" key={goal.id}>
+                  <div
+                    className="goal-item"
+                    key={goal.id}
+                  >
                     <div className="goal-details">
                       <span>{goal.name}</span>
-                      <span className="text-success">
-                        {formatCurrency(goal.currentAmount)}
-                      </span>
+                      <span className="text-success">{formatCurrency(goal.currentAmount)}</span>
                     </div>
                     <div className="progress">
                       <div
@@ -120,8 +114,7 @@ const GoalsDashboardCard: React.FC<{ onOpenModal: () => void }> = ({
                     </div>
                     <div className="d-flex justify-content-between">
                       <small>
-                        {formatCurrency(goal.currentAmount)} of{" "}
-                        {formatCurrency(goal.targetAmount)}
+                        {formatCurrency(goal.currentAmount)} of {formatCurrency(goal.targetAmount)}
                       </small>
                       <small>Due: {due}</small>
                     </div>
@@ -132,15 +125,15 @@ const GoalsDashboardCard: React.FC<{ onOpenModal: () => void }> = ({
               <div className="text-center mt-5">
                 <i className="fas fa-bullseye fa-3x text-muted mb-3"></i>
                 <p className="text-muted text-center  mt-4">
-                  No goals yet.{" "}
+                  No goals yet.{' '}
                   <span
                     onClick={() => {
-                      router.push("/goals");
+                      router.push('/goals');
                     }}
                     className="text-primary text-decoration-underline cursor-pointer"
                   >
                     Click here
-                  </span>{" "}
+                  </span>{' '}
                   to add your first financial goal!
                 </p>
               </div>

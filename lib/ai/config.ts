@@ -1,4 +1,5 @@
 import { getAIConfig } from '../config';
+import { logger } from '@/lib/logger';
 
 // AI Provider types
 export enum AIProvider {
@@ -28,21 +29,25 @@ export interface AIProviderHierarchy {
 export const AI_PROVIDERS: AIProviderHierarchy = {
   primary: {
     name: 'anthropic',
-    apiKey: process.env.ANTHROPIC_API_KEY || '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',
+    apiKey:
+      process.env.ANTHROPIC_API_KEY ||
+      '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',
     baseUrl: 'https://api.anthropic.com',
     model: 'claude-3-sonnet-20240229',
     maxRetries: 3,
     timeoutMs: 30000,
-    priority: 1
+    priority: 1,
   },
   secondary: {
     name: 'openrouter',
-    apiKey: process.env.OPENROUTER_API_KEY || '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',
+    apiKey:
+      process.env.OPENROUTER_API_KEY ||
+      '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',
     baseUrl: 'https://openrouter.ai/api/v1',
     model: 'anthropic/claude-3.5-sonnet',
     maxRetries: 3,
     timeoutMs: 30000,
-    priority: 2
+    priority: 2,
   },
   tertiary: {
     name: 'gemini',
@@ -51,8 +56,8 @@ export const AI_PROVIDERS: AIProviderHierarchy = {
     model: 'gemini-pro',
     maxRetries: 3,
     timeoutMs: 30000,
-    priority: 3
-  }
+    priority: 3,
+  },
 };
 
 // AI Feature to Provider Mapping
@@ -63,7 +68,7 @@ export const AI_FEATURE_PROVIDERS = {
   BUDGET_PREDICTION: 'anthropic',
   CONVERSATION_MANAGEMENT: 'anthropic',
   REPORT_COMMENTARY: 'anthropic',
-  KNOWLEDGE_BASE: 'anthropic'
+  KNOWLEDGE_BASE: 'anthropic',
 } as const;
 
 // Model configurations
@@ -73,12 +78,12 @@ export const AI_MODELS = {
   CLAUDE_3_OPUS: 'claude-3-opus-20240229',
   CLAUDE_3_SONNET: 'claude-3-sonnet-20240229',
   CLAUDE_3_HAIKU: 'claude-3-haiku-20240307',
-  
+
   // OpenRouter models (via OpenRouter)
   GPT_4_TURBO: 'openai/gpt-4-turbo-preview',
   GPT_3_5_TURBO: 'openai/gpt-3.5-turbo',
   MIXTRAL_8X7B: 'mistralai/mixtral-8x7b-instruct',
-  
+
   // Gemini models
   GEMINI_PRO: 'gemini-pro',
   GEMINI_PRO_VISION: 'gemini-pro-vision',
@@ -160,7 +165,7 @@ export const SYSTEM_PROMPTS = {
 - Small business tax concessions
 - Superannuation and tax implications
 Always provide advice based on current Australian tax law and recommend consulting a registered tax agent for complex matters.`,
-  
+
   RECEIPT_ANALYZER: `You are an advanced receipt analysis system specialized in Australian receipts. Extract and return:
 - Merchant name and ABN (if present)
 - Total amount (including GST)
@@ -170,7 +175,7 @@ Always provide advice based on current Australian tax law and recommend consulti
 - Payment method
 - Tax invoice number (if present)
 Format all amounts in AUD and identify if the receipt is GST-compliant.`,
-  
+
   FINANCIAL_ADVISOR: `You are a certified Australian financial advisor providing guidance on:
 - Personal budgeting and savings strategies
 - Investment options suitable for Australian residents
@@ -182,7 +187,7 @@ Always comply with ASIC regulations and recommend seeking professional financial
 
 // Australian Tax Compliance Configuration
 export const AUSTRALIAN_TAX_CONFIG = {
-  GST_RATE: 0.10,
+  GST_RATE: 0.1,
   TAX_YEAR_START: '07-01',
   TAX_YEAR_END: '06-30',
   ATO_COMPLIANCE_REQUIRED: true,
@@ -201,13 +206,13 @@ export const AUSTRALIAN_TAX_CONFIG = {
     'Utilities',
     'Interest and Bank Charges',
     'Repairs and Maintenance',
-    'Depreciation'
+    'Depreciation',
   ],
   DEDUCTION_LIMITS: {
-    HOME_OFFICE_SHORTCUT: 0.80,
-    MEAL_ENTERTAINMENT: 0.50,
-    TRAVEL_ALLOWANCE: 200
-  }
+    HOME_OFFICE_SHORTCUT: 0.8,
+    MEAL_ENTERTAINMENT: 0.5,
+    TRAVEL_ALLOWANCE: 200,
+  },
 };
 
 // AI Cost Optimization Configuration
@@ -216,19 +221,19 @@ export const AI_COST_OPTIMIZATION = {
   RATE_LIMITS: {
     anthropic: { requests: 100, window: 60000 },
     openrouter: { requests: 200, window: 60000 },
-    gemini: { requests: 60, window: 60000 }
+    gemini: { requests: 60, window: 60000 },
   },
   CIRCUIT_BREAKER: {
     failureThreshold: 5,
     recoveryTimeMs: 30000,
-    monitoringWindowMs: 60000
-  }
+    monitoringWindowMs: 60000,
+  },
 };
 
 // Get AI configuration for a specific provider
 export function getProviderConfig(provider: AIProvider) {
   const config = getAIConfig();
-  
+
   switch (provider) {
     case AIProvider.ANTHROPIC:
       return {
@@ -254,7 +259,9 @@ export function getProviderConfig(provider: AIProvider) {
 }
 
 // Get provider configuration from hierarchy
-export function getProviderFromHierarchy(priority: 'primary' | 'secondary' | 'tertiary'): AIProviderConfig {
+export function getProviderFromHierarchy(
+  priority: 'primary' | 'secondary' | 'tertiary',
+): AIProviderConfig {
   return AI_PROVIDERS[priority];
 }
 
@@ -266,13 +273,13 @@ export function calculateTokenCost(
 ): number {
   const costs = MODEL_COSTS[model];
   if (!costs) {
-    console.warn(`No cost data for model: ${model}`);
+    logger.warn(`No cost data for model: ${model}`);
     return 0;
   }
-  
+
   const inputCost = (inputTokens / 1000) * costs.input;
   const outputCost = (outputTokens / 1000) * costs.output;
-  
+
   return Number((inputCost + outputCost).toFixed(6));
 }
 
@@ -290,6 +297,6 @@ export function getProviderFromModel(model: string): AIProvider {
   } else if (model.includes('gemini')) {
     return AIProvider.GEMINI;
   }
-  
+
   throw new Error(`Cannot determine provider for model: ${model}`);
 }

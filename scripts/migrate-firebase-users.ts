@@ -1,5 +1,5 @@
 import admin from 'firebase-admin';
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client';
 import { hashPassword } from '../lib/auth/auth-utils';
 import * as dotenv from 'dotenv';
 import { resolve } from 'path';
@@ -20,12 +20,12 @@ const initializeFirebase = () => {
     }
 
     const serviceAccount = require(serviceAccountPath);
-    
+
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
-      databaseURL: process.env.FIREBASE_DATABASE_URL
+      databaseURL: process.env.FIREBASE_DATABASE_URL,
     });
-    
+
     return admin;
   } catch (error) {
     console.error('Error initializing Firebase:', error);
@@ -43,13 +43,13 @@ interface MigrationStats {
 
 async function migrateUsers() {
   console.log('🚀 Starting Firebase to PostgreSQL user migration...\n');
-  
+
   const stats: MigrationStats = {
     total: 0,
     migrated: 0,
     skipped: 0,
     failed: 0,
-    errors: []
+    errors: [],
   };
 
   try {
@@ -67,11 +67,11 @@ async function migrateUsers() {
 
     // Migrate each user
     console.log('🔄 Starting migration...\n');
-    
+
     for (const firebaseUser of firebaseUsers) {
       try {
         console.log(`Processing: ${firebaseUser.email || firebaseUser.uid}`);
-        
+
         // Skip if no email
         if (!firebaseUser.email) {
           console.log(`⚠️  Skipped: No email for user ${firebaseUser.uid}`);
@@ -81,7 +81,7 @@ async function migrateUsers() {
 
         // Check if user already exists in PostgreSQL
         const existingUser = await prisma.user.findUnique({
-          where: { email: firebaseUser.email.toLowerCase() }
+          where: { email: firebaseUser.email.toLowerCase() },
         });
 
         if (existingUser) {
@@ -119,8 +119,8 @@ async function migrateUsers() {
           select: {
             id: true,
             email: true,
-            name: true
-          }
+            name: true,
+          },
         });
 
         // Log successful migration
@@ -133,9 +133,9 @@ async function migrateUsers() {
             success: true,
             metadata: {
               source: 'firebase_migration',
-              originalUid: firebaseUser.uid
-            }
-          }
+              originalUid: firebaseUser.uid,
+            },
+          },
         });
 
         console.log(`✅ Migrated: ${newUser.email}`);
@@ -145,13 +145,12 @@ async function migrateUsers() {
         if (firebaseUser.customClaims) {
           console.log(`   Custom claims: ${JSON.stringify(firebaseUser.customClaims)}`);
         }
-
       } catch (error: any) {
         console.error(`❌ Failed: ${firebaseUser.email} - ${error.message}`);
         stats.failed++;
         stats.errors.push({
           email: firebaseUser.email || firebaseUser.uid,
-          error: error.message
+          error: error.message,
         });
       }
     }
@@ -166,7 +165,7 @@ async function migrateUsers() {
 
     if (stats.errors.length > 0) {
       console.log('\n❌ Errors:');
-      stats.errors.forEach(err => {
+      stats.errors.forEach((err) => {
         console.log(`   ${err.email}: ${err.error}`);
       });
     }
@@ -175,7 +174,7 @@ async function migrateUsers() {
     const report = {
       timestamp: new Date().toISOString(),
       stats,
-      completedAt: new Date().toISOString()
+      completedAt: new Date().toISOString(),
     };
 
     await prisma.$executeRaw`
@@ -193,7 +192,6 @@ async function migrateUsers() {
 
     console.log('\n✅ Migration completed successfully!');
     console.log('📧 Users will need to reset their passwords via email.');
-
   } catch (error) {
     console.error('❌ Migration failed:', error);
     process.exit(1);
@@ -225,7 +223,7 @@ function generateResetToken(): string {
 if (require.main === module) {
   migrateUsers()
     .then(() => process.exit(0))
-    .catch(error => {
+    .catch((error) => {
       console.error(error);
       process.exit(1);
     });

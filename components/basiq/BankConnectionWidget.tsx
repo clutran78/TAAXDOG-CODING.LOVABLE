@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { BasiqInstitution, BasiqConnection } from '@/lib/basiq/types';
+import { logger } from '@/lib/logger';
 
 interface BankConnectionWidgetProps {
   onConnectionSuccess?: (connection: BasiqConnection) => void;
   onConnectionError?: (error: string) => void;
 }
 
-export default function BankConnectionWidget({ 
-  onConnectionSuccess, 
-  onConnectionError 
+export default function BankConnectionWidget({
+  onConnectionSuccess,
+  onConnectionError,
 }: BankConnectionWidgetProps) {
   const { data: session } = useSession();
   const [institutions, setInstitutions] = useState<BasiqInstitution[]>([]);
@@ -37,7 +38,7 @@ export default function BankConnectionWidget({
       const data = await response.json();
       setInstitutions(data.institutions);
     } catch (err: any) {
-      console.error('Error fetching institutions:', err);
+      logger.error('Error fetching institutions:', err);
       setError('Failed to load banks');
     }
   };
@@ -49,7 +50,7 @@ export default function BankConnectionWidget({
       const data = await response.json();
       setConnections(data.connections || []);
     } catch (err: any) {
-      console.error('Error fetching connections:', err);
+      logger.error('Error fetching connections:', err);
     }
   };
 
@@ -101,7 +102,7 @@ export default function BankConnectionWidget({
       }
 
       const data = await response.json();
-      
+
       // Reset form
       setCredentials({ loginId: '', password: '', securityCode: '' });
       setShowCredentialsForm(false);
@@ -131,7 +132,7 @@ export default function BankConnectionWidget({
     try {
       await fetch('/api/basiq/accounts?sync=true');
     } catch (err) {
-      console.error('Error syncing accounts:', err);
+      logger.error('Error syncing accounts:', err);
     }
   };
 
@@ -178,8 +179,8 @@ export default function BankConnectionWidget({
     }
   };
 
-  const popularInstitutions = institutions.filter(inst => inst.isPopular);
-  const otherInstitutions = institutions.filter(inst => !inst.isPopular);
+  const popularInstitutions = institutions.filter((inst) => inst.isPopular);
+  const otherInstitutions = institutions.filter((inst) => !inst.isPopular);
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
@@ -197,11 +198,14 @@ export default function BankConnectionWidget({
           <h3 className="text-lg font-medium mb-4">Connected Banks</h3>
           <div className="space-y-3">
             {connections.map((connection) => (
-              <div key={connection.id} className="flex items-center justify-between p-4 border rounded-lg">
+              <div
+                key={connection.id}
+                className="flex items-center justify-between p-4 border rounded-lg"
+              >
                 <div className="flex items-center space-x-4">
                   {connection.institution.logo && (
-                    <img 
-                      src={connection.institution.logo.links.square} 
+                    <img
+                      src={connection.institution.logo.links.square}
                       alt={connection.institution.name}
                       className="w-12 h-12 rounded"
                     />
@@ -209,11 +213,18 @@ export default function BankConnectionWidget({
                   <div>
                     <p className="font-medium">{connection.institution.name}</p>
                     <p className="text-sm text-gray-500">
-                      Status: <span className={`font-medium ${
-                        connection.status === 'success' ? 'text-green-600' : 
-                        connection.status === 'error' ? 'text-red-600' : 
-                        'text-yellow-600'
-                      }`}>{connection.status}</span>
+                      Status:{' '}
+                      <span
+                        className={`font-medium ${
+                          connection.status === 'success'
+                            ? 'text-green-600'
+                            : connection.status === 'error'
+                              ? 'text-red-600'
+                              : 'text-yellow-600'
+                        }`}
+                      >
+                        {connection.status}
+                      </span>
                     </p>
                   </div>
                 </div>
@@ -243,7 +254,7 @@ export default function BankConnectionWidget({
       {!showCredentialsForm ? (
         <div>
           <h3 className="text-lg font-medium mb-4">Add Bank Connection</h3>
-          
+
           {/* Popular Banks */}
           <div className="mb-6">
             <p className="text-sm text-gray-600 mb-3">Popular Australian Banks</p>
@@ -255,8 +266,8 @@ export default function BankConnectionWidget({
                   className="p-4 border rounded-lg hover:border-blue-500 hover:shadow-md transition-all"
                 >
                   {institution.logo && (
-                    <img 
-                      src={institution.logo.links.square} 
+                    <img
+                      src={institution.logo.links.square}
                       alt={institution.name}
                       className="w-16 h-16 mx-auto mb-2"
                     />
@@ -301,7 +312,13 @@ export default function BankConnectionWidget({
             </button>
           </div>
 
-          <form onSubmit={(e) => { e.preventDefault(); handleConnect(); }} className="space-y-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleConnect();
+            }}
+            className="space-y-4"
+          >
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 {selectedInstitution?.loginIdCaption || 'Login ID'}
@@ -353,8 +370,8 @@ export default function BankConnectionWidget({
             </div>
 
             <p className="text-xs text-gray-500 text-center">
-              Your credentials are encrypted and securely transmitted to your bank.
-              We do not store your banking passwords.
+              Your credentials are encrypted and securely transmitted to your bank. We do not store
+              your banking passwords.
             </p>
           </form>
         </div>

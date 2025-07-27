@@ -1,11 +1,11 @@
 #!/usr/bin/env ts-node
 
-import { PrismaClient } from "@prisma/client";
-import { 
+import { PrismaClient } from '@prisma/client';
+import {
   AMLMonitoringService,
   PrivacyComplianceService,
   APRAComplianceService,
-  GSTComplianceService 
+  GSTComplianceService,
 } from '../lib/services/compliance';
 
 const prisma = new PrismaClient();
@@ -37,7 +37,7 @@ async function testComplianceFeatures() {
     console.log(`  Base amount: $${gstCalc.baseAmount.toFixed(2)}`);
     console.log(`  GST amount: $${gstCalc.gstAmount.toFixed(2)}`);
     console.log(`  GST rate: ${gstCalc.gstRate}%`);
-    
+
     if (Math.abs(gstCalc.gstAmount - 10) < 0.01) {
       console.log('✅ GST calculation correct');
       testsPassed++;
@@ -55,7 +55,7 @@ async function testComplianceFeatures() {
   try {
     const validABN = '51 824 753 556'; // Australian Government ABN
     const validation = GSTComplianceService.validateABN(validABN);
-    
+
     if (validation.valid) {
       console.log(`✅ ABN validation working: ${validation.formatted}`);
       testsPassed++;
@@ -75,17 +75,17 @@ async function testComplianceFeatures() {
     let testUser;
     try {
       testUser = await prisma.user.findFirst({
-        where: { email: 'compliance-test@example.com' }
+        where: { email: 'compliance-test@example.com' },
       });
-      
+
       if (!testUser) {
         testUser = await prisma.user.create({
           data: {
             email: 'compliance-test@example.com',
             name: 'Compliance Test User',
             password: 'test',
-            role: 'USER'
-          }
+            role: 'USER',
+          },
         });
       }
     } catch (e) {
@@ -99,7 +99,7 @@ async function testComplianceFeatures() {
       amount: 9500, // Just under reporting threshold
       transactionDate: new Date(),
       merchantName: 'Test Merchant',
-      category: 'GENERAL'
+      category: 'GENERAL',
     };
 
     console.log('  Test transaction: $9,500');
@@ -117,7 +117,7 @@ async function testComplianceFeatures() {
     console.log('  Checking consent management functions...');
     const hasConsent = await PrivacyComplianceService.hasValidConsent(
       'test-user-id',
-      'PRIVACY_POLICY'
+      'PRIVACY_POLICY',
     );
     console.log(`  Consent check result: ${hasConsent}`);
     console.log('✅ Privacy consent service available');
@@ -134,7 +134,7 @@ async function testComplianceFeatures() {
     console.log(`  Compliant: ${residencyCheck.compliant ? 'Yes' : 'No'}`);
     if (residencyCheck.issues.length > 0) {
       console.log('  Issues:');
-      residencyCheck.issues.forEach(issue => console.log(`    - ${issue}`));
+      residencyCheck.issues.forEach((issue) => console.log(`    - ${issue}`));
     }
     console.log('✅ APRA compliance service available');
     testsPassed++;
@@ -146,7 +146,7 @@ async function testComplianceFeatures() {
   // Test 7: Check Compliance Tables
   console.log('\nTest 7: Compliance Tables Check');
   try {
-    const tables = await prisma.$queryRaw`
+    const tables = (await prisma.$queryRaw`
       SELECT table_name 
       FROM information_schema.tables 
       WHERE table_schema = 'public' 
@@ -158,10 +158,10 @@ async function testComplianceFeatures() {
         'gst_transaction_details',
         'compliance_configuration'
       )
-    ` as any[];
+    `) as any[];
 
     console.log(`  Found ${tables.length} of 6 compliance tables`);
-    
+
     if (tables.length === 6) {
       console.log('✅ All compliance tables present');
       testsPassed++;
@@ -181,12 +181,12 @@ async function testComplianceFeatures() {
   console.log(`  Passed: ${testsPassed}`);
   console.log(`  Failed: ${testsFailed}`);
   console.log(`  Total: ${testsPassed + testsFailed}`);
-  
+
   if (testsFailed === 0) {
     console.log('\n🎉 All tests passed! Compliance features are ready.');
   } else {
     console.log('\n⚠️  Some tests failed. Please check the errors above.');
-    
+
     if (tables && tables.length < 6) {
       console.log('\n📌 To fix missing tables:');
       console.log('  psql -U <user> -h <host> -d <database> -f apply-compliance-migration.sql');
@@ -197,7 +197,7 @@ async function testComplianceFeatures() {
 }
 
 // Run tests
-testComplianceFeatures().catch(error => {
+testComplianceFeatures().catch((error) => {
   console.error('Fatal error:', error);
   process.exit(1);
 });

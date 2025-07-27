@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger';
+
 /**
  * Environment Configuration System
  * Dynamically loads development or production configurations
@@ -152,7 +154,7 @@ const stagingConfig: EnvironmentConfig = {
  */
 function getCurrentEnvironment(): Environment {
   const nodeEnv = process.env.NODE_ENV?.toLowerCase();
-  
+
   if (nodeEnv === 'production') return 'production';
   if (nodeEnv === 'staging') return 'staging';
   return 'development';
@@ -163,7 +165,7 @@ function getCurrentEnvironment(): Environment {
  */
 function getConfig(): EnvironmentConfig {
   const env = getCurrentEnvironment();
-  
+
   switch (env) {
     case 'production':
       return productionConfig;
@@ -180,17 +182,17 @@ function getConfig(): EnvironmentConfig {
  */
 function validateConfig(config: EnvironmentConfig): void {
   const errors: string[] = [];
-  
+
   // Validate required database config
   if (!config.database.url) {
     errors.push(`Database URL is required for ${config.env} environment`);
   }
-  
+
   // Validate auth config
   if (!config.auth.secret) {
     errors.push(`NEXTAUTH_SECRET is required for ${config.env} environment`);
   }
-  
+
   // Validate Stripe config in production
   if (config.env === 'production') {
     if (!config.stripe.publishableKey || !config.stripe.secretKey) {
@@ -203,7 +205,7 @@ function validateConfig(config: EnvironmentConfig): void {
       errors.push('Production must use live Stripe secret key (sk_live_...)');
     }
   }
-  
+
   // Validate development Stripe config
   if (config.env === 'development') {
     if (config.stripe.publishableKey && !config.stripe.publishableKey.startsWith('pk_test_')) {
@@ -213,10 +215,10 @@ function validateConfig(config: EnvironmentConfig): void {
       errors.push('Development should use test Stripe secret key (sk_test_...)');
     }
   }
-  
+
   if (errors.length > 0) {
-    console.error('❌ Configuration validation failed:');
-    errors.forEach(error => console.error(`  - ${error}`));
+    logger.error('❌ Configuration validation failed:');
+    errors.forEach((error) => logger.error(`  - ${error}`););
     throw new Error(`Invalid configuration for ${config.env} environment`);
   }
 }
@@ -226,10 +228,10 @@ const config = getConfig();
 validateConfig(config);
 
 // Log current configuration (without sensitive data)
-console.log(`🌍 Environment: ${config.env}`);
-console.log(`🗄️  Database: ${config.database.ssl ? 'SSL' : 'Local'}`);
-console.log(`💳 Stripe: ${config.stripe.mode} mode`);
-console.log(`🔐 Auth URL: ${config.auth.url}`);
+logger.info(`🌍 Environment: ${config.env}`);
+logger.info(`🗄️  Database: ${config.database.ssl ? 'SSL' : 'Local'}`);
+logger.info(`💳 Stripe: ${config.stripe.mode} mode`);
+logger.info(`🔐 Auth URL: ${config.auth.url}`);
 
 export { config };
-export default config; 
+export default config;

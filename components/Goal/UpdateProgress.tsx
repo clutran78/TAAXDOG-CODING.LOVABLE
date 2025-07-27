@@ -1,9 +1,10 @@
-"use client";
-import { Goal } from "@/lib/types/goal";
-import { updateGoalProgress } from "@/services/goal-service";
-import { showToast } from "@/services/helperFunction";
-import React, { useEffect, useState } from "react";
-import { Modal, Button, Form } from "react-bootstrap";
+'use client';
+import { Goal } from '@/lib/types/goal';
+import { updateGoalProgress } from '@/lib/services/goals/client-goal-service';
+import { showToast } from '@/lib/utils/helpers';
+import React, { useEffect, useState } from 'react';
+import { Modal, Button, Form } from 'react-bootstrap';
+import { logger } from '@/lib/logger';
 
 interface Props {
   show: boolean;
@@ -12,11 +13,11 @@ interface Props {
 }
 
 const UpdateProgressModal: React.FC<Props> = ({ show, onClose, goal }) => {
-  const [amountToAdd, setAmountToAdd] = useState<string>("");
+  const [amountToAdd, setAmountToAdd] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setAmountToAdd("");
+    setAmountToAdd('');
   }, [goal]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -25,34 +26,36 @@ const UpdateProgressModal: React.FC<Props> = ({ show, onClose, goal }) => {
 
     const additional = parseFloat(amountToAdd);
     if (isNaN(additional) || additional <= 0) {
-      showToast("Please enter a valid positive number.", "warning");
+      showToast('Please enter a valid positive number.', 'warning');
       return;
     }
 
     let newAmount = goal.currentAmount + additional;
 
     if (newAmount > goal.targetAmount) {
-      const confirmCap = window.confirm(
-        "You've exceeded the target. Cap at target amount?"
-      );
+      const confirmCap = window.confirm("You've exceeded the target. Cap at target amount?");
       if (confirmCap) newAmount = goal.targetAmount;
     }
 
     try {
       setLoading(true);
       await updateGoalProgress(goal.id, newAmount);
-      showToast(`Added $${additional.toFixed(2)} to "${goal.name}"`, "success");
+      showToast(`Added $${additional.toFixed(2)} to "${goal.name}"`, 'success');
       onClose();
     } catch (err) {
-      console.error(err);
-      showToast("Error updating progress", "danger");
+      logger.error(err);
+      showToast('Error updating progress', 'danger');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal show={show} onHide={onClose} centered>
+    <Modal
+      show={show}
+      onHide={onClose}
+      centered
+    >
       <Form onSubmit={handleSubmit}>
         <Modal.Header closeButton>
           <Modal.Title>Update Progress</Modal.Title>
@@ -86,17 +89,24 @@ const UpdateProgressModal: React.FC<Props> = ({ show, onClose, goal }) => {
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={onClose}>
+          <Button
+            variant="secondary"
+            onClick={onClose}
+          >
             Cancel
           </Button>
-          <Button type="submit" variant="success" disabled={loading}>
+          <Button
+            type="submit"
+            variant="success"
+            disabled={loading}
+          >
             {loading ? (
               <>
                 <span className="spinner-border spinner-border-sm me-2" />
                 Updating...
               </>
             ) : (
-              "Update Progress"
+              'Update Progress'
             )}
           </Button>
         </Modal.Footer>

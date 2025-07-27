@@ -10,31 +10,31 @@ const VALIDATION_RULES = {
       email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
       phone: /^\+61\d{9}$/,
       abn: /^\d{11}$/,
-      tfn: /^\d{9}$/
+      tfn: /^\d{9}$/,
     },
     enums: {
       role: ['USER', 'ADMIN', 'ACCOUNTANT', 'SUPPORT'],
-      taxResidency: ['RESIDENT', 'NON_RESIDENT', 'TEMPORARY_RESIDENT']
-    }
+      taxResidency: ['RESIDENT', 'NON_RESIDENT', 'TEMPORARY_RESIDENT'],
+    },
   },
-  
+
   bankAccounts: {
     required: ['userId', 'accountName', 'bsb', 'accountNumber'],
     format: {
       bsb: /^\d{3}-\d{3}$/,
-      accountNumber: /^\d{6,10}$/
+      accountNumber: /^\d{6,10}$/,
     },
     references: {
-      userId: 'users'
-    }
+      userId: 'users',
+    },
   },
-  
+
   transactions: {
     required: ['userId', 'bankAccountId', 'amount', 'date', 'description'],
     types: {
       amount: 'number',
       date: 'date',
-      gstAmount: 'number'
+      gstAmount: 'number',
     },
     enums: {
       taxCategory: [
@@ -44,48 +44,48 @@ const VALIDATION_RULES = {
         'INVESTMENT',
         'GST_PAYABLE',
         'GST_RECEIVABLE',
-        'UNCATEGORIZED'
-      ]
+        'UNCATEGORIZED',
+      ],
     },
     references: {
       userId: 'users',
-      bankAccountId: 'bankAccounts'
-    }
+      bankAccountId: 'bankAccounts',
+    },
   },
-  
+
   receipts: {
     required: ['userId'],
     types: {
       totalAmount: 'number',
       gstAmount: 'number',
       date: 'date',
-      aiConfidence: 'number'
+      aiConfidence: 'number',
     },
     ranges: {
-      aiConfidence: { min: 0, max: 1 }
+      aiConfidence: { min: 0, max: 1 },
     },
     references: {
       userId: 'users',
-      transactionId: 'transactions'
-    }
+      transactionId: 'transactions',
+    },
   },
-  
+
   budgets: {
     required: ['userId', 'name', 'monthlyBudget'],
     types: {
       monthlyBudget: 'number',
       targetSavings: 'number',
       monthlyIncome: 'number',
-      confidenceScore: 'number'
+      confidenceScore: 'number',
     },
     ranges: {
-      confidenceScore: { min: 0, max: 1 }
+      confidenceScore: { min: 0, max: 1 },
     },
     references: {
-      userId: 'users'
-    }
+      userId: 'users',
+    },
   },
-  
+
   budgetTracking: {
     required: ['budgetId', 'userId', 'month', 'year'],
     types: {
@@ -93,25 +93,25 @@ const VALIDATION_RULES = {
       actualAmount: 'number',
       variance: 'number',
       month: 'number',
-      year: 'number'
+      year: 'number',
     },
     ranges: {
       month: { min: 1, max: 12 },
-      year: { min: 2020, max: 2030 }
+      year: { min: 2020, max: 2030 },
     },
     references: {
       userId: 'users',
-      budgetId: 'budgets'
-    }
+      budgetId: 'budgets',
+    },
   },
-  
+
   financialInsights: {
     required: ['userId', 'insightType'],
     types: {
-      confidenceScore: 'number'
+      confidenceScore: 'number',
     },
     ranges: {
-      confidenceScore: { min: 0, max: 1 }
+      confidenceScore: { min: 0, max: 1 },
     },
     enums: {
       priority: ['HIGH', 'MEDIUM', 'LOW'],
@@ -120,13 +120,13 @@ const VALIDATION_RULES = {
         'SAVING_OPPORTUNITY',
         'TAX_OPTIMIZATION',
         'BUDGET_ALERT',
-        'INVESTMENT_SUGGESTION'
-      ]
+        'INVESTMENT_SUGGESTION',
+      ],
     },
     references: {
-      userId: 'users'
-    }
-  }
+      userId: 'users',
+    },
+  },
 };
 
 // Validation results
@@ -135,25 +135,25 @@ const validationResults = {
   summary: {
     totalErrors: 0,
     totalWarnings: 0,
-    missingReferences: []
-  }
+    missingReferences: [],
+  },
 };
 
 // Load exported data
 async function loadExportedData(exportDir) {
   const data = {};
   const mappings = {};
-  
+
   for (const collection of Object.keys(VALIDATION_RULES)) {
     try {
       const dataPath = path.join(exportDir, `${collection}.json`);
       const mappingPath = path.join(exportDir, 'mappings', `${collection}_mapping.json`);
-      
+
       if (await fileExists(dataPath)) {
         data[collection] = JSON.parse(await fs.readFile(dataPath, 'utf8'));
         console.log(`Loaded ${data[collection].length} documents from ${collection}`);
       }
-      
+
       if (await fileExists(mappingPath)) {
         mappings[collection] = JSON.parse(await fs.readFile(mappingPath, 'utf8'));
       }
@@ -161,7 +161,7 @@ async function loadExportedData(exportDir) {
       console.error(`Error loading ${collection}:`, error.message);
     }
   }
-  
+
   return { data, mappings };
 }
 
@@ -179,7 +179,7 @@ async function fileExists(filePath) {
 function validateDocument(doc, collectionName, rules, allData) {
   const errors = [];
   const warnings = [];
-  
+
   // Check required fields
   if (rules.required) {
     for (const field of rules.required) {
@@ -187,12 +187,12 @@ function validateDocument(doc, collectionName, rules, allData) {
         errors.push({
           type: 'MISSING_REQUIRED',
           field,
-          message: `Required field '${field}' is missing`
+          message: `Required field '${field}' is missing`,
         });
       }
     }
   }
-  
+
   // Check data types
   if (rules.types) {
     for (const [field, expectedType] of Object.entries(rules.types)) {
@@ -201,7 +201,7 @@ function validateDocument(doc, collectionName, rules, allData) {
           errors.push({
             type: 'INVALID_TYPE',
             field,
-            message: `Field '${field}' should be a number, got ${typeof doc[field]}`
+            message: `Field '${field}' should be a number, got ${typeof doc[field]}`,
           });
         } else if (expectedType === 'date') {
           const date = new Date(doc[field]);
@@ -209,14 +209,14 @@ function validateDocument(doc, collectionName, rules, allData) {
             errors.push({
               type: 'INVALID_DATE',
               field,
-              message: `Field '${field}' contains invalid date: ${doc[field]}`
+              message: `Field '${field}' contains invalid date: ${doc[field]}`,
             });
           }
         }
       }
     }
   }
-  
+
   // Check formats
   if (rules.format) {
     for (const [field, regex] of Object.entries(rules.format)) {
@@ -225,12 +225,12 @@ function validateDocument(doc, collectionName, rules, allData) {
           type: 'INVALID_FORMAT',
           field,
           value: doc[field],
-          message: `Field '${field}' has invalid format: ${doc[field]}`
+          message: `Field '${field}' has invalid format: ${doc[field]}`,
         });
       }
     }
   }
-  
+
   // Check enums
   if (rules.enums) {
     for (const [field, validValues] of Object.entries(rules.enums)) {
@@ -239,12 +239,12 @@ function validateDocument(doc, collectionName, rules, allData) {
           type: 'INVALID_ENUM',
           field,
           value: doc[field],
-          message: `Field '${field}' has invalid value: ${doc[field]}. Valid values: ${validValues.join(', ')}`
+          message: `Field '${field}' has invalid value: ${doc[field]}. Valid values: ${validValues.join(', ')}`,
         });
       }
     }
   }
-  
+
   // Check ranges
   if (rules.ranges) {
     for (const [field, range] of Object.entries(rules.ranges)) {
@@ -254,7 +254,7 @@ function validateDocument(doc, collectionName, rules, allData) {
             type: 'OUT_OF_RANGE',
             field,
             value: doc[field],
-            message: `Field '${field}' value ${doc[field]} is below minimum ${range.min}`
+            message: `Field '${field}' value ${doc[field]} is below minimum ${range.min}`,
           });
         }
         if (range.max !== undefined && doc[field] > range.max) {
@@ -262,19 +262,19 @@ function validateDocument(doc, collectionName, rules, allData) {
             type: 'OUT_OF_RANGE',
             field,
             value: doc[field],
-            message: `Field '${field}' value ${doc[field]} is above maximum ${range.max}`
+            message: `Field '${field}' value ${doc[field]} is above maximum ${range.max}`,
           });
         }
       }
     }
   }
-  
+
   // Check references
   if (rules.references) {
     for (const [field, targetCollection] of Object.entries(rules.references)) {
       if (doc[field] && allData[targetCollection]) {
         const exists = allData[targetCollection].some(
-          targetDoc => targetDoc._firebaseId === doc[field]
+          (targetDoc) => targetDoc._firebaseId === doc[field],
         );
         if (!exists) {
           warnings.push({
@@ -282,28 +282,28 @@ function validateDocument(doc, collectionName, rules, allData) {
             field,
             value: doc[field],
             targetCollection,
-            message: `Reference '${field}' points to non-existent ${targetCollection} document: ${doc[field]}`
+            message: `Reference '${field}' points to non-existent ${targetCollection} document: ${doc[field]}`,
           });
-          
+
           validationResults.summary.missingReferences.push({
             collection: collectionName,
             document: doc._firebaseId,
             field,
             targetCollection,
-            targetId: doc[field]
+            targetId: doc[field],
           });
         }
       }
     }
   }
-  
+
   return { errors, warnings };
 }
 
 // Validate collection
 function validateCollection(collectionName, documents, rules, allData) {
   console.log(`\nValidating ${collectionName}...`);
-  
+
   const collectionResults = {
     documentCount: documents.length,
     validDocuments: 0,
@@ -311,9 +311,9 @@ function validateCollection(collectionName, documents, rules, allData) {
     documentsWithWarnings: 0,
     errors: [],
     warnings: [],
-    uniqueViolations: []
+    uniqueViolations: [],
   };
-  
+
   // Check unique constraints
   if (rules.unique) {
     for (const field of rules.unique) {
@@ -324,7 +324,7 @@ function validateCollection(collectionName, documents, rules, allData) {
             collectionResults.uniqueViolations.push({
               field,
               value: doc[field],
-              documents: [values.get(doc[field]), index]
+              documents: [values.get(doc[field]), index],
             });
           } else {
             values.set(doc[field], index);
@@ -333,32 +333,32 @@ function validateCollection(collectionName, documents, rules, allData) {
       });
     }
   }
-  
+
   // Validate each document
   documents.forEach((doc, index) => {
     const { errors, warnings } = validateDocument(doc, collectionName, rules, allData);
-    
+
     if (errors.length > 0) {
       collectionResults.documentsWithErrors++;
       collectionResults.errors.push({
         documentId: doc._firebaseId,
         documentIndex: index,
-        errors
+        errors,
       });
     } else if (warnings.length === 0) {
       collectionResults.validDocuments++;
     }
-    
+
     if (warnings.length > 0) {
       collectionResults.documentsWithWarnings++;
       collectionResults.warnings.push({
         documentId: doc._firebaseId,
         documentIndex: index,
-        warnings
+        warnings,
       });
     }
   });
-  
+
   console.log(`  ✓ Valid documents: ${collectionResults.validDocuments}/${documents.length}`);
   if (collectionResults.documentsWithErrors > 0) {
     console.log(`  ✗ Documents with errors: ${collectionResults.documentsWithErrors}`);
@@ -369,10 +369,10 @@ function validateCollection(collectionName, documents, rules, allData) {
   if (collectionResults.uniqueViolations.length > 0) {
     console.log(`  ✗ Unique constraint violations: ${collectionResults.uniqueViolations.length}`);
   }
-  
+
   validationResults.summary.totalErrors += collectionResults.errors.length;
   validationResults.summary.totalWarnings += collectionResults.warnings.length;
-  
+
   return collectionResults;
 }
 
@@ -380,9 +380,9 @@ function validateCollection(collectionName, documents, rules, allData) {
 async function generateValidationReport(exportDir) {
   const reportPath = path.join(exportDir, 'validation_report.json');
   const readmePath = path.join(exportDir, 'VALIDATION_REPORT.md');
-  
+
   await fs.writeFile(reportPath, JSON.stringify(validationResults, null, 2), 'utf8');
-  
+
   // Generate markdown report
   let markdown = `# Firebase Data Validation Report
 
@@ -396,7 +396,7 @@ async function generateValidationReport(exportDir) {
 
 ## Collection Results
 `;
-  
+
   for (const [collection, results] of Object.entries(validationResults.collections)) {
     markdown += `
 ### ${collection}
@@ -407,66 +407,68 @@ async function generateValidationReport(exportDir) {
 - **Documents with Warnings:** ${results.documentsWithWarnings}
 - **Unique Violations:** ${results.uniqueViolations.length}
 `;
-    
+
     if (results.errors.length > 0) {
       markdown += '\n#### Sample Errors (first 5):\n';
-      results.errors.slice(0, 5).forEach(docError => {
+      results.errors.slice(0, 5).forEach((docError) => {
         markdown += `- Document ${docError.documentId}:\n`;
-        docError.errors.forEach(err => {
+        docError.errors.forEach((err) => {
           markdown += `  - ${err.message}\n`;
         });
       });
     }
-    
+
     if (results.uniqueViolations.length > 0) {
       markdown += '\n#### Unique Constraint Violations:\n';
-      results.uniqueViolations.forEach(violation => {
+      results.uniqueViolations.forEach((violation) => {
         markdown += `- Field '${violation.field}' value '${violation.value}' appears in multiple documents\n`;
       });
     }
   }
-  
+
   if (validationResults.summary.missingReferences.length > 0) {
     markdown += '\n## Missing References\n\n';
     markdown += '| Collection | Document | Field | Target Collection | Target ID |\n';
     markdown += '|------------|----------|-------|-------------------|----------|\n';
-    validationResults.summary.missingReferences.slice(0, 20).forEach(ref => {
+    validationResults.summary.missingReferences.slice(0, 20).forEach((ref) => {
       markdown += `| ${ref.collection} | ${ref.document} | ${ref.field} | ${ref.targetCollection} | ${ref.targetId} |\n`;
     });
-    
+
     if (validationResults.summary.missingReferences.length > 20) {
       markdown += `\n*... and ${validationResults.summary.missingReferences.length - 20} more missing references*\n`;
     }
   }
-  
+
   markdown += '\n## Recommendations\n\n';
   if (validationResults.summary.totalErrors > 0) {
-    markdown += '1. **Fix Critical Errors:** Address all validation errors before importing to PostgreSQL\n';
+    markdown +=
+      '1. **Fix Critical Errors:** Address all validation errors before importing to PostgreSQL\n';
   }
   if (validationResults.summary.missingReferences.length > 0) {
-    markdown += '2. **Resolve References:** Ensure all referenced documents exist or update references\n';
+    markdown +=
+      '2. **Resolve References:** Ensure all referenced documents exist or update references\n';
   }
   if (validationResults.summary.totalWarnings > 0) {
     markdown += '3. **Review Warnings:** Check format warnings for data quality issues\n';
   }
-  
+
   await fs.writeFile(readmePath, markdown, 'utf8');
-  
+
   return validationResults;
 }
 
 // Main validation function
 async function main() {
   const exportDir = process.argv[2] || path.join(__dirname, '../firebase-exports');
-  
+
   console.log('Firebase Data Validation');
   console.log('=======================\n');
   console.log(`Export directory: ${exportDir}\n`);
-  
+
   try {
     // Load exported data
     const { data, mappings } = await loadExportedData(exportDir);
-    
+
     // Validate each collection
     for (const [collectionName, rules] of Object.entries(VALIDATION_RULES)) {
       if (data[collectionName]) {
@@ -474,23 +476,22 @@ async function main() {
           collectionName,
           data[collectionName],
           rules,
-          data
+          data,
         );
       } else {
         console.log(`\nSkipping ${collectionName} - no data found`);
       }
     }
-    
+
     // Generate report
     await generateValidationReport(exportDir);
-    
+
     console.log('\n\nValidation Complete!');
     console.log('===================');
     console.log(`Total errors: ${validationResults.summary.totalErrors}`);
     console.log(`Total warnings: ${validationResults.summary.totalWarnings}`);
     console.log(`Missing references: ${validationResults.summary.missingReferences.length}`);
     console.log(`\nDetailed report: ${path.join(exportDir, 'VALIDATION_REPORT.md')}`);
-    
   } catch (error) {
     console.error('\nValidation failed:', error);
     process.exit(1);
@@ -504,5 +505,5 @@ if (require.main === module) {
 module.exports = {
   validateDocument,
   validateCollection,
-  VALIDATION_RULES
+  VALIDATION_RULES,
 };

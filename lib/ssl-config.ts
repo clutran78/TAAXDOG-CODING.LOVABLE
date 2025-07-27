@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { logger } from '@/lib/logger';
 
 export interface SSLConfig {
   rejectUnauthorized: boolean;
@@ -19,7 +20,7 @@ export function getProductionSSLConfig(): SSLConfig {
   //   sslConfig.ca = readFileSync(join(__dirname, 'ca-certificate.crt')).toString();
   //   sslConfig.rejectUnauthorized = true;
   // } catch (error) {
-  //   console.warn('CA certificate not found, using rejectUnauthorized: false');
+  //   logger.warn('CA certificate not found, using rejectUnauthorized: false');
   // }
 
   return sslConfig;

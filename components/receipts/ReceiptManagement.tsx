@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ManualReviewInterface } from './ManualReviewInterface';
+import { logger } from '@/lib/logger';
 
 interface Receipt {
   id: string;
@@ -36,7 +37,7 @@ export const ReceiptManagement: React.FC = () => {
       setReceipts(data.receipts);
       setStats(data.stats);
     } catch (error) {
-      console.error('Failed to fetch receipts:', error);
+      logger.error('Failed to fetch receipts:', error);
     } finally {
       setLoading(false);
     }
@@ -59,7 +60,7 @@ export const ReceiptManagement: React.FC = () => {
         fetchReceipts();
       }
     } catch (error) {
-      console.error('Upload failed:', error);
+      logger.error('Upload failed:', error);
     }
   };
 
@@ -69,11 +70,11 @@ export const ReceiptManagement: React.FC = () => {
         method: 'POST',
       });
     } catch (error) {
-      console.error('Processing failed:', error);
+      logger.error('Processing failed:', error);
     }
   };
 
-  const handleManualReviewSave = async (data: any) => {
+  const handleManualReviewSave = async (data: Partial<Receipt>) => {
     if (!selectedReceipt) return;
 
     try {
@@ -89,7 +90,7 @@ export const ReceiptManagement: React.FC = () => {
         fetchReceipts();
       }
     } catch (error) {
-      console.error('Update failed:', error);
+      logger.error('Update failed:', error);
     }
   };
 
@@ -107,7 +108,7 @@ export const ReceiptManagement: React.FC = () => {
         fetchReceipts();
       }
     } catch (error) {
-      console.error('Auto-match failed:', error);
+      logger.error('Auto-match failed:', error);
     }
   };
 
@@ -133,7 +134,7 @@ export const ReceiptManagement: React.FC = () => {
   if (showManualReview && selectedReceipt) {
     return (
       <ManualReviewInterface
-        receipt={selectedReceipt as any}
+        receipt={selectedReceipt}
         onSave={handleManualReviewSave}
         onCancel={() => {
           setShowManualReview(false);
@@ -147,7 +148,7 @@ export const ReceiptManagement: React.FC = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Receipt Management</h1>
-        
+
         {/* Statistics */}
         <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white p-6 rounded-lg shadow">
@@ -164,9 +165,7 @@ export const ReceiptManagement: React.FC = () => {
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
             <h3 className="text-sm font-medium text-gray-500">Processed Receipts</h3>
-            <p className="mt-2 text-3xl font-semibold text-gray-900">
-              {stats.processedCount}
-            </p>
+            <p className="mt-2 text-3xl font-semibold text-gray-900">{stats.processedCount}</p>
           </div>
         </div>
       </div>
@@ -203,7 +202,9 @@ export const ReceiptManagement: React.FC = () => {
                         {receipt.merchant}
                       </p>
                       <div className="ml-2 flex-shrink-0 flex">
-                        <p className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(receipt.processingStatus)}`}>
+                        <p
+                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(receipt.processingStatus)}`}
+                        >
                           {receipt.processingStatus}
                         </p>
                       </div>

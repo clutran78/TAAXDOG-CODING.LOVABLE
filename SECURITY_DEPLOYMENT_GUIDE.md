@@ -3,6 +3,7 @@
 ## Current Status
 
 ### ✅ Completed
+
 - RLS migration applied to database
 - Encryption key generated and configured
 - 29 API routes successfully migrated to RLS
@@ -10,6 +11,7 @@
 - All security tests passing (6/6)
 
 ### 🔄 Pending
+
 - Apply migrated files to replace originals
 - Complete migration of remaining API routes
 - Deploy to production environment
@@ -17,6 +19,7 @@
 ## Step-by-Step Deployment
 
 ### 1. Pre-Deployment Backup (CRITICAL)
+
 ```bash
 # Backup your code
 git add .
@@ -28,6 +31,7 @@ pg_dump $PRODUCTION_DATABASE_URL > backup_$(date +%Y%m%d_%H%M%S).sql
 ```
 
 ### 2. Apply All Migrations Locally
+
 ```bash
 # Apply all RLS migrations at once
 ./scripts/apply-all-migrations.sh
@@ -37,6 +41,7 @@ npx ts-node scripts/review-and-apply-migrations.ts
 ```
 
 ### 3. Test Locally
+
 ```bash
 # Start development server
 npm run dev
@@ -54,11 +59,13 @@ curl http://localhost:3000/api/auth/profile
 ### 4. Production Environment Setup
 
 #### Add to Production Environment Variables:
+
 ```bash
 FIELD_ENCRYPTION_KEY=833895a4497a122eefa3a05dc90285dfbe720e5bb1a19e334e618ccb79389dbb
 ```
 
 ⚠️ **IMPORTANT**: Store this key securely in:
+
 - DigitalOcean App Platform environment variables
 - Password manager (1Password, LastPass, etc.)
 - Secure key management service
@@ -66,12 +73,14 @@ FIELD_ENCRYPTION_KEY=833895a4497a122eefa3a05dc90285dfbe720e5bb1a19e334e618ccb793
 ### 5. Deploy to Production
 
 #### Option A: DigitalOcean App Platform
+
 1. Go to your app in DigitalOcean console
 2. Add `FIELD_ENCRYPTION_KEY` to environment variables
 3. Deploy the updated code
 4. Monitor deployment logs
 
 #### Option B: Manual Deployment
+
 ```bash
 # On production server
 git pull origin main
@@ -81,6 +90,7 @@ pm2 restart all
 ```
 
 ### 6. Post-Deployment Verification
+
 ```bash
 # SSH to production
 ssh root@170.64.206.137
@@ -96,6 +106,7 @@ tail -f /var/log/nginx/error.log
 ```
 
 ### 7. Encrypt Existing Production Data
+
 ```bash
 # Only if you have sensitive data to encrypt
 NODE_ENV=production npx ts-node scripts/encrypt-existing-data.ts
@@ -106,6 +117,7 @@ NODE_ENV=production npx ts-node scripts/encrypt-existing-data.ts
 If issues occur:
 
 ### Quick Rollback (< 5 minutes)
+
 ```bash
 # Rollback code changes
 ./scripts/rollback-migrations.sh
@@ -115,6 +127,7 @@ pm2 restart all
 ```
 
 ### Database Rollback (if needed)
+
 ```sql
 -- Disable RLS
 ALTER TABLE users DISABLE ROW LEVEL SECURITY;
@@ -126,6 +139,7 @@ ALTER TABLE receipts DISABLE ROW LEVEL SECURITY;
 ## Monitoring Checklist
 
 ### First Hour
+
 - [ ] Check application logs for errors
 - [ ] Monitor response times
 - [ ] Verify user authentication works
@@ -133,6 +147,7 @@ ALTER TABLE receipts DISABLE ROW LEVEL SECURITY;
 - [ ] Check admin access works
 
 ### First Day
+
 - [ ] Monitor performance metrics
 - [ ] Check for RLS policy violations in logs
 - [ ] Verify encryption/decryption working
@@ -140,6 +155,7 @@ ALTER TABLE receipts DISABLE ROW LEVEL SECURITY;
 - [ ] Test all major features
 
 ### First Week
+
 - [ ] Run performance analysis
 - [ ] Review security logs
 - [ ] Check database query performance
@@ -175,6 +191,7 @@ psql $DATABASE_URL -c "SELECT tablename, rowsecurity FROM pg_tables WHERE schema
 ## Success Criteria
 
 ✅ Deployment is successful when:
+
 1. All API endpoints respond normally
 2. Users can only access their own data
 3. Admin users can access all data
@@ -197,4 +214,5 @@ psql $DATABASE_URL -c "SELECT tablename, rowsecurity FROM pg_tables WHERE schema
 
 ---
 
-Remember: Security is an ongoing process. Regular monitoring and updates are essential for maintaining a secure system.
+Remember: Security is an ongoing process. Regular monitoring and updates are
+essential for maintaining a secure system.

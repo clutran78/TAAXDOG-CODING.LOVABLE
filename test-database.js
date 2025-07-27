@@ -8,7 +8,7 @@ async function testConnection(env) {
   const connectionString = isDevelopment
     ? process.env.DEV_DATABASE_URL || 'postgresql://genesis@localhost:5432/taaxdog_development'
     : process.env.DATABASE_URL;
-    
+
   if (!isDevelopment && !connectionString) {
     console.error('❌ Error: DATABASE_URL environment variable is not set for production');
     console.error('Please set DATABASE_URL with your PostgreSQL connection string');
@@ -26,7 +26,7 @@ async function testConnection(env) {
   if (!isDevelopment || connectionString.includes('sslmode=require')) {
     poolConfig.ssl = {
       rejectUnauthorized: false,
-      require: true
+      require: true,
     };
   }
 
@@ -57,7 +57,7 @@ async function testConnection(env) {
           current_setting('ssl') = 'on' AS ssl_active,
           current_setting('ssl_cipher', true) as ssl_cipher
       `);
-      
+
       const sslInfo = sslResult.rows[0];
       if (sslInfo.ssl_active) {
         console.log('✓ SSL is active');
@@ -70,19 +70,18 @@ async function testConnection(env) {
 
     // Test connection pooling
     console.log('\n4. Testing connection pooling...');
-    const poolPromises = Array(5).fill(null).map((_, i) => 
-      pool.query('SELECT $1::int as number', [i])
-    );
+    const poolPromises = Array(5)
+      .fill(null)
+      .map((_, i) => pool.query('SELECT $1::int as number', [i]));
     await Promise.all(poolPromises);
     console.log('✓ Connection pool handled 5 concurrent queries');
 
     console.log(`\n✅ All ${env} database tests passed!\n`);
-
   } catch (error) {
     console.error(`\n❌ ${env} database test failed:`);
     console.error('Error code:', error.code);
     console.error('Error message:', error.message);
-    
+
     if (error.code === 'ECONNREFUSED') {
       console.error('\nMake sure PostgreSQL is running and accessible.');
     } else if (error.code === '3D000') {

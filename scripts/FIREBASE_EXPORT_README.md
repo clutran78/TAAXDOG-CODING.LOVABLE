@@ -2,12 +2,17 @@
 
 ## Overview
 
-This system provides a comprehensive solution for exporting data from Firebase Firestore to PostgreSQL, specifically designed for the Taaxdog-coding project. It handles data validation, transformation, and migration preparation with Australian-specific requirements.
+This system provides a comprehensive solution for exporting data from Firebase
+Firestore to PostgreSQL, specifically designed for the Taaxdog-coding project.
+It handles data validation, transformation, and migration preparation with
+Australian-specific requirements.
 
 ## Components
 
 ### 1. Firebase Export Script (`firebase-export.js`)
+
 Exports all collections from Firebase with:
+
 - Batch processing for large collections
 - Retry logic for network issues
 - ID mapping generation
@@ -15,7 +20,9 @@ Exports all collections from Firebase with:
 - Progress tracking and reporting
 
 ### 2. Data Validator (`firebase-data-validator.js`)
+
 Validates exported data for:
+
 - Required fields
 - Data types and formats
 - Australian-specific validations (ABN, phone numbers, BSB)
@@ -23,7 +30,9 @@ Validates exported data for:
 - Unique constraints
 
 ### 3. Migration Preparation (`prepare-firebase-migration.js`)
+
 Prepares data for PostgreSQL import:
+
 - Generates deterministic UUIDs from Firebase IDs
 - Transforms field names to match PostgreSQL schema
 - Creates CSV files for bulk import
@@ -92,12 +101,12 @@ firebase-exports/
 
 ### Field Mappings
 
-| Firebase Field | PostgreSQL Field | Transformation |
-|----------------|------------------|----------------|
-| userId | user_id | UUID conversion |
-| totalAmount | total_amount | Decimal |
-| aiProcessed | ai_processed | Boolean |
-| createdAt | created_at | ISO timestamp |
+| Firebase Field | PostgreSQL Field | Transformation  |
+| -------------- | ---------------- | --------------- |
+| userId         | user_id          | UUID conversion |
+| totalAmount    | total_amount     | Decimal         |
+| aiProcessed    | ai_processed     | Boolean         |
+| createdAt      | created_at       | ISO timestamp   |
 
 ## PostgreSQL Import
 
@@ -117,6 +126,7 @@ psql -U postgres -d taaxdog_production -f firebase-exports/postgresql-ready/sql/
 ## Error Handling
 
 The system includes:
+
 - Automatic retry for network failures
 - Detailed error logging
 - Data integrity checks
@@ -124,7 +134,8 @@ The system includes:
 
 ## Security Considerations
 
-1. **Credentials**: Firebase service account is loaded from `config/firebase-adminsdk.json`
+1. **Credentials**: Firebase service account is loaded from
+   `config/firebase-adminsdk.json`
 2. **Data Privacy**: Sensitive fields are preserved during export
 3. **Audit Trail**: All exports include timestamps and metadata
 
@@ -147,6 +158,7 @@ The system includes:
 ### Support
 
 For issues or questions:
+
 - Check error logs in `firebase-exports/logs/`
 - Review validation reports
 - Ensure all dependencies are installed: `npm install`

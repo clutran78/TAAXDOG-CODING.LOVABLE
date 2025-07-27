@@ -2,19 +2,778 @@
 @tailwind components;
 @tailwind utilities;
 
-html,
-body {
-  padding: 0;
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
-    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+/* Root variables for theming */
+@layer base {
+  :root {
+    /* Light mode colors */
+    --color-primary: 59 130 246; /* blue-500 */
+    --color-primary-dark: 37 99 235; /* blue-600 */
+    --color-primary-light: 96 165 250; /* blue-400 */
+    --color-success: 34 197 94; /* green-500 */
+    --color-danger: 239 68 68; /* red-500 */
+    --color-warning: 245 158 11; /* amber-500 */
+    --color-info: 14 165 233; /* sky-500 */
+    
+    /* Background colors */
+    --color-bg-primary: 255 255 255; /* white */
+    --color-bg-secondary: 249 250 251; /* gray-50 */
+    --color-bg-tertiary: 243 244 246; /* gray-100 */
+    
+    /* Text colors */
+    --color-text-primary: 17 24 39; /* gray-900 */
+    --color-text-secondary: 75 85 99; /* gray-600 */
+    --color-text-tertiary: 156 163 175; /* gray-400 */
+    
+    /* Border colors */
+    --color-border: 229 231 235; /* gray-200 */
+    --color-border-focus: 59 130 246; /* blue-500 */
+  }
+
+  /* Dark mode colors */
+  .dark {
+    --color-primary: 96 165 250; /* blue-400 */
+    --color-primary-dark: 59 130 246; /* blue-500 */
+    --color-primary-light: 147 197 253; /* blue-300 */
+    --color-success: 74 222 128; /* green-400 */
+    --color-danger: 248 113 113; /* red-400 */
+    --color-warning: 251 191 36; /* amber-400 */
+    --color-info: 56 189 248; /* sky-400 */
+    
+    /* Background colors */
+    --color-bg-primary: 17 24 39; /* gray-900 */
+    --color-bg-secondary: 31 41 55; /* gray-800 */
+    --color-bg-tertiary: 55 65 81; /* gray-700 */
+    
+    /* Text colors */
+    --color-text-primary: 243 244 246; /* gray-100 */
+    --color-text-secondary: 209 213 219; /* gray-300 */
+    --color-text-tertiary: 156 163 175; /* gray-400 */
+    
+    /* Border colors */
+    --color-border: 55 65 81; /* gray-700 */
+    --color-border-focus: 96 165 250; /* blue-400 */
+  }
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/* Base styles */
+@layer base {
+  html {
+    @apply antialiased scroll-smooth;
+    /* Prevent horizontal scroll */
+    overflow-x: hidden;
+    /* Ensure minimum font size for readability */
+    font-size: 16px;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100;
+    @apply transition-colors duration-200;
+    /* Prevent horizontal scroll */
+    overflow-x: hidden;
+    position: relative;
+    /* Minimum font size for body text */
+    min-font-size: 16px;
+  }
+
+  /* Prevent horizontal overflow from child elements */
+  main {
+    overflow-x: hidden;
+  }
+
+  /* Custom focus styles */
+  *:focus {
+    @apply outline-none;
+  }
+
+  *:focus-visible {
+    @apply ring-2 ring-blue-500 ring-offset-2 dark:ring-blue-400 dark:ring-offset-gray-900;
+  }
+
+  /* Headings with mobile-first responsive sizing */
+  h1 {
+    @apply text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100;
+    line-height: 1.2;
+  }
+
+  h2 {
+    @apply text-xl sm:text-2xl md:text-3xl font-semibold text-gray-900 dark:text-gray-100;
+    line-height: 1.3;
+  }
+
+  h3 {
+    @apply text-lg sm:text-xl md:text-2xl font-semibold text-gray-800 dark:text-gray-200;
+    line-height: 1.4;
+  }
+
+  h4 {
+    @apply text-base sm:text-lg md:text-xl font-medium text-gray-800 dark:text-gray-200;
+    line-height: 1.4;
+  }
+
+  /* Body text minimum size */
+  p, li, span {
+    @apply text-base; /* Ensures 16px minimum */
+  }
+
+  /* Small text should not go below 14px */
+  small, .text-sm {
+    font-size: max(0.875rem, 14px);
+  }
+
+  /* Extra small text should not go below 12px */
+  .text-xs {
+    font-size: max(0.75rem, 12px);
+  }
+
+  /* Links */
+  a:not(.unstyled) {
+    @apply text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300;
+    @apply transition-colors duration-200;
+  }
+
+  /* Form elements with touch-friendly sizing */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="date"],
+  input[type="tel"],
+  textarea,
+  select {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm;
+    @apply focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+    @apply dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100;
+    @apply dark:focus:ring-blue-400 dark:focus:border-blue-400;
+    @apply transition-colors duration-200;
+    /* Ensure touch-friendly size */
+    min-height: 44px;
+    /* Prevent zoom on iOS */
+    font-size: 16px;
+  }
+
+  /* Ensure buttons are touch-friendly */
+  button {
+    min-height: 44px;
+    min-width: 44px;
+    @apply touch-manipulation;
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    @apply text-blue-600 focus:ring-blue-500;
+    @apply dark:text-blue-400 dark:focus:ring-blue-400;
+  }
+
+  /* Disabled state */
+  input:disabled,
+  textarea:disabled,
+  select:disabled {
+    @apply bg-gray-100 cursor-not-allowed opacity-60;
+    @apply dark:bg-gray-700;
+  }
+
+  /* Labels */
+  label {
+    @apply block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1;
+  }
+
+  /* Tables */
+  table {
+    @apply w-full divide-y divide-gray-200 dark:divide-gray-700;
+  }
+
+  th {
+    @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
+    @apply dark:text-gray-400 bg-gray-50 dark:bg-gray-800;
+  }
+
+  td {
+    @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100;
+  }
 }
 
-* {
-  box-sizing: border-box;
+/* Component styles */
+@layer components {
+  /* Legacy button styles - use Button component instead */
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 border font-medium rounded-lg;
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed shadow-sm;
+    @apply hover:shadow-md active:scale-[0.98] transform;
+  }
+
+  .btn-primary {
+    @apply btn bg-blue-600 text-white hover:bg-blue-700 border-transparent;
+    @apply focus:ring-blue-500 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-400;
+  }
+
+  .btn-secondary {
+    @apply btn bg-white text-gray-700 hover:bg-gray-50 border-gray-300;
+    @apply dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 dark:border-gray-600;
+    @apply focus:ring-blue-500 dark:focus:ring-blue-400;
+  }
+
+  .btn-success {
+    @apply btn bg-green-600 text-white hover:bg-green-700 border-transparent;
+    @apply focus:ring-green-500 dark:bg-green-500 dark:hover:bg-green-600;
+  }
+
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700 border-transparent;
+    @apply focus:ring-red-500 dark:bg-red-500 dark:hover:bg-red-600;
+  }
+
+  .btn-warning {
+    @apply btn bg-amber-600 text-white hover:bg-amber-700 border-transparent;
+    @apply focus:ring-amber-500 dark:bg-amber-500 dark:hover:bg-amber-600;
+  }
+
+  .btn-ghost {
+    @apply btn bg-transparent text-gray-700 hover:bg-gray-100 border-transparent;
+    @apply dark:text-gray-300 dark:hover:bg-gray-800;
+  }
+
+  .btn-link {
+    @apply btn bg-transparent text-blue-600 hover:text-blue-700 hover:underline border-transparent shadow-none;
+    @apply dark:text-blue-400 dark:hover:text-blue-300;
+  }
+
+  /* Button sizes */
+  .btn-xs {
+    @apply px-2.5 py-1.5 text-xs;
+  }
+
+  .btn-sm {
+    @apply px-3 py-2 text-sm;
+  }
+
+  .btn-md {
+    @apply px-4 py-2 text-sm;
+  }
+
+  .btn-lg {
+    @apply px-4 py-2 text-base;
+  }
+
+  .btn-xl {
+    @apply px-6 py-3 text-base;
+  }
+
+  /* Legacy card styles - use Card component instead */
+  .card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200;
+    @apply dark:bg-gray-800 dark:border-gray-700;
+  }
+
+  .card-header {
+    @apply px-6 py-4 border-b border-gray-200 dark:border-gray-700;
+  }
+
+  .card-body {
+    @apply p-6;
+  }
+
+  .card-footer {
+    @apply px-6 py-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 rounded-b-lg;
+  }
+
+  /* Badges */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-primary {
+    @apply badge bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200;
+  }
+
+  .badge-success {
+    @apply badge bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200;
+  }
+
+  .badge-danger {
+    @apply badge bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200;
+  }
+
+  .badge-warning {
+    @apply badge bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200;
+  }
+
+  .badge-info {
+    @apply badge bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200;
+  }
+
+  /* Alerts */
+  .alert {
+    @apply p-4 rounded-md border;
+  }
+
+  .alert-success {
+    @apply alert bg-green-50 text-green-800 border-green-200;
+    @apply dark:bg-green-900/20 dark:text-green-200 dark:border-green-800;
+  }
+
+  .alert-danger {
+    @apply alert bg-red-50 text-red-800 border-red-200;
+    @apply dark:bg-red-900/20 dark:text-red-200 dark:border-red-800;
+  }
+
+  .alert-warning {
+    @apply alert bg-amber-50 text-amber-800 border-amber-200;
+    @apply dark:bg-amber-900/20 dark:text-amber-200 dark:border-amber-800;
+  }
+
+  .alert-info {
+    @apply alert bg-sky-50 text-sky-800 border-sky-200;
+    @apply dark:bg-sky-900/20 dark:text-sky-200 dark:border-sky-800;
+  }
+
+  /* Form validation states */
+  .form-input-error {
+    @apply border-red-500 focus:ring-red-500 focus:border-red-500;
+    @apply dark:border-red-400 dark:focus:ring-red-400 dark:focus:border-red-400;
+  }
+
+  .form-input-success {
+    @apply border-green-500 focus:ring-green-500 focus:border-green-500;
+    @apply dark:border-green-400 dark:focus:ring-green-400 dark:focus:border-green-400;
+  }
+
+  .form-error-message {
+    @apply mt-1 text-sm text-red-600 dark:text-red-400;
+  }
+
+  .form-success-message {
+    @apply mt-1 text-sm text-green-600 dark:text-green-400;
+  }
+
+  .form-helper-text {
+    @apply mt-1 text-sm text-gray-500 dark:text-gray-400;
+  }
+
+  /* Loading states */
+  .spinner {
+    @apply inline-block w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin;
+    @apply dark:border-gray-600 dark:border-t-blue-400;
+  }
+
+  .spinner-lg {
+    @apply w-8 h-8 border-4;
+  }
+
+  .skeleton {
+    @apply animate-pulse bg-gray-200 rounded dark:bg-gray-700;
+  }
+
+  .skeleton-text {
+    @apply h-4 skeleton mb-2;
+  }
+
+  .skeleton-title {
+    @apply h-6 skeleton mb-3;
+  }
+
+  .skeleton-button {
+    @apply h-10 w-24 skeleton;
+  }
+
+  .skeleton-card {
+    @apply h-32 skeleton;
+  }
+
+  /* Loading overlay */
+  .loading-overlay {
+    @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
+  }
+
+  /* Progress bars */
+  .progress {
+    @apply w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700;
+  }
+
+  .progress-bar {
+    @apply bg-blue-600 h-2 rounded-full transition-all duration-300 dark:bg-blue-400;
+  }
+
+  .progress-bar-success {
+    @apply bg-green-600 dark:bg-green-400;
+  }
+
+  .progress-bar-danger {
+    @apply bg-red-600 dark:bg-red-400;
+  }
+
+  .progress-bar-warning {
+    @apply bg-amber-600 dark:bg-amber-400;
+  }
+
+  /* Modals */
+  .modal-backdrop {
+    @apply fixed inset-0 bg-black bg-opacity-50 transition-opacity;
+  }
+
+  .modal {
+    @apply fixed inset-0 z-50 overflow-y-auto;
+  }
+
+  .modal-content {
+    @apply relative bg-white rounded-lg shadow-xl dark:bg-gray-800;
+    @apply mx-auto my-8 max-w-lg w-full;
+  }
+
+  /* Tooltips */
+  .tooltip {
+    @apply absolute z-10 px-3 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg shadow-sm;
+    @apply dark:bg-gray-700;
+  }
+
+  /* Finance-specific styles */
+  .amount-positive {
+    @apply text-green-600 dark:text-green-400 font-medium;
+  }
+
+  .amount-negative {
+    @apply text-red-600 dark:text-red-400 font-medium;
+  }
+
+  .trend-up {
+    @apply text-green-600 dark:text-green-400;
+  }
+
+  .trend-down {
+    @apply text-red-600 dark:text-red-400;
+  }
+
+  .trend-neutral {
+    @apply text-gray-600 dark:text-gray-400;
+  }
+
+  /* Transaction list items */
+  .transaction-item {
+    @apply flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-700;
+    @apply border-b border-gray-200 dark:border-gray-700 last:border-b-0;
+  }
+
+  /* Goal progress */
+  .goal-progress {
+    @apply relative pt-1;
+  }
+
+  .goal-progress-bar {
+    @apply overflow-hidden h-2 text-xs flex rounded bg-gray-200 dark:bg-gray-700;
+  }
+
+  .goal-progress-fill {
+    @apply shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center;
+    @apply bg-blue-600 dark:bg-blue-400 transition-all duration-500;
+  }
+
+  /* Data tables */
+  .data-table {
+    @apply min-w-full divide-y divide-gray-200 dark:divide-gray-700;
+  }
+
+  .data-table-header {
+    @apply bg-gray-50 dark:bg-gray-800;
+  }
+
+  .data-table-row {
+    @apply hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors;
+  }
+
+  /* Empty states */
+  .empty-state {
+    @apply text-center py-12;
+  }
+
+  .empty-state-icon {
+    @apply mx-auto h-12 w-12 text-gray-400;
+  }
+
+  .empty-state-text {
+    @apply mt-2 text-sm text-gray-600 dark:text-gray-400;
+  }
+
+  /* Utility classes for finance app */
+  .currency {
+    @apply font-mono;
+  }
+
+  .percentage {
+    @apply font-mono text-sm;
+  }
+
+  /* Responsive containers with overflow protection */
+  .container-narrow {
+    @apply max-w-4xl mx-auto px-4 sm:px-6 lg:px-8;
+    overflow-x: hidden;
+  }
+
+  .container-wide {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+    overflow-x: hidden;
+  }
+
+  /* Mobile-first hide/show utilities */
+  .mobile-only {
+    @apply block sm:hidden;
+  }
+
+  .desktop-only {
+    @apply hidden sm:block;
+  }
+
+  .tablet-up {
+    @apply hidden md:block;
+  }
+
+  /* Touch target helper */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+    @apply touch-manipulation;
+  }
+}
+
+/* Responsive utilities */
+@layer utilities {
+  /* Responsive text utilities */
+  .text-responsive-sm {
+    @apply text-sm sm:text-base;
+  }
+
+  .text-responsive-lg {
+    @apply text-lg sm:text-xl md:text-2xl;
+  }
+
+  .text-responsive-xl {
+    @apply text-xl sm:text-2xl md:text-3xl;
+  }
+
+  /* Prevent text overflow */
+  .break-word {
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* Responsive padding utilities */
+  .px-responsive {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+
+  .py-responsive {
+    @apply py-4 sm:py-6 lg:py-8;
+  }
+
+  .p-responsive {
+    @apply p-4 sm:p-6 lg:p-8;
+  }
+
+  /* Responsive margin utilities */
+  .my-responsive {
+    @apply my-4 sm:my-6 lg:my-8;
+  }
+
+  .mx-responsive {
+    @apply mx-4 sm:mx-6 lg:mx-8;
+  }
+}
+
+/* Original utility classes */
+@layer utilities {
+  /* Text truncation */
+  .truncate-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .truncate-3 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+  }
+
+  /* Animation delays */
+  .animation-delay-100 {
+    animation-delay: 100ms;
+  }
+
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+
+  .animation-delay-300 {
+    animation-delay: 300ms;
+  }
+
+  /* Custom scrollbar */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    @apply bg-gray-100 dark:bg-gray-800 rounded;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-gray-400 dark:bg-gray-600 rounded;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-500 dark:bg-gray-500;
+  }
+
+  /* Hide scrollbar */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent;
+  }
+
+  /* Backdrop blur support */
+  .backdrop-blur-support {
+    @supports (backdrop-filter: blur(10px)) {
+      @apply backdrop-blur-lg bg-white/80 dark:bg-gray-900/80;
+    }
+  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.3s ease-out;
+}
+
+.animate-slideDown {
+  animation: slideDown 0.3s ease-out;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    @apply text-black bg-white;
+  }
+
+  .card {
+    @apply shadow-none border-gray-300;
+  }
+}
+
+/* Mobile-specific adjustments */
+@media (max-width: 640px) {
+  /* Ensure readable font sizes on small screens */
+  html {
+    font-size: 16px;
+  }
+
+  /* Adjust table font size for mobile */
+  table {
+    font-size: 14px;
+  }
+
+  /* Ensure modals don't overflow */
+  .modal-content {
+    @apply mx-2;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+  }
+
+  /* Adjust button padding for mobile */
+  .btn {
+    @apply px-3 py-2.5;
+  }
+
+  /* Prevent horizontal scroll from wide content */
+  pre, code {
+    overflow-x: auto;
+    max-width: 100%;
+  }
+
+  /* Responsive tables */
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 641px) and (max-width: 1023px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --color-border: 0 0 0;
+  }
+
+  .dark {
+    --color-border: 255 255 255;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

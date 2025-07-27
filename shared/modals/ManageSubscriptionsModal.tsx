@@ -6,7 +6,11 @@ interface SubscriptionsModalProps {
   subscriptions?: any[];
 }
 
-const SubscriptionsModal: React.FC<SubscriptionsModalProps> = ({ show, onClose, subscriptions = [] }) => {
+const SubscriptionsModal: React.FC<SubscriptionsModalProps> = ({
+  show,
+  onClose,
+  subscriptions = [],
+}) => {
   if (!show) return null;
 
   return (
@@ -18,7 +22,10 @@ const SubscriptionsModal: React.FC<SubscriptionsModalProps> = ({ show, onClose, 
             <p className="text-gray-500">No active subscriptions</p>
           ) : (
             subscriptions.map((sub, index) => (
-              <div key={index} className="border p-4 rounded">
+              <div
+                key={index}
+                className="border p-4 rounded"
+              >
                 <h3 className="font-semibold">{sub.name}</h3>
                 <p className="text-sm text-gray-600">Amount: ${sub.amount}/month</p>
                 <p className="text-sm text-gray-600">Next billing: {sub.nextBilling}</p>

@@ -1,6 +1,7 @@
 // BASIQ Security Utilities
 import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 
 // Security configuration
 const SECURITY_CONFIG = {
@@ -24,14 +25,14 @@ export class EncryptionService {
     if (!masterKey) {
       throw new Error('Encryption key not configured');
     }
-    
+
     // Derive encryption key from master key
     this.encryptionKey = crypto.pbkdf2Sync(
       masterKey,
       'basiq-encryption-salt',
       SECURITY_CONFIG.ITERATIONS,
       SECURITY_CONFIG.KEY_LENGTH,
-      SECURITY_CONFIG.DIGEST
+      SECURITY_CONFIG.DIGEST,
     );
   }
 
@@ -41,12 +42,12 @@ export class EncryptionService {
     const cipher = crypto.createCipheriv(
       SECURITY_CONFIG.ENCRYPTION_ALGORITHM,
       this.encryptionKey,
-      iv
+      iv,
     );
 
     let encrypted = cipher.update(text, 'utf8', 'hex');
     encrypted += cipher.final('hex');
-    
+
     const authTag = cipher.getAuthTag();
 
     return {
@@ -61,7 +62,7 @@ export class EncryptionService {
     const decipher = crypto.createDecipheriv(
       SECURITY_CONFIG.ENCRYPTION_ALGORITHM,
       this.encryptionKey,
-      Buffer.from(encryptedData.iv, 'hex')
+      Buffer.from(encryptedData.iv, 'hex'),
     );
 
     decipher.setAuthTag(Buffer.from(encryptedData.authTag, 'hex'));
@@ -74,27 +75,22 @@ export class EncryptionService {
 
   // Hash sensitive data for comparison
   hash(text: string): string {
-    return crypto
-      .createHash('sha256')
-      .update(text)
-      .digest('hex');
+    return crypto.createHash('sha256').update(text).digest('hex');
   }
 }
 
 // Security audit logging
 export class SecurityAuditLogger {
-  async logSecurityEvent(
-    event: {
-      type: SecurityEventType;
-      userId?: string;
-      resource?: string;
-      action: string;
-      result: 'success' | 'failure';
-      metadata?: any;
-      ipAddress?: string;
-      userAgent?: string;
-    }
-  ): Promise<void> {
+  async logSecurityEvent(event: {
+    type: SecurityEventType;
+    userId?: string;
+    resource?: string;
+    action: string;
+    result: 'success' | 'failure';
+    metadata?: any;
+    ipAddress?: string;
+    userAgent?: string;
+  }): Promise<void> {
     try {
       await prisma.auditLog.create({
         data: {
@@ -112,7 +108,7 @@ export class SecurityAuditLogger {
         },
       });
     } catch (error) {
-      console.error('Failed to log security event:', error);
+      logger.error('Failed to log security event:', error);
       // Don't throw - logging should not break the application
     }
   }
@@ -121,7 +117,7 @@ export class SecurityAuditLogger {
     userId: string,
     action: string,
     accountId?: string,
-    metadata?: any
+    metadata?: any,
   ): Promise<void> {
     await this.logSecurityEvent({
       type: SecurityEventType.BANKING_ACCESS,
@@ -137,7 +133,7 @@ export class SecurityAuditLogger {
     userId: string,
     dataType: string,
     recordCount: number,
-    filters?: any
+    filters?: any,
   ): Promise<void> {
     await this.logSecurityEvent({
       type: SecurityEventType.DATA_EXPORT,
@@ -195,9 +191,9 @@ export const DataSanitizer = {
     ];
 
     const fieldsToRemove = [...defaultSensitiveFields, ...sensitiveFields];
-    
+
     const sanitized = { ...obj };
-    
+
     for (const field of fieldsToRemove) {
       if (field in sanitized) {
         delete sanitized[field];
@@ -219,13 +215,13 @@ export const DataSanitizer = {
   sanitizeError(error: Error): string {
     // Remove any potential sensitive data from error messages
     let message = error.message;
-    
+
     // Common patterns to remove
     message = message.replace(/password[=:]\s*\S+/gi, 'password=***');
     message = message.replace(/key[=:]\s*\S+/gi, 'key=***');
     message = message.replace(/token[=:]\s*\S+/gi, 'token=***');
     message = message.replace(/\b\d{8,}\b/g, '********'); // Long numbers
-    
+
     return message;
   },
 };
@@ -284,24 +280,24 @@ export class RateLimiter {
 
   constructor(
     private readonly maxRequests: number = 10,
-    private readonly windowMs: number = 60000 // 1 minute
+    private readonly windowMs: number = 60000, // 1 minute
   ) {}
 
   async checkLimit(userId: string, operation: string): Promise<boolean> {
     const key = `${userId}:${operation}`;
     const now = Date.now();
     const requests = this.requests.get(key) || [];
-    
+
     // Remove old requests outside the window
-    const validRequests = requests.filter(time => now - time < this.windowMs);
-    
+    const validRequests = requests.filter((time) => now - time < this.windowMs);
+
     if (validRequests.length >= this.maxRequests) {
       return false;
     }
-    
+
     validRequests.push(now);
     this.requests.set(key, validRequests);
-    
+
     return true;
   }
 
@@ -309,8 +305,8 @@ export class RateLimiter {
     const key = `${userId}:${operation}`;
     const now = Date.now();
     const requests = this.requests.get(key) || [];
-    const validRequests = requests.filter(time => now - time < this.windowMs);
-    
+    const validRequests = requests.filter((time) => now - time < this.windowMs);
+
     return Math.max(0, this.maxRequests - validRequests.length);
   }
 }

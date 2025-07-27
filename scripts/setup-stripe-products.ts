@@ -12,7 +12,7 @@ async function setupStripeProducts() {
 
   const { stripe } = getStripe();
   const isLiveMode = process.env.STRIPE_SECRET_KEY?.startsWith('sk_live_');
-  
+
   console.log(`Mode: ${isLiveMode ? '🔴 LIVE' : '🟢 TEST'}`);
   console.log('⚠️  WARNING: This will create real products in your Stripe account!\n');
 
@@ -28,7 +28,7 @@ async function setupStripeProducts() {
           ids: [plan.productId],
           limit: 1,
         });
-        
+
         if (existingProducts.data.length > 0) {
           product = existingProducts.data[0];
           console.log(`✅ Product already exists: ${product.id}`);
@@ -71,7 +71,7 @@ async function setupStripeProducts() {
           console.log(`✅ Created price (${tier}): ${price.id} - ${data.name}`);
           console.log(`   Amount: $${(data.amount / 100).toFixed(2)} AUD (inc. GST)`);
           console.log(`   GST: $${(parseInt(data.metadata.gstAmount) / 100).toFixed(2)}`);
-          
+
           if (tier === 'promotional') {
             console.log(`   Promotional period: ${data.metadata.promotionalMonths} months`);
             console.log(`   Transitions to: ${data.metadata.transitionToPriceId}`);
@@ -84,13 +84,13 @@ async function setupStripeProducts() {
 
     // Create webhook endpoint if not exists
     console.log('\n🔗 Setting up webhook endpoint...');
-    const webhookUrl = process.env.NEXTAUTH_URL 
+    const webhookUrl = process.env.NEXTAUTH_URL
       ? `${process.env.NEXTAUTH_URL}/api/stripe/webhooks`
       : 'https://taxreturnpro.com.au/api/stripe/webhooks';
 
     try {
       const existingEndpoints = await stripe.webhookEndpoints.list({ limit: 100 });
-      const existingEndpoint = existingEndpoints.data.find(ep => ep.url === webhookUrl);
+      const existingEndpoint = existingEndpoints.data.find((ep) => ep.url === webhookUrl);
 
       if (existingEndpoint) {
         console.log(`✅ Webhook endpoint already exists: ${existingEndpoint.url}`);
@@ -112,7 +112,9 @@ async function setupStripeProducts() {
         });
         console.log(`✅ Created webhook endpoint: ${endpoint.url}`);
         console.log(`   Secret: ${endpoint.secret}`);
-        console.log('\n⚠️  IMPORTANT: Update your STRIPE_WEBHOOK_SECRET in .env with the secret above!');
+        console.log(
+          '\n⚠️  IMPORTANT: Update your STRIPE_WEBHOOK_SECRET in .env with the secret above!',
+        );
       }
     } catch (error: any) {
       console.error('❌ Failed to setup webhook:', error.message);
@@ -126,19 +128,18 @@ async function setupStripeProducts() {
     console.log('- Promotional: $4.99/month (first 2 months)');
     console.log('- Regular: $9.99/month');
     console.log('- Annual: $99.00/year (save $20.88)');
-    
+
     console.log('\nTAAX Pro Plan:');
     console.log('- 7-day free trial');
     console.log('- Promotional: $10.99/month (first 2 months)');
     console.log('- Regular: $18.99/month');
     console.log('- Annual: $189.00/year (save $38.88)');
-    
+
     console.log('\n✅ All prices include 10% GST');
     console.log('✅ Automatic transition from promotional to regular pricing');
     console.log('✅ Australian tax invoices will be generated');
 
     console.log('\n🎉 Stripe setup complete!');
-
   } catch (error: any) {
     console.error('\n❌ Setup failed:', error.message);
     process.exit(1);

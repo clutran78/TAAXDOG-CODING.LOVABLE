@@ -1,27 +1,35 @@
 # TAAXDOG Deployment Checklist
 
 ## Overview
-This checklist ensures safe and consistent deployments to DigitalOcean App Platform.
+
+This checklist ensures safe and consistent deployments to DigitalOcean App
+Platform.
 
 ## Pre-Deployment Checklist
 
 ### 1. Code Quality
+
 - [ ] Run linter: `npm run lint`
 - [ ] Run type checking: `npm run build` (includes TypeScript compilation)
 - [ ] Run tests (if available): `npm test`
 - [ ] Verify no hardcoded secrets in code
 
 ### 2. Database Verification
+
 - [ ] Test database connection: `npm run test-db`
 - [ ] Ensure migrations are up to date: `npx prisma migrate status`
 - [ ] Generate latest Prisma client: `npx prisma generate`
 
 ### 3. Environment Configuration
-- [ ] Verify all required environment variables are set in DigitalOcean App Platform
-- [ ] Ensure using `app.yaml` (NOT `digitalocean-app-spec.yaml` which contains hardcoded secrets)
+
+- [ ] Verify all required environment variables are set in DigitalOcean App
+      Platform
+- [ ] Ensure using `app.yaml` (NOT `digitalocean-app-spec.yaml` which contains
+      hardcoded secrets)
 - [ ] Confirm production database URL is correct
 
 ### 4. Git Status
+
 - [ ] Ensure on `main` branch: `git branch --show-current`
 - [ ] Check for uncommitted changes: `git status`
 - [ ] Pull latest changes: `git pull origin main`
@@ -29,13 +37,16 @@ This checklist ensures safe and consistent deployments to DigitalOcean App Platf
 ## Deployment Process
 
 ### Automatic Deployment (Recommended)
+
 1. Commit your changes:
+
    ```bash
    git add .
    git commit -m "feat: Your descriptive commit message"
    ```
 
 2. Push to main branch:
+
    ```bash
    git push origin main
    ```
@@ -47,6 +58,7 @@ This checklist ensures safe and consistent deployments to DigitalOcean App Platf
    - Send alerts if deployment fails
 
 ### Manual Deployment (If needed)
+
 1. Log into DigitalOcean Dashboard
 2. Navigate to Apps > taaxdog-production
 3. Click "Deploy" button
@@ -55,17 +67,20 @@ This checklist ensures safe and consistent deployments to DigitalOcean App Platf
 ## Post-Deployment Verification
 
 ### 1. Application Health
+
 - [ ] Visit https://taxreturnpro.com.au
 - [ ] Check application loads correctly
 - [ ] Test login functionality
 - [ ] Verify Stripe integration (test mode first)
 
 ### 2. Monitor Deployment
+
 - [ ] Check DigitalOcean App Platform logs
 - [ ] Monitor for any deployment alerts
 - [ ] Verify database connections are stable
 
 ### 3. Quick Functionality Tests
+
 - [ ] User registration/login works
 - [ ] Database queries execute properly
 - [ ] AI features respond correctly
@@ -82,10 +97,11 @@ If issues occur after deployment:
    - Click "Rollback to this deployment"
 
 2. **Git Rollback (if needed):**
+
    ```bash
    # Find the last known good commit
    git log --oneline -10
-   
+
    # Revert to that commit
    git revert HEAD
    git push origin main
@@ -113,7 +129,7 @@ All these must be set in DigitalOcean App Platform settings:
 - GEMINI_API_KEY
 - BASIQ_API_KEY
 - SENDGRID_API_KEY
-- NEXT_PUBLIC_FIREBASE_* (multiple keys)
+- NEXT*PUBLIC_FIREBASE*\* (multiple keys)
 
 ## Monitoring
 

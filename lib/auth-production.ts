@@ -1,49 +1,50 @@
-import { NextAuthOptions } from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
-import GoogleProvider from "next-auth/providers/google";
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import { prisma } from "./prisma";
-import bcrypt from "bcryptjs";
+import { NextAuthOptions } from 'next-auth';
+import CredentialsProvider from 'next-auth/providers/credentials';
+import GoogleProvider from 'next-auth/providers/google';
+import { PrismaAdapter } from '@next-auth/prisma-adapter';
+import { prisma } from './prisma';
+import bcrypt from 'bcryptjs';
+import { logger } from '@/lib/logger';
 
 // Production-ready auth configuration with better error handling
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
     CredentialsProvider({
-      name: "credentials",
+      name: 'credentials',
       credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          console.log("Missing credentials");
+          logger.info('Missing credentials');
           return null;
         }
 
         try {
           const user = await prisma.user.findUnique({
-            where: { email: credentials.email.toLowerCase() }
+            where: { email: credentials.email.toLowerCase() },
           });
 
           if (!user) {
-            console.log("User not found:", credentials.email);
+            logger.info('User not found:', credentials.email);
             return null;
           }
 
           if (!user.password) {
-            console.log("User has no password set:", credentials.email);
+            logger.info('User has no password set:', credentials.email);
             return null;
           }
 
           const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
-          
+
           if (!isPasswordValid) {
-            console.log("Invalid password for user:", credentials.email);
+            logger.info('Invalid password for user:', credentials.email);
             return null;
           }
 
-          console.log("✅ Login successful for:", user.email);
+          logger.info('✅ Login successful for:', user.email);
 
           return {
             id: user.id,
@@ -52,10 +53,10 @@ export const authOptions: NextAuthOptions = {
             role: user.role,
           };
         } catch (error) {
-          console.error("Auth error:", error);
+          logger.error('Auth error:', error);
           return null;
         }
-      }
+      },
     }),
     // Google OAuth - only if credentials are provided
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
@@ -83,20 +84,20 @@ export const authOptions: NextAuthOptions = {
     },
   },
   pages: {
-    signIn: "/auth/login",
-    error: "/auth/error",
+    signIn: '/auth/login',
+    error: '/auth/error',
   },
   session: {
-    strategy: "jwt",
+    strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   jwt: {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV === "development",
+  debug: process.env.NODE_ENV === 'development',
   // Production-specific settings
   cookies: {
-    secure: process.env.NODE_ENV === "production", // Use secure cookies in production
+    secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
   },
 };

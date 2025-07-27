@@ -12,10 +12,10 @@ async function testConnectionPool() {
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME || 'taaxdog-production',
     ssl: {
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     },
     min: 5,
-    max: 20
+    max: 20,
   };
 
   if (!poolConfig.password) {
@@ -28,7 +28,7 @@ async function testConnectionPool() {
 
   try {
     console.log('Testing connection pool on port 25061...');
-    
+
     // Test basic connection
     const client = await pool.connect();
     console.log('✅ Connected via connection pool');
@@ -47,28 +47,25 @@ async function testConnectionPool() {
     console.log('\nTesting concurrent connections...');
     const promises = [];
     for (let i = 0; i < 10; i++) {
-      promises.push(
-        pool.query('SELECT pg_backend_pid() as pid, NOW() as time')
-      );
+      promises.push(pool.query('SELECT pg_backend_pid() as pid, NOW() as time'));
     }
 
     const results = await Promise.all(promises);
-    const uniquePids = new Set(results.map(r => r.rows[0].pid));
+    const uniquePids = new Set(results.map((r) => r.rows[0].pid));
     console.log(`✅ Handled 10 concurrent queries using ${uniquePids.size} connections`);
 
     console.log('\n🎉 Connection pool is working perfectly!');
     console.log('\nRecommended usage:');
     console.log('- Use port 25061 for connection pooling (better performance)');
     console.log('- Use port 25060 for direct connections (migrations, admin tasks)');
-
   } catch (error) {
     console.error('❌ Connection pool test failed:', error.message);
-    
+
     // Fallback to direct connection
     console.log('\nTrying direct connection on port 25060...');
     const directPool = new Pool({
       ...poolConfig,
-      port: 25060
+      port: 25060,
     });
 
     try {

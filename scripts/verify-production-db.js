@@ -9,7 +9,7 @@ async function verifyProductionDatabase() {
   // Check environment
   console.log('Environment:', process.env.NODE_ENV || 'development');
   console.log('Database URL exists:', !!process.env.DATABASE_URL);
-  
+
   if (!process.env.DATABASE_URL) {
     console.error('❌ DATABASE_URL not set!');
     process.exit(1);
@@ -33,17 +33,17 @@ async function verifyProductionDatabase() {
       WHERE table_name = 'User' 
       ORDER BY ordinal_position;
     `;
-    
+
     console.log('User table columns:');
-    testQuery.forEach(col => {
+    testQuery.forEach((col) => {
       console.log(`  - ${col.column_name}: ${col.data_type} (nullable: ${col.is_nullable})`);
     });
 
     // Check for required columns
     const requiredColumns = ['id', 'email', 'password', 'name', 'role', 'emailVerified'];
-    const columnNames = testQuery.map(col => col.column_name);
-    const missingColumns = requiredColumns.filter(col => !columnNames.includes(col));
-    
+    const columnNames = testQuery.map((col) => col.column_name);
+    const missingColumns = requiredColumns.filter((col) => !columnNames.includes(col));
+
     if (missingColumns.length > 0) {
       console.error('❌ Missing required columns:', missingColumns);
     } else {
@@ -59,10 +59,10 @@ async function verifyProductionDatabase() {
     console.log('\n4. Testing user creation...');
     const testEmail = `test-${Date.now()}@example.com`;
     const testPassword = 'TestPassword123!';
-    
+
     try {
       const hashedPassword = await bcrypt.hash(testPassword, 12);
-      
+
       const testUser = await prisma.user.create({
         data: {
           email: testEmail,
@@ -75,43 +75,42 @@ async function verifyProductionDatabase() {
           email: true,
           name: true,
           role: true,
-        }
+        },
       });
-      
+
       console.log('✅ User created successfully:', {
         id: testUser.id,
         email: testUser.email,
-        role: testUser.role
+        role: testUser.role,
       });
 
       // 5. Test password verification
       console.log('\n5. Testing password verification...');
       const createdUser = await prisma.user.findUnique({
-        where: { email: testEmail }
+        where: { email: testEmail },
       });
-      
+
       const isValid = await bcrypt.compare(testPassword, createdUser.password);
       console.log(`Password verification: ${isValid ? '✅ Success' : '❌ Failed'}`);
 
       // Clean up test user
       await prisma.user.delete({
-        where: { email: testEmail }
+        where: { email: testEmail },
       });
       console.log('✅ Test user cleaned up');
-
     } catch (createError) {
       console.error('❌ Failed to create test user:', {
         message: createError.message,
         code: createError.code,
-        meta: createError.meta
+        meta: createError.meta,
       });
     }
 
     // 6. Check for password reset columns
     console.log('\n6. Checking password reset columns...');
-    const hasResetColumns = columnNames.includes('passwordResetToken') && 
-                           columnNames.includes('passwordResetExpires');
-    
+    const hasResetColumns =
+      columnNames.includes('passwordResetToken') && columnNames.includes('passwordResetExpires');
+
     if (hasResetColumns) {
       console.log('✅ Password reset columns present');
     } else {
@@ -124,10 +123,10 @@ async function verifyProductionDatabase() {
       select: {
         id: true,
         email: true,
-        createdAt: true
-      }
+        createdAt: true,
+      },
     });
-    
+
     if (firstUser) {
       console.log('✅ Query successful - found user:', firstUser.email);
     } else {
@@ -135,12 +134,11 @@ async function verifyProductionDatabase() {
     }
 
     console.log('\n✅ Database verification complete!');
-
   } catch (error) {
     console.error('\n❌ Database verification failed:', {
       message: error.message,
       code: error.code,
-      stack: error.stack
+      stack: error.stack,
     });
   } finally {
     await prisma.$disconnect();

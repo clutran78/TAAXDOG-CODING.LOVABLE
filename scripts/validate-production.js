@@ -11,12 +11,12 @@ const execAsync = promisify(exec);
 
 async function validateProduction() {
   console.log('🚀 TAAXDOG PRODUCTION VALIDATION\n');
-  
+
   let totalChecks = 0;
   let passedChecks = 0;
   let failedChecks = 0;
   const issues = [];
-  
+
   // 1. Environment Variables
   console.log('1️⃣  ENVIRONMENT VARIABLES\n');
   const requiredEnvVars = [
@@ -28,10 +28,10 @@ async function validateProduction() {
     'STRIPE_SECRET_KEY',
     'EMAIL_FROM',
     'ANTHROPIC_API_KEY',
-    'BASIQ_API_KEY'
+    'BASIQ_API_KEY',
   ];
-  
-  requiredEnvVars.forEach(varName => {
+
+  requiredEnvVars.forEach((varName) => {
     totalChecks++;
     if (process.env[varName]) {
       console.log(`✅ ${varName}: Set`);
@@ -42,30 +42,33 @@ async function validateProduction() {
       issues.push(`Missing environment variable: ${varName}`);
     }
   });
-  
+
   // 2. Database Connection
   console.log('\n2️⃣  DATABASE CONNECTION\n');
   totalChecks++;
   try {
     // Use the project's standard Prisma import
     const { prisma } = require('../lib/db/unifiedMonitoredPrisma');
-    
+
     // Create a timeout promise
     const timeoutMs = 10000; // 10 second timeout
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Database connection timeout after 10 seconds')), timeoutMs);
+      setTimeout(
+        () => reject(new Error('Database connection timeout after 10 seconds')),
+        timeoutMs,
+      );
     });
-    
+
     // Create the database query promise
     const queryPromise = async () => {
       const result = await prisma.$queryRaw`SELECT NOW() as current_time`;
       await prisma.$disconnect();
       return result;
     };
-    
+
     // Race the query against the timeout
     const result = await Promise.race([queryPromise(), timeoutPromise]);
-    
+
     console.log('✅ Database connection: Working');
     console.log(`   Current time: ${result[0].current_time}`);
     passedChecks++;
@@ -74,7 +77,7 @@ async function validateProduction() {
     console.log(`   Error: ${error.message}`);
     failedChecks++;
     issues.push('Database connection failed');
-    
+
     // Ensure disconnection even on error
     try {
       const { prisma } = require('../lib/db/unifiedMonitoredPrisma');
@@ -83,11 +86,15 @@ async function validateProduction() {
       // Ignore disconnect errors
     }
   }
-  
+
   // 3. Email Service
   console.log('\n3️⃣  EMAIL SERVICE\n');
   totalChecks++;
-  if (process.env.EMAIL_PROVIDER === 'sendgrid' && process.env.SENDGRID_API_KEY && process.env.SENDGRID_API_KEY !== 'SG.your-sendgrid-api-key') {
+  if (
+    process.env.EMAIL_PROVIDER === 'sendgrid' &&
+    process.env.SENDGRID_API_KEY &&
+    process.env.SENDGRID_API_KEY !== 'SG.your-sendgrid-api-key'
+  ) {
     console.log('✅ Email service: Configured (SendGrid)');
     passedChecks++;
   } else if (process.env.SENDGRID_API_KEY === 'SG.your-sendgrid-api-key') {
@@ -103,11 +110,15 @@ async function validateProduction() {
     failedChecks++;
     issues.push('Email service not configured');
   }
-  
+
   // 4. Backup System
   console.log('\n4️⃣  BACKUP SYSTEM\n');
   totalChecks++;
-  if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY && process.env.BACKUP_BUCKET) {
+  if (
+    process.env.AWS_ACCESS_KEY_ID &&
+    process.env.AWS_SECRET_ACCESS_KEY &&
+    process.env.BACKUP_BUCKET
+  ) {
     console.log('✅ Backup system: Configured (AWS S3)');
     passedChecks++;
   } else {
@@ -115,11 +126,11 @@ async function validateProduction() {
     passedChecks++;
     issues.push('AWS S3 backup not configured - using manual backups');
   }
-  
+
   // 5. Security Keys
   console.log('\n5️⃣  SECURITY KEYS\n');
   const securityKeys = ['NEXTAUTH_SECRET', 'JWT_SECRET', 'ENCRYPTION_KEY'];
-  securityKeys.forEach(key => {
+  securityKeys.forEach((key) => {
     totalChecks++;
     if (process.env[key] && process.env[key] !== 'generate-secure-secret-here') {
       console.log(`✅ ${key}: Set`);
@@ -130,7 +141,7 @@ async function validateProduction() {
       issues.push(`Security key not set: ${key}`);
     }
   });
-  
+
   // 6. System Resources
   console.log('\n6️⃣  SYSTEM RESOURCES\n');
   totalChecks++;
@@ -149,7 +160,7 @@ async function validateProduction() {
     console.log('❌ Could not check disk usage');
     failedChecks++;
   }
-  
+
   // 7. Node.js Version
   console.log('\n7️⃣  NODE.JS VERSION\n');
   totalChecks++;
@@ -163,7 +174,7 @@ async function validateProduction() {
     failedChecks++;
     issues.push('Node.js version too old');
   }
-  
+
   // Summary
   console.log('\n' + '='.repeat(60));
   console.log('📊 VALIDATION SUMMARY');
@@ -172,20 +183,23 @@ async function validateProduction() {
   console.log(`✅ Passed: ${passedChecks}`);
   console.log(`❌ Failed: ${failedChecks}`);
   console.log(`Success rate: ${((passedChecks / totalChecks) * 100).toFixed(1)}%`);
-  
+
   if (issues.length > 0) {
     console.log('\n⚠️  ISSUES TO RESOLVE:');
     issues.forEach((issue, i) => {
       console.log(`${i + 1}. ${issue}`);
     });
   }
-  
+
   // Overall status
   console.log('\n' + '='.repeat(60));
   if (failedChecks === 0) {
     console.log('✅ PRODUCTION READY - All checks passed!');
     process.exit(0);
-  } else if (failedChecks <= 3 && !issues.some(i => i.includes('Database') || i.includes('Security key'))) {
+  } else if (
+    failedChecks <= 3 &&
+    !issues.some((i) => i.includes('Database') || i.includes('Security key'))
+  ) {
     console.log('⚠️  MOSTLY READY - Minor issues to resolve');
     process.exit(0);
   } else {
@@ -194,7 +208,7 @@ async function validateProduction() {
   }
 }
 
-validateProduction().catch(error => {
+validateProduction().catch((error) => {
   console.error('Validation failed:', error);
   process.exit(1);
 });

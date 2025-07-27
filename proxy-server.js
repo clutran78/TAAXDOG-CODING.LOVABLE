@@ -12,66 +12,69 @@ const server = http.createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, apikey');
-  
+
   // Handle preflight requests
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
     res.end();
     return;
   }
-  
+
   // Log all incoming requests
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-  
+
   // Parse the request URL
   const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost:3001'}`);
-  
+
   // Check if it's a proxy request - TabScanner proxy functionality removed
   if (parsedUrl.pathname.startsWith('/proxy')) {
     console.log('TabScanner proxy functionality has been removed');
-    res.writeHead(501, {'Content-Type': 'application/json'});
-    res.end(JSON.stringify({
-      error: 'TabScanner proxy functionality has been removed',
-      message: 'Please use alternative OCR endpoints'
-    }));
+    res.writeHead(501, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        error: 'TabScanner proxy functionality has been removed',
+        message: 'Please use alternative OCR endpoints',
+      }),
+    );
     return;
   }
-  
+
   // Serve static files
   if (parsedUrl.pathname === '/' || parsedUrl.pathname === '/index.html') {
     fs.readFile('./index.html', (err, data) => {
       if (err) {
         console.error('Error reading index.html:', err);
-        res.writeHead(404, {'Content-Type': 'text/plain'});
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
         res.end('Not found');
         return;
       }
-      
-      res.writeHead(200, {'Content-Type': 'text/html'});
+
+      res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end(data);
     });
     return;
   }
-  
+
   // Handle file requests
   fs.readFile('.' + parsedUrl.pathname, (err, data) => {
     if (err) {
       console.error('Error reading file:', parsedUrl.pathname, err);
-      res.writeHead(404, {'Content-Type': 'text/plain'});
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
       res.end('Not found');
       return;
     }
-    
+
     let contentType = 'text/plain';
-    
+
     if (parsedUrl.pathname.endsWith('.html')) contentType = 'text/html';
     else if (parsedUrl.pathname.endsWith('.css')) contentType = 'text/css';
     else if (parsedUrl.pathname.endsWith('.js')) contentType = 'application/javascript';
     else if (parsedUrl.pathname.endsWith('.json')) contentType = 'application/json';
     else if (parsedUrl.pathname.endsWith('.png')) contentType = 'image/png';
-    else if (parsedUrl.pathname.endsWith('.jpg') || parsedUrl.pathname.endsWith('.jpeg')) contentType = 'image/jpeg';
-    
-    res.writeHead(200, {'Content-Type': contentType});
+    else if (parsedUrl.pathname.endsWith('.jpg') || parsedUrl.pathname.endsWith('.jpeg'))
+      contentType = 'image/jpeg';
+
+    res.writeHead(200, { 'Content-Type': contentType });
     res.end(data);
   });
 });
@@ -91,4 +94,4 @@ server.on('error', (e) => {
   if (e.code === 'EADDRINUSE') {
     console.error(`Port ${PORT} is already in use. Try another port.`);
   }
-}); 
+});

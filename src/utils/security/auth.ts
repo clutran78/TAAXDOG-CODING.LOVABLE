@@ -2,7 +2,8 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 // Security configuration constants
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secure-secret-key-change-this-in-production';
+const JWT_SECRET =
+  process.env.JWT_SECRET || 'your-super-secure-secret-key-change-this-in-production';
 const SALT_ROUNDS = 12; // High salt rounds for better security
 const TOKEN_EXPIRY = '24h';
 const REFRESH_TOKEN_EXPIRY = '7d';
@@ -87,14 +88,14 @@ export const generateToken = (userId: string, email: string, role: string = 'use
     userId,
     email,
     role,
-    iat: Math.floor(Date.now() / 1000)
+    iat: Math.floor(Date.now() / 1000),
   };
 
   try {
-    return jwt.sign(payload, JWT_SECRET, { 
+    return jwt.sign(payload, JWT_SECRET, {
       expiresIn: TOKEN_EXPIRY,
       issuer: 'taaxdog-finance',
-      audience: 'taaxdog-users'
+      audience: 'taaxdog-users',
     });
   } catch (error) {
     throw new Error('Token generation failed');
@@ -113,14 +114,14 @@ export const generateRefreshToken = (userId: string): string => {
   const payload = {
     userId,
     type: 'refresh',
-    iat: Math.floor(Date.now() / 1000)
+    iat: Math.floor(Date.now() / 1000),
   };
 
   try {
-    return jwt.sign(payload, JWT_SECRET, { 
+    return jwt.sign(payload, JWT_SECRET, {
       expiresIn: REFRESH_TOKEN_EXPIRY,
       issuer: 'taaxdog-finance',
-      audience: 'taaxdog-refresh'
+      audience: 'taaxdog-refresh',
     });
   } catch (error) {
     throw new Error('Refresh token generation failed');
@@ -139,7 +140,7 @@ export const verifyToken = (token: string): JWTPayload | null => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET, {
       issuer: 'taaxdog-finance',
-      audience: 'taaxdog-users'
+      audience: 'taaxdog-users',
     }) as JWTPayload;
 
     // Additional validation
@@ -166,7 +167,7 @@ export const verifyRefreshToken = (token: string): { userId: string } | null => 
   try {
     const decoded = jwt.verify(token, JWT_SECRET, {
       issuer: 'taaxdog-finance',
-      audience: 'taaxdog-refresh'
+      audience: 'taaxdog-refresh',
     }) as any;
 
     if (!decoded.userId || decoded.type !== 'refresh') {
@@ -203,9 +204,9 @@ export const extractTokenFromHeader = (authHeader: string | undefined): string |
 export const generateSecureSessionId = (): string => {
   const timestamp = Date.now().toString();
   const randomBytes = Array.from(crypto.getRandomValues(new Uint8Array(16)))
-    .map(b => b.toString(16).padStart(2, '0'))
+    .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
-  
+
   return `${timestamp}_${randomBytes}`;
 };
 
@@ -219,7 +220,7 @@ export const getSecureCookieOptions = (isProduction: boolean = false) => {
     secure: isProduction, // HTTPS only in production
     sameSite: 'strict' as const,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    path: '/'
+    path: '/',
   };
 };
 
@@ -265,21 +266,21 @@ export const validateAuthState = (token: string): AuthResult => {
   if (!token) {
     return {
       success: false,
-      error: 'No authentication token provided'
+      error: 'No authentication token provided',
     };
   }
 
   if (isTokenBlacklisted(token)) {
     return {
       success: false,
-      error: 'Token has been revoked'
+      error: 'Token has been revoked',
     };
   }
 
   if (isTokenExpired(token)) {
     return {
       success: false,
-      error: 'Authentication token has expired'
+      error: 'Authentication token has expired',
     };
   }
 
@@ -287,7 +288,7 @@ export const validateAuthState = (token: string): AuthResult => {
   if (!payload) {
     return {
       success: false,
-      error: 'Invalid authentication token'
+      error: 'Invalid authentication token',
     };
   }
 
@@ -296,8 +297,8 @@ export const validateAuthState = (token: string): AuthResult => {
     user: {
       id: payload.userId,
       email: payload.email,
-      role: payload.role || 'user'
-    }
+      role: payload.role || 'user',
+    },
   };
 };
 
@@ -307,7 +308,11 @@ export const validateAuthState = (token: string): AuthResult => {
  */
 const authAttempts = new Map<string, { count: number; lastAttempt: number }>();
 
-export const checkAuthRateLimit = (identifier: string, maxAttempts: number = 5, windowMs: number = 15 * 60 * 1000): boolean => {
+export const checkAuthRateLimit = (
+  identifier: string,
+  maxAttempts: number = 5,
+  windowMs: number = 15 * 60 * 1000,
+): boolean => {
   const now = Date.now();
   const attempts = authAttempts.get(identifier);
 
@@ -338,4 +343,4 @@ export const checkAuthRateLimit = (identifier: string, maxAttempts: number = 5, 
  */
 export const clearAuthRateLimit = (identifier: string): void => {
   authAttempts.delete(identifier);
-}; 
+};

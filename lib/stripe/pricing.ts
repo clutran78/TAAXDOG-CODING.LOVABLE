@@ -174,7 +174,7 @@ export const SUBSCRIPTION_PLANS = {
 
 // Helper to get plan by product ID
 export function getPlanByProductId(productId: string): SubscriptionPlan | null {
-  return Object.values(SUBSCRIPTION_PLANS).find(plan => plan.productId === productId) || null;
+  return Object.values(SUBSCRIPTION_PLANS).find((plan) => plan.productId === productId) || null;
 }
 
 // Helper to get plan by price ID
@@ -209,14 +209,14 @@ export function getProductParams(plan: SubscriptionPlan): Stripe.ProductCreatePa
         interval: 'month',
       },
     },
-    features: plan.features.map(feature => ({ name: feature })),
+    features: plan.features.map((feature) => ({ name: feature })),
   };
 }
 
 // Stripe price creation parameters
 export function getPriceParams(
   productId: string,
-  priceTier: PricingTier
+  priceTier: PricingTier,
 ): Stripe.PriceCreateParams {
   return {
     product: productId,

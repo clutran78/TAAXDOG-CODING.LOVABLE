@@ -16,16 +16,16 @@ const ROLLBACK_CONFIG = {
     'receipts',
     'bank_accounts',
     'basiq_users',
-    'users'
+    'users',
   ],
-  
+
   // Backup configuration
   backupBeforeRollback: true,
   backupDir: 'rollback-backups',
-  
+
   // Safety checks
   requireConfirmation: true,
-  dryRun: false
+  dryRun: false,
 };
 
 // Rollback manager class
@@ -34,15 +34,15 @@ class MigrationRollbackManager {
     this.options = { ...ROLLBACK_CONFIG, ...options };
     this.pool = new Pool({
       connectionString,
-      ssl: connectionString.includes('sslmode=require') ? { rejectUnauthorized: false } : false
+      ssl: connectionString.includes('sslmode=require') ? { rejectUnauthorized: false } : false,
     });
-    
+
     this.rollbackLog = {
       timestamp: new Date().toISOString(),
       phase: 'initialization',
       actions: [],
       errors: [],
-      summary: {}
+      summary: {},
     };
   }
 
@@ -79,13 +79,12 @@ class MigrationRollbackManager {
       await this.generateRollbackReport();
 
       console.log('\n✅ Rollback completed successfully');
-
     } catch (error) {
       console.error('\n❌ Rollback failed:', error);
       this.rollbackLog.errors.push({
         phase: this.rollbackLog.phase,
         error: error.message,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
       throw error;
     }
@@ -116,7 +115,7 @@ class MigrationRollbackManager {
     // Get current record counts
     const currentCounts = await this.getCurrentRecordCounts();
     this.rollbackLog.currentCounts = currentCounts;
-    
+
     console.log('\n   Current record counts:');
     for (const [table, count] of Object.entries(currentCounts)) {
       console.log(`   - ${table}: ${count} records`);
@@ -134,26 +133,25 @@ class MigrationRollbackManager {
     for (const table of this.options.tablesInOrder) {
       try {
         console.log(`   Backing up ${table}...`);
-        
+
         const query = `
           COPY (SELECT * FROM ${table}) 
           TO STDOUT WITH CSV HEADER
         `;
-        
+
         const stream = await this.pool.query(query);
         const csvData = [];
-        
-        stream.on('data', chunk => csvData.push(chunk));
+
+        stream.on('data', (chunk) => csvData.push(chunk));
         await new Promise((resolve, reject) => {
           stream.on('end', resolve);
           stream.on('error', reject);
         });
-        
+
         const backupPath = path.join(backupDir, `${table}.csv`);
         await fs.writeFile(backupPath, csvData.join(''), 'utf8');
-        
+
         this.logAction(`Backed up ${table}`, 'success', { path: backupPath });
-        
       } catch (error) {
         console.error(`   ❌ Failed to backup ${table}:`, error.message);
         this.logAction(`Failed to backup ${table}`, 'error', error.message);
@@ -168,14 +166,14 @@ class MigrationRollbackManager {
   async getUserConfirmation() {
     const rl = readline.createInterface({
       input: process.stdin,
-      output: process.stdout
+      output: process.stdout,
     });
 
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       console.log('\n⚠️  WARNING: This will remove all imported data!');
       console.log('   Affected tables:', this.options.tablesInOrder.join(', '));
-      
-      rl.question('\nAre you sure you want to proceed? Type "ROLLBACK" to confirm: ', answer => {
+
+      rl.question('\nAre you sure you want to proceed? Type "ROLLBACK" to confirm: ', (answer) => {
         rl.close();
         resolve(answer === 'ROLLBACK');
       });
@@ -188,10 +186,10 @@ class MigrationRollbackManager {
     this.rollbackLog.phase = 'execution';
 
     const client = await this.pool.connect();
-    
+
     try {
       await client.query('BEGIN');
-      
+
       // Disable foreign key checks
       await client.query('SET session_replication_role = replica');
       console.log('   ✅ Foreign key checks disabled');
@@ -201,7 +199,7 @@ class MigrationRollbackManager {
         try {
           let deleteQuery;
           let params = [];
-          
+
           if (importTimestamp) {
             // Delete records imported after specific timestamp
             deleteQuery = `DELETE FROM ${table} WHERE created_at >= $1`;
@@ -218,16 +216,19 @@ class MigrationRollbackManager {
           if (this.options.dryRun) {
             const countResult = await client.query(
               `SELECT COUNT(*) FROM ${table} ${importTimestamp ? 'WHERE created_at >= $1' : ''}`,
-              params
+              params,
             );
-            console.log(`   🔍 [DRY RUN] Would delete ${countResult.rows[0].count} records from ${table}`);
-            this.logAction(`Dry run: would delete from ${table}`, 'info', { count: countResult.rows[0].count });
+            console.log(
+              `   🔍 [DRY RUN] Would delete ${countResult.rows[0].count} records from ${table}`,
+            );
+            this.logAction(`Dry run: would delete from ${table}`, 'info', {
+              count: countResult.rows[0].count,
+            });
           } else {
             const result = await client.query(deleteQuery, params);
             console.log(`   ✅ Deleted ${result.rowCount} records from ${table}`);
             this.logAction(`Deleted from ${table}`, 'success', { count: result.rowCount });
           }
-
         } catch (error) {
           console.error(`   ❌ Failed to rollback ${table}:`, error.message);
           this.logAction(`Failed to rollback ${table}`, 'error', error.message);
@@ -252,7 +253,6 @@ class MigrationRollbackManager {
         await client.query('COMMIT');
         console.log('\n   ✅ Rollback transaction committed');
       }
-
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -277,9 +277,9 @@ class MigrationRollbackManager {
     for (const [table, afterCount] of Object.entries(afterCounts)) {
       const beforeCount = this.rollbackLog.currentCounts[table] || 0;
       const removed = beforeCount - afterCount;
-      
+
       console.log(`   - ${table}: ${afterCount} records (removed ${removed})`);
-      
+
       if (afterCount > 0 && removed === 0) {
         allClean = false;
       }
@@ -292,18 +292,18 @@ class MigrationRollbackManager {
   // Phase 6: Generate rollback report
   async generateRollbackReport() {
     console.log('\n📄 Generating rollback report...');
-    
+
     const reportDir = path.join(__dirname, '..', 'rollback-reports');
     await fs.mkdir(reportDir, { recursive: true });
-    
+
     const reportPath = path.join(reportDir, `rollback_report_${Date.now()}.json`);
     await fs.writeFile(reportPath, JSON.stringify(this.rollbackLog, null, 2), 'utf8');
-    
+
     // Generate markdown report
     const markdownPath = path.join(reportDir, `rollback_report_${Date.now()}.md`);
     const markdown = this.generateMarkdownReport();
     await fs.writeFile(markdownPath, markdown, 'utf8');
-    
+
     console.log(`   ✅ Report saved to: ${reportPath}`);
     this.rollbackLog.reportLocation = reportPath;
   }
@@ -341,7 +341,7 @@ class MigrationRollbackManager {
 
   async getCurrentRecordCounts() {
     const counts = {};
-    
+
     for (const table of this.options.tablesInOrder) {
       try {
         const result = await this.pool.query(`SELECT COUNT(*) FROM ${table}`);
@@ -350,7 +350,7 @@ class MigrationRollbackManager {
         counts[table] = 0;
       }
     }
-    
+
     return counts;
   }
 
@@ -372,7 +372,7 @@ class MigrationRollbackManager {
 
   async resetSequences(client) {
     console.log('\n   🔢 Resetting sequences...');
-    
+
     const sequences = [
       { table: 'users', sequence: 'users_id_seq' },
       { table: 'bank_accounts', sequence: 'bank_accounts_id_seq' },
@@ -380,13 +380,13 @@ class MigrationRollbackManager {
       { table: 'receipts', sequence: 'receipts_id_seq' },
       { table: 'budgets', sequence: 'budgets_id_seq' },
       { table: 'budget_tracking', sequence: 'budget_tracking_id_seq' },
-      { table: 'financial_insights', sequence: 'financial_insights_id_seq' }
+      { table: 'financial_insights', sequence: 'financial_insights_id_seq' },
     ];
-    
+
     for (const { table, sequence } of sequences) {
       try {
         await client.query(
-          `SELECT setval('${sequence}', COALESCE((SELECT MAX(id::bigint) FROM ${table}), 1))`
+          `SELECT setval('${sequence}', COALESCE((SELECT MAX(id::bigint) FROM ${table}), 1))`,
         );
       } catch (error) {
         // Sequence might not exist or table uses UUID
@@ -399,14 +399,14 @@ class MigrationRollbackManager {
       timestamp: new Date().toISOString(),
       action,
       status,
-      details
+      details,
     });
   }
 
   generateMarkdownReport() {
     const log = this.rollbackLog;
     const isDryRun = this.options.dryRun ? ' (DRY RUN)' : '';
-    
+
     return `# Migration Rollback Report${isDryRun}
 
 **Date:** ${new Date(log.timestamp).toLocaleString()}
@@ -422,40 +422,49 @@ ${log.backupLocation ? `**Backup Location:** ${log.backupLocation}` : ''}
 ## Record Counts
 
 ### Before Rollback
-${Object.entries(log.currentCounts || {}).map(([table, count]) => 
-  `- ${table}: ${count} records`
-).join('\n')}
+${Object.entries(log.currentCounts || {})
+  .map(([table, count]) => `- ${table}: ${count} records`)
+  .join('\n')}
 
 ### After Rollback
-${Object.entries(log.afterCounts || {}).map(([table, count]) => 
-  `- ${table}: ${count} records`
-).join('\n')}
+${Object.entries(log.afterCounts || {})
+  .map(([table, count]) => `- ${table}: ${count} records`)
+  .join('\n')}
 
 ## Actions Performed
 
-${log.actions.map(action => 
-  `- [${new Date(action.timestamp).toLocaleTimeString()}] ${action.status === 'success' ? '✅' : action.status === 'error' ? '❌' : '📌'} ${action.action}`
-).join('\n')}
+${log.actions
+  .map(
+    (action) =>
+      `- [${new Date(action.timestamp).toLocaleTimeString()}] ${action.status === 'success' ? '✅' : action.status === 'error' ? '❌' : '📌'} ${action.action}`,
+  )
+  .join('\n')}
 
 ## Errors
 
-${log.errors.length === 0 ? 'No errors occurred.' : log.errors.map(error => 
-  `- [${error.phase}] ${error.error}`
-).join('\n')}
+${
+  log.errors.length === 0
+    ? 'No errors occurred.'
+    : log.errors.map((error) => `- [${error.phase}] ${error.error}`).join('\n')
+}
 
 ## Next Steps
 
-${log.errors.length === 0 ? `
+${
+  log.errors.length === 0
+    ? `
 1. Verify application functionality
 2. Check for any remaining data inconsistencies
 3. ${log.backupLocation ? 'Keep backup for reference' : 'Create a new backup'}
 4. Document the rollback in your change log
-` : `
+`
+    : `
 1. Review the errors above
 2. Manually check affected tables
 3. Contact support if needed
 4. Consider restoring from backup
-`}
+`
+}
 `;
   }
 
@@ -468,33 +477,32 @@ ${log.errors.length === 0 ? `
 class RecoveryUtilities {
   static async restoreFromBackup(backupDir, connectionString) {
     console.log('📥 Restoring from backup...');
-    
+
     const pool = new Pool({ connectionString });
-    
+
     try {
       // List backup files
       const files = await fs.readdir(backupDir);
-      const csvFiles = files.filter(f => f.endsWith('.csv'));
-      
+      const csvFiles = files.filter((f) => f.endsWith('.csv'));
+
       console.log(`Found ${csvFiles.length} backup files`);
-      
+
       for (const file of csvFiles) {
         const table = path.basename(file, '.csv');
         const filePath = path.join(backupDir, file);
-        
+
         console.log(`   Restoring ${table}...`);
-        
+
         const query = `COPY ${table} FROM STDIN WITH CSV HEADER`;
         const fileContent = await fs.readFile(filePath, 'utf8');
-        
+
         await pool.query(query, (stream) => {
           stream.write(fileContent);
           stream.end();
         });
-        
+
         console.log(`   ✅ Restored ${table}`);
       }
-      
     } catch (error) {
       console.error('❌ Restore failed:', error);
       throw error;
@@ -505,7 +513,7 @@ class RecoveryUtilities {
 
   static async generateCorrectionScript(validationReport) {
     const corrections = [];
-    
+
     // Add corrections based on validation issues
     if (validationReport.australianCompliance?.bsbFormat?.invalidRecords > 0) {
       corrections.push(`
@@ -515,7 +523,7 @@ SET bsb = SUBSTRING(bsb FROM 1 FOR 3) || '-' || SUBSTRING(bsb FROM 4 FOR 3)
 WHERE bsb ~ '^[0-9]{6}$';
 `);
     }
-    
+
     if (validationReport.australianCompliance?.phoneFormat?.invalidRecords > 0) {
       corrections.push(`
 -- Fix phone number format
@@ -524,7 +532,7 @@ SET phone = '+61' || SUBSTRING(phone FROM 2)
 WHERE phone ~ '^0[0-9]{9}$';
 `);
     }
-    
+
     return corrections.join('\n');
   }
 }
@@ -533,32 +541,32 @@ WHERE phone ~ '^0[0-9]{9}$';
 async function main() {
   const args = process.argv.slice(2);
   const command = args[0];
-  
+
   const connectionString = process.env.DATABASE_URL;
-  
+
   if (!connectionString) {
     console.error('❌ Error: DATABASE_URL environment variable is not set');
     console.error('Please set DATABASE_URL with your PostgreSQL connection string');
     process.exit(1);
   }
-  
+
   console.log('🔧 Migration Rollback Tool');
   console.log('========================\n');
-  
+
   try {
     switch (command) {
       case 'rollback':
         const options = {
           dryRun: args.includes('--dry-run'),
           requireConfirmation: !args.includes('--no-confirm'),
-          backupBeforeRollback: !args.includes('--no-backup')
+          backupBeforeRollback: !args.includes('--no-backup'),
         };
-        
+
         const manager = new MigrationRollbackManager(connectionString, options);
         await manager.rollback(args[1]); // Optional timestamp
         await manager.close();
         break;
-        
+
       case 'restore':
         if (!args[1]) {
           console.error('Please provide backup directory path');
@@ -566,7 +574,7 @@ async function main() {
         }
         await RecoveryUtilities.restoreFromBackup(args[1], connectionString);
         break;
-        
+
       case 'help':
       default:
         console.log(`Usage:
@@ -584,9 +592,8 @@ Examples:
   npm run rollback -- restore rollback-backups/backup_1234567890
 `);
     }
-    
+
     process.exit(0);
-    
   } catch (error) {
     console.error('\n❌ Operation failed:', error.message);
     process.exit(1);
@@ -600,5 +607,5 @@ if (require.main === module) {
 module.exports = {
   MigrationRollbackManager,
   RecoveryUtilities,
-  ROLLBACK_CONFIG
+  ROLLBACK_CONFIG,
 };

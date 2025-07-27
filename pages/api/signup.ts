@@ -12,7 +12,7 @@ import {
 } from '../../lib/auth/auth-utils';
 import { registerSchema, validateInput } from '../../lib/auth/validation';
 import { authRateLimiter } from '../../lib/auth/rate-limiter';
-import { sendVerificationEmail } from '../../lib/email';
+import { sendVerificationEmail } from '../../lib/services/email/email';
 import { TaxResidency, AuthEvent } from '@prisma/client';
 import { InputValidator } from '../../lib/security/middleware';
 import { apiResponse } from '@/lib/api/response';

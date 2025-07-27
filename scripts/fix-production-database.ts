@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -17,20 +17,20 @@ async function fixProductionDatabase() {
   try {
     // Step 1: Create missing enum types
     console.log('📝 Creating missing enum types...');
-    
+
     const enumQueries = [
       `DO $$ BEGIN
         CREATE TYPE "Role" AS ENUM ('USER', 'ADMIN', 'ACCOUNTANT', 'SUPPORT');
       EXCEPTION
         WHEN duplicate_object THEN null;
       END $$;`,
-      
+
       `DO $$ BEGIN
         CREATE TYPE "TaxResidency" AS ENUM ('RESIDENT', 'NON_RESIDENT', 'TEMPORARY_RESIDENT');
       EXCEPTION
         WHEN duplicate_object THEN null;
       END $$;`,
-      
+
       `DO $$ BEGIN
         CREATE TYPE "AuthEvent" AS ENUM (
           'LOGIN_SUCCESS', 'LOGIN_FAILED', 'LOGOUT', 'PASSWORD_RESET_REQUEST',
@@ -41,36 +41,36 @@ async function fixProductionDatabase() {
       EXCEPTION
         WHEN duplicate_object THEN null;
       END $$;`,
-      
+
       `DO $$ BEGIN
         CREATE TYPE "Plan" AS ENUM ('SMART', 'PRO');
       EXCEPTION
         WHEN duplicate_object THEN null;
       END $$;`,
-      
+
       `DO $$ BEGIN
         CREATE TYPE "TaxReturnStatus" AS ENUM ('DRAFT', 'IN_PROGRESS', 'READY_TO_LODGE', 'LODGED', 'PROCESSED');
       EXCEPTION
         WHEN duplicate_object THEN null;
       END $$;`,
-      
+
       `DO $$ BEGIN
         CREATE TYPE "ReceiptStatus" AS ENUM ('PENDING', 'PROCESSED', 'FAILED', 'DUPLICATE');
       EXCEPTION
         WHEN duplicate_object THEN null;
       END $$;`,
-      
+
       `DO $$ BEGIN
         CREATE TYPE "BudgetStatus" AS ENUM ('ACTIVE', 'PAUSED', 'COMPLETED');
       EXCEPTION
         WHEN duplicate_object THEN null;
       END $$;`,
-      
+
       `DO $$ BEGIN
         CREATE TYPE "InsightPriority" AS ENUM ('LOW', 'MEDIUM', 'HIGH', 'URGENT');
       EXCEPTION
         WHEN duplicate_object THEN null;
-      END $$;`
+      END $$;`,
     ];
 
     for (const query of enumQueries) {
@@ -80,7 +80,7 @@ async function fixProductionDatabase() {
 
     // Step 2: Fix User table
     console.log('📝 Fixing User table schema...');
-    
+
     // First, check if we need to rename users to User
     const tableExists = await prisma.$queryRaw`
       SELECT EXISTS (
@@ -89,7 +89,7 @@ async function fixProductionDatabase() {
         AND table_name = 'users'
       );
     `;
-    
+
     if (tableExists[0]?.exists) {
       // Rename table if needed
       await prisma.$executeRawUnsafe(`
@@ -129,7 +129,7 @@ async function fixProductionDatabase() {
 
     // Step 3: Fix AuditLog table
     console.log('📝 Fixing AuditLog table schema...');
-    
+
     // Check if audit_logs exists and rename it
     const auditLogExists = await prisma.$queryRaw`
       SELECT EXISTS (
@@ -138,7 +138,7 @@ async function fixProductionDatabase() {
         AND table_name = 'audit_logs'
       );
     `;
-    
+
     if (auditLogExists[0]?.exists) {
       await prisma.$executeRawUnsafe(`
         ALTER TABLE IF EXISTS audit_logs RENAME TO "AuditLog";
@@ -193,13 +193,14 @@ async function fixProductionDatabase() {
     console.log('1. Run: npx prisma db push --accept-data-loss');
     console.log('2. Restart your application');
     console.log('3. Test authentication features\n');
-
   } catch (error) {
     console.error('❌ Error:', error);
     console.error('\nTroubleshooting:');
     console.error('1. Ensure DATABASE_URL is set correctly');
     console.error('2. Check database connection and permissions');
-    console.error('3. Try running: npx prisma db push --force-reset (WARNING: This will reset data)');
+    console.error(
+      '3. Try running: npx prisma db push --force-reset (WARNING: This will reset data)',
+    );
     process.exit(1);
   } finally {
     await prisma.$disconnect();

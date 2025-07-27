@@ -23,9 +23,10 @@ export function generateCSRFToken(): string {
 export function storeCSRFToken(sessionId: string, token: string): void {
   const expires = Date.now() + CSRF_TOKEN_EXPIRY;
   csrfTokenStore.set(sessionId, { token, expires });
-  
+
   // Clean up expired tokens periodically
-  if (Math.random() < 0.1) { // 10% chance to clean up
+  if (Math.random() < 0.1) {
+    // 10% chance to clean up
     cleanupExpiredTokens();
   }
 }
@@ -33,20 +34,17 @@ export function storeCSRFToken(sessionId: string, token: string): void {
 // Validate CSRF token
 export function validateCSRFToken(sessionId: string, token: string): boolean {
   const stored = csrfTokenStore.get(sessionId);
-  
+
   if (!stored) {
     return false;
   }
-  
+
   if (Date.now() > stored.expires) {
     csrfTokenStore.delete(sessionId);
     return false;
   }
-  
-  return crypto.timingSafeEqual(
-    Buffer.from(stored.token),
-    Buffer.from(token)
-  );
+
+  return crypto.timingSafeEqual(Buffer.from(stored.token), Buffer.from(token));
 }
 
 // Clean up expired tokens
@@ -63,18 +61,21 @@ function cleanupExpiredTokens(): void {
 function getSessionId(req: NextApiRequest): string | null {
   try {
     // Try to get from auth token
-    const cookies = req.headers.cookie?.split(';').reduce((acc, cookie) => {
-      const [key, value] = cookie.trim().split('=');
-      acc[key] = value;
-      return acc;
-    }, {} as Record<string, string>);
-    
+    const cookies = req.headers.cookie?.split(';').reduce(
+      (acc, cookie) => {
+        const [key, value] = cookie.trim().split('=');
+        acc[key] = value;
+        return acc;
+      },
+      {} as Record<string, string>,
+    );
+
     const authToken = cookies?.['auth-token'];
     if (authToken) {
       const decoded = verifyJWT(authToken);
       return decoded.sessionId || decoded.userId;
     }
-    
+
     // Fallback to session token
     const sessionToken = cookies?.['session-token'];
     return sessionToken || null;
@@ -85,14 +86,14 @@ function getSessionId(req: NextApiRequest): string | null {
 
 // CSRF protection middleware
 export function csrfProtection(
-  handler: (req: NextApiRequest, res: NextApiResponse) => Promise<void>
+  handler: (req: NextApiRequest, res: NextApiResponse) => Promise<void>,
 ) {
   return async (req: NextApiRequest, res: NextApiResponse) => {
     // Skip CSRF for safe methods
     if (!PROTECTED_METHODS.includes(req.method || '')) {
       return handler(req, res);
     }
-    
+
     // Get session ID
     const sessionId = getSessionId(req);
     if (!sessionId) {
@@ -101,19 +102,20 @@ export function csrfProtection(
         message: 'No valid session found',
       });
     }
-    
+
     // Get CSRF token from header or body
-    const csrfToken = req.headers[CSRF_HEADER_NAME] as string || 
-                     req.body?.csrfToken ||
-                     req.query?.csrfToken as string;
-    
+    const csrfToken =
+      (req.headers[CSRF_HEADER_NAME] as string) ||
+      req.body?.csrfToken ||
+      (req.query?.csrfToken as string);
+
     if (!csrfToken) {
       return res.status(403).json({
         error: 'CSRF token missing',
         message: 'CSRF token is required for this request',
       });
     }
-    
+
     // Validate CSRF token
     if (!validateCSRFToken(sessionId, csrfToken)) {
       return res.status(403).json({
@@ -121,7 +123,7 @@ export function csrfProtection(
         message: 'The CSRF token is invalid or expired',
       });
     }
-    
+
     // Continue to handler
     return handler(req, res);
   };
@@ -131,28 +133,28 @@ export function csrfProtection(
 export function setCSRFTokenCookie(
   req: NextApiRequest,
   res: NextApiResponse,
-  sessionId: string
+  sessionId: string,
 ): string {
   const token = generateCSRFToken();
   storeCSRFToken(sessionId, token);
-  
+
   // Set CSRF token cookie (readable by JavaScript)
   const isDevelopment = process.env.NODE_ENV !== 'production';
   res.setHeader('Set-Cookie', [
     `${CSRF_COOKIE_NAME}=${token}; Path=/; SameSite=Strict; ${!isDevelopment ? 'Secure;' : ''} Max-Age=${CSRF_TOKEN_EXPIRY / 1000}`,
   ]);
-  
+
   return token;
 }
 
 // Get CSRF token for a session
 export function getCSRFToken(sessionId: string): string | null {
   const stored = csrfTokenStore.get(sessionId);
-  
+
   if (!stored || Date.now() > stored.expires) {
     return null;
   }
-  
+
   return stored.token;
 }
 
@@ -171,7 +173,7 @@ export function createCSRFMiddleware(options: CSRFOptions = {}) {
     cookieName = CSRF_COOKIE_NAME,
     tokenExpiry = CSRF_TOKEN_EXPIRY,
   } = options;
-  
+
   return (handler: (req: NextApiRequest, res: NextApiResponse) => Promise<void>) => {
     return async (req: NextApiRequest, res: NextApiResponse) => {
       // Check if path is excluded
@@ -179,12 +181,12 @@ export function createCSRFMiddleware(options: CSRFOptions = {}) {
       if (path && excludePaths.includes(path)) {
         return handler(req, res);
       }
-      
+
       // Skip CSRF for safe methods
       if (!PROTECTED_METHODS.includes(req.method || '')) {
         return handler(req, res);
       }
-      
+
       // Get session ID
       const sessionId = getSessionId(req);
       if (!sessionId) {
@@ -193,19 +195,20 @@ export function createCSRFMiddleware(options: CSRFOptions = {}) {
           message: 'No valid session found',
         });
       }
-      
+
       // Get CSRF token
-      const csrfToken = req.headers[headerName] as string || 
-                       req.body?.csrfToken ||
-                       req.query?.csrfToken as string;
-      
+      const csrfToken =
+        (req.headers[headerName] as string) ||
+        req.body?.csrfToken ||
+        (req.query?.csrfToken as string);
+
       if (!csrfToken) {
         return res.status(403).json({
           error: 'CSRF token missing',
           message: 'CSRF token is required for this request',
         });
       }
-      
+
       // Validate CSRF token
       if (!validateCSRFToken(sessionId, csrfToken)) {
         return res.status(403).json({
@@ -213,7 +216,7 @@ export function createCSRFMiddleware(options: CSRFOptions = {}) {
           message: 'The CSRF token is invalid or expired',
         });
       }
-      
+
       // Continue to handler
       return handler(req, res);
     };

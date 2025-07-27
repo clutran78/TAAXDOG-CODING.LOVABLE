@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -14,14 +14,14 @@ async function applyOptimizations() {
     console.log('📊 Creating materialized views...');
     const viewsSQL = fs.readFileSync(
       path.join(__dirname, '../prisma/views/create-analytics-views-fixed.sql'),
-      'utf-8'
+      'utf-8',
     );
 
     // Split SQL statements and execute them
     const statements = viewsSQL
       .split(';')
-      .filter(stmt => stmt.trim())
-      .map(stmt => stmt.trim() + ';');
+      .filter((stmt) => stmt.trim())
+      .map((stmt) => stmt.trim() + ';');
 
     for (const statement of statements) {
       if (statement.includes('CREATE')) {
@@ -29,7 +29,8 @@ async function applyOptimizations() {
         try {
           await prisma.$executeRawUnsafe(statement);
         } catch (error: any) {
-          if (error.code === '42P07') { // Relation already exists
+          if (error.code === '42P07') {
+            // Relation already exists
             console.log('  ✓ View already exists, skipping...');
           } else {
             throw error;
@@ -45,15 +46,15 @@ async function applyOptimizations() {
       'CREATE INDEX IF NOT EXISTS idx_transaction_user_date ON bank_transactions(user_id, created_at DESC)',
       'CREATE INDEX IF NOT EXISTS idx_transaction_user_category ON bank_transactions(user_id, category)',
       'CREATE INDEX IF NOT EXISTS idx_transaction_deductible ON bank_transactions(user_id, is_tax_deductible) WHERE is_tax_deductible = true',
-      
+
       // Goal indexes
       'CREATE INDEX IF NOT EXISTS idx_goal_user_active ON goals(user_id, is_active) WHERE is_active = true',
       'CREATE INDEX IF NOT EXISTS idx_goal_target_date ON goals(target_date) WHERE target_date IS NOT NULL',
-      
+
       // Receipt indexes
       'CREATE INDEX IF NOT EXISTS idx_receipt_user_date ON receipts(user_id, date DESC)',
       'CREATE INDEX IF NOT EXISTS idx_receipt_category ON receipts(user_id, category)',
-      
+
       // Banking connection indexes
       'CREATE INDEX IF NOT EXISTS idx_banking_user_active ON bank_connections(user_id, is_active) WHERE is_active = true',
     ];
@@ -65,7 +66,8 @@ async function applyOptimizations() {
         await prisma.$executeRawUnsafe(index);
         console.log('  ✓ Index created successfully');
       } catch (error: any) {
-        if (error.code === '42P07') { // Relation already exists
+        if (error.code === '42P07') {
+          // Relation already exists
           console.log('  ✓ Index already exists');
         } else {
           console.error(`  ✗ Failed to create index: ${error.message}`);
@@ -76,7 +78,7 @@ async function applyOptimizations() {
     // 3. Analyze tables for query planner optimization
     console.log('\n📈 Analyzing tables for query optimization...');
     const tables = ['users', 'bank_transactions', 'goals', 'receipts', 'bank_connections'];
-    
+
     for (const table of tables) {
       console.log(`  Analyzing table: ${table}`);
       await prisma.$executeRawUnsafe(`ANALYZE ${table}`);
@@ -93,7 +95,7 @@ async function applyOptimizations() {
 
     // 5. Display current statistics
     console.log('\n📊 Database Statistics:');
-    
+
     // Table sizes
     const tableSizes = await prisma.$queryRaw<any[]>`
       SELECT 
@@ -128,7 +130,9 @@ async function applyOptimizations() {
 
     console.log('\n  Top 10 Most Used Indexes:');
     indexUsage.forEach((index, i) => {
-      console.log(`    ${i + 1}. ${index.indexname} on ${index.tablename}: ${index.index_scans} scans`);
+      console.log(
+        `    ${i + 1}. ${index.indexname} on ${index.tablename}: ${index.index_scans} scans`,
+      );
     });
 
     console.log('\n✅ Query optimizations applied successfully!');
@@ -137,7 +141,6 @@ async function applyOptimizations() {
     console.log('  2. Configure connection pool settings in your .env file');
     console.log('  3. Monitor query performance using the health-check endpoint');
     console.log('  4. Schedule regular view refreshes (daily recommended)');
-
   } catch (error) {
     console.error('\n❌ Error applying optimizations:', error);
     process.exit(1);

@@ -1,0 +1,247 @@
+{
+  "users": {
+    "testUser": {
+      "email": "testuser@example.com",
+      "password": "TestPass123!",
+      "name": "John Doe",
+      "phone": "0412345678",
+      "abn": "12345678901",
+      "tfn": "123456789",
+      "taxResidency": "RESIDENT"
+    },
+    "premiumUser": {
+      "email": "premium@example.com",
+      "password": "PremiumPass123!",
+      "name": "Jane Smith",
+      "phone": "0498765432",
+      "subscription": "TAAX_PRO"
+    },
+    "adminUser": {
+      "email": "admin@taxreturnpro.com.au",
+      "password": "AdminSecure123!",
+      "name": "Admin User",
+      "role": "ADMIN"
+    }
+  },
+  "transactions": {
+    "income": [
+      {
+        "description": "Salary Payment",
+        "amount": 5000,
+        "type": "income",
+        "category": "Salary",
+        "merchant": "Employer Pty Ltd",
+        "date": "2024-01-01"
+      },
+      {
+        "description": "Freelance Project",
+        "amount": 1500,
+        "type": "income",
+        "category": "Business Income",
+        "merchant": "Client ABC",
+        "date": "2024-01-15"
+      },
+      {
+        "description": "Investment Dividend",
+        "amount": 250,
+        "type": "income",
+        "category": "Investment",
+        "merchant": "ASX:BHP",
+        "date": "2024-01-20"
+      }
+    ],
+    "expenses": [
+      {
+        "description": "Woolworths Groceries",
+        "amount": 156.5,
+        "type": "expense",
+        "category": "Food & Dining",
+        "merchant": "Woolworths",
+        "date": "2024-01-05",
+        "gstIncluded": true
+      },
+      {
+        "description": "Office Supplies",
+        "amount": 89.99,
+        "type": "expense",
+        "category": "Business",
+        "merchant": "Officeworks",
+        "date": "2024-01-10",
+        "taxDeductible": true,
+        "gstIncluded": true
+      },
+      {
+        "description": "Fuel - Business Travel",
+        "amount": 75.0,
+        "type": "expense",
+        "category": "Transportation",
+        "merchant": "Shell",
+        "date": "2024-01-12",
+        "taxDeductible": true,
+        "gstIncluded": true
+      },
+      {
+        "description": "Professional Development Course",
+        "amount": 299.0,
+        "type": "expense",
+        "category": "Education",
+        "merchant": "Udemy",
+        "date": "2024-01-18",
+        "taxDeductible": true
+      }
+    ]
+  },
+  "goals": [
+    {
+      "name": "Emergency Fund",
+      "targetAmount": 10000,
+      "currentAmount": 3500,
+      "category": "Savings",
+      "description": "6 months of expenses",
+      "dueDate": "2024-12-31"
+    },
+    {
+      "name": "House Deposit",
+      "targetAmount": 80000,
+      "currentAmount": 25000,
+      "category": "Savings",
+      "description": "20% deposit for first home",
+      "dueDate": "2025-12-31"
+    },
+    {
+      "name": "Europe Vacation",
+      "targetAmount": 5000,
+      "currentAmount": 2000,
+      "category": "Travel",
+      "description": "3-week Europe trip",
+      "dueDate": "2024-09-30"
+    },
+    {
+      "name": "Pay Off Credit Card",
+      "targetAmount": 3000,
+      "currentAmount": 1000,
+      "category": "Debt",
+      "description": "Clear credit card debt",
+      "dueDate": "2024-06-30"
+    }
+  ],
+  "banks": {
+    "supported": [
+      {
+        "name": "Commonwealth Bank",
+        "code": "CBA",
+        "logo": "cba-logo.png"
+      },
+      {
+        "name": "Westpac",
+        "code": "WBC",
+        "logo": "westpac-logo.png"
+      },
+      {
+        "name": "ANZ",
+        "code": "ANZ",
+        "logo": "anz-logo.png"
+      },
+      {
+        "name": "NAB",
+        "code": "NAB",
+        "logo": "nab-logo.png"
+      }
+    ],
+    "testAccounts": [
+      {
+        "bank": "Commonwealth Bank",
+        "accountName": "Everyday Account",
+        "accountNumber": "****1234",
+        "bsb": "062-000",
+        "type": "TRANSACTION",
+        "balance": 2500.5
+      },
+      {
+        "bank": "Commonwealth Bank",
+        "accountName": "NetBank Saver",
+        "accountNumber": "****5678",
+        "bsb": "062-000",
+        "type": "SAVINGS",
+        "balance": 15000.0
+      }
+    ]
+  },
+  "categories": {
+    "income": ["Salary", "Business Income", "Investment", "Government Benefits", "Other Income"],
+    "expense": [
+      "Food & Dining",
+      "Shopping",
+      "Transportation",
+      "Bills & Utilities",
+      "Entertainment",
+      "Health & Medical",
+      "Education",
+      "Business",
+      "Home",
+      "Travel",
+      "Insurance",
+      "Fees & Charges",
+      "Other"
+    ],
+    "taxDeductible": {
+      "D1": "Work-related travel",
+      "D2": "Work-related uniform/clothing",
+      "D3": "Work-related self-education",
+      "D4": "Other work-related expenses",
+      "D5": "Home office expenses",
+      "D10": "Cost of managing tax affairs",
+      "D15": "Other deductions"
+    }
+  },
+  "subscriptions": {
+    "plans": [
+      {
+        "id": "TAAX_SMART",
+        "name": "TAAX Smart",
+        "price": 9.99,
+        "earlyBirdPrice": 4.99,
+        "trialDays": 3,
+        "features": ["Connect 2 bank accounts", "Basic AI insights", "Manual transaction entry", "Basic goals", "Email support"]
+      },
+      {
+        "id": "TAAX_PRO",
+        "name": "TAAX Pro",
+        "price": 18.99,
+        "earlyBirdPrice": 10.99,
+        "trialDays": 7,
+        "features": ["Unlimited bank accounts", "Advanced AI insights", "Receipt scanning & OCR", "Advanced goals with automation", "Tax optimization", "Priority support", "API access"]
+      }
+    ]
+  },
+  "testReceipts": [
+    {
+      "filename": "woolworths-receipt.jpg",
+      "merchant": "Woolworths",
+      "amount": 156.5,
+      "date": "2024-01-05",
+      "items": ["Milk 2L - $3.50", "Bread - $2.80", "Chicken 1kg - $12.00"]
+    },
+    {
+      "filename": "officeworks-receipt.pdf",
+      "merchant": "Officeworks",
+      "amount": 89.99,
+      "date": "2024-01-10",
+      "items": ["A4 Paper Ream - $8.99", "Pens Pack - $15.00", "Laptop Stand - $66.00"],
+      "taxInvoice": true,
+      "abn": "80004020304"
+    }
+  ],
+  "mockApiResponses": {
+    "basiq": {
+      "authToken": "mock-basiq-token-123456",
+      "userId": "mock-user-id-789",
+      "connectionId": "mock-connection-id-456"
+    },
+    "stripe": {
+      "customerId": "cus_mock123456",
+      "subscriptionId": "sub_mock789012",
+      "paymentMethodId": "pm_mock345678"
+    }
+  }
+}

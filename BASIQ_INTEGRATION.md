@@ -1,12 +1,16 @@
 # BASIQ API Integration with Environment Switching
 
-This document details the comprehensive BASIQ API integration implemented in TAAXDOG with development and production environment switching capabilities.
+This document details the comprehensive BASIQ API integration implemented in
+TAAXDOG with development and production environment switching capabilities.
 
 ## Overview
 
 The BASIQ integration provides:
-- **Environment Switching**: Seamless switching between development and production environments
-- **Bank Account Linking**: Connect multiple bank accounts via Australian financial institutions
+
+- **Environment Switching**: Seamless switching between development and
+  production environments
+- **Bank Account Linking**: Connect multiple bank accounts via Australian
+  financial institutions
 - **Transaction Import**: Automatic transaction synchronization and processing
 - **Receipt Matching**: AI-powered matching of receipts with bank transactions
 - **Background Sync**: Automated periodic transaction synchronization
@@ -66,12 +70,14 @@ BASIQ_MATCH_AMOUNT_TOLERANCE=5.0
 ### Environment Switching
 
 #### Via Environment Variable
+
 ```bash
 # Change environment and restart app
 export BASIQ_ENVIRONMENT=production
 ```
 
 #### Via Admin API
+
 ```bash
 # Switch to production environment
 curl -X POST http://localhost:5000/api/admin/basiq/environment/switch \
@@ -81,6 +87,7 @@ curl -X POST http://localhost:5000/api/admin/basiq/environment/switch \
 ```
 
 #### Via Admin Dashboard
+
 Access the admin panel to switch environments through the web interface.
 
 ## API Usage
@@ -88,6 +95,7 @@ Access the admin panel to switch environments through the web interface.
 ### User Management
 
 #### Create BASIQ User
+
 ```python
 from src.integrations.basiq_client import basiq_client
 
@@ -104,6 +112,7 @@ if result['success']:
 ```
 
 #### Get User Information
+
 ```python
 result = basiq_client.get_user(basiq_user_id)
 if result['success']:
@@ -113,12 +122,14 @@ if result['success']:
 ### Institution and Connection Management
 
 #### Get Supported Institutions
+
 ```python
 institutions = basiq_client.get_supported_institutions()
 # Returns list of Australian financial institutions
 ```
 
 #### Initiate Bank Connection
+
 ```python
 result = basiq_client.initiate_bank_connection(user_id, institution_id)
 if result['success']:
@@ -127,6 +138,7 @@ if result['success']:
 ```
 
 #### Get User Connections
+
 ```python
 result = basiq_client.get_user_connections(user_id)
 if result['success']:
@@ -136,18 +148,21 @@ if result['success']:
 ### Account and Transaction Management
 
 #### Sync User Accounts
+
 ```python
 accounts = basiq_client.sync_user_accounts(user_id)
 # Returns formatted account information
 ```
 
 #### Import Transactions
+
 ```python
 transactions = basiq_client.import_transactions(user_id, days_back=30)
 # Returns processed transaction data with receipt matching
 ```
 
 #### Get User Transactions
+
 ```python
 result = basiq_client.get_user_transactions(user_id, filter_str="account.id.eq('account-id')")
 if result['success']:
@@ -157,6 +172,7 @@ if result['success']:
 ### Receipt Matching
 
 #### Manual Receipt Matching
+
 ```python
 # Calculate match score between transaction and receipt
 score = basiq_client.calculate_match_score(transaction, receipt)
@@ -170,11 +186,13 @@ matched = basiq_client.match_transaction_with_receipts(user_id, transaction)
 ### Environment Management
 
 #### Get Environment Status
+
 ```
 GET /api/admin/basiq/environment/status
 ```
 
 Response:
+
 ```json
 {
   "success": true,
@@ -190,6 +208,7 @@ Response:
 ```
 
 #### Switch Environment
+
 ```
 POST /api/admin/basiq/environment/switch
 Content-Type: application/json
@@ -200,6 +219,7 @@ Content-Type: application/json
 ```
 
 Response:
+
 ```json
 {
   "success": true,
@@ -211,11 +231,13 @@ Response:
 ```
 
 #### Validate Configuration
+
 ```
 GET /api/admin/basiq/environment/validate
 ```
 
 #### Test Connection
+
 ```
 POST /api/admin/basiq/test-connection
 ```
@@ -223,11 +245,13 @@ POST /api/admin/basiq/test-connection
 ### Configuration Management
 
 #### Get Current Configuration
+
 ```
 GET /api/admin/basiq/config
 ```
 
 #### Get Supported Institutions
+
 ```
 GET /api/admin/basiq/institutions
 ```
@@ -235,11 +259,13 @@ GET /api/admin/basiq/institutions
 ### Sync Management
 
 #### Trigger Manual Sync
+
 ```
 POST /api/admin/basiq/sync/trigger
 ```
 
 #### Get Sync Logs
+
 ```
 GET /api/admin/basiq/logs
 ```
@@ -292,7 +318,8 @@ The scheduler provides comprehensive statistics:
 
 ## Integration with Existing BASIQ Code
 
-The new implementation maintains backward compatibility with existing BASIQ code:
+The new implementation maintains backward compatibility with existing BASIQ
+code:
 
 ```python
 # Legacy functions still work
@@ -328,11 +355,13 @@ All BASIQ operations are logged with structured logging:
 ## Testing
 
 ### Unit Tests
+
 ```bash
 pytest tests/unit/test_basiq_integration.py
 ```
 
 ### Integration Tests
+
 ```bash
 pytest tests/integration/test_basiq_api.py
 ```
@@ -394,6 +423,7 @@ GET /api/health/basiq
 ```
 
 Returns:
+
 ```json
 {
   "status": "healthy",
@@ -449,4 +479,4 @@ For issues with BASIQ integration:
 2. Verify environment configuration
 3. Test API connectivity
 4. Review BASIQ API documentation
-5. Contact support with request ID and error details 
+5. Contact support with request ID and error details

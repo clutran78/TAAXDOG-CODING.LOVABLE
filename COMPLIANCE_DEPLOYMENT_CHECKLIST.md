@@ -15,6 +15,7 @@
 ## Database Migration
 
 - [ ] **Apply Migration**
+
   ```bash
   # For production database
   psql -U <username> -h <host> -d <database> -f apply-compliance-migration.sql
@@ -37,6 +38,7 @@
 ## Testing
 
 - [ ] **Run Compliance Tests**
+
   ```bash
   npm run test-compliance
   # or
@@ -70,11 +72,13 @@
 ## Cron Jobs
 
 - [ ] **Install Monitoring Scripts**
+
   ```bash
   ./scripts/install-cron-jobs.sh
   ```
 
 - [ ] **Verify Cron Installation**
+
   ```bash
   crontab -l | grep compliance
   ```
@@ -170,6 +174,7 @@
 If issues arise:
 
 1. **Disable Features**
+
    ```bash
    # Set in .env
    ENABLE_AML_MONITORING=false
@@ -179,6 +184,7 @@ If issues arise:
    ```
 
 2. **Remove Cron Jobs**
+
    ```bash
    crontab -l | grep -v compliance | crontab -
    ```
@@ -194,6 +200,6 @@ If issues arise:
 
 ---
 
-**Deployment Date**: _____________  
-**Deployed By**: _____________  
-**Sign-off**: _____________
+**Deployment Date**: ******\_******  
+**Deployed By**: ******\_******  
+**Sign-off**: ******\_******

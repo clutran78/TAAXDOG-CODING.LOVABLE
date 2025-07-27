@@ -1,11 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Receipt } from "@prisma/client";
-import { ATO_TAX_CATEGORIES, calculateGST, validateABN, formatABN } from '../../lib/australian-tax-compliance';
+import { Receipt } from '@prisma/client';
+import { logger } from '@/lib/logger';
+import {
+  ATO_TAX_CATEGORIES,
+  calculateGST,
+  validateABN,
+  formatABN,
+} from '../../lib/australian-tax-compliance';
+
+interface ManualReviewData {
+  merchant: string;
+  totalAmount: number;
+  gstAmount: number;
+  date: string;
+  abn: string | null;
+  taxInvoiceNumber: string | null;
+  taxCategory: string;
+  items: unknown[];
+  isGstRegistered: boolean;
+  aiConfidence: number;
+  processingStatus: 'PROCESSED';
+}
 
 interface ManualReviewInterfaceProps {
   receipt: Receipt & { imageUrl: string };
-  onSave: (data: any) => Promise<void>;
+  onSave: (data: ManualReviewData) => Promise<void>;
   onCancel: () => void;
 }
 
@@ -33,14 +53,14 @@ export const ManualReviewInterface: React.FC<ManualReviewInterfaceProps> = ({
     const total = parseFloat(formData.totalAmount) || 0;
     if (total > 0 && !formData.gstAmount) {
       const { gstAmount } = calculateGST(total, true);
-      setFormData(prev => ({ ...prev, gstAmount: gstAmount.toString() }));
+      setFormData((prev) => ({ ...prev, gstAmount: gstAmount.toString() }));
     }
   }, [formData.totalAmount]);
 
   const handleABNChange = (value: string) => {
     const cleanABN = value.replace(/\s/g, '');
-    setFormData(prev => ({ ...prev, abn: cleanABN }));
-    
+    setFormData((prev) => ({ ...prev, abn: cleanABN }));
+
     if (cleanABN && !validateABN(cleanABN)) {
       setAbnError('Invalid ABN format');
     } else {
@@ -50,7 +70,7 @@ export const ManualReviewInterface: React.FC<ManualReviewInterfaceProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (formData.abn && !validateABN(formData.abn)) {
       setAbnError('Please enter a valid ABN');
       return;
@@ -68,7 +88,7 @@ export const ManualReviewInterface: React.FC<ManualReviewInterfaceProps> = ({
         processingStatus: 'PROCESSED',
       });
     } catch (error) {
-      console.error('Save error:', error);
+      logger.error('Save error:', error);
     } finally {
       setIsProcessing(false);
     }
@@ -77,7 +97,7 @@ export const ManualReviewInterface: React.FC<ManualReviewInterfaceProps> = ({
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
       <h2 className="text-2xl font-bold mb-6">Manual Receipt Review</h2>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Receipt Image */}
         <div className="relative h-96 lg:h-full bg-gray-100 rounded-lg overflow-hidden">
@@ -90,15 +110,16 @@ export const ManualReviewInterface: React.FC<ManualReviewInterfaceProps> = ({
         </div>
 
         {/* Review Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-4"
+        >
           <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Merchant Name
-            </label>
+            <label className="block text-sm font-medium text-gray-700">Merchant Name</label>
             <input
               type="text"
               value={formData.merchant}
-              onChange={(e) => setFormData(prev => ({ ...prev, merchant: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, merchant: e.target.value }))}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               required
             />
@@ -106,62 +127,54 @@ export const ManualReviewInterface: React.FC<ManualReviewInterfaceProps> = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Total Amount (AUD)
-              </label>
+              <label className="block text-sm font-medium text-gray-700">Total Amount (AUD)</label>
               <input
                 type="number"
                 step="0.01"
                 value={formData.totalAmount}
-                onChange={(e) => setFormData(prev => ({ ...prev, totalAmount: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, totalAmount: e.target.value }))}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">
-                GST Amount (AUD)
-              </label>
+              <label className="block text-sm font-medium text-gray-700">GST Amount (AUD)</label>
               <input
                 type="number"
                 step="0.01"
                 value={formData.gstAmount}
-                onChange={(e) => setFormData(prev => ({ ...prev, gstAmount: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, gstAmount: e.target.value }))}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Date
-            </label>
+            <label className="block text-sm font-medium text-gray-700">Date</label>
             <input
               type="date"
               value={formData.date}
-              onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, date: e.target.value }))}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">
-              ABN (optional)
-            </label>
+            <label className="block text-sm font-medium text-gray-700">ABN (optional)</label>
             <input
               type="text"
               value={formData.abn}
               onChange={(e) => handleABNChange(e.target.value)}
               placeholder="12 345 678 901"
               className={`mt-1 block w-full rounded-md shadow-sm focus:ring-blue-500 ${
-                abnError ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+                abnError
+                  ? 'border-red-300 focus:border-red-500'
+                  : 'border-gray-300 focus:border-blue-500'
               }`}
             />
-            {abnError && (
-              <p className="mt-1 text-sm text-red-600">{abnError}</p>
-            )}
+            {abnError && <p className="mt-1 text-sm text-red-600">{abnError}</p>}
           </div>
 
           <div>
@@ -171,22 +184,25 @@ export const ManualReviewInterface: React.FC<ManualReviewInterfaceProps> = ({
             <input
               type="text"
               value={formData.taxInvoiceNumber}
-              onChange={(e) => setFormData(prev => ({ ...prev, taxInvoiceNumber: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, taxInvoiceNumber: e.target.value }))
+              }
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Tax Category
-            </label>
+            <label className="block text-sm font-medium text-gray-700">Tax Category</label>
             <select
               value={formData.taxCategory}
-              onChange={(e) => setFormData(prev => ({ ...prev, taxCategory: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, taxCategory: e.target.value }))}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             >
               {ATO_TAX_CATEGORIES.map((category) => (
-                <option key={category.code} value={category.code}>
+                <option
+                  key={category.code}
+                  value={category.code}
+                >
                   {category.code} - {category.name}
                 </option>
               ))}

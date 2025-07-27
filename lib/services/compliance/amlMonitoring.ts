@@ -1,5 +1,6 @@
 import { PrismaClient, AMLMonitoringType } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import { logger } from '@/lib/logger';
 
 const prisma = new PrismaClient();
 
@@ -28,7 +29,7 @@ export class AMLMonitoringService {
   private static readonly CASH_THRESHOLD = 10000; // AUD
   private static readonly INTERNATIONAL_THRESHOLD = 1000; // AUD
   private static readonly HIGH_RISK_SCORE = 0.75;
-  private static readonly MEDIUM_RISK_SCORE = 0.50;
+  private static readonly MEDIUM_RISK_SCORE = 0.5;
 
   /**
    * Monitor a transaction for AML/CTF compliance
@@ -47,7 +48,10 @@ export class AMLMonitoringService {
     }
 
     // Check velocity patterns
-    const velocityCheck = await this.checkVelocityPatterns(transaction.userId, transaction.transactionDate);
+    const velocityCheck = await this.checkVelocityPatterns(
+      transaction.userId,
+      transaction.transactionDate,
+    );
     if (velocityCheck.isHighVelocity) {
       riskFactors.push(velocityCheck.reason);
       riskScore += velocityCheck.riskContribution;
@@ -55,7 +59,10 @@ export class AMLMonitoringService {
     }
 
     // Check for structuring patterns
-    const structuringCheck = await this.checkStructuringPatterns(transaction.userId, transaction.amount);
+    const structuringCheck = await this.checkStructuringPatterns(
+      transaction.userId,
+      transaction.amount,
+    );
     if (structuringCheck.detected) {
       riskFactors.push('Potential structuring pattern detected');
       riskScore += 0.4;
@@ -106,11 +113,11 @@ export class AMLMonitoringService {
    */
   private static async checkVelocityPatterns(
     userId: string,
-    transactionDate: Date
+    transactionDate: Date,
   ): Promise<{ isHighVelocity: boolean; reason: string; riskContribution: number }> {
     // Check transactions in the last 24 hours
     const oneDayAgo = new Date(transactionDate.getTime() - 24 * 60 * 60 * 1000);
-    
+
     const recentTransactions = await prisma.bank_transactions.count({
       where: {
         bank_account: {
@@ -169,14 +176,14 @@ export class AMLMonitoringService {
    */
   private static async checkStructuringPatterns(
     userId: string,
-    amount: number
+    amount: number,
   ): Promise<{ detected: boolean; details?: any }> {
     // Check if amount is just below reporting threshold
     const thresholdProximity = this.CASH_THRESHOLD - amount;
     if (thresholdProximity > 0 && thresholdProximity < 1000) {
       // Check for similar amounts in recent history
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      
+
       const similarTransactions = await prisma.bank_transactions.findMany({
         where: {
           bank_account: {
@@ -235,8 +242,10 @@ export class AMLMonitoringService {
     }
 
     // International transactions
-    if (transaction.description?.toLowerCase().includes('international') ||
-        transaction.description?.toLowerCase().includes('foreign')) {
+    if (
+      transaction.description?.toLowerCase().includes('international') ||
+      transaction.description?.toLowerCase().includes('foreign')
+    ) {
       suspiciousPatterns.push('Possible international transaction');
     }
 
@@ -305,7 +314,10 @@ export class AMLMonitoringService {
   /**
    * Submit Suspicious Matter Report (SMR) to AUSTRAC
    */
-  static async submitSMR(monitoringId: string, reportDetails: any): Promise<{ success: boolean; reference?: string }> {
+  static async submitSMR(
+    monitoringId: string,
+    reportDetails: any,
+  ): Promise<{ success: boolean; reference?: string }> {
     try {
       const monitoring = await prisma.aMLTransactionMonitoring.findUnique({
         where: { id: monitoringId },
@@ -350,7 +362,7 @@ export class AMLMonitoringService {
 
       return { success: true, reference: reportReference };
     } catch (error) {
-      console.error('Error submitting SMR:', error);
+      logger.error('Error submitting SMR:', error);
       return { success: false };
     }
   }
@@ -374,10 +386,7 @@ export class AMLMonitoringService {
           },
         },
       },
-      orderBy: [
-        { riskScore: 'desc' },
-        { createdAt: 'desc' },
-      ],
+      orderBy: [{ riskScore: 'desc' }, { createdAt: 'desc' }],
       take: limit,
     });
 
@@ -391,7 +400,7 @@ export class AMLMonitoringService {
     monitoringId: string,
     reviewerId: string,
     decision: 'CLEAR' | 'REPORT' | 'FALSE_POSITIVE',
-    notes?: string
+    notes?: string,
   ): Promise<void> {
     const updateData: any = {
       reviewedBy: reviewerId,

@@ -12,7 +12,7 @@ const path = require('path');
 const ENVS = {
   development: 'config/env.development.template',
   production: 'config/env.production.template',
-  staging: 'config/env.staging.template'
+  staging: 'config/env.staging.template',
 };
 
 const ENV_FILE = '.env.local';
@@ -22,39 +22,38 @@ const ENV_FILE = '.env.local';
  */
 function setEnvironment(env) {
   const templatePath = ENVS[env];
-  
+
   if (!templatePath) {
     console.error(`❌ Unknown environment: ${env}`);
     console.log(`Available environments: ${Object.keys(ENVS).join(', ')}`);
     process.exit(1);
   }
-  
+
   if (!fs.existsSync(templatePath)) {
     console.error(`❌ Template not found: ${templatePath}`);
     process.exit(1);
   }
-  
+
   try {
     // Read template
     const template = fs.readFileSync(templatePath, 'utf8');
-    
+
     // Backup existing .env.local if it exists
     if (fs.existsSync(ENV_FILE)) {
       const backup = `${ENV_FILE}.backup.${Date.now()}`;
       fs.copyFileSync(ENV_FILE, backup);
       console.log(`📋 Backed up existing ${ENV_FILE} to ${backup}`);
     }
-    
+
     // Write new environment file
     fs.writeFileSync(ENV_FILE, template);
-    
+
     console.log(`✅ Environment set to: ${env}`);
     console.log(`📁 Configuration copied from: ${templatePath}`);
     console.log(`📝 Active config file: ${ENV_FILE}`);
-    
+
     // Validate the configuration
     validateEnvironment(env);
-    
   } catch (error) {
     console.error(`❌ Error setting environment: ${error.message}`);
     process.exit(1);
@@ -66,21 +65,21 @@ function setEnvironment(env) {
  */
 function validateEnvironment(env) {
   console.log(`\n🔍 Validating ${env} environment...`);
-  
+
   if (!fs.existsSync(ENV_FILE)) {
     console.error(`❌ No ${ENV_FILE} file found`);
     return;
   }
-  
+
   const envContent = fs.readFileSync(ENV_FILE, 'utf8');
   const errors = [];
   const warnings = [];
-  
+
   // Check NODE_ENV
   if (!envContent.includes(`NODE_ENV="${env}"`)) {
     errors.push(`NODE_ENV should be "${env}"`);
   }
-  
+
   // Validate development environment
   if (env === 'development') {
     if (!envContent.includes('STRIPE_TEST_')) {
@@ -93,7 +92,7 @@ function validateEnvironment(env) {
       warnings.push('Development should use localhost:3000');
     }
   }
-  
+
   // Validate production environment
   if (env === 'production') {
     if (!envContent.includes('STRIPE_LIVE_')) {
@@ -106,28 +105,28 @@ function validateEnvironment(env) {
       warnings.push('Production should use taxreturnpro.com.au domain');
     }
   }
-  
+
   // Check required variables
   const required = ['DATABASE_URL', 'NEXTAUTH_SECRET', 'NEXTAUTH_URL'];
-  required.forEach(key => {
+  required.forEach((key) => {
     if (!envContent.includes(`${key}=`)) {
       errors.push(`Missing required variable: ${key}`);
     }
   });
-  
+
   // Report results
   if (errors.length > 0) {
     console.error(`❌ Validation failed:`);
-    errors.forEach(error => console.error(`  - ${error}`));
+    errors.forEach((error) => console.error(`  - ${error}`));
   } else {
     console.log(`✅ Validation passed`);
   }
-  
+
   if (warnings.length > 0) {
     console.warn(`⚠️  Warnings:`);
-    warnings.forEach(warning => console.warn(`  - ${warning}`));
+    warnings.forEach((warning) => console.warn(`  - ${warning}`));
   }
-  
+
   // Show configuration summary
   showConfigSummary(envContent, env);
 }
@@ -137,16 +136,17 @@ function validateEnvironment(env) {
  */
 function showConfigSummary(envContent, env) {
   console.log(`\n📊 Configuration Summary (${env}):`);
-  
+
   // Extract key information
   const nodeEnv = extractVar(envContent, 'NODE_ENV');
   const nextAuthUrl = extractVar(envContent, 'NEXTAUTH_URL');
-  const databaseUrl = extractVar(envContent, 'DATABASE_URL') || extractVar(envContent, 'PRODUCTION_DATABASE_URL');
-  
+  const databaseUrl =
+    extractVar(envContent, 'DATABASE_URL') || extractVar(envContent, 'PRODUCTION_DATABASE_URL');
+
   console.log(`  🌍 Environment: ${nodeEnv}`);
   console.log(`  🔐 Auth URL: ${nextAuthUrl}`);
   console.log(`  🗄️  Database: ${databaseUrl ? databaseUrl.substring(0, 30) + '...' : 'Not set'}`);
-  
+
   // Check Stripe mode
   if (envContent.includes('STRIPE_LIVE_')) {
     console.log(`  💳 Stripe: Live mode (production)`);
@@ -170,16 +170,16 @@ function extractVar(content, varName) {
  */
 function showStatus() {
   console.log('🔧 Environment Manager Status\n');
-  
+
   if (!fs.existsSync(ENV_FILE)) {
     console.log(`❌ No ${ENV_FILE} file found`);
     console.log('Run: npm run env:dev or npm run env:prod to set up environment');
     return;
   }
-  
+
   const envContent = fs.readFileSync(ENV_FILE, 'utf8');
   const nodeEnv = extractVar(envContent, 'NODE_ENV');
-  
+
   console.log(`Current environment: ${nodeEnv || 'unknown'}`);
   validateEnvironment(nodeEnv || 'development');
 }
@@ -214,7 +214,7 @@ Quick Commands:
 }
 
 // Main execution
-const [,, command, env] = process.argv;
+const [, , command, env] = process.argv;
 
 switch (command) {
   case 'set':
@@ -225,11 +225,11 @@ switch (command) {
     }
     setEnvironment(env);
     break;
-    
+
   case 'status':
     showStatus();
     break;
-    
+
   case 'validate':
     if (fs.existsSync(ENV_FILE)) {
       const content = fs.readFileSync(ENV_FILE, 'utf8');
@@ -239,15 +239,15 @@ switch (command) {
       console.error(`❌ No ${ENV_FILE} file found`);
     }
     break;
-    
+
   case 'help':
   case '--help':
   case '-h':
     showHelp();
     break;
-    
+
   default:
     console.error(`❌ Unknown command: ${command || 'none'}`);
     showHelp();
     process.exit(1);
-} 
+}

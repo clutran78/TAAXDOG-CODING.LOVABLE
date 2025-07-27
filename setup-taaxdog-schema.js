@@ -8,7 +8,7 @@ async function setupTaaxdogSchema() {
     user: process.env.DB_USER || 'taaxdog-admin',
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME || 'taaxdog-production',
-    ssl: { rejectUnauthorized: false }
+    ssl: { rejectUnauthorized: false },
   };
 
   if (!clientConfig.password) {
@@ -25,12 +25,13 @@ async function setupTaaxdogSchema() {
 
     // Create our own schema instead of using public
     console.log('=== Creating taaxdog schema ===');
-    
+
     try {
       await client.query('CREATE SCHEMA IF NOT EXISTS taaxdog AUTHORIZATION "taaxdog-admin"');
       console.log('✅ Schema "taaxdog" created/verified');
     } catch (error) {
-      if (error.code === '42P06') { // Schema already exists
+      if (error.code === '42P06') {
+        // Schema already exists
         console.log('✅ Schema "taaxdog" already exists');
       } else {
         throw error;
@@ -162,22 +163,20 @@ async function setupTaaxdogSchema() {
       `);
 
       console.log('\n=== Tables created in taaxdog schema ===');
-      tablesResult.rows.forEach(row => {
+      tablesResult.rows.forEach((row) => {
         console.log('-', row.table_name);
       });
 
       console.log('\n🎉 Database setup completed successfully!');
       console.log('\nIMPORTANT: Update your application to use schema "taaxdog"');
       console.log('Either set search_path or prefix tables with "taaxdog."');
-
     } else {
       console.log('\n❌ Cannot create tables in taaxdog schema');
     }
-
   } catch (error) {
     console.error('❌ Setup failed:', error.message);
     console.error('Error code:', error.code);
-    
+
     if (error.code === '42501') {
       console.log('\nTrying alternative approach...');
     }

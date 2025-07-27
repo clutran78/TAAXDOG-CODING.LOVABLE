@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 
-import { PrismaClient, Prisma } from "@prisma/client";
+import { PrismaClient, Prisma } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -23,10 +23,10 @@ async function checkTables() {
 
     // Check for specific tables we need
     const requiredTables = ['User', 'Transaction', 'Goal', 'Receipt', 'BankingConnection'];
-    const existingTables = tables.map(t => t.tablename);
-    
+    const existingTables = tables.map((t) => t.tablename);
+
     console.log('\nRequired tables check:');
-    requiredTables.forEach(table => {
+    requiredTables.forEach((table) => {
       const exists = existingTables.includes(table);
       console.log(`  ${table}: ${exists ? '✓' : '✗'}`);
     });
@@ -44,7 +44,6 @@ async function checkTables() {
         // Skip if table doesn't exist or error
       }
     }
-
   } catch (error) {
     console.error('Error checking tables:', error);
   } finally {

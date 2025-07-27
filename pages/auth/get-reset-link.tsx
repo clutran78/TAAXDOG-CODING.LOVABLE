@@ -1,41 +1,41 @@
-import { useState } from "react";
-import Head from "next/head";
+import { useState } from 'react';
+import Head from 'next/head';
 
 export default function GetResetLinkPage() {
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setError('');
     setResult(null);
     setLoading(true);
 
     try {
-      const response = await fetch("/api/auth/get-reset-link", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const response = await fetch('/api/auth/get-reset-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.message || "Failed to generate reset link");
+        setError(data.message || 'Failed to generate reset link');
       } else {
         setResult(data);
       }
     } catch (err) {
-      setError("An error occurred. Please try again.");
+      setError('An error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   // Only show in development
-  if (process.env.NODE_ENV === "production") {
+  if (process.env.NODE_ENV === 'production') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full text-center">
@@ -61,9 +61,15 @@ export default function GetResetLinkPage() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-4"
+          >
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Email Address
               </label>
               <input
@@ -82,7 +88,7 @@ export default function GetResetLinkPage() {
               disabled={loading}
               className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
             >
-              {loading ? "Generating..." : "Generate Reset Link"}
+              {loading ? 'Generating...' : 'Generate Reset Link'}
             </button>
           </form>
 
@@ -103,9 +109,7 @@ export default function GetResetLinkPage() {
                 <div className="bg-white p-3 rounded border border-gray-300 break-all">
                   <code className="text-xs">{result.resetUrl}</code>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  Expires in: {result.expiresIn}
-                </p>
+                <p className="text-xs text-gray-500 mt-2">Expires in: {result.expiresIn}</p>
               </div>
 
               <div className="flex space-x-2">

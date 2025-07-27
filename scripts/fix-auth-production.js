@@ -9,22 +9,18 @@ async function diagnoseAuth() {
 
   // Check environment variables
   console.log('1. Checking Environment Variables:');
-  const requiredEnvVars = [
-    'DATABASE_URL',
-    'NEXTAUTH_URL',
-    'NEXTAUTH_SECRET',
-    'NODE_ENV'
-  ];
+  const requiredEnvVars = ['DATABASE_URL', 'NEXTAUTH_URL', 'NEXTAUTH_SECRET', 'NODE_ENV'];
 
   const missingVars = [];
-  requiredEnvVars.forEach(varName => {
+  requiredEnvVars.forEach((varName) => {
     if (!process.env[varName]) {
       console.log(`❌ ${varName}: NOT SET`);
       missingVars.push(varName);
     } else {
-      const value = varName.includes('SECRET') || varName.includes('PASSWORD') 
-        ? '[HIDDEN]' 
-        : process.env[varName].substring(0, 50) + '...';
+      const value =
+        varName.includes('SECRET') || varName.includes('PASSWORD')
+          ? '[HIDDEN]'
+          : process.env[varName].substring(0, 50) + '...';
       console.log(`✅ ${varName}: ${value}`);
     }
   });
@@ -56,13 +52,12 @@ async function diagnoseAuth() {
         password: true,
         passwordResetToken: true,
         passwordResetExpires: true,
-      }
+      },
     });
 
     if (sampleUser) {
       console.log('✅ User schema has required password reset fields');
     }
-
   } catch (error) {
     console.error('❌ Database error:', error.message);
     console.log('\nPossible solutions:');

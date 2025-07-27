@@ -9,14 +9,14 @@ async function sendTestEmail(recipientEmail) {
     console.error('Usage: node scripts/send-test-email.js <recipient-email>');
     process.exit(1);
   }
-  
+
   if (!process.env.SENDGRID_API_KEY) {
     console.error('❌ SENDGRID_API_KEY is not set');
     process.exit(1);
   }
-  
+
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-  
+
   const msg = {
     to: recipientEmail,
     from: process.env.EMAIL_FROM || 'noreply@taxreturnpro.com.au',
@@ -40,7 +40,7 @@ async function sendTestEmail(recipientEmail) {
       </div>
     `,
   };
-  
+
   try {
     console.log('📧 Sending test email to:', recipientEmail);
     const [response] = await sgMail.send(msg);

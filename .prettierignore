@@ -1,0 +1,67 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+.nyc_output/
+
+# Production
+build/
+dist/
+out/
+.next/
+
+# Misc
+.DS_Store
+*.pem
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Local env files
+.env*.local
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Generated files
+generated/
+*.generated.*
+
+# Prisma
+prisma/migrations/
+
+# Backup files
+*.backup
+backup/
+*-backup/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build artifacts
+tsconfig.tsbuildinfo
+
+# Public assets
+public/
+
+# Playwright
+playwright-report/
+test-results/
+
+# Documentation
+docs/

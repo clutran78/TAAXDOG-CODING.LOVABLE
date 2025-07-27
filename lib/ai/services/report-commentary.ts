@@ -35,7 +35,7 @@ export class ReportCommentaryService {
         totalDeductions: number;
         taxPayable: number;
       }>;
-    }
+    },
   ): Promise<{
     executiveSummary: string;
     incomeAnalysis: string;
@@ -72,7 +72,8 @@ Structure the response as:
       [
         {
           role: 'system',
-          content: 'You are a professional tax advisor creating client-friendly tax return summaries for Australian taxpayers.',
+          content:
+            'You are a professional tax advisor creating client-friendly tax return summaries for Australian taxpayers.',
         },
         {
           role: 'user',
@@ -80,7 +81,7 @@ Structure the response as:
         },
       ],
       userId,
-      AIOperationType.REPORT_COMMENTARY
+      AIOperationType.REPORT_COMMENTARY,
     );
 
     return JSON.parse(response.content);
@@ -94,7 +95,7 @@ Structure the response as:
       figures: Record<string, any>;
       comparativePeriod?: Record<string, any>;
       industry?: string;
-    }
+    },
   ): Promise<{
     narrative: string;
     keyHighlights: string[];
@@ -133,7 +134,8 @@ Structure as:
       [
         {
           role: 'system',
-          content: 'You are a financial analyst creating clear, insightful reports for Australian business owners.',
+          content:
+            'You are a financial analyst creating clear, insightful reports for Australian business owners.',
         },
         {
           role: 'user',
@@ -141,7 +143,7 @@ Structure as:
         },
       ],
       userId,
-      AIOperationType.REPORT_COMMENTARY
+      AIOperationType.REPORT_COMMENTARY,
     );
 
     return JSON.parse(response.content);
@@ -161,7 +163,7 @@ Structure as:
       totalIncome: number;
       period: string;
       assetAllocation: Record<string, number>;
-    }
+    },
   ): Promise<{
     performanceSummary: string;
     assetAllocationCommentary: string;
@@ -199,7 +201,8 @@ Structure as:
       [
         {
           role: 'system',
-          content: 'You are an investment advisor specializing in Australian tax-effective portfolio management.',
+          content:
+            'You are an investment advisor specializing in Australian tax-effective portfolio management.',
         },
         {
           role: 'user',
@@ -207,7 +210,7 @@ Structure as:
         },
       ],
       userId,
-      AIOperationType.REPORT_COMMENTARY
+      AIOperationType.REPORT_COMMENTARY,
     );
 
     return JSON.parse(response.content);
@@ -222,7 +225,7 @@ Structure as:
       length?: 'brief' | 'detailed';
       focus?: string[];
       includeRecommendations?: boolean;
-    } = {}
+    } = {},
   ): Promise<{
     title: string;
     sections: Array<{
@@ -260,7 +263,8 @@ Format as:
       [
         {
           role: 'system',
-          content: 'You are a versatile financial report writer with expertise in Australian finance and taxation.',
+          content:
+            'You are a versatile financial report writer with expertise in Australian finance and taxation.',
         },
         {
           role: 'user',
@@ -268,7 +272,7 @@ Format as:
         },
       ],
       userId,
-      AIOperationType.REPORT_COMMENTARY
+      AIOperationType.REPORT_COMMENTARY,
     );
 
     return JSON.parse(response.content);
@@ -282,7 +286,7 @@ Format as:
       expenses: Record<string, number>;
       employees?: number;
       location?: string;
-    }
+    },
   ): Promise<{
     summary: string;
     benchmarks: Array<{
@@ -328,7 +332,8 @@ Structure as:
       [
         {
           role: 'system',
-          content: 'You are a business analyst with deep knowledge of Australian industry benchmarks and ATO business performance data.',
+          content:
+            'You are a business analyst with deep knowledge of Australian industry benchmarks and ATO business performance data.',
         },
         {
           role: 'user',
@@ -336,7 +341,7 @@ Structure as:
         },
       ],
       userId,
-      AIOperationType.REPORT_COMMENTARY
+      AIOperationType.REPORT_COMMENTARY,
     );
 
     return JSON.parse(response.content);

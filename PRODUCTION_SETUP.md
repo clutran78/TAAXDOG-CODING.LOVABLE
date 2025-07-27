@@ -2,11 +2,15 @@
 
 ## ⚠️ SECURITY NOTICE
 
-**IMPORTANT**: Never commit actual credentials to version control. All sensitive values in this document have been replaced with placeholders. Store actual values in secure environment variables.
+**IMPORTANT**: Never commit actual credentials to version control. All sensitive
+values in this document have been replaced with placeholders. Store actual
+values in secure environment variables.
 
 ## Issue: Client-side error on www.taxreturnpro.com.au
 
-The application is experiencing a client-side error that prevents login/signup. This is likely due to missing environment variables in the DigitalOcean deployment.
+The application is experiencing a client-side error that prevents login/signup.
+This is likely due to missing environment variables in the DigitalOcean
+deployment.
 
 ## Solution: Configure Environment Variables on DigitalOcean
 
@@ -54,11 +58,13 @@ SMTP_SECURE=false
    - Click on "Edit" next to Environment Variables
 
 3. **Add ALL the environment variables listed above**
-   - Make sure to include the `NEXT_PUBLIC_` prefix for the Stripe publishable key
+   - Make sure to include the `NEXT_PUBLIC_` prefix for the Stripe publishable
+     key
    - This is critical for client-side functionality
 
 4. **Deploy the Application**
-   - After adding environment variables, click "Deploy" to redeploy with the new configuration
+   - After adding environment variables, click "Deploy" to redeploy with the new
+     configuration
 
 5. **Verify the Fix**
    - Wait for deployment to complete (usually 5-10 minutes)
@@ -94,10 +100,14 @@ npm start
 
 ### Important Notes:
 
-1. **Client-side Environment Variables**: Any environment variable that needs to be available in the browser must be prefixed with `NEXT_PUBLIC_`
+1. **Client-side Environment Variables**: Any environment variable that needs to
+   be available in the browser must be prefixed with `NEXT_PUBLIC_`
 
-2. **Security**: Never expose secret keys (like `STRIPE_SECRET_KEY`) to the client. Only `NEXT_PUBLIC_` prefixed variables are safe for client-side use.
+2. **Security**: Never expose secret keys (like `STRIPE_SECRET_KEY`) to the
+   client. Only `NEXT_PUBLIC_` prefixed variables are safe for client-side use.
 
-3. **Email Configuration**: Update the SMTP credentials with your actual email service credentials for password reset functionality to work.
+3. **Email Configuration**: Update the SMTP credentials with your actual email
+   service credentials for password reset functionality to work.
 
-4. **Health Check**: The app includes health check endpoints at `/api/health` and `/api/health/readiness` for monitoring.
+4. **Health Check**: The app includes health check endpoints at `/api/health`
+   and `/api/health/readiness` for monitoring.

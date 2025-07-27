@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { Anthropic } from '@anthropic-ai/sdk';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import OpenAI from 'openai';
+import { logger } from '@/lib/logger';
 
 const prisma = new PrismaClient();
 const anthropic = new Anthropic({
@@ -13,7 +14,7 @@ const openai = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
 });
 
-export type InsightType = 
+export type InsightType =
   | 'spending_pattern'
   | 'tax_optimization'
   | 'cash_flow'
@@ -46,29 +47,29 @@ export interface Recommendation {
 
 export async function generateFinancialInsights(
   userId: string,
-  insightTypes?: InsightType[]
+  insightTypes?: InsightType[],
 ): Promise<FinancialInsightData[]> {
   try {
     // Gather comprehensive financial data
     const financialData = await gatherFinancialData(userId);
-    
+
     // Generate insights for each type
     const insights: FinancialInsightData[] = [];
     const types = insightTypes || ['spending_pattern', 'tax_optimization', 'cash_flow'];
-    
+
     for (const type of types) {
       const insight = await generateInsightByType(type, financialData);
       if (insight) {
         insights.push(insight);
       }
     }
-    
+
     // Store insights in database
     await storeInsights(userId, insights);
-    
+
     return insights;
   } catch (error) {
-    console.error('Financial insights generation error:', error);
+    logger.error('Financial insights generation error:', error);
     throw error;
   }
 }
@@ -76,7 +77,7 @@ export async function generateFinancialInsights(
 async function gatherFinancialData(userId: string): Promise<any> {
   const sixMonthsAgo = new Date();
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-  
+
   const [transactions, receipts, budget, taxReturn] = await Promise.all([
     // Get transactions
     prisma.bank_transactions.findMany({
@@ -94,7 +95,7 @@ async function gatherFinancialData(userId: string): Promise<any> {
         transaction_date: 'desc',
       },
     }),
-    
+
     // Get receipts
     prisma.receipt.findMany({
       where: {
@@ -104,7 +105,7 @@ async function gatherFinancialData(userId: string): Promise<any> {
         },
       },
     }),
-    
+
     // Get active budget
     prisma.budget.findFirst({
       where: {
@@ -112,7 +113,7 @@ async function gatherFinancialData(userId: string): Promise<any> {
         status: 'ACTIVE',
       },
     }),
-    
+
     // Get latest tax return
     prisma.taxReturn.findFirst({
       where: {
@@ -123,7 +124,7 @@ async function gatherFinancialData(userId: string): Promise<any> {
       },
     }),
   ]);
-  
+
   return {
     transactions,
     receipts,
@@ -135,20 +136,20 @@ async function gatherFinancialData(userId: string): Promise<any> {
 
 function calculateFinancialSummary(transactions: any[]): any {
   const income = transactions
-    .filter(t => t.direction === 'credit')
+    .filter((t) => t.direction === 'credit')
     .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-    
+
   const expenses = transactions
-    .filter(t => t.direction === 'debit')
+    .filter((t) => t.direction === 'debit')
     .reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)), 0);
-    
+
   const categories = transactions.reduce((acc, t) => {
     const category = t.category || 'Other';
     if (!acc[category]) acc[category] = 0;
     acc[category] += Math.abs(parseFloat(t.amount));
     return acc;
   }, {});
-  
+
   return {
     totalIncome: income,
     totalExpenses: expenses,
@@ -160,7 +161,7 @@ function calculateFinancialSummary(transactions: any[]): any {
 
 async function generateInsightByType(
   type: InsightType,
-  data: any
+  data: any,
 ): Promise<FinancialInsightData | null> {
   switch (type) {
     case 'spending_pattern':
@@ -195,14 +196,16 @@ Generate actionable insights for Australian consumers.`;
     const response = await anthropic.messages.create({
       model: 'claude-3-sonnet-20240229',
       max_tokens: 1500,
-      messages: [{
-        role: 'user',
-        content: prompt,
-      }],
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
     });
-    
+
     const content = response.content[0].type === 'text' ? response.content[0].text : '';
-    
+
     return {
       type: 'spending_pattern',
       title: 'Monthly Spending Analysis',
@@ -220,14 +223,14 @@ Generate actionable insights for Australian consumers.`;
       confidence: 0.85,
     };
   } catch (error) {
-    console.error('Spending pattern insight error:', error);
+    logger.error('Spending pattern insight error:', error);
     throw error;
   }
 }
 
 async function generateTaxOptimizationInsight(data: any): Promise<FinancialInsightData> {
   const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-  
+
   const prompt = `Analyze this financial data for Australian tax optimization opportunities:
 
 Receipts: ${data.receipts.length} total
@@ -245,7 +248,7 @@ Provide:
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const content = response.text();
-    
+
     return {
       type: 'tax_optimization',
       title: 'Tax Optimization Opportunities',
@@ -263,7 +266,7 @@ Provide:
       confidence: 0.9,
     };
   } catch (error) {
-    console.error('Tax optimization insight error:', error);
+    logger.error('Tax optimization insight error:', error);
     throw error;
   }
 }
@@ -271,21 +274,23 @@ Provide:
 async function generateCashFlowInsight(data: any): Promise<FinancialInsightData> {
   const prompt = {
     model: 'meta-llama/llama-3.1-8b-instruct:free',
-    messages: [{
-      role: 'user',
-      content: `Analyze cash flow patterns:
+    messages: [
+      {
+        role: 'user',
+        content: `Analyze cash flow patterns:
 Income: $${data.summary.totalIncome}
 Expenses: $${data.summary.totalExpenses}
 Net: $${data.summary.netCashFlow}
 
 Provide cash flow insights and forecasting for the next 3 months.`,
-    }],
+      },
+    ],
   };
-  
+
   try {
     const response = await openai.chat.completions.create(prompt as any);
     const content = response.choices[0].message.content || '';
-    
+
     return {
       type: 'cash_flow',
       title: 'Cash Flow Analysis & Forecast',
@@ -310,7 +315,7 @@ Provide cash flow insights and forecasting for the next 3 months.`,
       confidence: 0.8,
     };
   } catch (error) {
-    console.error('Cash flow insight error:', error);
+    logger.error('Cash flow insight error:', error);
     throw error;
   }
 }
@@ -318,12 +323,12 @@ Provide cash flow insights and forecasting for the next 3 months.`,
 async function generateBusinessExpenseInsight(data: any): Promise<FinancialInsightData> {
   const businessTransactions = data.transactions.filter((t: any) => t.is_business_expense);
   const businessReceipts = data.receipts.filter((r: any) => r.taxCategory?.startsWith('B'));
-  
+
   const analysis = `Business Expense Analysis:
 - Total business transactions: ${businessTransactions.length}
 - Business receipts collected: ${businessReceipts.length}
 - Potential missing receipts: ${Math.max(0, businessTransactions.length - businessReceipts.length)}`;
-  
+
   return {
     type: 'business_expense',
     title: 'Business Expense Tracking',
@@ -332,8 +337,10 @@ async function generateBusinessExpenseInsight(data: any): Promise<FinancialInsig
     content: {
       analysis,
       metrics: {
-        totalBusinessExpenses: businessTransactions.reduce((sum: number, t: any) => 
-          sum + Math.abs(parseFloat(t.amount)), 0),
+        totalBusinessExpenses: businessTransactions.reduce(
+          (sum: number, t: any) => sum + Math.abs(parseFloat(t.amount)),
+          0,
+        ),
         receiptCoverage: businessReceipts.length / Math.max(1, businessTransactions.length),
       },
     },
@@ -366,23 +373,23 @@ function calculatePotentialDeductions(data: any): number {
   const workExpenses = data.receipts
     .filter((r: any) => r.taxCategory?.startsWith('D'))
     .reduce((sum: number, r: any) => sum + parseFloat(r.totalAmount), 0);
-    
+
   const businessExpenses = data.receipts
     .filter((r: any) => r.taxCategory?.startsWith('B'))
     .reduce((sum: number, r: any) => sum + parseFloat(r.totalAmount), 0);
-    
+
   return workExpenses + businessExpenses;
 }
 
 function calculateGSTCredits(receipts: any[]): number {
   return receipts
-    .filter(r => r.gstAmount && r.taxCategory?.startsWith('B'))
+    .filter((r) => r.gstAmount && r.taxCategory?.startsWith('B'))
     .reduce((sum, r) => sum + parseFloat(r.gstAmount), 0);
 }
 
 function extractSpendingRecommendations(content: string): Recommendation[] {
   const recommendations: Recommendation[] = [];
-  
+
   // Basic pattern matching for recommendations
   if (content.includes('subscription')) {
     recommendations.push({
@@ -392,7 +399,7 @@ function extractSpendingRecommendations(content: string): Recommendation[] {
       estimatedSavings: 50,
     });
   }
-  
+
   if (content.includes('dining') || content.includes('food')) {
     recommendations.push({
       action: 'Set dining out budget limit',
@@ -401,7 +408,7 @@ function extractSpendingRecommendations(content: string): Recommendation[] {
       estimatedSavings: 200,
     });
   }
-  
+
   return recommendations;
 }
 
@@ -444,7 +451,7 @@ async function storeInsights(userId: string, insights: FinancialInsightData[]): 
       },
     });
   }
-  
+
   await prisma.$disconnect();
 }
 
@@ -454,20 +461,14 @@ export async function getActiveInsights(userId: string): Promise<any[]> {
       where: {
         userId,
         isActive: true,
-        OR: [
-          { expiresAt: null },
-          { expiresAt: { gt: new Date() } },
-        ],
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
       },
-      orderBy: [
-        { priority: 'desc' },
-        { createdAt: 'desc' },
-      ],
+      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
     });
-    
+
     return insights;
   } catch (error) {
-    console.error('Get insights error:', error);
+    logger.error('Get insights error:', error);
     throw error;
   } finally {
     await prisma.$disconnect();

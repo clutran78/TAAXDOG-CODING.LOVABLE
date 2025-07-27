@@ -14,6 +14,7 @@
 ## 🚀 Vercel Dashboard Configuration
 
 ### Project Settings:
+
 - [ ] Framework Preset: Next.js
 - [ ] Root Directory: `next-frontend`
 - [ ] Build Command: `npm run build`
@@ -22,6 +23,7 @@
 - [ ] Node.js Version: 18.x or 20.x
 
 ### Environment Variables:
+
 - [ ] NEXT_PUBLIC_APP_URL
 - [ ] NEXT_PUBLIC_API_URL
 - [ ] NEXTAUTH_SECRET
@@ -31,6 +33,7 @@
 ## 📋 Deployment Steps:
 
 1. **Commit Changes:**
+
    ```bash
    git add .
    git commit -m "Fix Vercel deployment configuration and routing"
@@ -62,4 +65,4 @@
 - ✅ All routes work correctly
 - ✅ Authentication flow functional
 - ✅ Build time under 2 minutes
-- ✅ Page load time under 3 seconds 
+- ✅ Page load time under 3 seconds

@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client';
 import { config } from 'dotenv';
 import { resolve } from 'path';
 import { encrypt, decrypt } from '../lib/encryption';
@@ -14,42 +14,42 @@ const prisma = new PrismaClient({
 
 async function testSecurity() {
   console.log('🔐 Comprehensive Security Test\n');
-  
+
   const results = {
     rls: { passed: 0, failed: 0 },
-    encryption: { passed: 0, failed: 0 }
+    encryption: { passed: 0, failed: 0 },
   };
 
   try {
     // Test 1: RLS is enabled
     console.log('1️⃣ Testing RLS is enabled on critical tables...');
-    const rlsCheck = await prisma.$queryRawUnsafe(`
+    const rlsCheck = (await prisma.$queryRawUnsafe(`
       SELECT tablename, rowsecurity 
       FROM pg_tables 
       WHERE schemaname = 'public' 
       AND tablename IN ('users', 'goals', 'receipts', 'bank_transactions')
       ORDER BY tablename;
-    `) as any[];
-    
+    `)) as any[];
+
     console.table(rlsCheck);
-    const allEnabled = rlsCheck.every(t => t.rowsecurity === true);
+    const allEnabled = rlsCheck.every((t) => t.rowsecurity === true);
     if (allEnabled) {
       console.log('✅ RLS is enabled on all critical tables\n');
       results.rls.passed++;
     } else {
-      console.log('❌ Some tables don\'t have RLS enabled\n');
+      console.log("❌ Some tables don't have RLS enabled\n");
       results.rls.failed++;
     }
 
     // Test 2: RLS policies exist
     console.log('2️⃣ Testing RLS policies exist...');
-    const policiesCheck = await prisma.$queryRawUnsafe(`
+    const policiesCheck = (await prisma.$queryRawUnsafe(`
       SELECT COUNT(*) as policy_count
       FROM pg_policies
       WHERE schemaname = 'public'
       AND tablename IN ('users', 'goals', 'receipts', 'bank_transactions');
-    `) as any[];
-    
+    `)) as any[];
+
     const policyCount = parseInt(policiesCheck[0].policy_count);
     if (policyCount > 0) {
       console.log(`✅ Found ${policyCount} RLS policies\n`);
@@ -75,7 +75,7 @@ async function testSecurity() {
     const testTFN = '123456789';
     const encrypted = encrypt(testTFN);
     const decrypted = decrypt(encrypted);
-    
+
     if (decrypted === testTFN && encrypted !== testTFN) {
       console.log('✅ Encryption/decryption working correctly');
       console.log(`   Original: ${testTFN}`);
@@ -89,12 +89,12 @@ async function testSecurity() {
 
     // Test 5: User context function
     console.log('5️⃣ Testing RLS user context functions...');
-    const contextTest = await prisma.$queryRawUnsafe(`
+    const contextTest = (await prisma.$queryRawUnsafe(`
       SELECT 
         current_user_id() as user_id,
         is_admin() as is_admin;
-    `) as any[];
-    
+    `)) as any[];
+
     console.log('Context without user:', contextTest[0]);
     if (contextTest[0].user_id === null) {
       console.log('✅ User context function working\n');
@@ -106,13 +106,13 @@ async function testSecurity() {
 
     // Test 6: Indexes for performance
     console.log('6️⃣ Testing performance indexes...');
-    const indexCheck = await prisma.$queryRawUnsafe(`
+    const indexCheck = (await prisma.$queryRawUnsafe(`
       SELECT COUNT(*) as index_count
       FROM pg_indexes
       WHERE schemaname = 'public'
       AND indexname LIKE 'idx_%userid%';
-    `) as any[];
-    
+    `)) as any[];
+
     const indexCount = parseInt(indexCheck[0].index_count);
     if (indexCount > 0) {
       console.log(`✅ Found ${indexCount} performance indexes for RLS\n`);
@@ -126,13 +126,15 @@ async function testSecurity() {
     console.log('\n📊 Security Test Summary:');
     console.log('═'.repeat(50));
     console.log(`RLS Tests: ${results.rls.passed} passed, ${results.rls.failed} failed`);
-    console.log(`Encryption Tests: ${results.encryption.passed} passed, ${results.encryption.failed} failed`);
-    
+    console.log(
+      `Encryption Tests: ${results.encryption.passed} passed, ${results.encryption.failed} failed`,
+    );
+
     const totalPassed = results.rls.passed + results.encryption.passed;
     const totalTests = totalPassed + results.rls.failed + results.encryption.failed;
-    
+
     console.log(`\nOverall: ${totalPassed}/${totalTests} tests passed`);
-    
+
     if (results.rls.failed === 0 && results.encryption.failed === 0) {
       console.log('\n✅ All security features are properly configured!');
     } else {
@@ -146,7 +148,6 @@ async function testSecurity() {
     console.log('3. Rotate encryption keys quarterly');
     console.log('4. Audit admin access logs regularly');
     console.log('5. Test disaster recovery procedures');
-
   } catch (error) {
     console.error('❌ Security test failed:', error);
   } finally {

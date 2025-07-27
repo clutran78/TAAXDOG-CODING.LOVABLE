@@ -1,17 +1,18 @@
 import { AIMessage, AIResponse, AIProviderConfig, AIError } from './types';
 import { prisma } from '../prisma';
+import { logger } from '@/lib/logger';
 
 export abstract class BaseAIProvider {
   protected config: AIProviderConfig;
-  
+
   constructor(config: AIProviderConfig) {
     this.config = config;
   }
 
   abstract sendMessage(messages: AIMessage[]): Promise<AIResponse>;
-  
+
   abstract estimateCost(tokensInput: number, tokensOutput: number): number;
-  
+
   getConfig(): AIProviderConfig {
     return this.config;
   }
@@ -39,7 +40,7 @@ export abstract class BaseAIProvider {
 
       return health.status === 'healthy';
     } catch (error) {
-      console.error(`Health check failed for ${this.config.provider}:`, error);
+      logger.error(`Health check failed for ${this.config.provider}:`, error);
       return false;
     }
   }
@@ -61,7 +62,7 @@ export abstract class BaseAIProvider {
         },
       });
     } catch (error) {
-      console.error(`Failed to record success for ${this.config.provider}:`, error);
+      logger.error(`Failed to record success for ${this.config.provider}:`, error);
     }
   }
 
@@ -92,7 +93,7 @@ export abstract class BaseAIProvider {
         },
       });
     } catch (err) {
-      console.error(`Failed to record failure for ${this.config.provider}:`, err);
+      logger.error(`Failed to record failure for ${this.config.provider}:`, err);
     }
   }
 
@@ -105,13 +106,13 @@ export abstract class BaseAIProvider {
   }
 
   protected async sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   protected async retryWithBackoff<T>(
     fn: () => Promise<T>,
     maxRetries = 3,
-    baseDelay = 1000
+    baseDelay = 1000,
   ): Promise<T> {
     let lastError: Error | undefined;
 
@@ -120,7 +121,7 @@ export abstract class BaseAIProvider {
         return await fn();
       } catch (error) {
         lastError = error as Error;
-        
+
         if (i < maxRetries - 1) {
           const delay = baseDelay * Math.pow(2, i);
           await this.sleep(delay);

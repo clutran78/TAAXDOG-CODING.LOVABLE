@@ -8,7 +8,7 @@ async function checkPermissions() {
     user: process.env.DB_USER || 'taaxdog-admin',
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME || 'taaxdog-production',
-    ssl: { rejectUnauthorized: false }
+    ssl: { rejectUnauthorized: false },
   };
 
   if (!clientConfig.password) {
@@ -81,8 +81,8 @@ async function checkPermissions() {
         AND n.nspname NOT IN ('information_schema')
       ORDER BY n.nspname
     `);
-    
-    schemasResult.rows.forEach(schema => {
+
+    schemasResult.rows.forEach((schema) => {
       console.log(`\nSchema: ${schema.schema_name}`);
       console.log(`  Owner: ${schema.owner}`);
       console.log(`  Can use: ${schema.can_use ? '✅' : '❌'}`);
@@ -90,10 +90,10 @@ async function checkPermissions() {
     });
 
     // Check if we can create in any schema
-    const createableSchema = schemasResult.rows.find(s => s.can_create);
+    const createableSchema = schemasResult.rows.find((s) => s.can_create);
     if (createableSchema) {
       console.log(`\n✅ You can create tables in schema: ${createableSchema.schema_name}`);
-      
+
       // Try to create a test table there
       console.log(`\nTesting table creation in ${createableSchema.schema_name}...`);
       try {
@@ -104,31 +104,31 @@ async function checkPermissions() {
           )
         `);
         console.log('✅ Test table created successfully!');
-        
+
         // Drop it
         await client.query(`DROP TABLE ${createableSchema.schema_name}.test_table`);
         console.log('✅ Test table dropped');
-        
+
         console.log(`\n🎉 You can use schema "${createableSchema.schema_name}" for your tables!`);
       } catch (err) {
         console.log('❌ Table creation failed:', err.message);
       }
     } else {
       console.log('\n❌ No schemas available for table creation');
-      
+
       // Check if we're in a DigitalOcean managed database
       console.log('\n=== DigitalOcean Specific Checks ===');
-      
+
       // List all roles
       const rolesResult = await client.query(`
         SELECT rolname, rolsuper, rolcreaterole, rolcreatedb
         FROM pg_roles
         WHERE rolname = current_user
       `);
-      
+
       const role = rolesResult.rows[0];
       console.log('Role details:', role);
-      
+
       console.log('\n=== SOLUTION ===');
       console.log('For DigitalOcean managed databases, you need to:');
       console.log('1. Go to your DigitalOcean control panel');
@@ -138,7 +138,6 @@ async function checkPermissions() {
       console.log('   b) Grant permissions using the "Users & Databases" interface');
       console.log('   c) Use the "doadmin" user to set up permissions');
     }
-
   } catch (error) {
     console.error('❌ Error:', error.message);
   } finally {

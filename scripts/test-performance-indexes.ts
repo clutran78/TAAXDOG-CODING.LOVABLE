@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient({
   log: ['query', 'info', 'warn', 'error'],
@@ -54,18 +54,18 @@ async function testIndexes() {
       ORDER BY 
         tablename, indexname
     `;
-    
+
     const expectedIndexes = [
       'users_createdAt_idx',
       'goals_userId_status_idx',
       'bank_transactions_transaction_date_idx',
       'bank_transactions_category_idx',
-      'idx_receipts_processed_at'
+      'idx_receipts_processed_at',
     ];
-    
-    const indexNames = indexes.map(idx => idx.indexname);
+
+    const indexNames = indexes.map((idx) => idx.indexname);
     for (const expected of expectedIndexes) {
-      if (!indexNames.some(name => name.includes(expected))) {
+      if (!indexNames.some((name) => name.includes(expected))) {
         throw new Error(`Missing index: ${expected}`);
       }
     }
@@ -73,10 +73,10 @@ async function testIndexes() {
 
   // Test 3: User Model Queries
   console.log('\n📊 Testing User Model Queries...\n');
-  
+
   await logTest('User lookup by email (uses index)', async () => {
     const user = await prisma.user.findFirst({
-      where: { email: 'test@example.com' }
+      where: { email: 'test@example.com' },
     });
     // Query should be fast even if user doesn't exist
   });
@@ -84,13 +84,13 @@ async function testIndexes() {
   await logTest('Users sorted by createdAt (uses index)', async () => {
     const users = await prisma.user.findMany({
       take: 10,
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
   });
 
   // Test 4: Goal Model Queries
   console.log('\n🎯 Testing Goal Model Queries...\n');
-  
+
   await logTest('Goals by userId and status (uses composite index)', async () => {
     // First get a user
     const user = await prisma.user.findFirst();
@@ -98,8 +98,8 @@ async function testIndexes() {
       const goals = await prisma.goal.findMany({
         where: {
           userId: user.id,
-          status: 'ACTIVE'
-        }
+          status: 'ACTIVE',
+        },
       });
     }
   });
@@ -107,39 +107,39 @@ async function testIndexes() {
   await logTest('Goals sorted by targetDate (uses index)', async () => {
     const goals = await prisma.goal.findMany({
       take: 10,
-      orderBy: { targetDate: 'asc' }
+      orderBy: { targetDate: 'asc' },
     });
   });
 
   await logTest('Goals filtered by category (uses index)', async () => {
     const goals = await prisma.goal.findMany({
       where: { category: 'Savings' },
-      take: 10
+      take: 10,
     });
   });
 
   // Test 5: Transaction Queries
   console.log('\n💰 Testing Transaction Queries...\n');
-  
+
   await logTest('Transactions by date range (uses index)', async () => {
     const startDate = new Date('2024-01-01');
     const endDate = new Date('2024-12-31');
-    
+
     const transactions = await prisma.bank_transactions.findMany({
       where: {
         transaction_date: {
           gte: startDate,
-          lte: endDate
-        }
+          lte: endDate,
+        },
       },
-      take: 10
+      take: 10,
     });
   });
 
   await logTest('Transactions by category (uses index)', async () => {
     const transactions = await prisma.bank_transactions.findMany({
       where: { category: 'groceries' },
-      take: 10
+      take: 10,
     });
   });
 
@@ -150,24 +150,24 @@ async function testIndexes() {
         where: {
           bank_account_id: account.id,
           transaction_date: {
-            gte: new Date('2024-01-01')
-          }
+            gte: new Date('2024-01-01'),
+          },
         },
         orderBy: { transaction_date: 'desc' },
-        take: 20
+        take: 20,
       });
     }
   });
 
   // Test 6: Receipt Queries
   console.log('\n🧾 Testing Receipt Queries...\n');
-  
+
   await logTest('Receipts by userId (uses index)', async () => {
     const user = await prisma.user.findFirst();
     if (user) {
       const receipts = await prisma.receipt.findMany({
         where: { userId: user.id },
-        take: 10
+        take: 10,
       });
     }
   });
@@ -175,29 +175,29 @@ async function testIndexes() {
   await logTest('Receipts sorted by createdAt (uses index)', async () => {
     const receipts = await prisma.receipt.findMany({
       orderBy: { createdAt: 'desc' },
-      take: 10
+      take: 10,
     });
   });
 
   await logTest('Receipts by processing status (uses index)', async () => {
     const receipts = await prisma.receipt.findMany({
       where: { processingStatus: 'PROCESSED' },
-      take: 10
+      take: 10,
     });
   });
 
   // Test 7: Query Performance Analysis
   console.log('\n⚡ Testing Query Performance...\n');
-  
+
   await logTest('EXPLAIN ANALYZE on indexed query', async () => {
     const explain = await prisma.$queryRaw<any[]>`
       EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)
       SELECT * FROM users WHERE email = 'test@example.com'
     `;
-    
+
     const plan = explain[0]['QUERY PLAN'][0];
     const executionTime = plan['Execution Time'];
-    
+
     if (executionTime > 10) {
       console.warn(`⚠️  Query execution time: ${executionTime}ms (consider optimization)`);
     }
@@ -205,7 +205,7 @@ async function testIndexes() {
 
   // Test 8: Complex Queries
   console.log('\n🔄 Testing Complex Queries...\n');
-  
+
   await logTest('Dashboard query (multiple models)', async () => {
     const user = await prisma.user.findFirst();
     if (user) {
@@ -213,31 +213,31 @@ async function testIndexes() {
       const [goals, recentReceipts, transactions] = await Promise.all([
         prisma.goal.findMany({
           where: { userId: user.id, status: 'ACTIVE' },
-          take: 5
+          take: 5,
         }),
         prisma.receipt.findMany({
           where: { userId: user.id },
           orderBy: { createdAt: 'desc' },
-          take: 5
+          take: 5,
         }),
         prisma.bank_transactions.findMany({
           where: {
             bank_account: {
               basiq_user: {
-                user_id: user.id
-              }
-            }
+                user_id: user.id,
+              },
+            },
           },
           orderBy: { transaction_date: 'desc' },
-          take: 10
-        })
+          take: 10,
+        }),
       ]);
     }
   });
 
   // Test 9: Count Queries
   console.log('\n📈 Testing Count Queries...\n');
-  
+
   await logTest('Count users (should use index)', async () => {
     const count = await prisma.user.count();
     console.log(`   Total users: ${count}`);
@@ -245,14 +245,14 @@ async function testIndexes() {
 
   await logTest('Count active goals', async () => {
     const count = await prisma.goal.count({
-      where: { status: 'ACTIVE' }
+      where: { status: 'ACTIVE' },
     });
     console.log(`   Active goals: ${count}`);
   });
 
   // Test 10: Index Usage Statistics
   console.log('\n📊 Checking Index Usage Statistics...\n');
-  
+
   await logTest('Index usage statistics', async () => {
     const stats = await prisma.$queryRaw<any[]>`
       SELECT 
@@ -271,9 +271,9 @@ async function testIndexes() {
       ORDER BY 
         idx_scan DESC
     `;
-    
+
     console.log('\n   Most used indexes:');
-    stats.slice(0, 5).forEach(stat => {
+    stats.slice(0, 5).forEach((stat) => {
       console.log(`   - ${stat.indexname}: ${stat.idx_scan} scans`);
     });
   });
@@ -282,34 +282,36 @@ async function testIndexes() {
 async function main() {
   try {
     await testIndexes();
-    
+
     // Print summary
     console.log('\n================================');
     console.log('📊 Test Summary\n');
-    
-    const passed = results.filter(r => r.status === 'PASS').length;
-    const failed = results.filter(r => r.status === 'FAIL').length;
+
+    const passed = results.filter((r) => r.status === 'PASS').length;
+    const failed = results.filter((r) => r.status === 'FAIL').length;
     const totalDuration = results.reduce((sum, r) => sum + (r.duration || 0), 0);
-    
+
     console.log(`Total Tests: ${results.length}`);
     console.log(`✅ Passed: ${passed}`);
     console.log(`❌ Failed: ${failed}`);
     console.log(`⏱️  Total Duration: ${totalDuration}ms`);
-    
+
     if (failed > 0) {
       console.log('\n❌ Failed Tests:');
-      results.filter(r => r.status === 'FAIL').forEach(r => {
-        console.log(`   - ${r.test}: ${r.error}`);
-      });
+      results
+        .filter((r) => r.status === 'FAIL')
+        .forEach((r) => {
+          console.log(`   - ${r.test}: ${r.error}`);
+        });
     }
-    
+
     // Performance recommendations
     console.log('\n💡 Performance Recommendations:');
     console.log('1. Run ANALYZE on tables to update statistics');
     console.log('2. Monitor slow queries in production');
     console.log('3. Consider adding more indexes based on usage patterns');
     console.log('4. Use connection pooling for better performance');
-    
+
     process.exit(failed > 0 ? 1 : 0);
   } catch (error) {
     console.error('Test suite failed:', error);

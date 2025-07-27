@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react';
 
 interface ConfirmModalProps {
   title: string;
@@ -19,7 +19,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
     <div
       className="modal show d-block"
       tabIndex={-1}
-      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+      style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
     >
       <div className="modal-dialog">
         <div className="modal-content">
@@ -35,17 +35,23 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
             <p>{message}</p>
           </div>
           <div className="modal-footer">
-            <button className="btn btn-secondary" onClick={onCancel}>
+            <button
+              className="btn btn-secondary"
+              onClick={onCancel}
+            >
               Cancel
             </button>
-            <button className="btn btn-danger" onClick={onConfirm}>
+            <button
+              className="btn btn-danger"
+              onClick={onConfirm}
+            >
               {deleteLoading ? (
                 <>
                   <span className="spinner-border spinner-border-sm me-2" />
                   Updating...
                 </>
               ) : (
-                "Delete"
+                'Delete'
               )}
             </button>
           </div>

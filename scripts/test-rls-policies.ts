@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client';
 import { config } from 'dotenv';
 import { resolve } from 'path';
 
@@ -47,14 +47,14 @@ async function runTest(testName: string, testFn: () => Promise<boolean>) {
 
 async function createTestUsers() {
   console.log('\n📋 Creating test users...');
-  
+
   // Clean up existing test users
   await prisma.user.deleteMany({
     where: {
       email: {
-        in: ['user1@test.com', 'user2@test.com', 'admin@test.com']
-      }
-    }
+        in: ['user1@test.com', 'user2@test.com', 'admin@test.com'],
+      },
+    },
   });
 
   // Create test users
@@ -63,7 +63,7 @@ async function createTestUsers() {
       email: 'user1@test.com',
       name: 'Test User 1',
       role: 'USER',
-    }
+    },
   });
 
   const user2 = await prisma.user.create({
@@ -71,7 +71,7 @@ async function createTestUsers() {
       email: 'user2@test.com',
       name: 'Test User 2',
       role: 'USER',
-    }
+    },
   });
 
   const admin = await prisma.user.create({
@@ -79,7 +79,7 @@ async function createTestUsers() {
       email: 'admin@test.com',
       name: 'Admin User',
       role: 'ADMIN',
-    }
+    },
   });
 
   console.log('✅ Test users created');
@@ -103,7 +103,7 @@ async function testRLSPolicies() {
         targetDate: new Date('2024-12-31'),
         userId: user1.id,
         status: 'ACTIVE',
-      }
+      },
     });
 
     await prisma.goal.create({
@@ -115,7 +115,7 @@ async function testRLSPolicies() {
         targetDate: new Date('2024-12-31'),
         userId: user2.id,
         status: 'ACTIVE',
-      }
+      },
     });
 
     // Test with user context
@@ -140,7 +140,7 @@ async function testRLSPolicies() {
   });
 
   // Test 3: Transaction isolation
-  await runTest('Users cannot see each other\'s transactions', async () => {
+  await runTest("Users cannot see each other's transactions", async () => {
     // Create transactions for both users
     await prisma.transaction.create({
       data: {
@@ -149,7 +149,7 @@ async function testRLSPolicies() {
         date: new Date(),
         type: 'EXPENSE',
         userId: user1.id,
-      }
+      },
     });
 
     await prisma.transaction.create({
@@ -159,7 +159,7 @@ async function testRLSPolicies() {
         date: new Date(),
         type: 'INCOME',
         userId: user2.id,
-      }
+      },
     });
 
     return true; // Placeholder
@@ -174,7 +174,7 @@ async function testRLSPolicies() {
         institution: 'Test Bank',
         status: 'ACTIVE',
         basiqUserId: 'test-basiq-id',
-      }
+      },
     });
 
     const account = await prisma.account.create({
@@ -186,7 +186,7 @@ async function testRLSPolicies() {
         availableBalance: 1000,
         accountType: 'TRANSACTION',
         currency: 'AUD',
-      }
+      },
     });
 
     return true; // Placeholder
@@ -200,7 +200,7 @@ async function testRLSPolicies() {
         userId: user1.id,
         title: 'User 1 Conversation',
         type: 'TAX_ADVICE',
-      }
+      },
     });
 
     await prisma.aIConversation.create({
@@ -208,7 +208,7 @@ async function testRLSPolicies() {
         userId: user2.id,
         title: 'User 2 Conversation',
         type: 'EXPENSE_ANALYSIS',
-      }
+      },
     });
 
     return true; // Placeholder
@@ -224,16 +224,16 @@ async function testRLSPolicies() {
 
 async function applyRLSMigration() {
   console.log('\n📦 Applying RLS migration...\n');
-  
+
   try {
     const migrationPath = resolve(__dirname, '../migrations/add_row_level_security.sql');
     console.log(`Reading migration from: ${migrationPath}`);
-    
+
     // Note: In a real scenario, you would execute the migration SQL file
     console.log('⚠️  To apply the RLS migration, run:');
     console.log(`   psql -U your_user -d your_database -f ${migrationPath}`);
     console.log('\n   Or use your database migration tool of choice.');
-    
+
     return true;
   } catch (error) {
     console.error('Failed to apply RLS migration:', error);
@@ -245,34 +245,33 @@ async function main() {
   try {
     console.log('🚀 Starting RLS Policy Test Suite\n');
     console.log(`Database: ${process.env.DATABASE_URL?.split('@')[1]?.split('/')[0] || 'Unknown'}`);
-    
+
     // Apply migration instructions
     await applyRLSMigration();
-    
+
     // Run tests
     await testRLSPolicies();
-    
+
     // Summary
     console.log('\n📊 Test Summary:');
     console.log('═'.repeat(50));
-    
-    const passed = results.filter(r => r.passed).length;
-    const failed = results.filter(r => !r.passed).length;
-    
-    results.forEach(result => {
+
+    const passed = results.filter((r) => r.passed).length;
+    const failed = results.filter((r) => !r.passed).length;
+
+    results.forEach((result) => {
       console.log(`${result.message} ${result.test}`);
     });
-    
+
     console.log('═'.repeat(50));
     console.log(`Total: ${results.length} | Passed: ${passed} | Failed: ${failed}`);
-    
+
     if (failed > 0) {
       console.log('\n❌ Some tests failed. Please review the errors above.');
       process.exit(1);
     } else {
       console.log('\n✅ All tests passed!');
     }
-    
   } catch (error) {
     console.error('\n💥 Test suite failed:', error);
     process.exit(1);

@@ -47,8 +47,8 @@ class SecurityChecklistValidator {
         failed: 0,
         warnings: 0,
         manual: 0,
-        criticalFailures: 0
-      }
+        criticalFailures: 0,
+      },
     };
   }
 
@@ -84,62 +84,64 @@ class SecurityChecklistValidator {
     this.addCheck({
       category: 'Security Hardening',
       item: 'Security headers configured',
-      status: await this.verifySecurityHeaders() ? 'pass' : 'fail',
+      status: (await this.verifySecurityHeaders()) ? 'pass' : 'fail',
       automated: true,
       critical: true,
       details: 'X-Frame-Options, CSP, HSTS, etc.',
-      remediation: 'Configure security headers in middleware'
+      remediation: 'Configure security headers in middleware',
     });
 
     // Check HTTPS enforcement
     this.addCheck({
       category: 'Security Hardening',
       item: 'HTTPS enforced',
-      status: process.env.NODE_ENV === 'production' && 
-              process.env.NEXTAUTH_URL?.startsWith('https://') ? 'pass' : 'fail',
+      status:
+        process.env.NODE_ENV === 'production' && process.env.NEXTAUTH_URL?.startsWith('https://')
+          ? 'pass'
+          : 'fail',
       automated: true,
       critical: true,
-      details: 'All traffic must use HTTPS in production'
+      details: 'All traffic must use HTTPS in production',
     });
 
     // Check rate limiting
     this.addCheck({
       category: 'Security Hardening',
       item: 'Rate limiting active',
-      status: await this.verifyRateLimiting() ? 'pass' : 'fail',
+      status: (await this.verifyRateLimiting()) ? 'pass' : 'fail',
       automated: true,
       critical: true,
-      details: 'API endpoints protected by rate limiting'
+      details: 'API endpoints protected by rate limiting',
     });
 
     // Check input validation
     this.addCheck({
       category: 'Security Hardening',
       item: 'Input validation middleware',
-      status: await this.verifyInputValidation() ? 'pass' : 'fail',
+      status: (await this.verifyInputValidation()) ? 'pass' : 'fail',
       automated: true,
       critical: true,
-      details: 'All inputs sanitized and validated'
+      details: 'All inputs sanitized and validated',
     });
 
     // Check authentication
     this.addCheck({
       category: 'Security Hardening',
       item: 'Strong authentication',
-      status: await this.verifyAuthentication() ? 'pass' : 'warning',
+      status: (await this.verifyAuthentication()) ? 'pass' : 'warning',
       automated: true,
       critical: false,
-      details: '2FA enabled for privileged accounts'
+      details: '2FA enabled for privileged accounts',
     });
 
     // Check session security
     this.addCheck({
       category: 'Security Hardening',
       item: 'Secure session configuration',
-      status: await this.verifySessionSecurity() ? 'pass' : 'fail',
+      status: (await this.verifySessionSecurity()) ? 'pass' : 'fail',
       automated: true,
       critical: true,
-      details: 'HTTPOnly, Secure, SameSite cookies'
+      details: 'HTTPOnly, Secure, SameSite cookies',
     });
   }
 
@@ -150,40 +152,40 @@ class SecurityChecklistValidator {
     this.addCheck({
       category: 'Compliance',
       item: 'Privacy Policy published',
-      status: await this.verifyPrivacyPolicy() ? 'pass' : 'fail',
+      status: (await this.verifyPrivacyPolicy()) ? 'pass' : 'fail',
       automated: true,
       critical: true,
-      details: 'Comprehensive privacy policy required by APP'
+      details: 'Comprehensive privacy policy required by APP',
     });
 
     // Data residency
     this.addCheck({
       category: 'Compliance',
       item: 'Data residency (Australia)',
-      status: await this.verifyDataResidency() ? 'pass' : 'fail',
+      status: (await this.verifyDataResidency()) ? 'pass' : 'fail',
       automated: true,
       critical: true,
-      details: 'All data stored in Australian data centers'
+      details: 'All data stored in Australian data centers',
     });
 
     // Audit logging
     this.addCheck({
       category: 'Compliance',
       item: 'Audit trail complete',
-      status: await this.verifyAuditLogging() ? 'pass' : 'fail',
+      status: (await this.verifyAuditLogging()) ? 'pass' : 'fail',
       automated: true,
       critical: true,
-      details: 'All critical actions logged'
+      details: 'All critical actions logged',
     });
 
     // PCI compliance (via Stripe)
     this.addCheck({
       category: 'Compliance',
       item: 'PCI DSS compliance',
-      status: await this.verifyPCICompliance() ? 'pass' : 'fail',
+      status: (await this.verifyPCICompliance()) ? 'pass' : 'fail',
       automated: true,
       critical: true,
-      details: 'No card data stored, using Stripe'
+      details: 'No card data stored, using Stripe',
     });
 
     // Data retention
@@ -193,7 +195,7 @@ class SecurityChecklistValidator {
       status: 'manual',
       automated: false,
       critical: false,
-      details: 'Verify archival procedures for tax law'
+      details: 'Verify archival procedures for tax law',
     });
   }
 
@@ -204,20 +206,20 @@ class SecurityChecklistValidator {
     this.addCheck({
       category: 'Monitoring',
       item: 'Security monitoring active',
-      status: await this.verifySecurityMonitoring() ? 'pass' : 'fail',
+      status: (await this.verifySecurityMonitoring()) ? 'pass' : 'fail',
       automated: true,
       critical: true,
-      details: 'Real-time threat detection enabled'
+      details: 'Real-time threat detection enabled',
     });
 
     // Performance monitoring
     this.addCheck({
       category: 'Monitoring',
       item: 'Performance monitoring',
-      status: await this.verifyPerformanceMonitoring() ? 'pass' : 'warning',
+      status: (await this.verifyPerformanceMonitoring()) ? 'pass' : 'warning',
       automated: true,
       critical: false,
-      details: 'APM and metrics collection active'
+      details: 'APM and metrics collection active',
     });
 
     // Error tracking
@@ -227,7 +229,7 @@ class SecurityChecklistValidator {
       status: process.env.SENTRY_DSN ? 'pass' : 'warning',
       automated: true,
       critical: false,
-      details: 'Sentry or similar error tracking'
+      details: 'Sentry or similar error tracking',
     });
 
     // Alerting configuration
@@ -237,7 +239,7 @@ class SecurityChecklistValidator {
       status: 'manual',
       automated: false,
       critical: true,
-      details: 'Verify email/SMS/Slack alerts configured'
+      details: 'Verify email/SMS/Slack alerts configured',
     });
 
     // Uptime monitoring
@@ -247,7 +249,7 @@ class SecurityChecklistValidator {
       status: 'manual',
       automated: false,
       critical: false,
-      details: 'External uptime monitoring service'
+      details: 'External uptime monitoring service',
     });
   }
 
@@ -258,10 +260,10 @@ class SecurityChecklistValidator {
     this.addCheck({
       category: 'Backup',
       item: 'Automated backups configured',
-      status: await this.verifyBackupConfiguration() ? 'pass' : 'fail',
+      status: (await this.verifyBackupConfiguration()) ? 'pass' : 'fail',
       automated: true,
       critical: true,
-      details: 'Daily full, hourly incremental backups'
+      details: 'Daily full, hourly incremental backups',
     });
 
     // Backup encryption
@@ -271,7 +273,7 @@ class SecurityChecklistValidator {
       status: process.env.BACKUP_ENCRYPTION_KEY ? 'pass' : 'fail',
       automated: true,
       critical: true,
-      details: 'All backups encrypted at rest'
+      details: 'All backups encrypted at rest',
     });
 
     // Backup testing
@@ -281,17 +283,17 @@ class SecurityChecklistValidator {
       status: 'manual',
       automated: false,
       critical: true,
-      details: 'Monthly restoration tests required'
+      details: 'Monthly restoration tests required',
     });
 
     // Disaster recovery plan
     this.addCheck({
       category: 'Backup',
       item: 'DR procedures documented',
-      status: await this.verifyDRDocumentation() ? 'pass' : 'warning',
+      status: (await this.verifyDRDocumentation()) ? 'pass' : 'warning',
       automated: true,
       critical: false,
-      details: 'RTO: 4 hours, RPO: 1 hour'
+      details: 'RTO: 4 hours, RPO: 1 hour',
     });
 
     // Offsite backups
@@ -301,7 +303,7 @@ class SecurityChecklistValidator {
       status: process.env.AWS_REGION === 'ap-southeast-2' ? 'pass' : 'warning',
       automated: true,
       critical: false,
-      details: 'Backups stored in S3 Sydney region'
+      details: 'Backups stored in S3 Sydney region',
     });
   }
 
@@ -315,7 +317,7 @@ class SecurityChecklistValidator {
       status: 'manual',
       automated: false,
       critical: true,
-      details: 'Verify admin users and permissions'
+      details: 'Verify admin users and permissions',
     });
 
     // SSH key management
@@ -325,17 +327,17 @@ class SecurityChecklistValidator {
       status: 'manual',
       automated: false,
       critical: true,
-      details: 'No default passwords, key-based auth only'
+      details: 'No default passwords, key-based auth only',
     });
 
     // Database access
     this.addCheck({
       category: 'Access Control',
       item: 'Database access secured',
-      status: await this.verifyDatabaseAccess() ? 'pass' : 'fail',
+      status: (await this.verifyDatabaseAccess()) ? 'pass' : 'fail',
       automated: true,
       critical: true,
-      details: 'Restricted IPs, strong passwords'
+      details: 'Restricted IPs, strong passwords',
     });
 
     // API key rotation
@@ -345,7 +347,7 @@ class SecurityChecklistValidator {
       status: 'manual',
       automated: false,
       critical: false,
-      details: 'Quarterly API key rotation'
+      details: 'Quarterly API key rotation',
     });
 
     // Service accounts
@@ -355,7 +357,7 @@ class SecurityChecklistValidator {
       status: 'manual',
       automated: false,
       critical: false,
-      details: 'Least privilege for all service accounts'
+      details: 'Least privilege for all service accounts',
     });
   }
 
@@ -369,7 +371,7 @@ class SecurityChecklistValidator {
       status: 'manual',
       automated: false,
       critical: true,
-      details: 'Only required ports open'
+      details: 'Only required ports open',
     });
 
     // DDoS protection
@@ -379,7 +381,7 @@ class SecurityChecklistValidator {
       status: 'manual',
       automated: false,
       critical: false,
-      details: 'CloudFlare or similar protection'
+      details: 'CloudFlare or similar protection',
     });
 
     // VPN/Private network
@@ -389,17 +391,17 @@ class SecurityChecklistValidator {
       status: 'manual',
       automated: false,
       critical: false,
-      details: 'Database on private subnet'
+      details: 'Database on private subnet',
     });
 
     // SSL/TLS configuration
     this.addCheck({
       category: 'Network',
       item: 'SSL/TLS properly configured',
-      status: await this.verifySSLConfiguration() ? 'pass' : 'fail',
+      status: (await this.verifySSLConfiguration()) ? 'pass' : 'fail',
       automated: true,
       critical: true,
-      details: 'TLS 1.2+, strong ciphers only'
+      details: 'TLS 1.2+, strong ciphers only',
     });
 
     // DNS security
@@ -409,7 +411,7 @@ class SecurityChecklistValidator {
       status: 'manual',
       automated: false,
       critical: false,
-      details: 'DNS security extensions active'
+      details: 'DNS security extensions active',
     });
   }
 
@@ -420,30 +422,30 @@ class SecurityChecklistValidator {
     this.addCheck({
       category: 'Data Protection',
       item: 'Data encrypted at rest',
-      status: await this.verifyEncryptionAtRest() ? 'pass' : 'fail',
+      status: (await this.verifyEncryptionAtRest()) ? 'pass' : 'fail',
       automated: true,
       critical: true,
-      details: 'Database and file storage encrypted'
+      details: 'Database and file storage encrypted',
     });
 
     // Encryption in transit
     this.addCheck({
       category: 'Data Protection',
       item: 'Data encrypted in transit',
-      status: await this.verifyEncryptionInTransit() ? 'pass' : 'fail',
+      status: (await this.verifyEncryptionInTransit()) ? 'pass' : 'fail',
       automated: true,
       critical: true,
-      details: 'All connections use TLS'
+      details: 'All connections use TLS',
     });
 
     // PII handling
     this.addCheck({
       category: 'Data Protection',
       item: 'PII properly handled',
-      status: await this.verifyPIIHandling() ? 'pass' : 'warning',
+      status: (await this.verifyPIIHandling()) ? 'pass' : 'warning',
       automated: true,
       critical: false,
-      details: 'Personal data masked/encrypted'
+      details: 'Personal data masked/encrypted',
     });
 
     // Data classification
@@ -453,7 +455,7 @@ class SecurityChecklistValidator {
       status: 'manual',
       automated: false,
       critical: false,
-      details: 'Sensitive data identified and tagged'
+      details: 'Sensitive data identified and tagged',
     });
 
     // Data loss prevention
@@ -463,7 +465,7 @@ class SecurityChecklistValidator {
       status: 'manual',
       automated: false,
       critical: false,
-      details: 'Export controls and monitoring'
+      details: 'Export controls and monitoring',
     });
   }
 
@@ -474,10 +476,10 @@ class SecurityChecklistValidator {
     this.addCheck({
       category: 'Incident Response',
       item: 'IR plan documented',
-      status: await this.verifyIRDocumentation() ? 'pass' : 'warning',
+      status: (await this.verifyIRDocumentation()) ? 'pass' : 'warning',
       automated: true,
       critical: false,
-      details: 'Incident response procedures ready'
+      details: 'Incident response procedures ready',
     });
 
     // Contact list
@@ -487,7 +489,7 @@ class SecurityChecklistValidator {
       status: 'manual',
       automated: false,
       critical: true,
-      details: 'Security team contacts available'
+      details: 'Security team contacts available',
     });
 
     // Forensics capability
@@ -497,7 +499,7 @@ class SecurityChecklistValidator {
       status: 'manual',
       automated: false,
       critical: false,
-      details: 'Log collection and analysis tools'
+      details: 'Log collection and analysis tools',
     });
 
     // Communication plan
@@ -507,7 +509,7 @@ class SecurityChecklistValidator {
       status: 'manual',
       automated: false,
       critical: false,
-      details: 'Customer notification procedures'
+      details: 'Customer notification procedures',
     });
 
     // Recovery procedures
@@ -517,7 +519,7 @@ class SecurityChecklistValidator {
       status: 'manual',
       automated: false,
       critical: false,
-      details: 'Rollback and recovery validated'
+      details: 'Rollback and recovery validated',
     });
   }
 
@@ -552,8 +554,7 @@ class SecurityChecklistValidator {
   }
 
   private async verifyDataResidency(): Promise<boolean> {
-    return process.env.DATABASE_URL?.includes('syd') || 
-           process.env.AWS_REGION === 'ap-southeast-2';
+    return process.env.DATABASE_URL?.includes('syd') || process.env.AWS_REGION === 'ap-southeast-2';
   }
 
   private async verifyAuditLogging(): Promise<boolean> {
@@ -590,8 +591,9 @@ class SecurityChecklistValidator {
   }
 
   private async verifySSLConfiguration(): Promise<boolean> {
-    return process.env.NODE_ENV === 'production' && 
-           process.env.NEXTAUTH_URL?.startsWith('https://');
+    return (
+      process.env.NODE_ENV === 'production' && process.env.NEXTAUTH_URL?.startsWith('https://')
+    );
   }
 
   private async verifyEncryptionAtRest(): Promise<boolean> {
@@ -618,12 +620,12 @@ class SecurityChecklistValidator {
 
   private calculateSummary(): void {
     this.report.summary.total = this.report.results.length;
-    this.report.summary.passed = this.report.results.filter(r => r.status === 'pass').length;
-    this.report.summary.failed = this.report.results.filter(r => r.status === 'fail').length;
-    this.report.summary.warnings = this.report.results.filter(r => r.status === 'warning').length;
-    this.report.summary.manual = this.report.results.filter(r => r.status === 'manual').length;
+    this.report.summary.passed = this.report.results.filter((r) => r.status === 'pass').length;
+    this.report.summary.failed = this.report.results.filter((r) => r.status === 'fail').length;
+    this.report.summary.warnings = this.report.results.filter((r) => r.status === 'warning').length;
+    this.report.summary.manual = this.report.results.filter((r) => r.status === 'manual').length;
     this.report.summary.criticalFailures = this.report.results.filter(
-      r => r.status === 'fail' && r.critical
+      (r) => r.status === 'fail' && r.critical,
     ).length;
 
     // Determine overall status
@@ -638,46 +640,52 @@ class SecurityChecklistValidator {
 
   private async saveReport(): Promise<void> {
     const reportPath = path.join(process.cwd(), 'logs', 'security-checklist.json');
-    
-    await fs.promises.writeFile(
-      reportPath,
-      JSON.stringify(this.report, null, 2)
-    );
+
+    await fs.promises.writeFile(reportPath, JSON.stringify(this.report, null, 2));
   }
 
   private displayResults(): void {
     console.log('\n' + '='.repeat(60));
     console.log('🔒 SECURITY CHECKLIST REPORT');
     console.log('='.repeat(60));
-    
+
     const statusEmoji = {
       secure: '✅',
       at_risk: '⚠️',
-      not_secure: '❌'
+      not_secure: '❌',
     };
-    
-    console.log(`\nOverall Status: ${statusEmoji[this.report.overallStatus]} ${this.report.overallStatus.toUpperCase().replace('_', ' ')}`);
-    
+
+    console.log(
+      `\nOverall Status: ${statusEmoji[this.report.overallStatus]} ${this.report.overallStatus.toUpperCase().replace('_', ' ')}`,
+    );
+
     console.log('\n📊 Summary:');
     console.log(`  Total Checks: ${this.report.summary.total}`);
     console.log(`  Passed: ${this.report.summary.passed}`);
-    console.log(`  Failed: ${this.report.summary.failed} (${this.report.summary.criticalFailures} critical)`);
+    console.log(
+      `  Failed: ${this.report.summary.failed} (${this.report.summary.criticalFailures} critical)`,
+    );
     console.log(`  Warnings: ${this.report.summary.warnings}`);
     console.log(`  Manual Verification: ${this.report.summary.manual}`);
-    
+
     // Group by category
-    const categories = [...new Set(this.report.results.map(r => r.category))];
-    
+    const categories = [...new Set(this.report.results.map((r) => r.category))];
+
     for (const category of categories) {
       console.log(`\n${category}:`);
-      const categoryResults = this.report.results.filter(r => r.category === category);
-      
+      const categoryResults = this.report.results.filter((r) => r.category === category);
+
       for (const result of categoryResults) {
-        const icon = result.status === 'pass' ? '✅' : 
-                    result.status === 'fail' ? '❌' : 
-                    result.status === 'warning' ? '⚠️' : '👤';
+        const icon =
+          result.status === 'pass'
+            ? '✅'
+            : result.status === 'fail'
+              ? '❌'
+              : result.status === 'warning'
+                ? '⚠️'
+                : '👤';
         const critical = result.critical ? ' [CRITICAL]' : '';
-        
+
         console.log(`  ${icon} ${result.item}${critical}`);
         if (result.status !== 'pass') {
           console.log(`     → ${result.details}`);
@@ -687,29 +695,27 @@ class SecurityChecklistValidator {
         }
       }
     }
-    
+
     // Show critical failures
-    const criticalFailures = this.report.results.filter(
-      r => r.status === 'fail' && r.critical
-    );
-    
+    const criticalFailures = this.report.results.filter((r) => r.status === 'fail' && r.critical);
+
     if (criticalFailures.length > 0) {
       console.log('\n🚨 CRITICAL SECURITY ISSUES:');
-      criticalFailures.forEach(f => {
+      criticalFailures.forEach((f) => {
         console.log(`  - ${f.item}: ${f.details}`);
       });
     }
-    
+
     // Show manual checks needed
-    const manualChecks = this.report.results.filter(r => r.status === 'manual');
-    
+    const manualChecks = this.report.results.filter((r) => r.status === 'manual');
+
     if (manualChecks.length > 0) {
       console.log('\n👤 MANUAL VERIFICATION REQUIRED:');
-      manualChecks.forEach(m => {
+      manualChecks.forEach((m) => {
         console.log(`  - ${m.item}: ${m.details}`);
       });
     }
-    
+
     console.log('\n' + '='.repeat(60));
   }
 }
@@ -718,7 +724,7 @@ class SecurityChecklistValidator {
 async function main() {
   const validator = new SecurityChecklistValidator();
   const report = await validator.runChecklist();
-  
+
   if (report.overallStatus === 'not_secure') {
     console.error('\n❌ SECURITY CHECKLIST FAILED! Do not deploy.');
     process.exit(1);

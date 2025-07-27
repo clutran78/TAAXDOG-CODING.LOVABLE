@@ -8,7 +8,10 @@ const ReceiptsPage: NextPage = () => {
     <>
       <Head>
         <title>Receipt Management - TaxReturnPro</title>
-        <meta name="description" content="Upload and manage your tax receipts with AI-powered extraction" />
+        <meta
+          name="description"
+          content="Upload and manage your tax receipts with AI-powered extraction"
+        />
       </Head>
       <ReceiptManagement />
     </>

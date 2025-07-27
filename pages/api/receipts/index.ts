@@ -71,7 +71,7 @@ async function receiptsHandler(req: AuthenticatedRequest, res: NextApiResponse) 
           },
         },
       })
-      .catch((err) => logger.error('Audit log error:', err););
+      .catch((err) => logger.error('Audit log error:', err));
 
     switch (req.method) {
       case 'GET':

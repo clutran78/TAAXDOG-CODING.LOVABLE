@@ -1,4 +1,10 @@
-import { AIProvider, AIOperationType, AI_MODELS, MODEL_COSTS, getProviderFromModel } from './config';
+import {
+  AIProvider,
+  AIOperationType,
+  AI_MODELS,
+  MODEL_COSTS,
+  getProviderFromModel,
+} from './config';
 import { prisma } from '../prisma';
 
 interface CostOptimizationStrategy {
@@ -12,9 +18,9 @@ interface CostOptimizationStrategy {
 export class AIRoutingOptimizer {
   private static CACHE_HIT_COST_SAVING = 1.0; // 100% saving on cache hit
   private static COMPLEXITY_THRESHOLDS = {
-    simple: 100,    // < 100 tokens
-    medium: 500,    // 100-500 tokens
-    complex: 2000,  // 500-2000 tokens
+    simple: 100, // < 100 tokens
+    medium: 500, // 100-500 tokens
+    complex: 2000, // 500-2000 tokens
     veryComplex: Infinity, // > 2000 tokens
   };
 
@@ -24,7 +30,7 @@ export class AIRoutingOptimizer {
   static async getOptimalProvider(
     operationType: AIOperationType,
     estimatedTokens: number,
-    requiresVision: boolean = false
+    requiresVision: boolean = false,
   ): Promise<CostOptimizationStrategy> {
     // Check cache potential first
     const cacheHitRate = await this.getCacheHitRate(operationType);
@@ -33,7 +39,8 @@ export class AIRoutingOptimizer {
       return {
         provider: AIProvider.ANTHROPIC,
         model: AI_MODELS.CLAUDE_3_HAIKU,
-        estimatedCost: this.calculateCost(AI_MODELS.CLAUDE_3_HAIKU, estimatedTokens) * (1 - cacheHitRate),
+        estimatedCost:
+          this.calculateCost(AI_MODELS.CLAUDE_3_HAIKU, estimatedTokens) * (1 - cacheHitRate),
         rationale: 'High cache hit rate allows for cheaper model usage',
         priority: 1,
       };
@@ -52,7 +59,7 @@ export class AIRoutingOptimizer {
 
     // Route based on operation type and complexity
     const complexity = this.getComplexityLevel(estimatedTokens);
-    
+
     switch (operationType) {
       case AIOperationType.TAX_ANALYSIS:
       case AIOperationType.TAX_OPTIMIZATION:
@@ -126,7 +133,7 @@ export class AIRoutingOptimizer {
     });
 
     if (!stats._count || stats._count === 0) return 0;
-    
+
     const totalRequests = stats._count + (stats._sum.hitCount || 0);
     return (stats._sum.hitCount || 0) / totalRequests;
   }
@@ -161,7 +168,7 @@ export class AIRoutingOptimizer {
   static async generateCostReport(
     startDate: Date,
     endDate: Date,
-    userId?: string
+    userId?: string,
   ): Promise<{
     totalCost: number;
     byProvider: Record<string, number>;
@@ -178,24 +185,33 @@ export class AIRoutingOptimizer {
 
     // Aggregate costs
     const totalCost = usage.reduce((sum, u) => sum + Number(u.costUsd || 0), 0);
-    
-    const byProvider = usage.reduce((acc, u) => {
-      acc[u.provider] = (acc[u.provider] || 0) + Number(u.costUsd || 0);
-      return acc;
-    }, {} as Record<string, number>);
 
-    const byOperation = usage.reduce((acc, u) => {
-      acc[u.operationType] = (acc[u.operationType] || 0) + Number(u.costUsd || 0);
-      return acc;
-    }, {} as Record<string, number>);
+    const byProvider = usage.reduce(
+      (acc, u) => {
+        acc[u.provider] = (acc[u.provider] || 0) + Number(u.costUsd || 0);
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+
+    const byOperation = usage.reduce(
+      (acc, u) => {
+        acc[u.operationType] = (acc[u.operationType] || 0) + Number(u.costUsd || 0);
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     // Get top users by cost
-    const userCosts = usage.reduce((acc, u) => {
-      if (u.userId) {
-        acc[u.userId] = (acc[u.userId] || 0) + Number(u.costUsd || 0);
-      }
-      return acc;
-    }, {} as Record<string, number>);
+    const userCosts = usage.reduce(
+      (acc, u) => {
+        if (u.userId) {
+          acc[u.userId] = (acc[u.userId] || 0) + Number(u.costUsd || 0);
+        }
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     const topUsers = Object.entries(userCosts)
       .sort(([, a], [, b]) => b - a)
@@ -207,7 +223,7 @@ export class AIRoutingOptimizer {
       totalCost,
       byProvider,
       byOperation,
-      usage
+      usage,
     );
 
     return {
@@ -226,7 +242,7 @@ export class AIRoutingOptimizer {
     totalCost: number,
     byProvider: Record<string, number>,
     byOperation: Record<string, number>,
-    usage: any[]
+    usage: any[],
   ): string[] {
     const recommendations: string[] = [];
 
@@ -237,7 +253,7 @@ export class AIRoutingOptimizer {
 
     if (expensiveOps.length > 0) {
       recommendations.push(
-        `Consider implementing more aggressive caching for ${expensiveOps.join(', ')} operations`
+        `Consider implementing more aggressive caching for ${expensiveOps.join(', ')} operations`,
       );
     }
 
@@ -245,15 +261,15 @@ export class AIRoutingOptimizer {
     const anthropicPercentage = (byProvider['anthropic'] || 0) / totalCost;
     if (anthropicPercentage > 0.8) {
       recommendations.push(
-        'Heavy reliance on Anthropic - consider using OpenRouter for non-critical tasks'
+        'Heavy reliance on Anthropic - consider using OpenRouter for non-critical tasks',
       );
     }
 
     // Check failure rate
-    const failureRate = usage.filter(u => !u.success).length / usage.length;
+    const failureRate = usage.filter((u) => !u.success).length / usage.length;
     if (failureRate > 0.1) {
       recommendations.push(
-        `High failure rate (${(failureRate * 100).toFixed(1)}%) - implement better error handling`
+        `High failure rate (${(failureRate * 100).toFixed(1)}%) - implement better error handling`,
       );
     }
 
@@ -261,7 +277,7 @@ export class AIRoutingOptimizer {
     const avgCacheHit = usage.reduce((sum, u) => sum + (u.cacheHit ? 1 : 0), 0) / usage.length;
     if (avgCacheHit < 0.2) {
       recommendations.push(
-        'Low cache utilization - implement query normalization for better caching'
+        'Low cache utilization - implement query normalization for better caching',
       );
     }
 
@@ -273,7 +289,7 @@ export class AIRoutingOptimizer {
    */
   static async checkUserQuota(
     userId: string,
-    estimatedCost: number
+    estimatedCost: number,
   ): Promise<{
     allowed: boolean;
     currentUsage: number;
@@ -294,7 +310,7 @@ export class AIRoutingOptimizer {
     });
 
     const currentUsage = usage._sum.costUsd || 0;
-    
+
     // Get user's subscription tier (simplified)
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -303,9 +319,9 @@ export class AIRoutingOptimizer {
 
     // Set limits based on subscription
     const limits: Record<string, number> = {
-      free: 5.0,      // $5 USD per month
-      smart: 50.0,    // $50 USD per month
-      pro: 200.0,     // $200 USD per month
+      free: 5.0, // $5 USD per month
+      smart: 50.0, // $50 USD per month
+      pro: 200.0, // $200 USD per month
     };
 
     const plan = user?.subscriptions?.[0]?.plan || 'free';
@@ -332,7 +348,7 @@ export class AIRateLimiter {
 
   static async checkRateLimit(
     provider: AIProvider,
-    userId: string
+    userId: string,
   ): Promise<{
     allowed: boolean;
     retryAfter?: number;
@@ -343,10 +359,10 @@ export class AIRateLimiter {
 
     // Get existing requests
     let userRequests = this.requests.get(key) || [];
-    
+
     // Filter out old requests
-    userRequests = userRequests.filter(timestamp => timestamp > windowStart);
-    
+    userRequests = userRequests.filter((timestamp) => timestamp > windowStart);
+
     // Get rate limit for provider
     const limits = {
       [AIProvider.ANTHROPIC]: 50,
@@ -359,7 +375,7 @@ export class AIRateLimiter {
     if (userRequests.length >= limit) {
       const oldestRequest = Math.min(...userRequests);
       const retryAfter = Math.ceil((oldestRequest + this.WINDOW_SIZE_MS - now) / 1000);
-      
+
       return {
         allowed: false,
         retryAfter,
@@ -381,7 +397,7 @@ export class AIRateLimiter {
     const windowStart = now - this.WINDOW_SIZE_MS;
 
     this.requests.forEach((timestamps, key) => {
-      const filtered = timestamps.filter(t => t > windowStart);
+      const filtered = timestamps.filter((t) => t > windowStart);
       if (filtered.length === 0) {
         this.requests.delete(key);
       } else {

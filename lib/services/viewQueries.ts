@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client';
 
 /**
  * Query functions for materialized views
@@ -67,72 +67,116 @@ export class ViewQueries {
   async getMonthlySpending(
     userId: string,
     startMonth?: Date,
-    endMonth?: Date
+    endMonth?: Date,
   ): Promise<MonthlySpending[]> {
-    let whereClause = `WHERE "userId" = $1`;
-    const params: any[] = [userId];
-    
-    if (startMonth) {
-      params.push(startMonth);
-      whereClause += ` AND month >= $${params.length}`;
+    // Build query conditionally based on parameters
+    if (startMonth && endMonth) {
+      return this.prisma.$queryRaw<MonthlySpending[]>`
+        SELECT 
+          "userId",
+          month,
+          category,
+          total_amount as "totalAmount",
+          transaction_count as "transactionCount",
+          avg_amount as "avgAmount",
+          deductible_amount as "deductibleAmount",
+          deductible_count as "deductibleCount"
+        FROM monthly_spending_summary
+        WHERE "userId" = ${userId}
+          AND month >= ${startMonth}
+          AND month <= ${endMonth}
+        ORDER BY month DESC, total_amount DESC
+      `;
+    } else if (startMonth) {
+      return this.prisma.$queryRaw<MonthlySpending[]>`
+        SELECT 
+          "userId",
+          month,
+          category,
+          total_amount as "totalAmount",
+          transaction_count as "transactionCount",
+          avg_amount as "avgAmount",
+          deductible_amount as "deductibleAmount",
+          deductible_count as "deductibleCount"
+        FROM monthly_spending_summary
+        WHERE "userId" = ${userId}
+          AND month >= ${startMonth}
+        ORDER BY month DESC, total_amount DESC
+      `;
+    } else if (endMonth) {
+      return this.prisma.$queryRaw<MonthlySpending[]>`
+        SELECT 
+          "userId",
+          month,
+          category,
+          total_amount as "totalAmount",
+          transaction_count as "transactionCount",
+          avg_amount as "avgAmount",
+          deductible_amount as "deductibleAmount",
+          deductible_count as "deductibleCount"
+        FROM monthly_spending_summary
+        WHERE "userId" = ${userId}
+          AND month <= ${endMonth}
+        ORDER BY month DESC, total_amount DESC
+      `;
+    } else {
+      return this.prisma.$queryRaw<MonthlySpending[]>`
+        SELECT 
+          "userId",
+          month,
+          category,
+          total_amount as "totalAmount",
+          transaction_count as "transactionCount",
+          avg_amount as "avgAmount",
+          deductible_amount as "deductibleAmount",
+          deductible_count as "deductibleCount"
+        FROM monthly_spending_summary
+        WHERE "userId" = ${userId}
+        ORDER BY month DESC, total_amount DESC
+      `;
     }
-    
-    if (endMonth) {
-      params.push(endMonth);
-      whereClause += ` AND month <= $${params.length}`;
-    }
-
-    const result = await this.prisma.$queryRawUnsafe<MonthlySpending[]>(`
-      SELECT 
-        "userId",
-        month,
-        category,
-        total_amount as "totalAmount",
-        transaction_count as "transactionCount",
-        avg_amount as "avgAmount",
-        deductible_amount as "deductibleAmount",
-        deductible_count as "deductibleCount"
-      FROM monthly_spending_summary
-      ${whereClause}
-      ORDER BY month DESC, total_amount DESC
-    `, ...params);
-
-    return result;
   }
 
   /**
    * Get tax category summary from materialized view
    */
-  async getTaxCategorySummary(
-    userId: string,
-    taxYear?: number
-  ): Promise<TaxCategorySummary[]> {
-    let whereClause = `WHERE "userId" = $1`;
-    const params: any[] = [userId];
-    
+  async getTaxCategorySummary(userId: string, taxYear?: number): Promise<TaxCategorySummary[]> {
     if (taxYear) {
       const startDate = new Date(taxYear, 6, 1); // July 1 (Australian tax year)
       const endDate = new Date(taxYear + 1, 5, 30); // June 30
-      params.push(startDate, endDate);
-      whereClause += ` AND tax_year >= $2 AND tax_year <= $3`;
+
+      return this.prisma.$queryRaw<TaxCategorySummary[]>`
+        SELECT 
+          "userId",
+          tax_year as "taxYear",
+          category,
+          deductible_total as "deductibleTotal",
+          deductible_count as "deductibleCount",
+          total_amount as "totalAmount",
+          total_count as "totalCount",
+          last_transaction_date as "lastTransactionDate"
+        FROM tax_category_summary
+        WHERE "userId" = ${userId}
+          AND tax_year >= ${startDate}
+          AND tax_year <= ${endDate}
+        ORDER BY tax_year DESC, deductible_total DESC
+      `;
+    } else {
+      return this.prisma.$queryRaw<TaxCategorySummary[]>`
+        SELECT 
+          "userId",
+          tax_year as "taxYear",
+          category,
+          deductible_total as "deductibleTotal",
+          deductible_count as "deductibleCount",
+          total_amount as "totalAmount",
+          total_count as "totalCount",
+          last_transaction_date as "lastTransactionDate"
+        FROM tax_category_summary
+        WHERE "userId" = ${userId}
+        ORDER BY tax_year DESC, deductible_total DESC
+      `;
     }
-
-    const result = await this.prisma.$queryRawUnsafe<TaxCategorySummary[]>(`
-      SELECT 
-        "userId",
-        tax_year as "taxYear",
-        category,
-        deductible_total as "deductibleTotal",
-        deductible_count as "deductibleCount",
-        total_amount as "totalAmount",
-        total_count as "totalCount",
-        last_transaction_date as "lastTransactionDate"
-      FROM tax_category_summary
-      ${whereClause}
-      ORDER BY tax_year DESC, deductible_total DESC
-    `, ...params);
-
-    return result;
   }
 
   /**
@@ -140,37 +184,50 @@ export class ViewQueries {
    */
   async getGoalProgressAnalytics(
     userId: string,
-    activeOnly = true
+    activeOnly = true,
   ): Promise<GoalProgressAnalytics[]> {
-    let whereClause = `WHERE "userId" = $1`;
-    const params: any[] = [userId];
-    
     if (activeOnly) {
-      params.push(true);
-      whereClause += ` AND "isActive" = $2`;
+      return this.prisma.$queryRaw<GoalProgressAnalytics[]>`
+        SELECT 
+          goal_id as "goalId",
+          "userId",
+          goal_name as "goalName",
+          "targetAmount",
+          "currentAmount",
+          "targetDate",
+          "createdAt",
+          "isActive",
+          transaction_count as "transactionCount",
+          total_contributed as "totalContributed",
+          progress_percentage as "progressPercentage",
+          days_remaining as "daysRemaining",
+          daily_target_amount as "dailyTargetAmount"
+        FROM goal_progress_analytics
+        WHERE "userId" = ${userId}
+          AND "isActive" = ${true}
+        ORDER BY "isActive" DESC, progress_percentage DESC
+      `;
+    } else {
+      return this.prisma.$queryRaw<GoalProgressAnalytics[]>`
+        SELECT 
+          goal_id as "goalId",
+          "userId",
+          goal_name as "goalName",
+          "targetAmount",
+          "currentAmount",
+          "targetDate",
+          "createdAt",
+          "isActive",
+          transaction_count as "transactionCount",
+          total_contributed as "totalContributed",
+          progress_percentage as "progressPercentage",
+          days_remaining as "daysRemaining",
+          daily_target_amount as "dailyTargetAmount"
+        FROM goal_progress_analytics
+        WHERE "userId" = ${userId}
+        ORDER BY "isActive" DESC, progress_percentage DESC
+      `;
     }
-
-    const result = await this.prisma.$queryRawUnsafe<GoalProgressAnalytics[]>(`
-      SELECT 
-        goal_id as "goalId",
-        "userId",
-        goal_name as "goalName",
-        "targetAmount",
-        "currentAmount",
-        "targetDate",
-        "createdAt",
-        "isActive",
-        transaction_count as "transactionCount",
-        total_contributed as "totalContributed",
-        progress_percentage as "progressPercentage",
-        days_remaining as "daysRemaining",
-        daily_target_amount as "dailyTargetAmount"
-      FROM goal_progress_analytics
-      ${whereClause}
-      ORDER BY "isActive" DESC, progress_percentage DESC
-    `, ...params);
-
-    return result;
   }
 
   /**
@@ -212,7 +269,7 @@ export class ViewQueries {
   async getCategoryTrends(
     userId: string,
     category: string,
-    months = 12
+    months = 12,
   ): Promise<MonthlySpending[]> {
     const startDate = new Date();
     startDate.setMonth(startDate.getMonth() - months);
@@ -241,7 +298,7 @@ export class ViewQueries {
   async getTopCategories(
     userId: string,
     limit = 10,
-    deductibleOnly = false
+    deductibleOnly = false,
   ): Promise<{ category: string; totalAmount: number; percentage: number }[]> {
     // Use separate queries for deductible vs total to avoid SQL injection
     if (deductibleOnly) {

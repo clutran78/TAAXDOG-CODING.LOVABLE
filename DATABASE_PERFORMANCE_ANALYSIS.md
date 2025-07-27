@@ -5,25 +5,32 @@
 
 ## ⚠️ SECURITY NOTICE
 
-**IMPORTANT**: All credentials in this document have been replaced with placeholders. Never commit actual database passwords or connection strings to version control.
+**IMPORTANT**: All credentials in this document have been replaced with
+placeholders. Never commit actual database passwords or connection strings to
+version control.
 
 ## Executive Summary
 
-After examining the TAAXDOG database setup, I've identified several areas for optimization and improvements. The system currently has a solid foundation with connection pooling, but there are opportunities to enhance performance, monitoring, and reliability.
+After examining the TAAXDOG database setup, I've identified several areas for
+optimization and improvements. The system currently has a solid foundation with
+connection pooling, but there are opportunities to enhance performance,
+monitoring, and reliability.
 
 ## Current Database Architecture
 
 ### 1. Connection Configuration
 
 #### Production Environment
+
 - **Primary Database:** DigitalOcean PostgreSQL 15.13
 - **Host:** taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com
-- **Ports:** 
+- **Ports:**
   - 25060: Direct connections (migrations, admin tasks)
   - 25061: Connection pooling (application queries)
 - **SSL:** Required and properly configured
 
 #### Connection Pool Settings
+
 ```javascript
 // Current Production Configuration
 {
@@ -38,10 +45,10 @@ After examining the TAAXDOG database setup, I've identified several areas for op
 ### 2. Current Implementation Analysis
 
 #### Strengths ✅
+
 1. **Dual Connection Management:**
    - Prisma ORM for application queries
    - Native `pg` driver for custom operations
-   
 2. **Security Features:**
    - SSL/TLS enforcement
    - Connection rate limiting
@@ -60,16 +67,15 @@ After examining the TAAXDOG database setup, I've identified several areas for op
    - Connection retry logic
 
 #### Weaknesses ❌
+
 1. **Connection Pool Optimization:**
    - Not using DigitalOcean's connection pooling port (25061)
    - Missing pgBouncer configuration
    - No connection pool warmup
-   
 2. **Query Performance:**
    - Limited query optimization
    - Missing database indexes on foreign keys
    - No query result caching
-   
 3. **Monitoring Gaps:**
    - No real-time performance metrics
    - Limited connection pool visibility
@@ -80,14 +86,19 @@ After examining the TAAXDOG database setup, I've identified several areas for op
 ### 1. Immediate Optimizations
 
 #### A. Switch to Connection Pool Port
+
 Update the production database URL to use port 25061:
+
 ```typescript
 // Update in .env.production
-DATABASE_URL="postgresql://taaxdog-admin:[DATABASE_PASSWORD]@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25061/taaxdog-production?sslmode=require"
+DATABASE_URL =
+  'postgresql://taaxdog-admin:[DATABASE_PASSWORD]@taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com:25061/taaxdog-production?sslmode=require';
 ```
 
 #### B. Add Missing Database Indexes
+
 Create indexes for frequently queried columns:
+
 ```sql
 -- User lookup optimization
 CREATE INDEX idx_users_email_verified ON users(email, emailVerified);
@@ -114,47 +125,53 @@ CREATE INDEX idx_bank_transactions_account_date ON bank_transactions(bank_accoun
 ```
 
 #### C. Optimize Connection Pool Configuration
+
 ```typescript
 // Enhanced pool configuration
 const poolConfig = {
   // Connection limits
-  min: 10,              // Increase minimum for production
-  max: 30,              // Increase maximum for peak loads
-  
+  min: 10, // Increase minimum for production
+  max: 30, // Increase maximum for peak loads
+
   // Timeouts
-  idleTimeoutMillis: 60000,      // 1 minute (increase for stability)
-  connectionTimeoutMillis: 5000,   // 5 seconds (decrease for faster failure)
-  query_timeout: 25000,            // 25 seconds
-  statement_timeout: 30000,        // 30 seconds
-  
+  idleTimeoutMillis: 60000, // 1 minute (increase for stability)
+  connectionTimeoutMillis: 5000, // 5 seconds (decrease for faster failure)
+  query_timeout: 25000, // 25 seconds
+  statement_timeout: 30000, // 30 seconds
+
   // Performance options
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000,
-  
+
   // Connection string options
   application_name: 'taaxdog_production',
-  
+
   // SSL configuration
   ssl: {
     rejectUnauthorized: false,
     require: true,
-  }
+  },
 };
 ```
 
 ### 2. Query Optimization Strategies
 
 #### A. Implement Query Result Caching
+
 ```typescript
 // Add Redis caching for frequently accessed data
 class QueryCache {
   private redis: Redis;
   private defaultTTL = 300; // 5 minutes
-  
-  async getCached<T>(key: string, queryFn: () => Promise<T>, ttl?: number): Promise<T> {
+
+  async getCached<T>(
+    key: string,
+    queryFn: () => Promise<T>,
+    ttl?: number,
+  ): Promise<T> {
     const cached = await this.redis.get(key);
     if (cached) return JSON.parse(cached);
-    
+
     const result = await queryFn();
     await this.redis.setex(key, ttl || this.defaultTTL, JSON.stringify(result));
     return result;
@@ -163,16 +180,15 @@ class QueryCache {
 ```
 
 #### B. Batch Operations
+
 ```typescript
 // Implement batch processing for bulk operations
 async function batchInsert<T>(table: string, records: T[], batchSize = 1000) {
   const batches = chunk(records, batchSize);
-  
+
   await db.transaction(async (client) => {
     for (const batch of batches) {
-      await client.query(
-        buildBatchInsertQuery(table, batch)
-      );
+      await client.query(buildBatchInsertQuery(table, batch));
     }
   });
 }
@@ -181,6 +197,7 @@ async function batchInsert<T>(table: string, records: T[], batchSize = 1000) {
 ### 3. Enhanced Monitoring
 
 #### A. Connection Pool Monitoring
+
 ```typescript
 // Add detailed pool metrics
 interface PoolMetrics {
@@ -203,6 +220,7 @@ setInterval(async () => {
 ```
 
 #### B. Query Performance Tracking
+
 ```typescript
 // Enhanced query logging
 interface QueryMetrics {
@@ -218,7 +236,7 @@ interface QueryMetrics {
 async function analyzeSlowQuery(query: string, params: any[]) {
   const explainResult = await db.query(
     `EXPLAIN (ANALYZE, BUFFERS) ${query}`,
-    params
+    params,
   );
   return parseExplainOutput(explainResult.rows);
 }
@@ -227,16 +245,17 @@ async function analyzeSlowQuery(query: string, params: any[]) {
 ### 4. Connection Pool Best Practices
 
 #### A. Connection Lifecycle Management
+
 ```typescript
 // Implement connection warmup
 async function warmupConnectionPool() {
   const promises = [];
   const warmupCount = Math.floor(poolConfig.min * 0.5);
-  
+
   for (let i = 0; i < warmupCount; i++) {
     promises.push(db.query('SELECT 1'));
   }
-  
+
   await Promise.all(promises);
   console.log(`Warmed up ${warmupCount} connections`);
 }
@@ -246,18 +265,19 @@ await warmupConnectionPool();
 ```
 
 #### B. Circuit Breaker Pattern
+
 ```typescript
 // Implement circuit breaker for database failures
 class DatabaseCircuitBreaker {
   private failures = 0;
   private lastFailureTime?: Date;
   private state: 'CLOSED' | 'OPEN' | 'HALF_OPEN' = 'CLOSED';
-  
+
   async execute<T>(operation: () => Promise<T>): Promise<T> {
     if (this.state === 'OPEN' && !this.shouldAttemptReset()) {
       throw new Error('Database circuit breaker is OPEN');
     }
-    
+
     try {
       const result = await operation();
       this.onSuccess();
@@ -273,6 +293,7 @@ class DatabaseCircuitBreaker {
 ### 5. Database Maintenance
 
 #### A. Automated Vacuum Schedule
+
 ```sql
 -- Configure autovacuum for optimal performance
 ALTER TABLE users SET (autovacuum_vacuum_scale_factor = 0.1);
@@ -285,12 +306,13 @@ SELECT cron.schedule('analyze-tables', '0 3 * * *', 'ANALYZE;');
 ```
 
 #### B. Connection Pool Maintenance
+
 ```typescript
 // Periodic connection pool cleanup
 setInterval(async () => {
   // Check for idle connections
   const idleConnections = await getIdleConnections();
-  
+
   if (idleConnections > poolConfig.min * 1.5) {
     console.log('Pruning excess idle connections');
     await pruneIdleConnections();
@@ -301,18 +323,21 @@ setInterval(async () => {
 ## Implementation Priority
 
 ### Phase 1: Critical (Week 1)
+
 1. ✅ Switch to connection pooling port (25061)
 2. ✅ Add missing database indexes
 3. ✅ Update pool configuration for production
 4. ✅ Implement basic query caching
 
 ### Phase 2: Important (Week 2-3)
+
 1. ⏳ Enhanced monitoring dashboard
 2. ⏳ Query performance tracking
 3. ⏳ Connection warmup implementation
 4. ⏳ Circuit breaker pattern
 
 ### Phase 3: Optimization (Week 4+)
+
 1. ⏳ Advanced caching strategies
 2. ⏳ Database maintenance automation
 3. ⏳ Query plan optimization
@@ -321,6 +346,7 @@ setInterval(async () => {
 ## Monitoring Dashboard Metrics
 
 ### Key Performance Indicators (KPIs)
+
 1. **Response Time:** p50, p95, p99 percentiles
 2. **Connection Pool:** Utilization percentage
 3. **Query Performance:** Slow query count and duration
@@ -328,6 +354,7 @@ setInterval(async () => {
 5. **Throughput:** Queries per second
 
 ### Alert Thresholds
+
 - Connection pool utilization > 80%
 - Average query time > 500ms
 - Connection timeout rate > 1%
@@ -337,6 +364,7 @@ setInterval(async () => {
 ## Testing Recommendations
 
 ### Load Testing Script
+
 ```bash
 # Use pgbench for PostgreSQL load testing
 pgbench -c 20 -j 4 -t 1000 -h taaxdog-production.db.com -p 25061 -U taaxdog-admin taaxdog-production
@@ -347,16 +375,17 @@ watch -n 1 'psql -c "SELECT count(*) FROM pg_stat_activity WHERE state = '\''act
 ```
 
 ### Connection Pool Testing
+
 ```javascript
 // Stress test connection pool
 async function stressTestPool(concurrency = 50, duration = 60000) {
   const startTime = Date.now();
   const promises = [];
-  
+
   while (Date.now() - startTime < duration) {
     for (let i = 0; i < concurrency; i++) {
       promises.push(
-        db.query('SELECT pg_sleep(0.1)').catch(e => console.error(e))
+        db.query('SELECT pg_sleep(0.1)').catch((e) => console.error(e)),
       );
     }
     await Promise.all(promises);
@@ -383,7 +412,8 @@ async function stressTestPool(concurrency = 50, duration = 60000) {
 
 ## Conclusion
 
-The TAAXDOG database infrastructure has a solid foundation but can benefit significantly from the recommended optimizations. Priority should be given to:
+The TAAXDOG database infrastructure has a solid foundation but can benefit
+significantly from the recommended optimizations. Priority should be given to:
 
 1. Switching to the connection pooling port
 2. Adding proper indexes
@@ -391,9 +421,11 @@ The TAAXDOG database infrastructure has a solid foundation but can benefit signi
 4. Enhancing monitoring capabilities
 
 These improvements will result in:
+
 - 30-50% reduction in query response times
 - Better connection pool utilization
 - Improved system stability under load
 - Enhanced visibility into performance issues
 
-Regular monitoring and maintenance will ensure the database continues to perform optimally as the application scales.
+Regular monitoring and maintenance will ensure the database continues to perform
+optimally as the application scales.

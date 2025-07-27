@@ -1,92 +1,182 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { errorLogger, ErrorSeverity, ErrorType } from '@/lib/errors/errorLogger';
+import { ErrorWithDetails } from '@/components/ui/ErrorComponents';
+import { logger } from '@/lib/logger';
 
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
+  onError?: (error: Error, errorInfo: ErrorInfo) => void;
+  resetKeys?: Array<string | number>;
+  resetOnPropsChange?: boolean;
+  isolate?: boolean;
 }
 
 interface State {
   hasError: boolean;
   error: Error | null;
   errorInfo: ErrorInfo | null;
+  errorCount: number;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
+  private resetTimeoutId: NodeJS.Timeout | null = null;
+  private previousResetKeys: Array<string | number> = [];
+
   public state: State = {
     hasError: false,
     error: null,
     errorInfo: null,
+    errorCount: 0,
   };
 
-  public static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error, errorInfo: null };
+  public static getDerivedStateFromError(error: Error): Partial<State> {
+    return {
+      hasError: true,
+      error,
+      errorCount: 0, // Reset count on new error
+    };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    // Log error with context
+    errorLogger.logError(error, ErrorSeverity.HIGH, ErrorType.SYSTEM, {
+      component: errorInfo.componentStack,
+      metadata: {
+        errorBoundary: this.constructor.name,
+        props: this.props,
+      },
+    });
+
+    // Call custom error handler if provided
+    if (this.props.onError) {
+      this.props.onError(error, errorInfo);
+    }
+
     this.setState({
       error,
       errorInfo,
+      errorCount: this.state.errorCount + 1,
     });
+
+    // Auto-reset after 5 errors to prevent infinite loops
+    if (this.state.errorCount >= 5) {
+      logger.error('ErrorBoundary: Too many errors, forcing reset');
+      this.scheduleReset(5000);
+    }
   }
 
-  private handleReset = () => {
+  public componentDidUpdate(prevProps: Props) {
+    const { resetKeys, resetOnPropsChange } = this.props;
+    const { hasError } = this.state;
+
+    // Reset on prop changes if enabled
+    if (hasError && prevProps.children !== this.props.children && resetOnPropsChange) {
+      this.resetErrorBoundary();
+    }
+
+    // Reset when resetKeys change
+    if (resetKeys && prevProps.resetKeys !== resetKeys) {
+      let hasResetKeyChanged = false;
+      for (let i = 0; i < resetKeys.length; i++) {
+        if (!this.previousResetKeys[i] || this.previousResetKeys[i] !== resetKeys[i]) {
+          hasResetKeyChanged = true;
+          break;
+        }
+      }
+
+      if (hasResetKeyChanged) {
+        this.resetErrorBoundary();
+        this.previousResetKeys = resetKeys;
+      }
+    }
+  }
+
+  private scheduleReset = (delay: number) => {
+    if (this.resetTimeoutId) {
+      clearTimeout(this.resetTimeoutId);
+    }
+
+    this.resetTimeoutId = setTimeout(() => {
+      this.resetErrorBoundary();
+    }, delay);
+  };
+
+  private resetErrorBoundary = () => {
+    if (this.resetTimeoutId) {
+      clearTimeout(this.resetTimeoutId);
+      this.resetTimeoutId = null;
+    }
+
     this.setState({
       hasError: false,
       error: null,
       errorInfo: null,
+      errorCount: 0,
     });
-    window.location.reload();
+  };
+
+  private handleReset = () => {
+    this.resetErrorBoundary();
+
+    // If isolated, just reset state. Otherwise, reload the page
+    if (!this.props.isolate) {
+      window.location.reload();
+    }
+  };
+
+  private getErrorDetails = (): string => {
+    const { error, errorInfo } = this.state;
+    if (!error) return '';
+
+    let details = error.toString();
+
+    if (error.stack) {
+      details += '\n\nStack trace:\n' + error.stack;
+    }
+
+    if (errorInfo && errorInfo.componentStack) {
+      details += '\n\nComponent stack:\n' + errorInfo.componentStack;
+    }
+
+    return details;
   };
 
   public render() {
-    if (this.state.hasError) {
+    if (this.state.hasError && this.state.error) {
+      // Use custom fallback if provided
       if (this.props.fallback) {
         return this.props.fallback;
       }
 
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100">
-          <div className="max-w-md w-full bg-white shadow-lg rounded-lg p-6">
-            <div className="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 rounded-full">
-              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <h1 className="mt-4 text-xl font-semibold text-center text-gray-900">
-              Something went wrong
-            </h1>
-            <p className="mt-2 text-sm text-center text-gray-600">
-              We're sorry for the inconvenience. Please try refreshing the page.
-            </p>
-            
-            {process.env.NODE_ENV === 'development' && this.state.error && (
-              <details className="mt-4 text-xs">
-                <summary className="cursor-pointer text-gray-700 hover:text-gray-900">
-                  Error details (development only)
-                </summary>
-                <pre className="mt-2 p-2 bg-gray-100 rounded overflow-auto">
-                  {this.state.error.toString()}
-                  {this.state.errorInfo && this.state.errorInfo.componentStack}
-                </pre>
-              </details>
-            )}
-            
-            <div className="mt-6 flex gap-3">
-              <button
-                onClick={this.handleReset}
-                className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200"
-              >
-                Refresh Page
-              </button>
-              <button
-                onClick={() => window.history.back()}
-                className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300 transition duration-200"
-              >
-                Go Back
-              </button>
-            </div>
+      // Use isolated error display for component-level boundaries
+      if (this.props.isolate) {
+        return (
+          <div className="p-4">
+            <ErrorWithDetails
+              title="Component Error"
+              message="This component encountered an error and cannot be displayed."
+              details={this.getErrorDetails()}
+              onRetry={this.handleReset}
+              showDetails={process.env.NODE_ENV === 'development'}
+              className="max-w-lg mx-auto"
+            />
           </div>
+        );
+      }
+
+      // Full page error display
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+          <ErrorWithDetails
+            title="Something went wrong"
+            message="We're sorry for the inconvenience. Our team has been notified and is working on a fix."
+            details={this.getErrorDetails()}
+            onRetry={this.handleReset}
+            onGoBack={() => window.history.back()}
+            showDetails={process.env.NODE_ENV === 'development'}
+            className="max-w-md w-full"
+          />
         </div>
       );
     }
@@ -106,7 +196,49 @@ export function useErrorHandler() {
   }, [error]);
 
   const resetError = () => setError(null);
-  const captureError = (error: Error) => setError(error);
+
+  const captureError = (error: Error, context?: Record<string, unknown>) => {
+    errorLogger.logError(error, ErrorSeverity.MEDIUM, ErrorType.UNKNOWN, { metadata: context });
+    setError(error);
+  };
 
   return { resetError, captureError };
+}
+
+// HOC for wrapping components with error boundary
+export function withErrorBoundary<P extends object>(
+  Component: React.ComponentType<P>,
+  errorBoundaryProps?: Omit<Props, 'children'>,
+) {
+  const WrappedComponent = (props: P) => (
+    <ErrorBoundary {...errorBoundaryProps}>
+      <Component {...props} />
+    </ErrorBoundary>
+  );
+
+  WrappedComponent.displayName = `withErrorBoundary(${Component.displayName || Component.name})`;
+
+  return WrappedComponent;
+}
+
+// Async error boundary for handling async errors
+export function AsyncErrorBoundary({
+  children,
+  fallback,
+  onError,
+}: {
+  children: ReactNode;
+  fallback?: ReactNode;
+  onError?: (error: Error) => void;
+}) {
+  return (
+    <ErrorBoundary
+      fallback={fallback}
+      onError={onError}
+      isolate
+      resetOnPropsChange
+    >
+      {children}
+    </ErrorBoundary>
+  );
 }

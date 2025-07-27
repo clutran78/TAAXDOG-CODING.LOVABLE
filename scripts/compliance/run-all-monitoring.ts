@@ -42,17 +42,16 @@ async function runAllComplianceMonitoring() {
     try {
       const scriptPath = path.join(__dirname, script);
       const { stdout, stderr } = await execAsync(`ts-node ${scriptPath}`);
-      
+
       if (stdout) {
         console.log(stdout);
       }
-      
+
       if (stderr) {
         console.error('Warnings:', stderr);
       }
-      
+
       console.log(`✅ ${name} completed successfully`);
-      
     } catch (error: any) {
       console.error(`❌ ${name} failed:`);
       console.error(error.message);
@@ -66,7 +65,7 @@ async function runAllComplianceMonitoring() {
   console.log('\n' + '='.repeat(60));
   console.log('📊 COMPLIANCE MONITORING SUMMARY');
   console.log('='.repeat(60));
-  
+
   if (hasErrors) {
     console.log('⚠️  Some monitoring tasks encountered errors');
     console.log('Please review the output above and take necessary actions');
@@ -81,7 +80,7 @@ async function runAllComplianceMonitoring() {
   if (today.getDate() === 1) {
     console.log('\n📅 First day of the month detected');
     console.log('Running monthly compliance report generation...');
-    
+
     try {
       const reportScript = path.join(__dirname, 'generate-monthly-report.ts');
       const { stdout } = await execAsync(`ts-node ${reportScript}`);
@@ -94,7 +93,7 @@ async function runAllComplianceMonitoring() {
 }
 
 // Run all monitoring
-runAllComplianceMonitoring().catch(error => {
+runAllComplianceMonitoring().catch((error) => {
   console.error('Fatal error:', error);
   process.exit(1);
 });

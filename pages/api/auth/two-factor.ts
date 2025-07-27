@@ -8,7 +8,7 @@ import {
   verifyTOTP,
   generateSecureToken,
 } from '../../../lib/security/encryption';
-import { sendTwoFactorCode } from '../../../lib/email';
+import { sendTwoFactorCode } from '../../../lib/services/email/email';
 import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
 import { apiResponse } from '@/lib/api/response';

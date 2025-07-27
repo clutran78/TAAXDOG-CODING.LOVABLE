@@ -1,0 +1,1498 @@
+import { prisma } from '../lib/prisma';
+import { Transaction, Goal, BankAccount, User } from '@prisma/client';
+import { AIService } from '../lib/ai/ai-service';
+import { AIOperationType } from '../lib/ai/config';
+import { logger } from '@/lib/logger';
+
+// Types
+export interface Insight {
+  id: string;
+  type: InsightType;
+  title: string;
+  description: string;
+  value: number | string;
+  category: InsightCategory;
+  priority: 'high' | 'medium' | 'low';
+  actionable: boolean;
+  suggestions?: string[];
+  metadata?: Record<string, any>;
+  generatedAt: Date;
+}
+
+export enum InsightType {
+  TAX_SAVINGS = 'tax_savings',
+  SPENDING_PATTERN = 'spending_pattern',
+  SAVINGS_OPPORTUNITY = 'savings_opportunity',
+  GOAL_PROGRESS = 'goal_progress',
+  CASH_FLOW = 'cash_flow',
+  BUDGET_ALERT = 'budget_alert',
+  INVESTMENT = 'investment',
+  DEBT_REDUCTION = 'debt_reduction',
+}
+
+export enum InsightCategory {
+  TAX = 'tax',
+  BUDGETING = 'budgeting',
+  SAVINGS = 'savings',
+  GOALS = 'goals',
+  INVESTMENT = 'investment',
+  CASH_FLOW = 'cash_flow',
+}
+
+export interface InsightsAnalysis {
+  spending_patterns: SpendingPattern[];
+  top_categories: CategorySpending[];
+  recommendations: Recommendation[];
+  monthly_trends: MonthlyTrend[];
+  anomalies: SpendingAnomaly[];
+}
+
+export interface SpendingPattern {
+  pattern: string;
+  frequency: number;
+  averageAmount: number;
+  trend: 'increasing' | 'decreasing' | 'stable';
+  description: string;
+}
+
+export interface CategorySpending {
+  category: string;
+  amount: number;
+  percentage: number;
+  count: number;
+  monthOverMonthChange: number;
+}
+
+export interface Recommendation {
+  type: string;
+  title: string;
+  description: string;
+  potential_saving: number;
+  effort: 'low' | 'medium' | 'high';
+  impact: 'low' | 'medium' | 'high';
+  action_steps: string[];
+}
+
+export interface MonthlyTrend {
+  month: string;
+  income: number;
+  expenses: number;
+  netCashFlow: number;
+  savingsRate: number;
+}
+
+export interface SpendingAnomaly {
+  date: Date;
+  amount: number;
+  description: string;
+  category: string;
+  percentageAboveAverage: number;
+}
+
+export interface TaxDeduction {
+  category: string;
+  category_name: string;
+  amount: number;
+  confidence: 'HIGH' | 'MEDIUM' | 'LOW';
+  description: string;
+  documentation_required: string;
+  transactions: Array<{
+    id: string;
+    date: Date;
+    amount: number;
+    description: string;
+  }>;
+}
+
+export interface FinancialGoal {
+  goal_type: string;
+  title: string;
+  description: string;
+  target_amount: number;
+  current_amount: number;
+  timeline_months: number;
+  monthly_target: number;
+  priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  achievability_score: number;
+  action_steps: string[];
+  projected_completion: Date;
+}
+
+// Australian tax categories
+const TAX_CATEGORIES = {
+  D1: 'Car expenses',
+  D2: 'Travel expenses',
+  D3: 'Clothing, laundry and dry-cleaning expenses',
+  D4: 'Education expenses',
+  D5: 'Other work-related expenses',
+  D6: 'Low value pool deduction',
+  D7: 'Interest deductions',
+  D8: 'Dividend deductions',
+  D9: 'Gifts and donations',
+  D10: 'Cost of managing tax affairs',
+  D11: 'Deductible amount of undeducted purchase price',
+  D12: 'Personal superannuation contributions',
+  D13: 'Deduction for project pool',
+  D14: 'Forestry managed investment',
+  D15: 'Other deductions',
+  P8: 'Partnership and trust deductions',
+};
+
+// Cache configuration
+const CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour
+const insightsCache = new Map<string, { data: any; timestamp: number }>();
+
+class InsightsService {
+  private aiService: AIService;
+
+  constructor() {
+    this.aiService = new AIService();
+  }
+
+  /**
+   * Get cached data or generate new
+   */
+  private async getCachedOrGenerate<T>(
+    key: string,
+    generator: () => Promise<T>,
+    duration: number = CACHE_DURATION_MS,
+  ): Promise<T> {
+    const cached = insightsCache.get(key);
+    if (cached && Date.now() - cached.timestamp < duration) {
+      return cached.data;
+    }
+
+    const data = await generator();
+    insightsCache.set(key, { data, timestamp: Date.now() });
+    return data;
+  }
+
+  /**
+   * Analyze user transactions with real data
+   */
+  async analyzeTransactions(userId: string, period: number = 90): Promise<InsightsAnalysis> {
+    const cacheKey = `transactions_analysis_${userId}_${period}`;
+
+    return this.getCachedOrGenerate(cacheKey, async () => {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - period);
+
+      // Fetch user transactions
+      const transactions = await prisma.transaction.findMany({
+        where: {
+          userId,
+          date: { gte: startDate },
+          bankAccount: {
+            userId,
+            deletedAt: null,
+          },
+        },
+        orderBy: { date: 'desc' },
+        include: {
+          bankAccount: {
+            select: { accountName: true },
+          },
+        },
+      });
+
+      // Analyze spending patterns
+      const spending_patterns = await this.analyzeSpendingPatterns(transactions);
+
+      // Get top spending categories
+      const top_categories = await this.getTopCategories(transactions);
+
+      // Generate recommendations based on patterns
+      const recommendations = await this.generateRecommendations(
+        userId,
+        transactions,
+        spending_patterns,
+        top_categories,
+      );
+
+      // Calculate monthly trends
+      const monthly_trends = this.calculateMonthlyTrends(transactions);
+
+      // Detect anomalies
+      const anomalies = this.detectAnomalies(transactions);
+
+      return {
+        spending_patterns,
+        top_categories,
+        recommendations,
+        monthly_trends,
+        anomalies,
+      };
+    });
+  }
+
+  /**
+   * Analyze spending patterns from transactions
+   */
+  private async analyzeSpendingPatterns(transactions: any[]): Promise<SpendingPattern[]> {
+    const patterns: SpendingPattern[] = [];
+
+    // Group by merchant/description for recurring expenses
+    const merchantGroups = new Map<string, any[]>();
+
+    transactions.forEach((tx) => {
+      if (tx.type === 'EXPENSE') {
+        const key = tx.description?.toLowerCase().trim() || 'unknown';
+        if (!merchantGroups.has(key)) {
+          merchantGroups.set(key, []);
+        }
+        merchantGroups.get(key)!.push(tx);
+      }
+    });
+
+    // Analyze each merchant group
+    for (const [merchant, txs] of merchantGroups) {
+      if (txs.length >= 3) {
+        // At least 3 occurrences to be a pattern
+        const amounts = txs.map((tx) => Math.abs(tx.amount));
+        const avgAmount = amounts.reduce((a, b) => a + b, 0) / amounts.length;
+        const dates = txs.map((tx) => new Date(tx.date).getTime());
+        dates.sort((a, b) => a - b);
+
+        // Calculate average frequency (days between transactions)
+        let totalDays = 0;
+        for (let i = 1; i < dates.length; i++) {
+          totalDays += (dates[i] - dates[i - 1]) / (1000 * 60 * 60 * 24);
+        }
+        const avgFrequency = totalDays / (dates.length - 1);
+
+        // Determine trend
+        const firstHalf = amounts.slice(0, Math.floor(amounts.length / 2));
+        const secondHalf = amounts.slice(Math.floor(amounts.length / 2));
+        const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
+        const secondAvg = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
+
+        const trend =
+          secondAvg > firstAvg * 1.1
+            ? 'increasing'
+            : secondAvg < firstAvg * 0.9
+              ? 'decreasing'
+              : 'stable';
+
+        patterns.push({
+          pattern: merchant,
+          frequency: Math.round(avgFrequency),
+          averageAmount: Math.round(avgAmount * 100) / 100,
+          trend,
+          description: `Recurring expense every ~${Math.round(avgFrequency)} days`,
+        });
+      }
+    }
+
+    return patterns.sort((a, b) => b.averageAmount - a.averageAmount).slice(0, 10);
+  }
+
+  /**
+   * Get top spending categories
+   */
+  private async getTopCategories(transactions: any[]): Promise<CategorySpending[]> {
+    const categoryMap = new Map<string, { amount: number; count: number }>();
+    const totalExpenses = transactions
+      .filter((tx) => tx.type === 'EXPENSE')
+      .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+
+    // Group by category
+    transactions.forEach((tx) => {
+      if (tx.type === 'EXPENSE') {
+        const category = tx.category || 'Other';
+        if (!categoryMap.has(category)) {
+          categoryMap.set(category, { amount: 0, count: 0 });
+        }
+        const data = categoryMap.get(category)!;
+        data.amount += Math.abs(tx.amount);
+        data.count += 1;
+      }
+    });
+
+    // Calculate month-over-month changes
+    const currentMonth = new Date().getMonth();
+    const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+
+    const currentMonthMap = new Map<string, number>();
+    const lastMonthMap = new Map<string, number>();
+
+    transactions.forEach((tx) => {
+      if (tx.type === 'EXPENSE') {
+        const txMonth = new Date(tx.date).getMonth();
+        const category = tx.category || 'Other';
+
+        if (txMonth === currentMonth) {
+          currentMonthMap.set(category, (currentMonthMap.get(category) || 0) + Math.abs(tx.amount));
+        } else if (txMonth === lastMonth) {
+          lastMonthMap.set(category, (lastMonthMap.get(category) || 0) + Math.abs(tx.amount));
+        }
+      }
+    });
+
+    // Convert to array and calculate percentages
+    const categories: CategorySpending[] = [];
+
+    for (const [category, data] of categoryMap) {
+      const currentAmount = currentMonthMap.get(category) || 0;
+      const lastAmount = lastMonthMap.get(category) || 0;
+      const change = lastAmount > 0 ? ((currentAmount - lastAmount) / lastAmount) * 100 : 0;
+
+      categories.push({
+        category,
+        amount: Math.round(data.amount * 100) / 100,
+        percentage: Math.round((data.amount / totalExpenses) * 100 * 100) / 100,
+        count: data.count,
+        monthOverMonthChange: Math.round(change * 100) / 100,
+      });
+    }
+
+    return categories.sort((a, b) => b.amount - a.amount).slice(0, 10);
+  }
+
+  /**
+   * Generate AI-powered recommendations
+   */
+  private async generateRecommendations(
+    userId: string,
+    transactions: any[],
+    patterns: SpendingPattern[],
+    categories: CategorySpending[],
+  ): Promise<Recommendation[]> {
+    const recommendations: Recommendation[] = [];
+
+    // Analyze spending vs income
+    const income = transactions
+      .filter((tx) => tx.type === 'INCOME')
+      .reduce((sum, tx) => sum + tx.amount, 0);
+
+    const expenses = transactions
+      .filter((tx) => tx.type === 'EXPENSE')
+      .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+
+    const savingsRate = income > 0 ? ((income - expenses) / income) * 100 : 0;
+
+    // Recommendation 1: Savings rate improvement
+    if (savingsRate < 20) {
+      const targetSavings = income * 0.2;
+      const currentSavings = income - expenses;
+      const additionalSavingsNeeded = targetSavings - currentSavings;
+
+      recommendations.push({
+        type: 'SAVING',
+        title: 'Improve Savings Rate',
+        description: `Your current savings rate is ${Math.round(savingsRate)}%. Aim for at least 20% to build wealth.`,
+        potential_saving: Math.round(additionalSavingsNeeded),
+        effort: 'medium',
+        impact: 'high',
+        action_steps: [
+          'Review and reduce discretionary spending',
+          'Set up automatic transfers to savings',
+          'Consider the 50/30/20 budgeting rule',
+        ],
+      });
+    }
+
+    // Recommendation 2: High spending categories
+    const highSpendingCategories = categories.filter((cat) => cat.percentage > 25);
+    for (const category of highSpendingCategories) {
+      const reduction = category.amount * 0.15; // Suggest 15% reduction
+
+      recommendations.push({
+        type: 'BUDGET',
+        title: `Reduce ${category.category} Spending`,
+        description: `${category.category} accounts for ${category.percentage}% of your expenses. Consider reducing by 15%.`,
+        potential_saving: Math.round(reduction),
+        effort: 'low',
+        impact: 'medium',
+        action_steps: [
+          `Set a monthly budget for ${category.category}`,
+          'Look for cheaper alternatives',
+          'Track spending in this category weekly',
+        ],
+      });
+    }
+
+    // Recommendation 3: Recurring expenses optimization
+    const highRecurring = patterns.filter((p) => p.averageAmount > 50 && p.trend !== 'decreasing');
+    for (const pattern of highRecurring.slice(0, 3)) {
+      recommendations.push({
+        type: 'OPTIMIZATION',
+        title: `Review Recurring Expense: ${pattern.pattern}`,
+        description: `You're spending ~$${pattern.averageAmount} every ${pattern.frequency} days. Consider if this can be reduced.`,
+        potential_saving: Math.round(pattern.averageAmount * 0.2),
+        effort: 'low',
+        impact: 'low',
+        action_steps: [
+          'Review if this service is still needed',
+          'Look for promotional rates or alternatives',
+          'Consider sharing or downgrading the service',
+        ],
+      });
+    }
+
+    // Recommendation 4: Tax deductions
+    const potentialDeductible = transactions.filter(
+      (tx) =>
+        tx.type === 'EXPENSE' &&
+        (tx.category === 'Education' ||
+          tx.category === 'Work' ||
+          tx.category === 'Charity' ||
+          tx.description?.toLowerCase().includes('work') ||
+          tx.description?.toLowerCase().includes('professional')),
+    );
+
+    if (potentialDeductible.length > 0) {
+      const deductibleAmount = potentialDeductible.reduce(
+        (sum, tx) => sum + Math.abs(tx.amount),
+        0,
+      );
+      const taxSaving = deductibleAmount * 0.325; // Assuming average tax rate
+
+      recommendations.push({
+        type: 'TAX',
+        title: 'Potential Tax Deductions',
+        description:
+          'You have expenses that may be tax deductible. Keep receipts and consult a tax professional.',
+        potential_saving: Math.round(taxSaving),
+        effort: 'medium',
+        impact: 'high',
+        action_steps: [
+          'Organize receipts for work-related expenses',
+          'Track professional development costs',
+          'Document charitable donations',
+        ],
+      });
+    }
+
+    return recommendations.sort((a, b) => b.potential_saving - a.potential_saving).slice(0, 5);
+  }
+
+  /**
+   * Calculate monthly trends
+   */
+  private calculateMonthlyTrends(transactions: any[]): MonthlyTrend[] {
+    const monthlyData = new Map<string, { income: number; expenses: number }>();
+
+    transactions.forEach((tx) => {
+      const month = new Date(tx.date).toISOString().slice(0, 7);
+      if (!monthlyData.has(month)) {
+        monthlyData.set(month, { income: 0, expenses: 0 });
+      }
+
+      const data = monthlyData.get(month)!;
+      if (tx.type === 'INCOME') {
+        data.income += tx.amount;
+      } else {
+        data.expenses += Math.abs(tx.amount);
+      }
+    });
+
+    const trends: MonthlyTrend[] = [];
+    for (const [month, data] of monthlyData) {
+      const netCashFlow = data.income - data.expenses;
+      const savingsRate = data.income > 0 ? (netCashFlow / data.income) * 100 : 0;
+
+      trends.push({
+        month,
+        income: Math.round(data.income * 100) / 100,
+        expenses: Math.round(data.expenses * 100) / 100,
+        netCashFlow: Math.round(netCashFlow * 100) / 100,
+        savingsRate: Math.round(savingsRate * 100) / 100,
+      });
+    }
+
+    return trends.sort((a, b) => a.month.localeCompare(b.month));
+  }
+
+  /**
+   * Detect spending anomalies
+   */
+  private detectAnomalies(transactions: any[]): SpendingAnomaly[] {
+    const anomalies: SpendingAnomaly[] = [];
+    const expenses = transactions.filter((tx) => tx.type === 'EXPENSE');
+
+    // Calculate average by category
+    const categoryAverages = new Map<string, number>();
+    const categoryCounts = new Map<string, number>();
+
+    expenses.forEach((tx) => {
+      const category = tx.category || 'Other';
+      categoryAverages.set(category, (categoryAverages.get(category) || 0) + Math.abs(tx.amount));
+      categoryCounts.set(category, (categoryCounts.get(category) || 0) + 1);
+    });
+
+    // Calculate actual averages
+    for (const [category, total] of categoryAverages) {
+      const count = categoryCounts.get(category)!;
+      categoryAverages.set(category, total / count);
+    }
+
+    // Find anomalies (transactions > 2x category average)
+    expenses.forEach((tx) => {
+      const category = tx.category || 'Other';
+      const average = categoryAverages.get(category)!;
+      const amount = Math.abs(tx.amount);
+
+      if (amount > average * 2) {
+        const percentageAbove = ((amount - average) / average) * 100;
+
+        anomalies.push({
+          date: new Date(tx.date),
+          amount: amount,
+          description: tx.description || 'Unknown',
+          category: category,
+          percentageAboveAverage: Math.round(percentageAbove),
+        });
+      }
+    });
+
+    return anomalies
+      .sort((a, b) => b.percentageAboveAverage - a.percentageAboveAverage)
+      .slice(0, 10);
+  }
+
+  /**
+   * Generate AI-powered spending analysis with natural language insights
+   */
+  async generateAISpendingAnalysis(userId: string): Promise<string> {
+    const cacheKey = `ai_spending_analysis_${userId}`;
+
+    return this.getCachedOrGenerate(
+      cacheKey,
+      async () => {
+        try {
+          const analysis = await this.analyzeTransactions(userId);
+
+          const prompt = `Provide a conversational spending analysis summary for a user with this data:
+
+Spending Patterns:
+${analysis.spending_patterns
+  .slice(0, 5)
+  .map((p) => `- ${p.pattern}: $${p.averageAmount} every ${p.frequency} days (${p.trend} trend)`)
+  .join('\n')}
+
+Top Categories:
+${analysis.top_categories
+  .slice(0, 5)
+  .map(
+    (c) =>
+      `- ${c.category}: $${c.amount} (${c.percentage}% of expenses, ${c.monthOverMonthChange > 0 ? '+' : ''}${c.monthOverMonthChange}% change)`,
+  )
+  .join('\n')}
+
+Recent Anomalies:
+${analysis.anomalies
+  .slice(0, 3)
+  .map((a) => `- ${a.description}: $${a.amount} (${a.percentageAboveAverage}% above average)`)
+  .join('\n')}
+
+Provide a friendly, conversational 2-3 paragraph analysis highlighting:
+1. Key spending behaviors and patterns
+2. Areas of concern or opportunity
+3. Specific, actionable recommendations
+
+Use Australian financial context and terminology.`;
+
+          const response = await this.aiService.sendMessage(
+            [
+              {
+                role: 'system',
+                content:
+                  'You are a friendly Australian financial advisor. Provide clear, conversational advice without jargon.',
+              },
+              { role: 'user', content: prompt },
+            ],
+            userId,
+            AIOperationType.FINANCIAL_ADVICE,
+            `spending_analysis_${userId}_${Date.now()}`,
+            true,
+          );
+
+          return response.content;
+        } catch (error) {
+          logger.error('AI spending analysis error:', error);
+          return 'Unable to generate spending analysis at this time. Please try again later.';
+        }
+      },
+      2 * 60 * 60 * 1000,
+    ); // Cache for 2 hours
+  }
+
+  /**
+   * Get tax deductions based on transactions
+   */
+  async getTaxDeductions(userId: string): Promise<TaxDeduction[]> {
+    const cacheKey = `tax_deductions_${userId}`;
+
+    return this.getCachedOrGenerate(
+      cacheKey,
+      async () => {
+        // Get current tax year transactions (July 1 - June 30 for Australia)
+        const now = new Date();
+        const taxYearStart = new Date(
+          now.getMonth() < 6 ? now.getFullYear() - 1 : now.getFullYear(),
+          6,
+          1,
+        );
+        const taxYearEnd = new Date(
+          now.getMonth() >= 6 ? now.getFullYear() + 1 : now.getFullYear(),
+          5,
+          30,
+        );
+
+        const transactions = await prisma.transaction.findMany({
+          where: {
+            userId,
+            date: {
+              gte: taxYearStart,
+              lte: taxYearEnd,
+            },
+            type: 'EXPENSE',
+            isBusinessExpense: true,
+            bankAccount: {
+              userId,
+              deletedAt: null,
+            },
+          },
+          orderBy: { date: 'desc' },
+        });
+
+        // Group by tax category
+        const deductionMap = new Map<string, TaxDeduction>();
+
+        transactions.forEach((tx) => {
+          const category = tx.taxCategory || this.inferTaxCategory(tx);
+          if (!category || category === 'PERSONAL') return;
+
+          if (!deductionMap.has(category)) {
+            deductionMap.set(category, {
+              category,
+              category_name: TAX_CATEGORIES[category as keyof typeof TAX_CATEGORIES] || 'Other',
+              amount: 0,
+              confidence: 'HIGH',
+              description: '',
+              documentation_required: this.getDocumentationRequirements(category),
+              transactions: [],
+            });
+          }
+
+          const deduction = deductionMap.get(category)!;
+          deduction.amount += Math.abs(tx.amount);
+          deduction.transactions.push({
+            id: tx.id,
+            date: tx.date,
+            amount: Math.abs(tx.amount),
+            description: tx.description || '',
+          });
+        });
+
+        // Convert to array and add descriptions
+        const deductions: TaxDeduction[] = [];
+        for (const [category, deduction] of deductionMap) {
+          deduction.description = this.getTaxDeductionDescription(category, deduction.transactions);
+          deduction.confidence = this.calculateConfidence(deduction);
+          deductions.push(deduction);
+        }
+
+        return deductions.sort((a, b) => b.amount - a.amount);
+      },
+      24 * 60 * 60 * 1000,
+    ); // Cache for 24 hours
+  }
+
+  /**
+   * Infer tax category from transaction
+   */
+  private inferTaxCategory(transaction: any): string {
+    const description = transaction.description?.toLowerCase() || '';
+    const category = transaction.category?.toLowerCase() || '';
+
+    // Work-related travel
+    if (
+      description.includes('uber') ||
+      description.includes('taxi') ||
+      description.includes('parking') ||
+      category === 'transport'
+    ) {
+      return 'D2';
+    }
+
+    // Education
+    if (
+      description.includes('course') ||
+      description.includes('training') ||
+      description.includes('udemy') ||
+      description.includes('coursera') ||
+      category === 'education'
+    ) {
+      return 'D4';
+    }
+
+    // Work expenses
+    if (
+      description.includes('office') ||
+      description.includes('stationery') ||
+      description.includes('computer') ||
+      description.includes('software')
+    ) {
+      return 'D5';
+    }
+
+    // Donations
+    if (
+      description.includes('donation') ||
+      description.includes('charity') ||
+      category === 'charity'
+    ) {
+      return 'D9';
+    }
+
+    // Tax/accounting
+    if (
+      description.includes('accountant') ||
+      description.includes('tax agent') ||
+      description.includes('h&r block')
+    ) {
+      return 'D10';
+    }
+
+    return 'PERSONAL';
+  }
+
+  /**
+   * Get documentation requirements for tax category
+   */
+  private getDocumentationRequirements(category: string): string {
+    const requirements: Record<string, string> = {
+      D1: 'Logbook or diary records, receipts for all expenses',
+      D2: 'Travel diary, receipts, purpose of travel',
+      D3: 'Receipts, occupation-specific clothing only',
+      D4: 'Course certificates, receipts, connection to current employment',
+      D5: 'Receipts, explanation of work use',
+      D9: 'Receipts from registered charities',
+      D10: 'Invoices from tax agent or accountant',
+      D12: 'Contribution receipts, notice of intent to claim',
+    };
+
+    return requirements[category] || 'Keep all receipts and documentation';
+  }
+
+  /**
+   * Get tax deduction description
+   */
+  private getTaxDeductionDescription(category: string, transactions: any[]): string {
+    const count = transactions.length;
+    const total = transactions.reduce((sum, tx) => sum + tx.amount, 0);
+    const avg = total / count;
+
+    const descriptions: Record<string, string> = {
+      D2: `${count} work-related travel expenses averaging $${Math.round(avg)}`,
+      D4: `Professional development and training costs from ${count} transactions`,
+      D5: `Work-related expenses including equipment and supplies`,
+      D9: `Charitable donations to registered organizations`,
+      D10: `Professional tax preparation and financial advice costs`,
+    };
+
+    return descriptions[category] || `${count} deductible expenses in this category`;
+  }
+
+  /**
+   * Calculate confidence level for deduction
+   */
+  private calculateConfidence(deduction: TaxDeduction): 'HIGH' | 'MEDIUM' | 'LOW' {
+    // High confidence if explicitly marked as business expense
+    const explicitlyMarked = deduction.transactions.length;
+
+    // Check transaction patterns
+    const regularPattern = deduction.transactions.length >= 3;
+    const significantAmount = deduction.amount > 500;
+
+    if (explicitlyMarked > 5 && significantAmount) return 'HIGH';
+    if (regularPattern || deduction.amount > 1000) return 'MEDIUM';
+    return 'LOW';
+  }
+
+  /**
+   * Generate smart financial goals
+   */
+  async generateGoals(userId: string): Promise<FinancialGoal[]> {
+    const cacheKey = `financial_goals_${userId}`;
+
+    return this.getCachedOrGenerate(cacheKey, async () => {
+      // Get user's financial data
+      const [user, transactions, existingGoals, bankAccounts] = await Promise.all([
+        prisma.user.findUnique({ where: { id: userId } }),
+        prisma.transaction.findMany({
+          where: {
+            userId,
+            date: { gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) }, // Last 90 days
+          },
+        }),
+        prisma.goal.findMany({
+          where: { userId, status: 'ACTIVE' },
+        }),
+        prisma.bankAccount.findMany({
+          where: { userId, deletedAt: null },
+        }),
+      ]);
+
+      if (!user) throw new Error('User not found');
+
+      // Calculate financial metrics
+      const income = transactions
+        .filter((tx) => tx.type === 'INCOME')
+        .reduce((sum, tx) => sum + tx.amount, 0);
+
+      const expenses = transactions
+        .filter((tx) => tx.type === 'EXPENSE')
+        .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+
+      const monthlyIncome = income / 3; // 3 months of data
+      const monthlyExpenses = expenses / 3;
+      const monthlySavings = monthlyIncome - monthlyExpenses;
+      const totalBalance = bankAccounts.reduce((sum, acc) => sum + acc.balance, 0);
+
+      const goals: FinancialGoal[] = [];
+
+      // Goal 1: Emergency Fund
+      const emergencyFundTarget = monthlyExpenses * 3; // 3 months expenses
+      const hasEmergencyFund = existingGoals.some(
+        (g) => g.name.toLowerCase().includes('emergency') || g.category === 'EMERGENCY_FUND',
+      );
+
+      if (!hasEmergencyFund && totalBalance < emergencyFundTarget) {
+        const monthsToGoal =
+          monthlySavings > 0
+            ? Math.ceil((emergencyFundTarget - totalBalance) / monthlySavings)
+            : 12;
+
+        goals.push({
+          goal_type: 'EMERGENCY_FUND',
+          title: 'Build Emergency Fund',
+          description: `Create a safety net of ${Math.round(emergencyFundTarget)} (3 months of expenses)`,
+          target_amount: Math.round(emergencyFundTarget),
+          current_amount: Math.round(totalBalance * 0.5), // Assume half of balance can be allocated
+          timeline_months: Math.min(monthsToGoal, 24),
+          monthly_target: Math.round(
+            (emergencyFundTarget - totalBalance * 0.5) / Math.min(monthsToGoal, 24),
+          ),
+          priority: 'HIGH',
+          achievability_score:
+            monthlySavings > 0 ? Math.min(0.95, monthlySavings / monthlyExpenses) : 0.3,
+          action_steps: [
+            'Open a high-yield savings account',
+            'Set up automatic transfer after each paycheck',
+            'Start with $500 and increase gradually',
+            'Keep funds separate from daily spending account',
+          ],
+          projected_completion: new Date(Date.now() + monthsToGoal * 30 * 24 * 60 * 60 * 1000),
+        });
+      }
+
+      // Goal 2: Debt Reduction (if applicable)
+      const debtTransactions = transactions.filter(
+        (tx) =>
+          tx.category === 'Loan' ||
+          tx.description?.toLowerCase().includes('loan') ||
+          tx.description?.toLowerCase().includes('credit card'),
+      );
+
+      if (debtTransactions.length > 0) {
+        const monthlyDebtPayments =
+          debtTransactions.reduce((sum, tx) => sum + Math.abs(tx.amount), 0) / 3;
+
+        goals.push({
+          goal_type: 'DEBT_REDUCTION',
+          title: 'Accelerate Debt Payoff',
+          description: 'Pay off high-interest debt faster to save on interest',
+          target_amount: monthlyDebtPayments * 12, // Estimate 1 year of payments
+          current_amount: 0,
+          timeline_months: 12,
+          monthly_target: monthlyDebtPayments * 1.2, // 20% more than minimum
+          priority: 'HIGH',
+          achievability_score: monthlySavings > monthlyDebtPayments * 0.2 ? 0.8 : 0.5,
+          action_steps: [
+            'List all debts by interest rate',
+            'Pay minimums on all, extra on highest rate',
+            'Consider debt consolidation options',
+            'Avoid new debt while paying off existing',
+          ],
+          projected_completion: new Date(Date.now() + 12 * 30 * 24 * 60 * 60 * 1000),
+        });
+      }
+
+      // Goal 3: Savings Rate Improvement
+      const currentSavingsRate = monthlyIncome > 0 ? (monthlySavings / monthlyIncome) * 100 : 0;
+      if (currentSavingsRate < 20) {
+        const targetSavings = monthlyIncome * 0.2;
+        const additionalSavings = targetSavings - monthlySavings;
+
+        goals.push({
+          goal_type: 'SAVINGS',
+          title: 'Increase Savings Rate to 20%',
+          description: `Boost your financial security by saving ${Math.round(targetSavings)} monthly`,
+          target_amount: targetSavings * 12,
+          current_amount: Math.max(0, monthlySavings * 12),
+          timeline_months: 6,
+          monthly_target: targetSavings,
+          priority: 'MEDIUM',
+          achievability_score: 0.7,
+          action_steps: [
+            `Reduce discretionary spending by $${Math.round(additionalSavings)}`,
+            'Review and cancel unused subscriptions',
+            'Implement the 24-hour rule for purchases',
+            'Track spending weekly to stay on target',
+          ],
+          projected_completion: new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000),
+        });
+      }
+
+      // Goal 4: Investment/Retirement
+      if (monthlySavings > monthlyExpenses * 0.1 && totalBalance > emergencyFundTarget) {
+        goals.push({
+          goal_type: 'INVESTMENT',
+          title: 'Start Investment Portfolio',
+          description: 'Begin building long-term wealth through diversified investments',
+          target_amount: monthlyIncome * 6, // 6 months income as initial target
+          current_amount: 0,
+          timeline_months: 18,
+          monthly_target: Math.round(monthlySavings * 0.5),
+          priority: 'MEDIUM',
+          achievability_score: 0.85,
+          action_steps: [
+            'Research low-cost index funds',
+            'Open a brokerage account',
+            'Start with $500 minimum investment',
+            'Set up automatic monthly contributions',
+            'Consider tax-advantaged accounts (Super)',
+          ],
+          projected_completion: new Date(Date.now() + 18 * 30 * 24 * 60 * 60 * 1000),
+        });
+      }
+
+      return goals.sort((a, b) => {
+        const priorityOrder = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+        return priorityOrder[a.priority] - priorityOrder[b.priority];
+      });
+    });
+  }
+
+  /**
+   * Generate comprehensive financial report
+   */
+  async getFinancialReport(userId: string, period: string = 'quarter'): Promise<any> {
+    const cacheKey = `financial_report_${userId}_${period}`;
+
+    return this.getCachedOrGenerate(
+      cacheKey,
+      async () => {
+        // Determine date range
+        const endDate = new Date();
+        const startDate = new Date();
+
+        switch (period) {
+          case 'month':
+            startDate.setMonth(startDate.getMonth() - 1);
+            break;
+          case 'quarter':
+            startDate.setMonth(startDate.getMonth() - 3);
+            break;
+          case 'year':
+            startDate.setFullYear(startDate.getFullYear() - 1);
+            break;
+          default:
+            startDate.setMonth(startDate.getMonth() - 3);
+        }
+
+        // Get all relevant data
+        const [transactions, goals, bankAccounts, analysis, taxDeductions] = await Promise.all([
+          prisma.transaction.findMany({
+            where: {
+              userId,
+              date: { gte: startDate, lte: endDate },
+            },
+            orderBy: { date: 'desc' },
+          }),
+          prisma.goal.findMany({
+            where: { userId, status: 'ACTIVE' },
+          }),
+          prisma.bankAccount.findMany({
+            where: { userId, deletedAt: null },
+          }),
+          this.analyzeTransactions(userId),
+          this.getTaxDeductions(userId),
+        ]);
+
+        // Calculate summary metrics
+        const income = transactions
+          .filter((tx) => tx.type === 'INCOME')
+          .reduce((sum, tx) => sum + tx.amount, 0);
+
+        const expenses = transactions
+          .filter((tx) => tx.type === 'EXPENSE')
+          .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+
+        const netSavings = income - expenses;
+        const totalBalance = bankAccounts.reduce((sum, acc) => sum + acc.balance, 0);
+        const totalDeductions = taxDeductions.reduce((sum, d) => sum + d.amount, 0);
+
+        // Goal progress
+        const goalProgress = goals.map((goal) => ({
+          name: goal.name,
+          progress:
+            goal.targetAmount > 0 ? Math.round((goal.currentAmount / goal.targetAmount) * 100) : 0,
+          remaining: goal.targetAmount - goal.currentAmount,
+          deadline: goal.deadline,
+        }));
+
+        return {
+          period,
+          generated_at: new Date().toISOString(),
+          date_range: {
+            start: startDate.toISOString(),
+            end: endDate.toISOString(),
+          },
+          summary: {
+            total_income: Math.round(income * 100) / 100,
+            total_expenses: Math.round(expenses * 100) / 100,
+            net_savings: Math.round(netSavings * 100) / 100,
+            savings_rate: income > 0 ? Math.round((netSavings / income) * 100 * 100) / 100 : 0,
+            current_balance: Math.round(totalBalance * 100) / 100,
+            tax_deductions: Math.round(totalDeductions * 100) / 100,
+          },
+          insights: {
+            top_categories: analysis.top_categories.slice(0, 5),
+            spending_trends: analysis.monthly_trends,
+            anomalies: analysis.anomalies.slice(0, 5),
+            recommendations: analysis.recommendations.slice(0, 3),
+          },
+          goals: {
+            active: goals.length,
+            progress: goalProgress,
+            total_target: goals.reduce((sum, g) => sum + g.targetAmount, 0),
+            total_saved: goals.reduce((sum, g) => sum + g.currentAmount, 0),
+          },
+          tax_summary: {
+            total_deductible: Math.round(totalDeductions * 100) / 100,
+            estimated_refund: Math.round(totalDeductions * 0.325 * 100) / 100, // Avg tax rate
+            categories: taxDeductions.map((d) => ({
+              category: d.category_name,
+              amount: Math.round(d.amount * 100) / 100,
+              count: d.transactions.length,
+            })),
+          },
+        };
+      },
+      6 * 60 * 60 * 1000,
+    ); // Cache for 6 hours
+  }
+
+  /**
+   * Generate AI-enhanced financial analysis
+   */
+  private async generateAIInsights(
+    userId: string,
+    financialData: any,
+  ): Promise<{ title: string; description: string; actionSteps: string[] }[]> {
+    try {
+      const prompt = `Analyze this financial data and provide 3 personalized, actionable insights:
+
+Financial Summary:
+- Monthly Income: $${financialData.monthlyIncome}
+- Monthly Expenses: $${financialData.monthlyExpenses}
+- Savings Rate: ${financialData.savingsRate}%
+- Top Spending Categories: ${financialData.topCategories.map((c: any) => `${c.category}: $${c.amount}`).join(', ')}
+- Unusual Expenses: ${financialData.anomalies.length} detected
+- Tax Deductions Available: $${financialData.totalDeductions}
+
+User Context:
+- Has ${financialData.activeGoals} active financial goals
+- Current Balance: $${financialData.totalBalance}
+- Spending Trend: ${financialData.spendingTrend}
+
+Provide insights in JSON format with title, description, and 3 specific action steps for each insight. Focus on:
+1. Immediate cost-saving opportunities
+2. Tax optimization strategies (Australian context)
+3. Long-term wealth building
+
+Format: [{"title": "...", "description": "...", "actionSteps": ["...", "...", "..."]}]`;
+
+      const response = await this.aiService.sendMessage(
+        [
+          {
+            role: 'system',
+            content:
+              'You are a financial advisor specializing in Australian personal finance. Provide practical, actionable advice.',
+          },
+          { role: 'user', content: prompt },
+        ],
+        userId,
+        AIOperationType.FINANCIAL_ADVICE,
+        `insights_${userId}_${Date.now()}`,
+        true, // Enable caching
+      );
+
+      // Parse AI response
+      try {
+        const insights = JSON.parse(response.content);
+        return Array.isArray(insights) ? insights : [];
+      } catch {
+        // Fallback if parsing fails
+        return [];
+      }
+    } catch (error) {
+      logger.error('AI insights generation error:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Generate financial insights for the user
+   */
+  async generateFinancialInsights(userId: string): Promise<Insight[]> {
+    const [analysis, goals, taxDeductions, bankAccounts] = await Promise.all([
+      this.analyzeTransactions(userId),
+      prisma.goal.findMany({ where: { userId, status: 'ACTIVE' } }),
+      this.getTaxDeductions(userId),
+      prisma.bankAccount.findMany({ where: { userId, deletedAt: null } }),
+    ]);
+
+    const insights: Insight[] = [];
+    const now = new Date();
+
+    // Insight 1: Tax savings opportunity
+    if (taxDeductions.length > 0) {
+      const totalDeductions = taxDeductions.reduce((sum, d) => sum + d.amount, 0);
+      const estimatedSavings = totalDeductions * 0.325; // Average tax rate
+
+      insights.push({
+        id: `tax_${userId}_${now.getTime()}`,
+        type: InsightType.TAX_SAVINGS,
+        title: 'Tax Deduction Opportunities',
+        description: `You have ${taxDeductions.length} categories of potential tax deductions`,
+        value: `$${Math.round(estimatedSavings)}`,
+        category: InsightCategory.TAX,
+        priority: 'high',
+        actionable: true,
+        suggestions: [
+          'Organize receipts for all deductible expenses',
+          'Consider using a tax app to track expenses',
+          'Consult with a tax professional for maximum savings',
+        ],
+        metadata: {
+          totalDeductions,
+          categories: taxDeductions.length,
+          confidence: taxDeductions[0]?.confidence || 'MEDIUM',
+        },
+        generatedAt: now,
+      });
+    }
+
+    // Insight 2: Spending alerts
+    if (analysis.anomalies.length > 0) {
+      const topAnomaly = analysis.anomalies[0];
+
+      insights.push({
+        id: `anomaly_${userId}_${now.getTime()}`,
+        type: InsightType.BUDGET_ALERT,
+        title: 'Unusual Spending Detected',
+        description: `${topAnomaly.description} was ${topAnomaly.percentageAboveAverage}% above your average`,
+        value: `$${Math.round(topAnomaly.amount)}`,
+        category: InsightCategory.BUDGETING,
+        priority: 'medium',
+        actionable: true,
+        suggestions: [
+          'Review this transaction for accuracy',
+          'Set spending alerts for large transactions',
+          'Consider if this was a one-time expense',
+        ],
+        metadata: {
+          date: topAnomaly.date,
+          category: topAnomaly.category,
+        },
+        generatedAt: now,
+      });
+    }
+
+    // Insight 3: Goal progress
+    const nearingGoals = goals.filter((goal) => {
+      const progress = goal.targetAmount > 0 ? (goal.currentAmount / goal.targetAmount) * 100 : 0;
+      return progress >= 75 && progress < 100;
+    });
+
+    if (nearingGoals.length > 0) {
+      const goal = nearingGoals[0];
+      const remaining = goal.targetAmount - goal.currentAmount;
+
+      insights.push({
+        id: `goal_${userId}_${now.getTime()}`,
+        type: InsightType.GOAL_PROGRESS,
+        title: 'Goal Nearly Complete!',
+        description: `You're 75%+ of the way to completing "${goal.name}"`,
+        value: `$${Math.round(remaining)} left`,
+        category: InsightCategory.GOALS,
+        priority: 'high',
+        actionable: true,
+        suggestions: [
+          `Add $${Math.round(remaining / 2)} this month to accelerate`,
+          'Set up an automatic transfer for the remainder',
+          'Consider increasing your regular contribution',
+        ],
+        metadata: {
+          goalId: goal.id,
+          progress: Math.round((goal.currentAmount / goal.targetAmount) * 100),
+        },
+        generatedAt: now,
+      });
+    }
+
+    // Insight 4: Savings opportunity
+    const savingsOpp = analysis.recommendations.find((r) => r.type === 'SAVING');
+    if (savingsOpp) {
+      insights.push({
+        id: `savings_${userId}_${now.getTime()}`,
+        type: InsightType.SAVINGS_OPPORTUNITY,
+        title: savingsOpp.title,
+        description: savingsOpp.description,
+        value: `$${savingsOpp.potential_saving}/mo`,
+        category: InsightCategory.SAVINGS,
+        priority: savingsOpp.impact === 'high' ? 'high' : 'medium',
+        actionable: true,
+        suggestions: savingsOpp.action_steps,
+        metadata: {
+          effort: savingsOpp.effort,
+          impact: savingsOpp.impact,
+        },
+        generatedAt: now,
+      });
+    }
+
+    // Insight 5: Cash flow trend
+    if (analysis.monthly_trends.length >= 2) {
+      const lastMonth = analysis.monthly_trends[analysis.monthly_trends.length - 1];
+      const previousMonth = analysis.monthly_trends[analysis.monthly_trends.length - 2];
+      const cashFlowChange = lastMonth.netCashFlow - previousMonth.netCashFlow;
+
+      if (Math.abs(cashFlowChange) > 100) {
+        insights.push({
+          id: `cashflow_${userId}_${now.getTime()}`,
+          type: InsightType.CASH_FLOW,
+          title: cashFlowChange > 0 ? 'Cash Flow Improved' : 'Cash Flow Declined',
+          description: `Your net cash flow ${cashFlowChange > 0 ? 'increased' : 'decreased'} by $${Math.abs(Math.round(cashFlowChange))} compared to last month`,
+          value: `${cashFlowChange > 0 ? '+' : ''}$${Math.round(cashFlowChange)}`,
+          category: InsightCategory.CASH_FLOW,
+          priority: Math.abs(cashFlowChange) > 500 ? 'high' : 'medium',
+          actionable: true,
+          suggestions:
+            cashFlowChange > 0
+              ? [
+                  'Consider increasing your savings rate',
+                  'Review if this improvement is sustainable',
+                  'Allocate extra funds to goals or investments',
+                ]
+              : [
+                  'Review recent spending for areas to cut',
+                  'Check for any unusual or one-time expenses',
+                  'Consider ways to increase income',
+                ],
+          metadata: {
+            currentMonth: lastMonth.month,
+            previousMonth: previousMonth.month,
+          },
+          generatedAt: now,
+        });
+      }
+    }
+
+    // Generate AI-powered insights based on all the data
+    const transactions = await prisma.transaction.findMany({
+      where: {
+        userId,
+        date: { gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) }, // Last 90 days
+      },
+    });
+
+    const monthlyIncome =
+      analysis.monthly_trends.length > 0
+        ? analysis.monthly_trends.reduce((sum, t) => sum + t.income, 0) /
+          analysis.monthly_trends.length
+        : 0;
+
+    const monthlyExpenses =
+      analysis.monthly_trends.length > 0
+        ? analysis.monthly_trends.reduce((sum, t) => sum + t.expenses, 0) /
+          analysis.monthly_trends.length
+        : 0;
+
+    const savingsRate =
+      monthlyIncome > 0 ? ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100 : 0;
+    const totalBalance = bankAccounts.reduce((sum, acc) => sum + acc.balance, 0);
+    const totalDeductions = taxDeductions.reduce((sum, d) => sum + d.amount, 0);
+
+    // Prepare data for AI analysis
+    const financialData = {
+      monthlyIncome: Math.round(monthlyIncome),
+      monthlyExpenses: Math.round(monthlyExpenses),
+      savingsRate: Math.round(savingsRate),
+      topCategories: analysis.top_categories.slice(0, 3),
+      anomalies: analysis.anomalies,
+      totalDeductions: Math.round(totalDeductions),
+      activeGoals: goals.length,
+      totalBalance: Math.round(totalBalance),
+      spendingTrend:
+        analysis.spending_patterns.length > 0 ? analysis.spending_patterns[0].trend : 'stable',
+    };
+
+    // Get AI-generated insights
+    const aiInsights = await this.generateAIInsights(userId, financialData);
+
+    // Add AI insights to the list
+    aiInsights.forEach((aiInsight, index) => {
+      insights.push({
+        id: `ai_${userId}_${now.getTime()}_${index}`,
+        type: InsightType.INVESTMENT, // Use appropriate type based on content
+        title: aiInsight.title,
+        description: aiInsight.description,
+        value: 'AI Generated',
+        category: InsightCategory.INVESTMENT,
+        priority: index === 0 ? 'high' : 'medium',
+        actionable: true,
+        suggestions: aiInsight.actionSteps,
+        metadata: {
+          source: 'AI',
+          model: 'Financial Advisor',
+          generatedWith: financialData,
+        },
+        generatedAt: now,
+      });
+    });
+
+    return insights.sort((a, b) => {
+      const priorityOrder = { high: 0, medium: 1, low: 2 };
+      return priorityOrder[a.priority] - priorityOrder[b.priority];
+    });
+  }
+}
+
+// Export singleton instance
+export const insightsService = new InsightsService();
+
+/**
+ * Generate real-time AI insight for a specific transaction
+ */
+export async function generateTransactionInsight(
+  userId: string,
+  transaction: any,
+): Promise<{ insight: string; category: string; deductible: boolean }> {
+  try {
+    const prompt = `Analyze this transaction and provide a brief insight:
+
+Transaction Details:
+- Amount: $${Math.abs(transaction.amount)}
+- Description: ${transaction.description || 'No description'}
+- Category: ${transaction.category || 'Uncategorized'}
+- Date: ${new Date(transaction.date).toLocaleDateString('en-AU')}
+- Type: ${transaction.type}
+
+Provide a JSON response with:
+1. insight: A one-sentence insight about this transaction
+2. category: The most appropriate Australian tax category (D1-D15, P8, or PERSONAL)
+3. deductible: Whether this might be tax deductible (true/false)
+
+Format: {"insight": "...", "category": "...", "deductible": true/false}`;
+
+    const aiService = new AIService();
+    const response = await aiService.sendMessage(
+      [
+        {
+          role: 'system',
+          content:
+            'You are an Australian tax and financial advisor. Analyze transactions for tax implications and financial insights.',
+        },
+        { role: 'user', content: prompt },
+      ],
+      userId,
+      AIOperationType.TAX_ANALYSIS,
+      `transaction_${transaction.id}`,
+      true,
+    );
+
+    try {
+      return JSON.parse(response.content);
+    } catch {
+      return {
+        insight: 'Transaction recorded successfully',
+        category: 'PERSONAL',
+        deductible: false,
+      };
+    }
+  } catch (error) {
+    logger.error('Transaction insight error:', error);
+    return {
+      insight: 'Transaction recorded successfully',
+      category: 'PERSONAL',
+      deductible: false,
+    };
+  }
+}
+
+// Export convenience functions
+export async function generateFinancialInsights(userId: string): Promise<Insight[]> {
+  return insightsService.generateFinancialInsights(userId);
+}
+
+export async function getInsightsByCategory(userId: string, category: string): Promise<Insight[]> {
+  const insights = await insightsService.generateFinancialInsights(userId);
+  return insights.filter((insight) => insight.category === category);
+}
+
+export async function getAISpendingAnalysis(userId: string): Promise<string> {
+  return insightsService.generateAISpendingAnalysis(userId);
+}
+
+export async function getFinancialReport(userId: string, period: string = 'quarter'): Promise<any> {
+  return insightsService.getFinancialReport(userId, period);
+}
+
+export async function getTaxDeductions(userId: string): Promise<TaxDeduction[]> {
+  return insightsService.getTaxDeductions(userId);
+}
+
+export async function generateSmartGoals(userId: string): Promise<FinancialGoal[]> {
+  return insightsService.generateGoals(userId);
+}
+
+export async function analyzeUserTransactions(
+  userId: string,
+  period?: number,
+): Promise<InsightsAnalysis> {
+  return insightsService.analyzeTransactions(userId, period);
+}
+
+export async function saveInsightInteraction(
+  userId: string,
+  insightId: string,
+  action: string,
+): Promise<void> {
+  try {
+    // Log interaction to audit log
+    await prisma.auditLog.create({
+      data: {
+        event: 'INSIGHT_INTERACTION',
+        userId,
+        ipAddress: 'service',
+        userAgent: 'insights-service',
+        success: true,
+        metadata: {
+          insightId,
+          action,
+          timestamp: new Date().toISOString(),
+        },
+      },
+    });
+  } catch (error) {
+    logger.error('Error saving insight interaction:', error);
+  }
+}
+
+// Export the service instance for direct access
+export default insightsService;

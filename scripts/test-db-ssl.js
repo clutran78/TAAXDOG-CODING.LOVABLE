@@ -4,43 +4,45 @@ const { Client } = require('pg');
 
 async function testDatabaseConnection() {
   const connectionString = process.env.DATABASE_URL;
-  
+
   if (!connectionString) {
     console.error('ERROR: DATABASE_URL environment variable is not set.');
     console.error('Please set the DATABASE_URL environment variable before running this script.');
     console.error('Example: DATABASE_URL="postgresql://..." npm run test-db');
     process.exit(1);
   }
-  
+
   console.log('Testing database connection with SSL...\n');
-  
+
   // Parse connection string and force SSL
   const client = new Client({
     connectionString,
     ssl: {
-      rejectUnauthorized: false // For DigitalOcean managed databases
-    }
+      rejectUnauthorized: false, // For DigitalOcean managed databases
+    },
   });
 
   try {
     await client.connect();
     console.log('✅ Database connection successful!');
-    
+
     // Test query
     const result = await client.query('SELECT NOW() as current_time, version() as pg_version');
     console.log('✅ Query executed successfully');
     console.log('Current time:', result.rows[0].current_time);
     console.log('PostgreSQL version:', result.rows[0].pg_version.split(',')[0]);
-    
+
     // Check SSL status
-    const sslResult = await client.query('SELECT ssl, version FROM pg_stat_ssl WHERE pid = pg_backend_pid()');
+    const sslResult = await client.query(
+      'SELECT ssl, version FROM pg_stat_ssl WHERE pid = pg_backend_pid()',
+    );
     if (sslResult.rows.length > 0 && sslResult.rows[0].ssl) {
       console.log('✅ SSL connection active');
       console.log('SSL version:', sslResult.rows[0].version);
     } else {
       console.log('⚠️  SSL not active');
     }
-    
+
     await client.end();
     console.log('\n✅ Database SSL configuration is working correctly!');
     process.exit(0);

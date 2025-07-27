@@ -68,8 +68,8 @@ async function testPrismaMiddleware() {
         name: 'Test User',
         tfn: '123456789',
         twoFactorSecret: 'JBSWY3DPEHPK3PXP',
-        password: 'hashed_password' // This should be hashed, not encrypted
-      }
+        password: 'hashed_password', // This should be hashed, not encrypted
+      },
     });
 
     console.log('Created user:');
@@ -78,11 +78,11 @@ async function testPrismaMiddleware() {
     console.log(`  2FA Secret (decrypted): ${user.twoFactorSecret?.substring(0, 10)}...\n`);
 
     // Read raw from database to verify encryption
-    const rawUser = await prisma.$queryRaw`
+    const rawUser = (await prisma.$queryRaw`
       SELECT tfn, "twoFactorSecret" 
       FROM users 
       WHERE email = ${testEmail}
-    ` as any[];
+    `) as any[];
 
     if (rawUser.length > 0) {
       console.log('Raw database values:');
@@ -95,7 +95,6 @@ async function testPrismaMiddleware() {
     // Clean up
     await prisma.user.delete({ where: { id: user.id } });
     console.log('✅ Prisma middleware test completed!\n');
-
   } catch (error) {
     console.error('❌ Prisma middleware test failed:', error);
   }

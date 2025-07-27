@@ -1,0 +1,70 @@
+# Page snapshot
+
+```yaml
+- text: TRP
+- heading "Create your account" [level=2]
+- paragraph:
+  - text: Or
+  - link "sign in to your existing account":
+    - /url: /auth/login
+- form "Registration form":
+  - text: Email address*
+  - textbox "Email addressrequired": Schuyler25@yahoo.com
+  - text: Full name*
+  - textbox "Full namerequired": Wesley Keeling
+  - text: Phone number
+  - textbox "Phone number": 0412 345 678
+  - text: Password*
+  - textbox "Passwordrequired": SecurePass123!
+  - button "Show password":
+    - img
+  - text: Password strength:Strong
+  - list "Password requirements":
+    - listitem:
+      - img
+      - text: At least 8 characters
+    - listitem:
+      - img
+      - text: One uppercase letter
+    - listitem:
+      - img
+      - text: One lowercase letter
+    - listitem:
+      - img
+      - text: One number
+    - listitem:
+      - img
+      - text: One special character
+  - text: Confirm password*
+  - textbox "Confirm passwordrequired": SecurePass123!
+  - button "Show password":
+    - img
+  - text: Tax residency status*
+  - combobox "Tax residency statusrequired":
+    - option "Australian Tax Resident" [selected]
+    - option "Non-Resident"
+    - option "Temporary Resident"
+  - paragraph: This affects your tax rates and obligations
+  - text: ABN (optional)
+  - textbox "ABN (optional)"
+  - checkbox "I accept the Terms of Service and Privacy Policy"
+  - text: I accept the
+  - link "Terms of Service":
+    - /url: /terms
+  - text: and
+  - link "Privacy Policy":
+    - /url: /privacy
+  - alert:
+    - paragraph:
+      - img
+      - text: You must accept the terms and conditions
+  - button "Create account"
+- text: Or register with
+- button "Sign up with Google": Google
+- paragraph: Your data is secured with 256-bit encryption and stored in Australian datacenters
+- paragraph: "ABN: 41 123 456 789"
+- text: SSL Secured Privacy Protected
+- alert
+- button "Open Next.js Dev Tools":
+  - img
+```

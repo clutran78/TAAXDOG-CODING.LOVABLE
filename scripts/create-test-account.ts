@@ -11,7 +11,7 @@ async function createTestAccount() {
   try {
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
-      where: { email: testEmail.toLowerCase() }
+      where: { email: testEmail.toLowerCase() },
     });
 
     if (existingUser) {
@@ -24,7 +24,7 @@ async function createTestAccount() {
     // Create new user
     console.log('📝 Creating new user...');
     const hashedPassword = await bcrypt.hash(testPassword, 12);
-    
+
     const newUser = await prisma.user.create({
       data: {
         email: testEmail.toLowerCase(),
@@ -37,7 +37,7 @@ async function createTestAccount() {
         email: true,
         name: true,
         role: true,
-      }
+      },
     });
 
     console.log('✅ User created successfully!');
@@ -51,14 +51,13 @@ async function createTestAccount() {
 
     // Test password verification
     const user = await prisma.user.findUnique({
-      where: { email: testEmail.toLowerCase() }
+      where: { email: testEmail.toLowerCase() },
     });
 
     if (user && user.password) {
       const isValid = await bcrypt.compare(testPassword, user.password);
       console.log('\n🔐 Password verification test:', isValid ? '✅ PASSED' : '❌ FAILED');
     }
-
   } catch (error) {
     console.error('❌ Error during account creation:', error);
   } finally {

@@ -22,7 +22,7 @@ async function testAuthSystem() {
     console.log(`✅ Password hashed successfully`);
     console.log(`   Original: ${testPassword}`);
     console.log(`   Hashed: ${hashedPassword.substring(0, 20)}...`);
-    
+
     // Test password comparison
     const isMatch = await bcrypt.compare(testPassword, hashedPassword);
     console.log(`✅ Password comparison works: ${isMatch}\n`);
@@ -31,24 +31,23 @@ async function testAuthSystem() {
     console.log('4. Checking for test users...');
     const testUsers = await prisma.user.findMany({
       where: {
-        OR: [
-          { email: { contains: 'test' } },
-          { email: { contains: 'demo' } }
-        ]
+        OR: [{ email: { contains: 'test' } }, { email: { contains: 'demo' } }],
       },
       select: {
         id: true,
         email: true,
         name: true,
         emailVerified: true,
-        createdAt: true
-      }
+        createdAt: true,
+      },
     });
 
     if (testUsers.length > 0) {
       console.log(`Found ${testUsers.length} test users:`);
-      testUsers.forEach(user => {
-        console.log(`   - ${user.email} (${user.name}) - Verified: ${user.emailVerified ? 'Yes' : 'No'}`);
+      testUsers.forEach((user) => {
+        console.log(
+          `   - ${user.email} (${user.name}) - Verified: ${user.emailVerified ? 'Yes' : 'No'}`,
+        );
       });
     } else {
       console.log('   No test users found');
@@ -60,24 +59,26 @@ async function testAuthSystem() {
     const recentUsers = await prisma.user.findMany({
       where: {
         createdAt: {
-          gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-        }
+          gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+        },
       },
       select: {
         email: true,
         createdAt: true,
-        emailVerified: true
+        emailVerified: true,
       },
       orderBy: {
-        createdAt: 'desc'
+        createdAt: 'desc',
       },
-      take: 5
+      take: 5,
     });
 
     if (recentUsers.length > 0) {
       console.log(`Found ${recentUsers.length} recent registrations:`);
-      recentUsers.forEach(user => {
-        console.log(`   - ${user.email} - ${user.createdAt.toISOString()} - Verified: ${user.emailVerified ? 'Yes' : 'No'}`);
+      recentUsers.forEach((user) => {
+        console.log(
+          `   - ${user.email} - ${user.createdAt.toISOString()} - Verified: ${user.emailVerified ? 'Yes' : 'No'}`,
+        );
       });
     } else {
       console.log('   No recent registrations');
@@ -88,19 +89,21 @@ async function testAuthSystem() {
     console.log('6. Checking for active password reset tokens...');
     const usersWithResetTokens = await prisma.user.findMany({
       where: {
-        passwordResetToken: { not: null }
+        passwordResetToken: { not: null },
       },
       select: {
         email: true,
-        passwordResetExpires: true
-      }
+        passwordResetExpires: true,
+      },
     });
 
     if (usersWithResetTokens.length > 0) {
       console.log(`Found ${usersWithResetTokens.length} users with reset tokens:`);
-      usersWithResetTokens.forEach(user => {
+      usersWithResetTokens.forEach((user) => {
         const isExpired = user.passwordResetExpires && user.passwordResetExpires < new Date();
-        console.log(`   - ${user.email} - Expires: ${user.passwordResetExpires?.toISOString()} - ${isExpired ? 'EXPIRED' : 'Active'}`);
+        console.log(
+          `   - ${user.email} - Expires: ${user.passwordResetExpires?.toISOString()} - ${isExpired ? 'EXPIRED' : 'Active'}`,
+        );
       });
     } else {
       console.log('   No active password reset tokens');
@@ -108,7 +111,6 @@ async function testAuthSystem() {
     console.log('');
 
     console.log('✅ All authentication system tests passed!\n');
-
   } catch (error) {
     console.error('❌ Error testing auth system:', error);
     process.exit(1);

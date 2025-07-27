@@ -3,7 +3,12 @@ console.log('🔍 Testing Email Configuration\n');
 
 console.log('Environment Variables:');
 console.log('EMAIL_PROVIDER:', process.env.EMAIL_PROVIDER || 'Not set');
-console.log('SENDGRID_API_KEY:', process.env.SENDGRID_API_KEY ? `Set (${process.env.SENDGRID_API_KEY.substring(0, 10)}...)` : 'Not set');
+console.log(
+  'SENDGRID_API_KEY:',
+  process.env.SENDGRID_API_KEY
+    ? `Set (${process.env.SENDGRID_API_KEY.substring(0, 10)}...)`
+    : 'Not set',
+);
 console.log('EMAIL_FROM:', process.env.EMAIL_FROM || 'Not set');
 console.log('NODE_ENV:', process.env.NODE_ENV || 'Not set');
 console.log('NEXTAUTH_URL:', process.env.NEXTAUTH_URL || 'Not set');
@@ -29,9 +34,9 @@ async function testEmail() {
       to: 'test@example.com',
       subject: 'Test Email Configuration',
       html: '<p>This is a test email</p>',
-      text: 'This is a test email'
+      text: 'This is a test email',
     });
-    
+
     console.log('\nEmail send result:', result);
   } catch (error) {
     console.error('\n❌ Error sending email:', error);

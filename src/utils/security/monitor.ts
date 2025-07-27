@@ -21,14 +21,14 @@ export enum SecurityEventType {
   FILE_UPLOAD_VIOLATION = 'file_upload_violation',
   FINANCIAL_ANOMALY = 'financial_anomaly',
   API_ABUSE = 'api_abuse',
-  SESSION_HIJACK_ATTEMPT = 'session_hijack_attempt'
+  SESSION_HIJACK_ATTEMPT = 'session_hijack_attempt',
 }
 
 export enum SecurityThreatLevel {
   LOW = 'low',
   MEDIUM = 'medium',
   HIGH = 'high',
-  CRITICAL = 'critical'
+  CRITICAL = 'critical',
 }
 
 /**
@@ -44,7 +44,7 @@ export interface SecurityEvent {
   ipAddress: string;
   userAgent: string;
   description: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, string | number | boolean>;
   location?: {
     country?: string;
     region?: string;
@@ -85,7 +85,7 @@ class SecurityMonitor {
     [SecurityEventType.INVALID_TOKEN]: 10,
     [SecurityEventType.FILE_UPLOAD_VIOLATION]: 5,
     [SecurityEventType.FINANCIAL_ANOMALY]: 1,
-    [SecurityEventType.API_ABUSE]: 5
+    [SecurityEventType.API_ABUSE]: 5,
   };
 
   /**
@@ -95,7 +95,7 @@ class SecurityMonitor {
     const securityEvent: SecurityEvent = {
       id: this.generateEventId(),
       timestamp: Date.now(),
-      ...event
+      ...event,
     };
 
     // Add to events collection
@@ -116,7 +116,7 @@ class SecurityMonitor {
         threatLevel: event.threatLevel,
         ip: event.ipAddress,
         user: event.userEmail || 'anonymous',
-        description: event.description
+        description: event.description,
       });
     }
 
@@ -131,46 +131,49 @@ class SecurityMonitor {
    */
   private detectThreats(event: SecurityEvent): void {
     const recentEvents = this.getRecentEvents(15 * 60 * 1000); // Last 15 minutes
-    const ipEvents = recentEvents.filter(e => e.ipAddress === event.ipAddress);
-    const userEvents = event.userId ? recentEvents.filter(e => e.userId === event.userId) : [];
+    const ipEvents = recentEvents.filter((e) => e.ipAddress === event.ipAddress);
+    const userEvents = event.userId ? recentEvents.filter((e) => e.userId === event.userId) : [];
 
     // Check for brute force attacks
     if (event.type === SecurityEventType.LOGIN_FAILURE) {
-      const failureCount = ipEvents.filter(e => e.type === SecurityEventType.LOGIN_FAILURE).length;
+      const failureCount = ipEvents.filter(
+        (e) => e.type === SecurityEventType.LOGIN_FAILURE,
+      ).length;
       if (failureCount >= this.alertThresholds[SecurityEventType.LOGIN_FAILURE]) {
         this.triggerAlert({
           type: 'BRUTE_FORCE_ATTACK',
           message: `Potential brute force attack from IP: ${event.ipAddress}`,
           threatLevel: SecurityThreatLevel.HIGH,
           relatedEvents: [event.id],
-          metadata: { failureCount, ipAddress: event.ipAddress }
+          metadata: { failureCount, ipAddress: event.ipAddress },
         });
       }
     }
 
     // Check for account takeover attempts
     if (event.userId && userEvents.length > 0) {
-      const uniqueIPs = new Set(userEvents.map(e => e.ipAddress));
+      const uniqueIPs = new Set(userEvents.map((e) => e.ipAddress));
       if (uniqueIPs.size > 3) {
         this.triggerAlert({
           type: 'ACCOUNT_TAKEOVER_ATTEMPT',
           message: `Multiple IP addresses accessing account: ${event.userEmail}`,
           threatLevel: SecurityThreatLevel.HIGH,
           relatedEvents: [event.id],
-          metadata: { uniqueIPs: Array.from(uniqueIPs), userId: event.userId }
+          metadata: { uniqueIPs: Array.from(uniqueIPs), userId: event.userId },
         });
       }
     }
 
     // Check for API abuse
     const apiCallCount = ipEvents.length;
-    if (apiCallCount > 100) { // More than 100 requests in 15 minutes
+    if (apiCallCount > 100) {
+      // More than 100 requests in 15 minutes
       this.triggerAlert({
         type: 'API_ABUSE',
         message: `Excessive API calls from IP: ${event.ipAddress}`,
         threatLevel: SecurityThreatLevel.MEDIUM,
         relatedEvents: [event.id],
-        metadata: { requestCount: apiCallCount, ipAddress: event.ipAddress }
+        metadata: { requestCount: apiCallCount, ipAddress: event.ipAddress },
       });
     }
   }
@@ -178,34 +181,38 @@ class SecurityMonitor {
   /**
    * Analyzes user behavior for anomalies
    */
-  public analyzeUserBehavior(userId: string, currentActivity: any): AnomalyDetection {
-    const userEvents = this.events.filter(e => e.userId === userId);
-    const recentEvents = userEvents.filter(e => Date.now() - e.timestamp < 30 * 24 * 60 * 60 * 1000); // Last 30 days
+  public analyzeUserBehavior(userId: string, currentActivity: UserActivity): AnomalyDetection {
+    const userEvents = this.events.filter((e) => e.userId === userId);
+    const recentEvents = userEvents.filter(
+      (e) => Date.now() - e.timestamp < 30 * 24 * 60 * 60 * 1000,
+    ); // Last 30 days
 
     const anomalies: string[] = [];
     let anomalyScore = 0;
 
     // Analyze login patterns
-    const loginEvents = recentEvents.filter(e => e.type === SecurityEventType.LOGIN_SUCCESS);
-    const loginIPs = new Set(loginEvents.map(e => e.ipAddress));
-    
+    const loginEvents = recentEvents.filter((e) => e.type === SecurityEventType.LOGIN_SUCCESS);
+    const loginIPs = new Set(loginEvents.map((e) => e.ipAddress));
+
     if (currentActivity.ipAddress && !loginIPs.has(currentActivity.ipAddress)) {
       anomalies.push('Login from new IP address');
       anomalyScore += 30;
     }
 
     // Analyze login times
-    const loginHours = loginEvents.map(e => new Date(e.timestamp).getHours());
+    const loginHours = loginEvents.map((e) => new Date(e.timestamp).getHours());
     const avgLoginHour = loginHours.reduce((a, b) => a + b, 0) / loginHours.length;
     const currentHour = new Date().getHours();
-    
+
     if (Math.abs(currentHour - avgLoginHour) > 6) {
       anomalies.push('Login at unusual time');
       anomalyScore += 20;
     }
 
     // Analyze financial transaction patterns
-    const financialEvents = recentEvents.filter(e => e.type === SecurityEventType.FINANCIAL_ANOMALY);
+    const financialEvents = recentEvents.filter(
+      (e) => e.type === SecurityEventType.FINANCIAL_ANOMALY,
+    );
     if (currentActivity.transactionAmount) {
       const avgAmount = this.calculateAverageTransactionAmount(userId);
       if (currentActivity.transactionAmount > avgAmount * 5) {
@@ -228,7 +235,7 @@ class SecurityMonitor {
       isAnomaly,
       score: Math.min(anomalyScore, 100),
       reasons: anomalies,
-      recommendations
+      recommendations,
     };
   }
 
@@ -237,7 +244,7 @@ class SecurityMonitor {
    */
   public validateRequestOrigin(origin: string, referer: string): boolean {
     const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(',');
-    
+
     // Check origin header
     if (origin && allowedOrigins.includes(origin)) {
       return true;
@@ -266,10 +273,10 @@ class SecurityMonitor {
       /(or\s+1\s*=\s*1)/i,
       /(and\s+1\s*=\s*1)/i,
       /(\*|%|\?)/,
-      /(script|javascript|vbscript)/i
+      /(script|javascript|vbscript)/i,
     ];
 
-    return sqlPatterns.some(pattern => pattern.test(input));
+    return sqlPatterns.some((pattern) => pattern.test(input));
   }
 
   /**
@@ -286,10 +293,10 @@ class SecurityMonitor {
       /<embed\b/gi,
       /<applet\b/gi,
       /<meta\b/gi,
-      /<link\b/gi
+      /<link\b/gi,
     ];
 
-    return xssPatterns.some(pattern => pattern.test(input));
+    return xssPatterns.some((pattern) => pattern.test(input));
   }
 
   /**
@@ -297,7 +304,7 @@ class SecurityMonitor {
    */
   private getRecentEvents(timeWindowMs: number): SecurityEvent[] {
     const cutoffTime = Date.now() - timeWindowMs;
-    return this.events.filter(event => event.timestamp > cutoffTime);
+    return this.events.filter((event) => event.timestamp > cutoffTime);
   }
 
   /**
@@ -305,15 +312,16 @@ class SecurityMonitor {
    */
   private calculateAverageTransactionAmount(userId: string): number {
     const userFinancialEvents = this.events.filter(
-      e => e.userId === userId && e.metadata?.transactionAmount
+      (e) => e.userId === userId && e.metadata?.transactionAmount,
     );
-    
+
     if (userFinancialEvents.length === 0) return 0;
-    
+
     const totalAmount = userFinancialEvents.reduce(
-      (sum, event) => sum + (event.metadata?.transactionAmount || 0), 0
+      (sum, event) => sum + (event.metadata?.transactionAmount || 0),
+      0,
     );
-    
+
     return totalAmount / userFinancialEvents.length;
   }
 
@@ -354,7 +362,7 @@ class SecurityMonitor {
     message: string;
     threatLevel: SecurityThreatLevel;
     relatedEvents: string[];
-    metadata?: Record<string, any>;
+    metadata?: Record<string, string | number | boolean>;
   }): void {
     // In production, this would integrate with alerting systems
     console.error('🚨 SECURITY ALERT:', alert);
@@ -366,7 +374,7 @@ class SecurityMonitor {
       ipAddress: 'system',
       userAgent: 'security-monitor',
       description: `ALERT: ${alert.message}`,
-      metadata: alert.metadata
+      metadata: alert.metadata,
     });
   }
 
@@ -378,7 +386,7 @@ class SecurityMonitor {
     // - Splunk, DataDog, New Relic for monitoring
     // - PagerDuty for critical alerts
     // - Slack/Teams for team notifications
-    
+
     if (process.env.ENABLE_SECURITY_ALERTS === 'true') {
       // Implementation would depend on chosen service
       console.log('📤 Sending to security service:', event.type);
@@ -403,17 +411,21 @@ class SecurityMonitor {
     topThreatTypes: Array<{ type: string; count: number }>;
   } {
     const recentEvents = this.getRecentEvents(24 * 60 * 60 * 1000); // Last 24 hours
-    
-    const criticalEvents = recentEvents.filter(e => e.threatLevel === SecurityThreatLevel.CRITICAL).length;
-    const highThreatEvents = recentEvents.filter(e => e.threatLevel === SecurityThreatLevel.HIGH).length;
-    
+
+    const criticalEvents = recentEvents.filter(
+      (e) => e.threatLevel === SecurityThreatLevel.CRITICAL,
+    ).length;
+    const highThreatEvents = recentEvents.filter(
+      (e) => e.threatLevel === SecurityThreatLevel.HIGH,
+    ).length;
+
     // Count threat types
     const threatCounts = new Map<string, number>();
-    recentEvents.forEach(event => {
+    recentEvents.forEach((event) => {
       const count = threatCounts.get(event.type) || 0;
       threatCounts.set(event.type, count + 1);
     });
-    
+
     const topThreatTypes = Array.from(threatCounts.entries())
       .map(([type, count]) => ({ type, count }))
       .sort((a, b) => b.count - a.count)
@@ -423,8 +435,9 @@ class SecurityMonitor {
       totalEvents: recentEvents.length,
       criticalEvents,
       highThreatEvents,
-      recentAnomalies: recentEvents.filter(e => e.type === SecurityEventType.SUSPICIOUS_ACTIVITY).length,
-      topThreatTypes
+      recentAnomalies: recentEvents.filter((e) => e.type === SecurityEventType.SUSPICIOUS_ACTIVITY)
+        .length,
+      topThreatTypes,
     };
   }
 }
@@ -433,20 +446,26 @@ class SecurityMonitor {
 export const securityMonitor = new SecurityMonitor();
 
 // Export utility functions
-export const logSecurityEvent = (event: Omit<SecurityEvent, 'id' | 'timestamp'>) => 
+export const logSecurityEvent = (event: Omit<SecurityEvent, 'id' | 'timestamp'>) =>
   securityMonitor.logSecurityEvent(event);
 
-export const analyzeUserBehavior = (userId: string, activity: any) => 
+// User activity interface for behavior analysis
+interface UserActivity {
+  action: string;
+  timestamp: number;
+  ipAddress: string;
+  userAgent: string;
+  metadata?: Record<string, string | number | boolean>;
+}
+
+export const analyzeUserBehavior = (userId: string, activity: UserActivity) =>
   securityMonitor.analyzeUserBehavior(userId, activity);
 
-export const validateRequestOrigin = (origin: string, referer: string) => 
+export const validateRequestOrigin = (origin: string, referer: string) =>
   securityMonitor.validateRequestOrigin(origin, referer);
 
-export const detectSQLInjection = (input: string) => 
-  securityMonitor.detectSQLInjection(input);
+export const detectSQLInjection = (input: string) => securityMonitor.detectSQLInjection(input);
 
-export const detectXSS = (input: string) => 
-  securityMonitor.detectXSS(input);
+export const detectXSS = (input: string) => securityMonitor.detectXSS(input);
 
-export const getSecurityMetrics = () => 
-  securityMonitor.getSecurityMetrics(); 
+export const getSecurityMetrics = () => securityMonitor.getSecurityMetrics();

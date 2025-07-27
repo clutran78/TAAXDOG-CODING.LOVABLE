@@ -2,7 +2,8 @@
 
 ## 🚨 CRITICAL SECURITY NOTICE
 
-This repository previously contained exposed credentials that have been removed. **ALL exposed credentials must be rotated immediately**.
+This repository previously contained exposed credentials that have been removed.
+**ALL exposed credentials must be rotated immediately**.
 
 ## Credential Rotation Checklist
 
@@ -31,6 +32,7 @@ This repository previously contained exposed credentials that have been removed.
 ### Development Setup
 
 1. Copy the example environment file:
+
    ```bash
    cp .env.example .env
    ```
@@ -91,4 +93,5 @@ git push origin --force --tags
 
 ## Contact
 
-If you discover any security issues, please contact the security team immediately.
+If you discover any security issues, please contact the security team
+immediately.

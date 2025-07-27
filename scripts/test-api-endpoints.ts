@@ -16,7 +16,7 @@ const results: TestResult[] = [];
 async function testEndpoint(
   endpoint: string,
   method: string = 'GET',
-  options: any = {}
+  options: any = {},
 ): Promise<void> {
   const start = Date.now();
   try {
@@ -74,7 +74,7 @@ async function runTests() {
   // Test Auth Endpoints (unauthenticated)
   console.log('\n🔐 Testing Auth Endpoints...\n');
   await testEndpoint('/api/auth/sessions');
-  
+
   // Test registration with invalid data (should fail with 400)
   await testEndpoint('/api/auth/register', 'POST', {
     body: { email: 'invalid-email' },
@@ -89,7 +89,7 @@ async function runTests() {
   // Test Goal Endpoints (should require auth)
   console.log('\n🎯 Testing Goal Endpoints...\n');
   await testEndpoint('/api/goals');
-  
+
   // Test Receipt Endpoints (should require auth)
   console.log('\n🧾 Testing Receipt Endpoints...\n');
   await testEndpoint('/api/receipts');
@@ -113,10 +113,13 @@ async function runTests() {
   console.log(`⏱️  Average Response Time: ${avgDuration}ms`);
 
   // Group results by status code
-  const statusCodes = results.reduce((acc, r) => {
-    acc[r.status] = (acc[r.status] || 0) + 1;
-    return acc;
-  }, {} as Record<number, number>);
+  const statusCodes = results.reduce(
+    (acc, r) => {
+      acc[r.status] = (acc[r.status] || 0) + 1;
+      return acc;
+    },
+    {} as Record<number, number>,
+  );
 
   console.log('\n📈 Response Status Codes:');
   Object.entries(statusCodes)
@@ -126,9 +129,7 @@ async function runTests() {
     });
 
   // Show slowest endpoints
-  const slowest = results
-    .sort((a, b) => b.duration - a.duration)
-    .slice(0, 5);
+  const slowest = results.sort((a, b) => b.duration - a.duration).slice(0, 5);
 
   console.log('\n🐌 Slowest Endpoints:');
   slowest.forEach((r) => {

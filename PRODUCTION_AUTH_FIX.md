@@ -23,6 +23,7 @@
 ## Deployment Steps
 
 ### 1. Commit and Push Changes
+
 ```bash
 git add -A
 git commit -m "Fix authentication for production deployment"
@@ -32,6 +33,7 @@ git push origin main
 ### 2. Update Environment Variables in DigitalOcean
 
 Ensure these are set in your App Platform:
+
 ```
 DATABASE_URL=[copy from .env.local]
 NEXTAUTH_URL=https://taxreturnpro.com.au
@@ -42,6 +44,7 @@ NODE_ENV=production
 ### 3. Trigger New Deployment
 
 The build will now:
+
 - Run `npm install` (which triggers `prisma generate`)
 - Run `npm run build` (which runs `prisma generate && next build`)
 - Start with `npm start`
@@ -61,18 +64,21 @@ The build will now:
    - Check for detailed error logs with timestamps
 
 2. **Run Database Verification**
+
    ```bash
    NODE_ENV=production DATABASE_URL=[your-prod-url] node scripts/verify-production-db.js
    ```
 
 3. **Common Issues**
-   - **"Cannot find module '@prisma/client'"**: Prisma didn't generate during build
+   - **"Cannot find module '@prisma/client'"**: Prisma didn't generate during
+     build
    - **"P2025 error"**: Schema mismatch - run migrations
    - **"Connection error"**: DATABASE_URL is incorrect
 
 ### Database Schema Issues
 
 If the production database schema doesn't match:
+
 ```bash
 # Generate migration files
 npx prisma migrate dev --name fix_schema
@@ -84,6 +90,7 @@ DATABASE_URL=[prod-url] npx prisma migrate deploy
 ## Testing Authentication Flow
 
 1. **Registration Test**
+
    ```bash
    curl -X POST https://taxreturnpro.com.au/api/auth/register \
      -H "Content-Type: application/json" \
@@ -104,6 +111,7 @@ DATABASE_URL=[prod-url] npx prisma migrate deploy
 ## Next Steps
 
 After deployment:
+
 1. Monitor logs for 5-10 minutes
 2. Test all auth endpoints
 3. Check database for new user records
@@ -112,6 +120,7 @@ After deployment:
 ## Support
 
 If issues persist after following these steps:
+
 1. Check DigitalOcean App Platform logs
 2. Run the diagnostic endpoint
 3. Verify all environment variables are set

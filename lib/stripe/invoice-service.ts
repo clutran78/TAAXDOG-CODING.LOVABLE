@@ -1,4 +1,10 @@
-import { stripe, calculateGST, formatCurrency, generateTaxInvoiceNumber, TaxInvoiceData } from '../stripe';
+import {
+  stripe,
+  calculateGST,
+  formatCurrency,
+  generateTaxInvoiceNumber,
+  TaxInvoiceData,
+} from '../stripe';
 import { prisma } from '../prisma';
 import Stripe from 'stripe';
 
@@ -23,9 +29,9 @@ export class InvoiceService {
       },
     });
 
-    const lineItems = invoice.lines.data.map(item => {
+    const lineItems = invoice.lines.data.map((item) => {
       const { gstAmount, amountExcludingGST } = calculateGST(item.amount);
-      
+
       return {
         description: item.description || 'Subscription',
         quantity: item.quantity || 1,
@@ -44,7 +50,7 @@ export class InvoiceService {
       customerName: customer.name || user?.name || 'Customer',
       customerEmail: customer.email || user?.email || '',
       customerABN: user?.abn || undefined,
-      lineItems: lineItems.map(item => ({
+      lineItems: lineItems.map((item) => ({
         description: item.description,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
@@ -77,7 +83,7 @@ export class InvoiceService {
         status: 'PAID',
         invoiceDate: invoiceData.date,
         lineItems: {
-          create: invoiceData.lineItems.map(item => ({
+          create: invoiceData.lineItems.map((item) => ({
             description: item.description,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
@@ -203,14 +209,18 @@ export class InvoiceService {
       </tr>
     </thead>
     <tbody>
-      ${invoice.lineItems.map(item => `
+      ${invoice.lineItems
+        .map(
+          (item) => `
         <tr>
           <td>${item.description}</td>
           <td>${item.quantity}</td>
           <td>${formatCurrency(item.unitPrice)}</td>
           <td class="amount">${formatCurrency(item.totalPrice)}</td>
         </tr>
-      `).join('')}
+      `,
+        )
+        .join('')}
     </tbody>
   </table>
 
@@ -252,7 +262,7 @@ export class InvoiceService {
       limit: 100,
     });
 
-    return invoices.data.map(invoice => ({
+    return invoices.data.map((invoice) => ({
       id: invoice.id,
       invoiceNumber: invoice.number,
       date: new Date(invoice.created * 1000),

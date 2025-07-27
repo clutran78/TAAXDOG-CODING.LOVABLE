@@ -1,70 +1,72 @@
-import { useRouter } from "next/router";
-import Link from "next/link";
-import Head from "next/head";
+import { useRouter } from 'next/router';
+import Link from 'next/link';
+import Head from 'next/head';
 
 const errors: Record<string, { title: string; message: string }> = {
   Configuration: {
-    title: "Configuration Error",
-    message: "There is a problem with the server configuration. Please contact support.",
+    title: 'Configuration Error',
+    message: 'There is a problem with the server configuration. Please contact support.',
   },
   AccessDenied: {
-    title: "Access Denied",
-    message: "You do not have permission to sign in.",
+    title: 'Access Denied',
+    message: 'You do not have permission to sign in.',
   },
   Verification: {
-    title: "Verification Error",
-    message: "The verification token has expired or has already been used.",
+    title: 'Verification Error',
+    message: 'The verification token has expired or has already been used.',
   },
   OAuthSignin: {
-    title: "OAuth Sign-in Error",
-    message: "There was an error constructing the authorization URL.",
+    title: 'OAuth Sign-in Error',
+    message: 'There was an error constructing the authorization URL.',
   },
   OAuthCallback: {
-    title: "OAuth Callback Error",
-    message: "There was an error handling the OAuth response.",
+    title: 'OAuth Callback Error',
+    message: 'There was an error handling the OAuth response.',
   },
   OAuthCreateAccount: {
-    title: "OAuth Account Creation Error",
-    message: "Could not create OAuth provider user in the database.",
+    title: 'OAuth Account Creation Error',
+    message: 'Could not create OAuth provider user in the database.',
   },
   EmailCreateAccount: {
-    title: "Email Account Creation Error",
-    message: "Could not create email provider user in the database.",
+    title: 'Email Account Creation Error',
+    message: 'Could not create email provider user in the database.',
   },
   Callback: {
-    title: "Callback Error",
-    message: "There was an error in the OAuth callback handler route.",
+    title: 'Callback Error',
+    message: 'There was an error in the OAuth callback handler route.',
   },
   OAuthAccountNotLinked: {
-    title: "Account Not Linked",
-    message:
-      "To confirm your identity, sign in with the same account you used originally.",
+    title: 'Account Not Linked',
+    message: 'To confirm your identity, sign in with the same account you used originally.',
   },
   EmailSignin: {
-    title: "Email Sign-in Error",
-    message: "The email could not be sent. Please try again later.",
+    title: 'Email Sign-in Error',
+    message: 'The email could not be sent. Please try again later.',
   },
   CredentialsSignin: {
-    title: "Sign-in Error",
-    message: "The sign in credentials are incorrect. Please try again.",
+    title: 'Sign-in Error',
+    message: 'The sign in credentials are incorrect. Please try again.',
   },
   Default: {
-    title: "Authentication Error",
-    message: "An error occurred during authentication. Please try again.",
+    title: 'Authentication Error',
+    message: 'An error occurred during authentication. Please try again.',
   },
 };
 
 export default function AuthErrorPage() {
   const router = useRouter();
   const { error } = router.query;
-  const errorType = error && typeof error === "string" ? error : "Default";
+  const errorType = error && typeof error === 'string' ? error : 'Default';
   const errorInfo = errors[errorType] || errors.Default;
 
   return (
     <>
       <Head>
         <title>Authentication Error - TaxReturnPro</title>
-        <meta name="description" content="Authentication error" />
+        <meta
+          name="description"
+          content="Authentication error"
+        />
       </Head>
 
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">

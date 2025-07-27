@@ -28,13 +28,15 @@ export const formatCurrency = (amount: number): string => {
   }).format(amount / 100);
 };
 
-export const calculateGST = (amountIncludingGST: number): {
+export const calculateGST = (
+  amountIncludingGST: number,
+): {
   gstAmount: number;
   amountExcludingGST: number;
 } => {
   const gstAmount = Math.round(amountIncludingGST / 11);
   const amountExcludingGST = amountIncludingGST - gstAmount;
-  
+
   return {
     gstAmount,
     amountExcludingGST,
@@ -60,12 +62,12 @@ export const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlan> = {
     id: 'smart',
     name: 'TAAX Smart',
     description: 'Essential tax management for individuals',
-    monthlyPriceId: process.env.NODE_ENV === 'production' 
-      ? 'price_smart_monthly_prod' 
-      : 'price_smart_monthly_test',
-    annualPriceId: process.env.NODE_ENV === 'production'
-      ? 'price_smart_annual_prod'
-      : 'price_smart_annual_test',
+    monthlyPriceId:
+      process.env.NODE_ENV === 'production'
+        ? 'price_smart_monthly_prod'
+        : 'price_smart_monthly_test',
+    annualPriceId:
+      process.env.NODE_ENV === 'production' ? 'price_smart_annual_prod' : 'price_smart_annual_test',
     monthlyPrice: 999, // $9.99 AUD
     annualPrice: 9900, // $99.00 AUD
     promotionalMonthlyPrice: 499, // $4.99 AUD
@@ -83,12 +85,10 @@ export const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlan> = {
     id: 'pro',
     name: 'TAAX Pro',
     description: 'Advanced features for complex tax situations',
-    monthlyPriceId: process.env.NODE_ENV === 'production'
-      ? 'price_pro_monthly_prod'
-      : 'price_pro_monthly_test',
-    annualPriceId: process.env.NODE_ENV === 'production'
-      ? 'price_pro_annual_prod'
-      : 'price_pro_annual_test',
+    monthlyPriceId:
+      process.env.NODE_ENV === 'production' ? 'price_pro_monthly_prod' : 'price_pro_monthly_test',
+    annualPriceId:
+      process.env.NODE_ENV === 'production' ? 'price_pro_annual_prod' : 'price_pro_annual_test',
     monthlyPrice: 1899, // $18.99 AUD
     annualPrice: 18900, // $189.00 AUD
     promotionalMonthlyPrice: 1099, // $10.99 AUD
@@ -135,6 +135,8 @@ export const generateTaxInvoiceNumber = (): string => {
   const date = new Date();
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
-  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  const random = Math.floor(Math.random() * 10000)
+    .toString()
+    .padStart(4, '0');
   return `INV-${year}${month}-${random}`;
 };

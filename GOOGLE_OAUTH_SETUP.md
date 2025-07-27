@@ -3,18 +3,22 @@
 ## Steps to Configure Google OAuth
 
 ### 1. Go to Google Cloud Console
+
 Visit: https://console.cloud.google.com/
 
 ### 2. Create or Select a Project
+
 - Click on the project dropdown at the top
 - Create a new project named "Taaxdog" or select existing
 
 ### 3. Enable Google+ API
+
 - Go to "APIs & Services" > "Library"
 - Search for "Google+ API"
 - Click "Enable"
 
 ### 4. Create OAuth 2.0 Credentials
+
 1. Go to "APIs & Services" > "Credentials"
 2. Click "Create Credentials" > "OAuth client ID"
 3. If prompted, configure OAuth consent screen first:
@@ -27,6 +31,7 @@ Visit: https://console.cloud.google.com/
    - Add test users if in development
 
 ### 5. Create OAuth Client ID
+
 1. Application type: "Web application"
 2. Name: "Taaxdog Web Client"
 3. Authorized JavaScript origins:
@@ -37,12 +42,16 @@ Visit: https://console.cloud.google.com/
    - Production: `https://taxreturnpro.com.au/api/auth/callback/google`
 
 ### 6. Copy Credentials
+
 After creation, you'll receive:
+
 - Client ID: `[YOUR_CLIENT_ID].apps.googleusercontent.com`
 - Client Secret: `[YOUR_CLIENT_SECRET]`
 
 ### 7. Update Environment Variables
+
 Add to your `.env.local` file:
+
 ```
 GOOGLE_CLIENT_ID="your-client-id.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET="your-client-secret"

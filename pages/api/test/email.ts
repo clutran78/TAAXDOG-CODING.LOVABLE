@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { sendEmail } from '../../../lib/email';
+import { sendEmail } from '../../../lib/services/email/email';
 import { logger } from '@/lib/logger';
 import { apiResponse } from '@/lib/api/response';
 

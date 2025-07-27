@@ -3,6 +3,7 @@ import { getAIConfig } from '../../config';
 import { AIOperationType, AI_PROVIDERS, AUSTRALIAN_TAX_CONFIG } from '../config';
 import { AIService } from '../ai-service';
 import { prisma } from '../../prisma';
+import { logger } from '@/lib/logger';
 
 export interface ReceiptData {
   merchantName: string;
@@ -46,10 +47,10 @@ export class ReceiptProcessingService {
 
   async processReceipt(options: ProcessReceiptOptions): Promise<ReceiptData> {
     const { imageData, mimeType = 'image/jpeg', userId, businessId, additionalContext } = options;
-    
+
     // Generate cache key
     const cacheKey = `receipt:${Buffer.from(imageData).toString('base64').substring(0, 32)}`;
-    
+
     // Check cache first
     const cached = await this.checkCache(cacheKey);
     if (cached) {
@@ -62,13 +63,13 @@ export class ReceiptProcessingService {
     try {
       // Process image with Gemini
       const response = await this.gemini.processImage(imageData, prompt);
-      
+
       // Parse the response
       const receiptData = this.parseReceiptResponse(response.content);
-      
+
       // Validate and enhance with Australian tax categories
       const enhancedData = await this.enhanceWithTaxCategories(receiptData);
-      
+
       // Track usage
       if (userId || businessId) {
         await this.trackUsage({
@@ -83,10 +84,10 @@ export class ReceiptProcessingService {
           success: true,
         });
       }
-      
+
       // Cache the response
       await this.saveToCache(cacheKey, enhancedData, response.cost);
-      
+
       return enhancedData;
     } catch (error) {
       // Track failure
@@ -104,7 +105,7 @@ export class ReceiptProcessingService {
           error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
-      
+
       throw error;
     }
   }
@@ -154,9 +155,9 @@ Analyze the receipt image and provide the extracted data.`;
       if (!jsonMatch) {
         throw new Error('No JSON found in response');
       }
-      
+
       const data = JSON.parse(jsonMatch[0]);
-      
+
       // Validate and transform data
       return {
         merchantName: data.merchantName || 'Unknown Merchant',
@@ -171,12 +172,14 @@ Analyze the receipt image and provide the extracted data.`;
         isGstCompliant: Boolean(data.isGstCompliant),
       };
     } catch (error) {
-      throw new Error(`Failed to parse receipt response: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to parse receipt response: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
   private parseLineItems(items: any[]): ReceiptLineItem[] {
-    return items.map(item => ({
+    return items.map((item) => ({
       description: item.description || 'Unknown Item',
       quantity: item.quantity ? parseInt(item.quantity) : undefined,
       unitPrice: item.unitPrice ? parseFloat(item.unitPrice) : undefined,
@@ -187,14 +190,14 @@ Analyze the receipt image and provide the extracted data.`;
 
   private validateABN(abn: string | null): string | undefined {
     if (!abn) return undefined;
-    
+
     // Remove spaces and validate format
     const cleanABN = abn.replace(/\s/g, '');
     if (/^\d{11}$/.test(cleanABN)) {
       // Could add ABN checksum validation here
       return cleanABN;
     }
-    
+
     return undefined;
   }
 
@@ -202,38 +205,38 @@ Analyze the receipt image and provide the extracted data.`;
     // Use Australian tax categories from config
     const taxCategories = {
       'office supplies': AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[9], // Office Supplies
-      'stationery': AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[9], // Office Supplies
-      'computer': AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[4], // Equipment and Software
-      'software': AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[4], // Equipment and Software
-      'fuel': AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[0], // Motor Vehicle Expenses
-      'parking': AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[0], // Motor Vehicle Expenses
-      'taxi': AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[1], // Travel and Accommodation
-      'uber': AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[1], // Travel and Accommodation
-      'accommodation': AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[1], // Travel and Accommodation
-      'meal': AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[2], // Meals and Entertainment
-      'coffee': AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[2], // Meals and Entertainment
-      'restaurant': AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[2], // Meals and Entertainment
-      'phone': 'Phone and internet',
-      'internet': 'Phone and internet',
-      'insurance': AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[6], // Insurance
-      'rent': 'Rent expenses',
-      'electricity': AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[10], // Utilities
-      'gas': AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[10], // Utilities
-      'water': AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[10], // Utilities
+      stationery: AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[9], // Office Supplies
+      computer: AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[4], // Equipment and Software
+      software: AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[4], // Equipment and Software
+      fuel: AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[0], // Motor Vehicle Expenses
+      parking: AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[0], // Motor Vehicle Expenses
+      taxi: AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[1], // Travel and Accommodation
+      uber: AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[1], // Travel and Accommodation
+      accommodation: AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[1], // Travel and Accommodation
+      meal: AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[2], // Meals and Entertainment
+      coffee: AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[2], // Meals and Entertainment
+      restaurant: AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[2], // Meals and Entertainment
+      phone: 'Phone and internet',
+      internet: 'Phone and internet',
+      insurance: AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[6], // Insurance
+      rent: 'Rent expenses',
+      electricity: AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[10], // Utilities
+      gas: AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[10], // Utilities
+      water: AUSTRALIAN_TAX_CONFIG.BUSINESS_EXPENSE_CATEGORIES[10], // Utilities
     };
 
     // Enhance line items with categories
-    const enhancedLineItems = receiptData.lineItems.map(item => {
+    const enhancedLineItems = receiptData.lineItems.map((item) => {
       const lowerDesc = item.description.toLowerCase();
       let category: string | undefined;
-      
+
       for (const [keyword, cat] of Object.entries(taxCategories)) {
         if (lowerDesc.includes(keyword)) {
           category = cat;
           break;
         }
       }
-      
+
       return { ...item, category };
     });
 
@@ -241,7 +244,9 @@ Analyze the receipt image and provide the extracted data.`;
     let gstAmount = receiptData.gstAmount;
     if (!gstAmount && receiptData.isGstCompliant) {
       // Calculate GST using Australian rate (10%)
-      gstAmount = receiptData.totalAmount * AUSTRALIAN_TAX_CONFIG.GST_RATE / (1 + AUSTRALIAN_TAX_CONFIG.GST_RATE);
+      gstAmount =
+        (receiptData.totalAmount * AUSTRALIAN_TAX_CONFIG.GST_RATE) /
+        (1 + AUSTRALIAN_TAX_CONFIG.GST_RATE);
     }
 
     return {
@@ -254,11 +259,43 @@ Analyze the receipt image and provide the extracted data.`;
   async detectDuplicateReceipt(
     receiptData: ReceiptData,
     userId: string,
-    timeWindowDays: number = 7
+    timeWindowDays: number = 7,
   ): Promise<boolean> {
-    // This would typically check against the database
-    // For now, return false (no duplicate)
-    return false;
+    try {
+      // Check for similar receipts within the time window
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - timeWindowDays);
+
+      const similarReceipts = await prisma.receipt.findMany({
+        where: {
+          userId,
+          merchant: receiptData.merchantName,
+          totalAmount: {
+            gte: receiptData.totalAmount * 0.99, // Allow 1% variance
+            lte: receiptData.totalAmount * 1.01,
+          },
+          date: {
+            gte: new Date(receiptData.date.getTime() - 24 * 60 * 60 * 1000), // Same day
+            lte: new Date(receiptData.date.getTime() + 24 * 60 * 60 * 1000),
+          },
+          createdAt: {
+            gte: startDate,
+          },
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          merchant: true,
+          totalAmount: true,
+          date: true,
+        },
+      });
+
+      return similarReceipts.length > 0;
+    } catch (error) {
+      logger.error('Duplicate detection error:', error);
+      return false;
+    }
   }
 
   validateReceiptData(data: ReceiptData): {
@@ -283,7 +320,7 @@ Analyze the receipt image and provide the extracted data.`;
       errors.push('Receipt quality is too low for accurate processing');
     }
 
-    if (data.isGstCompliant && data.totalAmount > 82.50 && !data.abn) {
+    if (data.isGstCompliant && data.totalAmount > 82.5 && !data.abn) {
       errors.push('Tax invoice over $82.50 requires ABN');
     }
 
@@ -315,17 +352,13 @@ Analyze the receipt image and provide the extracted data.`;
         return null;
       }
     } catch (error) {
-      console.error('Cache check error:', error);
+      logger.error('Cache check error:', error);
     }
 
     return null;
   }
 
-  private async saveToCache(
-    cacheKey: string,
-    data: ReceiptData,
-    cost: number
-  ): Promise<void> {
+  private async saveToCache(cacheKey: string, data: ReceiptData, cost: number): Promise<void> {
     try {
       // Cache for 7 days for receipts
       const expiresAt = new Date();
@@ -343,7 +376,7 @@ Analyze the receipt image and provide the extracted data.`;
         },
       });
     } catch (error) {
-      console.error('Cache save error:', error);
+      logger.error('Cache save error:', error);
     }
   }
 
@@ -380,7 +413,7 @@ Analyze the receipt image and provide the extracted data.`;
         },
       });
     } catch (error) {
-      console.error('Usage tracking error:', error);
+      logger.error('Usage tracking error:', error);
     }
   }
 }

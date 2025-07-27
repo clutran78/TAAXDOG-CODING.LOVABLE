@@ -15,7 +15,10 @@ const AlertMessage: React.FC<AlertMessageProps> = ({ type, message, onClose }) =
   }[type];
 
   return (
-    <div className={`border px-4 py-3 rounded relative ${bgColor}`} role="alert">
+    <div
+      className={`border px-4 py-3 rounded relative ${bgColor}`}
+      role="alert"
+    >
       <span className="block sm:inline">{message}</span>
       {onClose && (
         <button

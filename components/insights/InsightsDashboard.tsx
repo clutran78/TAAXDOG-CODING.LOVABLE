@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { 
-  FaChartLine as TrendingUp, 
-  FaDollarSign as DollarSign, 
-  FaBullseye as Target, 
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import { logger } from '@/lib/logger';
+import {
+  FaChartLine as TrendingUp,
+  FaDollarSign as DollarSign,
+  FaBullseye as Target,
   FaFileAlt as FileText,
   FaBrain as Brain,
   FaCalendarAlt as Calendar,
@@ -14,158 +15,375 @@ import {
   FaExclamationCircle as AlertCircle,
   FaCheckCircle as CheckCircle,
   FaClock as Clock,
-  FaLightbulb as Lightbulb
+  FaLightbulb as Lightbulb,
 } from 'react-icons/fa';
-import { insightsService, type InsightsAnalysis } from '../../services/insights-service';
 
 // Define types for our insights data
-interface FinancialInsight {
+interface AIInsight {
   id: string;
   type: string;
-  title: string;
-  description: string;
-  confidence: string;
-  amount?: number;
-  recommendations: string[];
-  priority: 'HIGH' | 'MEDIUM' | 'LOW';
-}
-
-interface TaxDeduction {
   category: string;
-  category_name: string;
-  amount: number;
-  confidence: string;
-  description: string;
-  documentation_required: string;
-}
-
-interface FinancialGoal {
-  goal_type: string;
   title: string;
   description: string;
-  target_amount: number;
-  current_amount: number;
-  timeline_months: number;
-  monthly_target: number;
-  priority: string;
-  achievability_score: number;
-  action_steps: string[];
+  impact: string;
+  confidence: number;
+  priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  recommendations: string[];
+  metadata?: {
+    amount?: number;
+    percentage?: number;
+    trend?: 'up' | 'down' | 'stable';
+    [key: string]: string | number | boolean | undefined;
+  };
+  createdAt: string;
+  expiresAt: string;
 }
+
+interface InsightsResponse {
+  insights: AIInsight[];
+}
+
+interface InsightsSummary {
+  totalInsights: number;
+  highPriorityCount: number;
+  potentialSavings: number;
+  categoryCounts: Record<string, number>;
+}
+
+// Memoized summary card component
+const SummaryCard = memo<{
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+  colorClass?: string;
+}>(({ title, value, icon, colorClass = 'text-gray-900 dark:text-white' }) => (
+  <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{title}</p>
+        <p className={`text-2xl font-bold ${colorClass}`}>
+          {typeof value === 'number' ? value.toLocaleString() : value}
+        </p>
+      </div>
+      {icon}
+    </div>
+  </div>
+));
+
+SummaryCard.displayName = 'SummaryCard';
+
+// Memoized insight card component
+const InsightCard = memo<{
+  insight: AIInsight;
+  getPriorityColor: (priority: string) => string;
+  getCategoryIcon: (category: string) => React.ReactNode;
+  getConfidenceIcon: (confidence: number) => React.ReactNode;
+}>(({ insight, getPriorityColor, getCategoryIcon, getConfidenceIcon }) => (
+  <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
+    <div className="flex items-start justify-between mb-3">
+      <div className="flex items-center gap-3">
+        {getCategoryIcon(insight.category)}
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{insight.title}</h3>
+          <div className="flex items-center gap-2 mt-1">
+            <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(insight.priority)}`}>
+              {insight.priority}
+            </span>
+            <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">
+              {insight.category}
+            </span>
+            {getConfidenceIcon(insight.confidence)}
+          </div>
+        </div>
+      </div>
+      {insight.metadata?.amount && (
+        <div className="text-right">
+          <p className="text-lg font-bold text-green-600 dark:text-green-400">
+            ${insight.metadata.amount.toLocaleString()}
+          </p>
+          {insight.metadata.trend && (
+            <p
+              className={`text-xs ${
+                insight.metadata.trend === 'up'
+                  ? 'text-red-600'
+                  : insight.metadata.trend === 'down'
+                    ? 'text-green-600'
+                    : 'text-gray-600'
+              }`}
+            >
+              {insight.metadata.trend === 'up'
+                ? '↑'
+                : insight.metadata.trend === 'down'
+                  ? '↓'
+                  : '→'}
+              {insight.metadata.percentage?.toFixed(1)}%
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+
+    <p className="text-gray-600 dark:text-gray-400 mb-3">{insight.description}</p>
+
+    {insight.impact && (
+      <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
+        <strong>Impact:</strong> {insight.impact}
+      </p>
+    )}
+
+    {insight.recommendations && insight.recommendations.length > 0 && (
+      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Recommendations:
+        </p>
+        <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+          {insight.recommendations.map((rec, idx) => (
+            <li
+              key={idx}
+              className="flex items-start gap-2"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mt-1.5 flex-shrink-0" />
+              {rec}
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
+  </div>
+));
+
+InsightCard.displayName = 'InsightCard';
 
 /**
  * Financial Insights Dashboard Component
- * 
+ *
  * Provides comprehensive AI-powered financial insights including:
- * - Spending pattern analysis using Claude AI
+ * - Real-time AI-generated insights from the API
  * - Australian tax deduction identification
- * - Personalized financial goal suggestions
+ * - Personalized financial recommendations
  * - Interactive data visualization
  */
 const InsightsDashboard: React.FC = () => {
   // State management for insights data
-  const [insights, setInsights] = useState<InsightsAnalysis | null>(null);
-  const [taxDeductions, setTaxDeductions] = useState<TaxDeduction[]>([]);
-  const [financialGoals, setFinancialGoals] = useState<FinancialGoal[]>([]);
+  const [insights, setInsights] = useState<AIInsight[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+  const [lastFetched, setLastFetched] = useState<Date | null>(null);
+
   // State for filters and controls
-  const [selectedPeriod, setSelectedPeriod] = useState<'weekly' | 'monthly' | 'quarterly' | 'yearly'>('monthly');
-  const [activeTab, setActiveTab] = useState<'overview' | 'deductions' | 'goals' | 'reports'>('overview');
-  const [confidenceFilter, setConfidenceFilter] = useState<'all' | 'HIGH' | 'MEDIUM' | 'LOW'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedPriority, setSelectedPriority] = useState<'all' | 'HIGH' | 'MEDIUM' | 'LOW'>(
+    'all',
+  );
+  const [activeTab, setActiveTab] = useState<'overview' | 'detailed' | 'recommendations'>(
+    'overview',
+  );
 
   /**
-   * Analyze user's financial data and generate comprehensive insights
-   * Uses Claude AI to provide personalized recommendations
+   * Fetch insights from the API
    */
-  const analyzeFinances = async () => {
+  const fetchInsights = useCallback(async (types?: string[]) => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      // Fetch comprehensive financial analysis
-      const analysisResult = await insightsService.analyzeTransactions();
-      setInsights(analysisResult);
-      
-      // Fetch tax deductions
-      const deductionsResult = await insightsService.getTaxDeductions();
-      setTaxDeductions(deductionsResult);
-      
-      // Generate financial goals
-      const goalsResult = await insightsService.generateGoals();
-      setFinancialGoals(goalsResult);
-      
+      const queryParams = types ? `?types=${types.join(',')}` : '';
+      const response = await fetch(`/api/ai/insights${queryParams}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch insights');
+      }
+
+      const data: InsightsResponse = await response.json();
+      setInsights(data.insights || []);
+      setLastFetched(new Date());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to analyze financial data');
-      console.error('Error analyzing finances:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load insights');
+      logger.error('Error fetching insights:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   /**
-   * Generate and download comprehensive financial report
+   * Generate specific type of insights
    */
-  const generateReport = async () => {
-    try {
+  const generateInsights = useCallback(
+    async (type: string, inputData: Record<string, unknown>) => {
       setLoading(true);
-      const report = await insightsService.getFinancialReport(selectedPeriod);
-      
-      // Create downloadable report (simplified version)
-      const reportData = JSON.stringify(report, null, 2);
-      const blob = new Blob([reportData], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `financial-report-${selectedPeriod}-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      
-    } catch (err) {
-      setError('Failed to generate report');
-      console.error('Error generating report:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+      setError(null);
 
-  // Load initial data on component mount
-  useEffect(() => {
-    analyzeFinances();
-  }, [selectedPeriod]);
+      try {
+        const response = await fetch('/api/ai/insights', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            type,
+            data: inputData,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to generate insights');
+        }
+
+        const data = await response.json();
+
+        // Refresh the insights list after generation
+        await fetchInsights();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to generate insights');
+        logger.error('Error generating insights:', err);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fetchInsights],
+  );
+
+  /**
+   * Generate comprehensive analysis
+   */
+  const runComprehensiveAnalysis = useCallback(async () => {
+    // This would typically fetch user's financial data first
+    // For now, we'll trigger different insight types
+    const analysisTypes = ['cashFlow', 'expenses', 'taxSavings'] as const;
+
+    // Run all analysis types in parallel for better performance
+    await Promise.all(
+      analysisTypes.map((type) => {
+        // In a real implementation, you'd fetch the actual data for each type
+        const mockData = {
+          cashFlow: { transactions: [], period: 'monthly' },
+          expenses: { expenses: [] },
+          taxSavings: { financialProfile: {} },
+        };
+
+        return generateInsights(type, mockData[type as keyof typeof mockData]);
+      }),
+    );
+  }, [generateInsights]);
+
+  /**
+   * Calculate insights summary
+   */
+  const summary = useMemo((): InsightsSummary => {
+    const summary: InsightsSummary = {
+      totalInsights: insights.length,
+      highPriorityCount: insights.filter((i) => i.priority === 'HIGH').length,
+      potentialSavings: 0,
+      categoryCounts: {},
+    };
+
+    insights.forEach((insight) => {
+      // Count by category
+      summary.categoryCounts[insight.category] =
+        (summary.categoryCounts[insight.category] || 0) + 1;
+
+      // Sum potential savings
+      if (insight.metadata?.amount && insight.type.includes('saving')) {
+        summary.potentialSavings += insight.metadata.amount;
+      }
+    });
+
+    return summary;
+  }, [insights]);
 
   /**
    * Get priority color for visual indicators
    */
-  const getPriorityColor = (priority: string) => {
+  const getPriorityColor = useCallback((priority: string) => {
     switch (priority.toUpperCase()) {
-      case 'HIGH': return 'text-red-600 bg-red-100 dark:bg-red-900/20';
-      case 'MEDIUM': return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/20';
-      case 'LOW': return 'text-green-600 bg-green-100 dark:bg-green-900/20';
-      default: return 'text-gray-600 bg-gray-100 dark:bg-gray-900/20';
+      case 'HIGH':
+        return 'text-red-600 bg-red-100 dark:bg-red-900/20';
+      case 'MEDIUM':
+        return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/20';
+      case 'LOW':
+        return 'text-green-600 bg-green-100 dark:bg-green-900/20';
+      default:
+        return 'text-gray-600 bg-gray-100 dark:bg-gray-900/20';
     }
-  };
+  }, []);
 
   /**
    * Get confidence icon for visual indicators
    */
-  const getConfidenceIcon = (confidence: string) => {
-    switch (confidence.toUpperCase()) {
-      case 'HIGH': return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'MEDIUM': return <Clock className="w-4 h-4 text-yellow-600" />;
-      case 'LOW': return <AlertCircle className="w-4 h-4 text-red-600" />;
-      default: return <AlertCircle className="w-4 h-4 text-gray-600" />;
-    }
-  };
+  const getConfidenceIcon = useCallback((confidence: number) => {
+    if (confidence >= 0.8) return <CheckCircle className="w-4 h-4 text-green-600" />;
+    if (confidence >= 0.6) return <Clock className="w-4 h-4 text-yellow-600" />;
+    return <AlertCircle className="w-4 h-4 text-red-600" />;
+  }, []);
 
   /**
-   * Filter tax deductions based on confidence level
+   * Get category icon
    */
-  const filteredDeductions = taxDeductions.filter(deduction => 
-    confidenceFilter === 'all' || deduction.confidence.toUpperCase() === confidenceFilter
+  const getCategoryIcon = useCallback((category: string) => {
+    switch (category.toLowerCase()) {
+      case 'tax':
+        return <FileText className="w-5 h-5" />;
+      case 'spending':
+        return <DollarSign className="w-5 h-5" />;
+      case 'savings':
+        return <Target className="w-5 h-5" />;
+      case 'investment':
+        return <TrendingUp className="w-5 h-5" />;
+      default:
+        return <Brain className="w-5 h-5" />;
+    }
+  }, []);
+
+  /**
+   * Filter insights based on selected criteria
+   */
+  const filteredInsights = useMemo(() => {
+    return insights.filter((insight) => {
+      const categoryMatch = selectedCategory === 'all' || insight.category === selectedCategory;
+      const priorityMatch = selectedPriority === 'all' || insight.priority === selectedPriority;
+      return categoryMatch && priorityMatch;
+    });
+  }, [insights, selectedCategory, selectedPriority]);
+
+  /**
+   * Get unique categories from insights
+   */
+  const uniqueCategories = useMemo(() => {
+    return Array.from(new Set(insights.map((i) => i.category)));
+  }, [insights]);
+
+  // Load initial data on component mount
+  useEffect(() => {
+    fetchInsights();
+  }, [fetchInsights]);
+
+  // Auto-refresh insights every 5 minutes
+  useEffect(() => {
+    const interval = setInterval(
+      () => {
+        fetchInsights();
+      },
+      5 * 60 * 1000,
+    );
+
+    return () => clearInterval(interval);
+  }, [fetchInsights]);
+
+  // Memoized tab buttons
+  const tabButtons = useMemo(
+    () => [
+      { id: 'overview', name: 'Overview', icon: TrendingUp },
+      { id: 'detailed', name: 'Detailed Insights', icon: Brain },
+      { id: 'recommendations', name: 'Recommendations', icon: Lightbulb },
+    ],
+    [],
   );
 
   return (
@@ -178,41 +396,36 @@ const InsightsDashboard: React.FC = () => {
             AI Financial Insights
           </h2>
         </div>
-        
+
         <div className="flex flex-wrap gap-2">
-          {/* Period selector */}
-          <select 
-            value={selectedPeriod} 
-            onChange={(e) => setSelectedPeriod(e.target.value as any)}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-          >
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-            <option value="quarterly">Quarterly</option>
-            <option value="yearly">Yearly</option>
-          </select>
-          
           {/* Refresh button */}
-          <button 
-            onClick={analyzeFinances}
+          <button
+            onClick={() => fetchInsights()}
             disabled={loading}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? 'Analyzing...' : 'Refresh Analysis'}
+            {loading ? 'Loading...' : 'Refresh'}
           </button>
-          
-          {/* Download report button */}
-          <button 
-            onClick={generateReport}
+
+          {/* Generate insights button */}
+          <button
+            onClick={runComprehensiveAnalysis}
             disabled={loading}
             className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            <Download className="w-4 h-4" />
-            Export Report
+            <Lightbulb className="w-4 h-4" />
+            Generate Analysis
           </button>
         </div>
       </div>
+
+      {/* Last updated */}
+      {lastFetched && (
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          Last updated: {lastFetched.toLocaleString('en-AU')}
+        </div>
+      )}
 
       {/* Error display */}
       {error && (
@@ -226,16 +439,14 @@ const InsightsDashboard: React.FC = () => {
 
       {/* Tab navigation */}
       <div className="border-b border-gray-200 dark:border-gray-700">
-        <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-          {[
-            { id: 'overview', name: 'Overview', icon: TrendingUp },
-            { id: 'deductions', name: 'Tax Deductions', icon: FileText },
-            { id: 'goals', name: 'Financial Goals', icon: Target },
-            { id: 'reports', name: 'Reports', icon: DollarSign }
-          ].map((tab) => (
+        <nav
+          className="-mb-px flex space-x-8"
+          aria-label="Tabs"
+        >
+          {tabButtons.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as 'overview' | 'detailed' | 'recommendations')}
               className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === tab.id
                   ? 'border-blue-500 text-blue-600 dark:text-blue-400'
@@ -252,126 +463,50 @@ const InsightsDashboard: React.FC = () => {
       {/* Overview Tab */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
-          {/* Key metrics cards */}
+          {/* Summary cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Spending Patterns Card */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Spending Patterns</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {insights?.spending_patterns?.length || 0}
-                  </p>
-                </div>
-                <TrendingUp className="w-8 h-8 text-blue-600" />
-              </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                AI-identified patterns
-              </p>
-            </div>
-
-            {/* Tax Deductions Card */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Potential Deductions</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    ${taxDeductions.reduce((sum, d) => sum + d.amount, 0).toLocaleString()}
-                  </p>
-                </div>
-                <FileText className="w-8 h-8 text-green-600" />
-              </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                {taxDeductions.length} deductions found
-              </p>
-            </div>
-
-            {/* Financial Goals Card */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Active Goals</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {financialGoals.length}
-                  </p>
-                </div>
-                <Target className="w-8 h-8 text-purple-600" />
-              </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                Personalized recommendations
-              </p>
-            </div>
-
-            {/* Insights Score Card */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Insights Score</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {insights ? Math.round((insights.top_categories?.length || 0) * 20) : 0}%
-                  </p>
-                </div>
-                <Brain className="w-8 h-8 text-orange-600" />
-              </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                Data completeness
-              </p>
-            </div>
+            <SummaryCard
+              title="Total Insights"
+              value={summary.totalInsights}
+              icon={<Brain className="w-8 h-8 text-blue-600" />}
+            />
+            <SummaryCard
+              title="High Priority"
+              value={summary.highPriorityCount}
+              icon={<AlertCircle className="w-8 h-8 text-red-600" />}
+              colorClass="text-red-600"
+            />
+            <SummaryCard
+              title="Potential Savings"
+              value={`$${summary.potentialSavings.toLocaleString()}`}
+              icon={<DollarSign className="w-8 h-8 text-green-600" />}
+              colorClass="text-green-600"
+            />
+            <SummaryCard
+              title="Categories"
+              value={Object.keys(summary.categoryCounts).length}
+              icon={<Target className="w-8 h-8 text-purple-600" />}
+            />
           </div>
 
-          {/* Top spending categories */}
-          {insights?.top_categories && (
+          {/* Category breakdown */}
+          {Object.keys(summary.categoryCounts).length > 0 && (
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Top Spending Categories
+                Insights by Category
               </h3>
-              <div className="space-y-3">
-                {insights.top_categories.slice(0, 5).map((category: any, index: number) => (
-                  <div key={index} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full bg-blue-600" />
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">
-                        {category.category}
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                        ${category.amount.toLocaleString()}
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {category.percentage.toFixed(1)}%
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* AI Recommendations */}
-          {insights?.recommendations && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <Lightbulb className="w-5 h-5 text-yellow-500" />
-                AI Recommendations
-              </h3>
-              <div className="space-y-3">
-                {insights.recommendations.slice(0, 3).map((rec: any, index: number) => (
-                  <div key={index} className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <div className={`px-2 py-1 rounded text-xs font-medium ${getPriorityColor(rec.type)}`}>
-                        {rec.type.toUpperCase()}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm text-gray-900 dark:text-white">
-                          {rec.description}
-                        </p>
-                        {rec.potential_saving > 0 && (
-                          <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                            Potential savings: ${rec.potential_saving.toLocaleString()}
-                          </p>
-                        )}
-                      </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {Object.entries(summary.categoryCounts).map(([category, count]) => (
+                  <div
+                    key={category}
+                    className="flex items-center gap-3"
+                  >
+                    {getCategoryIcon(category)}
+                    <div>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white capitalize">
+                        {category}
+                      </p>
+                      <p className="text-lg font-bold text-gray-600 dark:text-gray-400">{count}</p>
                     </div>
                   </div>
                 ))}
@@ -381,195 +516,139 @@ const InsightsDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Tax Deductions Tab */}
-      {activeTab === 'deductions' && (
+      {/* Detailed Insights Tab */}
+      {activeTab === 'detailed' && (
         <div className="space-y-6">
-          {/* Deductions filter */}
-          <div className="flex items-center gap-4">
-            <Filter className="w-5 h-5 text-gray-500" />
-            <select 
-              value={confidenceFilter} 
-              onChange={(e) => setConfidenceFilter(e.target.value as any)}
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Filter className="w-5 h-5 text-gray-500" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filters:</span>
+            </div>
+
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             >
-              <option value="all">All Confidence Levels</option>
-              <option value="HIGH">High Confidence</option>
-              <option value="MEDIUM">Medium Confidence</option>
-              <option value="LOW">Low Confidence</option>
+              <option value="all">All Categories</option>
+              {uniqueCategories.map((cat) => (
+                <option
+                  key={cat}
+                  value={cat}
+                >
+                  {cat}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={selectedPriority}
+              onChange={(e) => setSelectedPriority(e.target.value as 'all' | 'HIGH' | 'MEDIUM' | 'LOW')}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            >
+              <option value="all">All Priorities</option>
+              <option value="HIGH">High Priority</option>
+              <option value="MEDIUM">Medium Priority</option>
+              <option value="LOW">Low Priority</option>
             </select>
           </div>
 
-          {/* Deductions list */}
+          {/* Insights list */}
           <div className="space-y-4">
-            {filteredDeductions.map((deduction, index) => (
-              <div key={index} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        {deduction.category_name} ({deduction.category})
-                      </span>
-                      {getConfidenceIcon(deduction.confidence)}
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                      {deduction.description}
-                    </p>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      <strong>Required documentation:</strong> {deduction.documentation_required}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-bold text-green-600 dark:text-green-400">
-                      ${deduction.amount.toLocaleString()}
-                    </div>
-                    <div className={`text-xs px-2 py-1 rounded ${getPriorityColor(deduction.confidence)}`}>
-                      {deduction.confidence} confidence
-                    </div>
-                  </div>
-                </div>
+            {filteredInsights.length > 0 ? (
+              filteredInsights.map((insight) => (
+                <InsightCard
+                  key={insight.id}
+                  insight={insight}
+                  getPriorityColor={getPriorityColor}
+                  getCategoryIcon={getCategoryIcon}
+                  getConfidenceIcon={getConfidenceIcon}
+                />
+              ))
+            ) : (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                {loading ? 'Loading insights...' : 'No insights found for the selected criteria.'}
               </div>
-            ))}
+            )}
           </div>
-
-          {filteredDeductions.length === 0 && (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-              No tax deductions found for the selected criteria.
-            </div>
-          )}
         </div>
       )}
 
-      {/* Financial Goals Tab */}
-      {activeTab === 'goals' && (
+      {/* Recommendations Tab */}
+      {activeTab === 'recommendations' && (
         <div className="space-y-6">
-          <div className="space-y-4">
-            {financialGoals.map((goal, index) => (
-              <div key={index} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                        {goal.title}
-                      </h3>
-                      <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(goal.priority)}`}>
-                        {goal.priority}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                      {goal.description}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                      ${goal.target_amount.toLocaleString()}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      Target Amount
-                    </div>
-                  </div>
-                </div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Personalized Action Plan
+            </h3>
 
-                {/* Progress bar */}
-                <div className="mb-4">
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-600 dark:text-gray-400">Progress</span>
-                    <span className="text-gray-600 dark:text-gray-400">
-                      {((goal.current_amount / goal.target_amount) * 100).toFixed(1)}%
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${Math.min((goal.current_amount / goal.target_amount) * 100, 100)}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Goal details */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                  <div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Current Amount</div>
-                    <div className="font-semibold text-gray-900 dark:text-white">
-                      ${goal.current_amount.toLocaleString()}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Monthly Target</div>
-                    <div className="font-semibold text-gray-900 dark:text-white">
-                      ${goal.monthly_target.toLocaleString()}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Timeline</div>
-                    <div className="font-semibold text-gray-900 dark:text-white">
-                      {goal.timeline_months} months
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Achievability</div>
-                    <div className="font-semibold text-gray-900 dark:text-white">
-                      {(goal.achievability_score * 100).toFixed(0)}%
-                    </div>
-                  </div>
-                </div>
-
-                {/* Action steps */}
-                {goal.action_steps && goal.action_steps.length > 0 && (
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                      Action Steps:
-                    </h4>
-                    <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                      {goal.action_steps.map((step, stepIndex) => (
-                        <li key={stepIndex} className="flex items-start gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mt-2 flex-shrink-0" />
-                          {step}
+            {/* High priority recommendations */}
+            <div className="space-y-4">
+              <h4 className="text-md font-medium text-gray-700 dark:text-gray-300">
+                Immediate Actions (High Priority)
+              </h4>
+              {insights
+                .filter((i) => i.priority === 'HIGH' && i.recommendations.length > 0)
+                .map((insight) => (
+                  <div
+                    key={insight.id}
+                    className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4"
+                  >
+                    <h5 className="font-medium text-gray-900 dark:text-white mb-2">
+                      {insight.title}
+                    </h5>
+                    <ul className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                      {insight.recommendations.map((rec, idx) => (
+                        <li
+                          key={idx}
+                          className="flex items-start gap-2"
+                        >
+                          <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                          {rec}
                         </li>
                       ))}
                     </ul>
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {financialGoals.length === 0 && (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-              No financial goals generated yet. Click "Refresh Analysis" to create personalized goals.
+                ))}
             </div>
-          )}
-        </div>
-      )}
 
-      {/* Reports Tab */}
-      {activeTab === 'reports' && (
-        <div className="space-y-6">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Financial Reports
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Generate comprehensive financial reports for tax purposes and financial planning.
-            </p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <button 
-                onClick={generateReport}
-                disabled={loading}
-                className="flex items-center justify-center gap-2 p-4 border border-gray-300 rounded-lg hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700 transition-colors"
-              >
-                <FileText className="w-5 h-5" />
-                <span>Download Financial Report</span>
-              </button>
-              
-              <button 
-                onClick={() => alert('Tax summary coming soon!')}
-                className="flex items-center justify-center gap-2 p-4 border border-gray-300 rounded-lg hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700 transition-colors"
-              >
-                <DollarSign className="w-5 h-5" />
-                <span>Tax Summary Report</span>
-              </button>
+            {/* Medium priority recommendations */}
+            <div className="space-y-4 mt-6">
+              <h4 className="text-md font-medium text-gray-700 dark:text-gray-300">
+                Short-term Goals (Medium Priority)
+              </h4>
+              {insights
+                .filter((i) => i.priority === 'MEDIUM' && i.recommendations.length > 0)
+                .slice(0, 3)
+                .map((insight) => (
+                  <div
+                    key={insight.id}
+                    className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4"
+                  >
+                    <h5 className="font-medium text-gray-900 dark:text-white mb-2">
+                      {insight.title}
+                    </h5>
+                    <ul className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                      {insight.recommendations.slice(0, 2).map((rec, idx) => (
+                        <li
+                          key={idx}
+                          className="flex items-start gap-2"
+                        >
+                          <Clock className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                          {rec}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
             </div>
+
+            {insights.length === 0 && (
+              <p className="text-center py-8 text-gray-500 dark:text-gray-400">
+                Generate an analysis to see personalized recommendations.
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -577,4 +656,7 @@ const InsightsDashboard: React.FC = () => {
   );
 };
 
-export default InsightsDashboard;
+const MemoizedInsightsDashboard = memo(InsightsDashboard);
+MemoizedInsightsDashboard.displayName = 'InsightsDashboard';
+
+export default MemoizedInsightsDashboard;

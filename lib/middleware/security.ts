@@ -15,7 +15,7 @@ export interface SecurityConfig {
 
 export function withSecurity(
   handler: (req: NextApiRequest, res: NextApiResponse) => Promise<void>,
-  config: SecurityConfig = {}
+  config: SecurityConfig = {},
 ) {
   const {
     rateLimit = 'general',
@@ -39,7 +39,7 @@ export function withSecurity(
         if (!session) {
           return res.status(401).json({ error: 'Unauthorized' });
         }
-        
+
         // Add user to request
         (req as any).user = session.user;
       }
@@ -48,7 +48,7 @@ export function withSecurity(
       if (csrf && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method || '')) {
         const csrfToken = req.headers['x-csrf-token'];
         const sessionToken = req.cookies['next-auth.csrf-token'];
-        
+
         if (!csrfToken || !sessionToken || csrfToken !== sessionToken.split('|')[0]) {
           return res.status(403).json({ error: 'Invalid CSRF token' });
         }
@@ -64,15 +64,16 @@ export function withSecurity(
 }
 
 // Pre-configured security wrappers for common use cases
-export const secureAuthEndpoint = (handler: (req: NextApiRequest, res: NextApiResponse) => Promise<void>) =>
-  withSecurity(handler, { rateLimit: 'auth', requireAuth: false });
+export const secureAuthEndpoint = (
+  handler: (req: NextApiRequest, res: NextApiResponse) => Promise<void>,
+) => withSecurity(handler, { rateLimit: 'auth', requireAuth: false });
 
 export const secureApiEndpoint = (
   handler: (req: NextApiRequest, res: NextApiResponse) => Promise<void>,
-  validations?: ValidationChain[]
+  validations?: ValidationChain[],
 ) => withSecurity(handler, { validations });
 
 export const securePublicEndpoint = (
   handler: (req: NextApiRequest, res: NextApiResponse) => Promise<void>,
-  validations?: ValidationChain[]
+  validations?: ValidationChain[],
 ) => withSecurity(handler, { requireAuth: false, validations });

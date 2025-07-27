@@ -49,7 +49,7 @@ async function insightsHandler(req: AuthenticatedRequest, res: NextApiResponse) 
           },
         },
       })
-      .catch((err) => logger.error('Audit log error:', err););
+      .catch((err) => logger.error('Audit log error:', err));
 
     switch (req.method) {
       case 'GET':
@@ -84,7 +84,7 @@ async function insightsHandler(req: AuthenticatedRequest, res: NextApiResponse) 
           },
         },
       })
-      .catch((err) => logger.error('Audit log error:', err););
+      .catch((err) => logger.error('Audit log error:', err));
 
     return res.status(500).json({
       error: 'Internal server error',
@@ -156,7 +156,7 @@ async function handleGetInsights(
               },
             },
           })
-          .catch((err) => logger.error('Audit log error:', err););
+          .catch((err) => logger.error('Audit log error:', err));
 
         return data;
       },
@@ -197,7 +197,7 @@ async function handleGetInsights(
           },
         },
       })
-      .catch((err) => logger.error('Audit log error:', err););
+      .catch((err) => logger.error('Audit log error:', err));
 
     return res.status(500).json({
       error: 'Failed to get insights',
@@ -263,7 +263,7 @@ async function handleGenerateInsights(
               },
             },
           })
-          .catch((err) => logger.error('Audit log error:', err););
+          .catch((err) => logger.error('Audit log error:', err));
 
         return data;
       },
@@ -302,7 +302,7 @@ async function handleGenerateInsights(
           },
         },
       })
-      .catch((err) => logger.error('Audit log error:', err););
+      .catch((err) => logger.error('Audit log error:', err));
 
     return res.status(500).json({
       error: 'Failed to generate insights',

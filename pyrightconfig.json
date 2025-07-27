@@ -1,19 +1,6 @@
 {
-  "include": [
-    "backend",
-    "ai",
-    "database", 
-    "src",
-    "tests"
-  ],
-  "exclude": [
-    "**/node_modules",
-    "**/__pycache__",
-    "**/venv",
-    "**/next-frontend",
-    "**/uploads",
-    "**/logs"
-  ],
+  "include": ["backend", "ai", "database", "src", "tests"],
+  "exclude": ["**/node_modules", "**/__pycache__", "**/venv", "**/next-frontend", "**/uploads", "**/logs"],
   "pythonVersion": "3.13",
   "pythonPlatform": "Darwin",
   "executionEnvironments": [
@@ -21,13 +8,7 @@
       "root": ".",
       "pythonVersion": "3.13",
       "pythonPlatform": "Darwin",
-      "extraPaths": [
-        "./backend",
-        "./ai", 
-        "./database",
-        "./src",
-        "."
-      ]
+      "extraPaths": ["./backend", "./ai", "./database", "./src", "."]
     }
   ],
   "typeCheckingMode": "basic",
@@ -64,4 +45,4 @@
   "reportInvalidStringEscapeSequence": "error",
   "reportUnknownLambdaType": "none",
   "reportImplicitOverride": "none"
-} 
+}

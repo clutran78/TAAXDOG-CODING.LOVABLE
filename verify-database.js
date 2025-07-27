@@ -9,8 +9,8 @@ async function verifyDatabase() {
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME || 'taaxdog-production',
     ssl: {
-      rejectUnauthorized: false
-    }
+      rejectUnauthorized: false,
+    },
   };
 
   if (!poolConfig.password) {
@@ -41,13 +41,13 @@ async function verifyDatabase() {
     `);
 
     console.log('\n📋 Tables in database:');
-    tablesResult.rows.forEach(row => {
+    tablesResult.rows.forEach((row) => {
       console.log('  -', row.table_name);
     });
 
     // Test each table
     console.log('\n🧪 Testing tables:');
-    
+
     // Test users table
     await client.query(`
       INSERT INTO users (email, name) 
@@ -98,7 +98,6 @@ async function verifyDatabase() {
     console.log('  Database:', 'taaxdog-production');
     console.log('  User:', 'taaxdog-admin');
     console.log('  SSL:', 'Required (rejectUnauthorized: false)');
-
   } catch (error) {
     console.error('❌ Verification failed:', error.message);
   } finally {

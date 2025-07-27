@@ -10,16 +10,16 @@ export default function Login() {
         <div className="mt-8 space-y-6">
           <div>
             <label className="sr-only">Email address</label>
-            <input 
-              type="email" 
+            <input
+              type="email"
               className="relative block w-full px-3 py-2 border border-gray-300 rounded-md"
               placeholder="Email address"
             />
           </div>
           <div>
             <label className="sr-only">Password</label>
-            <input 
-              type="password" 
+            <input
+              type="password"
               className="relative block w-full px-3 py-2 border border-gray-300 rounded-md"
               placeholder="Password"
             />
@@ -33,4 +33,4 @@ export default function Login() {
       </div>
     </div>
   );
-} 
+}

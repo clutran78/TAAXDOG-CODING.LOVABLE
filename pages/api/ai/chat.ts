@@ -9,14 +9,7 @@ import { getClientIp } from 'request-ip';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { logger } from '@/lib/logger';
-import {
-  sendSuccess,
-  sendUnauthorized,
-  sendValidationError,
-  sendMethodNotAllowed,
-  sendInternalError,
-  ERROR_CODES,
-} from '@/lib/api/response';
+import { apiResponse } from '@/lib/api/response';
 
 // Validation schema for chat requests
 const ChatRequestSchema = z.object({
@@ -57,9 +50,7 @@ async function chatHandler(req: AuthenticatedRequest, res: NextApiResponse) {
         field: err.path.join('.'),
         message: err.message,
       }));
-      return apiResponse.validationError(res, errors, {
-        message: 'Invalid input data',
-      });
+      return apiResponse.validationError(res, errors, 'Invalid input data');
     }
 
     const { message, sessionId, operationType, context } = validationResult.data;
@@ -81,7 +72,7 @@ async function chatHandler(req: AuthenticatedRequest, res: NextApiResponse) {
           },
         },
       })
-      .catch((err) => logger.error('Audit log error:', err););
+      .catch((err) => logger.error('Audit log error:', err));
 
     // Initialize AI service with multi-provider support
     const aiService = new AIService();
@@ -135,31 +126,26 @@ async function chatHandler(req: AuthenticatedRequest, res: NextApiResponse) {
           },
         },
       })
-      .catch((err) => logger.error('Audit log error:', err););
+      .catch((err) => logger.error('Audit log error:', err));
 
     // Set security headers
     res.setHeader('Cache-Control', 'private, no-store, must-revalidate');
     res.setHeader('X-Content-Type-Options', 'nosniff');
 
-    return apiResponse.success(
-      res,
-      {
-        sessionId: currentSessionId,
-        response: response.content,
-        provider: response.provider,
-        model: response.model,
-        tokensUsed: response.tokensUsed,
-        cost: response.cost,
-        responseTimeMs: response.responseTimeMs,
-        cached: response.cost === 0,
+    return apiResponse.success(res, {
+      sessionId: currentSessionId,
+      response: response.content,
+      provider: response.provider,
+      model: response.model,
+      tokensUsed: response.tokensUsed,
+      cost: response.cost,
+      responseTimeMs: response.responseTimeMs,
+      cached: response.cost === 0,
+      meta: {
+        requestId: (req as any).requestId,
+        processingTime: response.responseTimeMs,
       },
-      {
-        meta: {
-          requestId: (req as any).requestId,
-          processingTime: response.responseTimeMs,
-        },
-      },
-    );
+    });
   } catch (error) {
     logger.error('AI chat error:', error, { userId });
 
@@ -178,12 +164,9 @@ async function chatHandler(req: AuthenticatedRequest, res: NextApiResponse) {
           },
         },
       })
-      .catch((err) => logger.error('Audit log error:', err););
+      .catch((err) => logger.error('Audit log error:', err));
 
-    return apiResponse.internalError(res, error, {
-      message: 'Unable to process your request. Please try again.',
-      includeDetails: process.env.NODE_ENV === 'development',
-    });
+    return apiResponse.internalError(res, error, 'Unable to process your request. Please try again.');
   }
 }
 

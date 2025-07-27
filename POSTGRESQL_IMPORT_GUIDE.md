@@ -2,17 +2,21 @@
 
 ## Overview
 
-This comprehensive PostgreSQL import system is designed specifically for the Taaxdog-coding project, featuring dependency-ordered imports, Australian compliance validation, and performance optimization for large datasets.
+This comprehensive PostgreSQL import system is designed specifically for the
+Taaxdog-coding project, featuring dependency-ordered imports, Australian
+compliance validation, and performance optimization for large datasets.
 
 ## System Architecture
 
 ### 1. **Standard Import System** (`postgresql-import-system.js`)
+
 - Handles imports with full validation and error tracking
 - Maintains foreign key relationships through dependency ordering
 - Provides detailed error reporting for each record
 - Best for smaller datasets or when detailed validation is needed
 
 ### 2. **Optimized Import System** (`postgresql-import-optimized.js`)
+
 - Uses PostgreSQL COPY command for ultra-fast bulk inserts
 - Implements parallel processing with worker threads
 - Temporarily drops indexes for better performance
@@ -20,6 +24,7 @@ This comprehensive PostgreSQL import system is designed specifically for the Taa
 - Best for large datasets (>10,000 records)
 
 ### 3. **Import Orchestrator** (`postgresql-import-orchestrator.js`)
+
 - Automatically chooses between standard and optimized importers
 - Provides interactive and batch modes
 - Performs pre-import checks and validation
@@ -162,6 +167,7 @@ npm run db:import firebase-transformed "postgresql://..."
 ### Import Summary Report
 
 Generated after each import with:
+
 - Collection-by-collection results
 - Performance metrics
 - Error details
@@ -182,15 +188,17 @@ firebase-transformed/
 ### For Large Imports
 
 1. **Increase Database Resources**
+
    ```sql
    -- Temporarily increase work_mem
    SET work_mem = '256MB';
-   
+
    -- Increase maintenance_work_mem for index creation
    SET maintenance_work_mem = '512MB';
    ```
 
 2. **Use Batch Mode**
+
    ```bash
    npm run postgres:import-batch -- --skip-checks
    ```
@@ -212,24 +220,30 @@ firebase-transformed/
 ### Common Issues
 
 1. **Connection Errors**
+
    ```
    ❌ Database connection failed: ENOTFOUND
    ```
+
    - Verify hostname and port
    - Check network connectivity
    - Ensure SSL mode matches server config
 
 2. **Missing Dependencies**
+
    ```
    ⚠️ Skipping bankAccounts: Unmet dependencies [basiqUsers]
    ```
+
    - Check if dependent collections were imported
    - Verify data files exist for dependencies
 
 3. **Validation Failures**
+
    ```
    Record 123: bsb: Invalid BSB format (must be 6 digits)
    ```
+
    - Review transformation output
    - Fix data issues and re-run import
 
@@ -299,6 +313,7 @@ npm run db:import /path/to/data "postgresql://..."
 ## Support
 
 For issues:
+
 1. Check import reports for specific errors
 2. Review transformation logs
 3. Verify database connectivity

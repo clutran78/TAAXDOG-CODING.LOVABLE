@@ -1,6 +1,6 @@
-import Link from "next/link";
-import Head from "next/head";
-import { useSession } from "next-auth/react";
+import Link from 'next/link';
+import Head from 'next/head';
+import { useSession } from 'next-auth/react';
 
 export default function HomePage() {
   const { data: session } = useSession();
@@ -13,12 +13,8 @@ export default function HomePage() {
 
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-gray-800 mb-4">
-            Welcome to TaxReturnPro
-          </h1>
-          <p className="text-lg text-gray-600 mb-8">
-            Your simple tax return solution
-          </p>
+          <h1 className="text-4xl font-bold text-gray-800 mb-4">Welcome to TaxReturnPro</h1>
+          <p className="text-lg text-gray-600 mb-8">Your simple tax return solution</p>
 
           {session ? (
             <div className="space-y-4">

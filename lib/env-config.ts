@@ -1,6 +1,7 @@
 import { config } from 'dotenv';
 import { existsSync } from 'fs';
 import { join } from 'path';
+import { logger } from '@/lib/logger';
 
 interface DatabaseEnvironment {
   NODE_ENV: 'development' | 'production' | 'test';
@@ -32,11 +33,7 @@ class EnvironmentConfig {
 
   private loadConfiguration(): DatabaseEnvironment {
     // Load environment files in order of precedence
-    const envFiles = [
-      '.env.local',
-      `.env.${process.env.NODE_ENV}`,
-      '.env',
-    ];
+    const envFiles = ['.env.local', `.env.${process.env.NODE_ENV}`, '.env'];
 
     for (const file of envFiles) {
       const path = join(process.cwd(), file);
@@ -50,9 +47,7 @@ class EnvironmentConfig {
     const databaseUrl = this.getDatabaseUrl(isDevelopment);
 
     if (!databaseUrl) {
-      throw new Error(
-        `Database URL not configured for ${process.env.NODE_ENV} environment`
-      );
+      throw new Error(`Database URL not configured for ${process.env.NODE_ENV} environment`);
     }
 
     const envConfig: DatabaseEnvironment = {
@@ -82,11 +77,7 @@ class EnvironmentConfig {
       );
     }
 
-    return (
-      process.env.DATABASE_URL_PRODUCTION ||
-      process.env.DATABASE_URL ||
-      ''
-    );
+    return process.env.DATABASE_URL_PRODUCTION || process.env.DATABASE_URL || '';
   }
 
   private validateConfiguration(config: DatabaseEnvironment): void {
@@ -104,17 +95,17 @@ class EnvironmentConfig {
     // Production-specific validations
     if (config.NODE_ENV === 'production') {
       if (!config.DATABASE_URL.includes('sslmode=require')) {
-        console.warn('Production database URL should include sslmode=require');
+        logger.warn('Production database URL should include sslmode=require');
       }
 
       if (config.DATABASE_ENABLE_LOGGING) {
-        console.warn('Query logging is enabled in production - this may impact performance');
+        logger.warn('Query logging is enabled in production - this may impact performance');
       }
     }
 
     // Security validations
     if (config.DATABASE_URL.includes('AVNS_')) {
-      console.log('✓ Production database credentials detected');
+      logger.info('✓ Production database credentials detected');
     }
   }
 
@@ -164,9 +155,10 @@ class EnvironmentConfig {
 
     // Sanitize database URLs
     if (this.config.DATABASE_URL) {
-      safeConfig.DATABASE_URL = this.config.DATABASE_URL
-        .replace(/:[^:@]+@/, ':[REDACTED]@')
-        .replace(/AVNS_[^@]+/, 'AVNS_[REDACTED]');
+      safeConfig.DATABASE_URL = this.config.DATABASE_URL.replace(
+        /:[^:@]+@/,
+        ':[REDACTED]@',
+      ).replace(/AVNS_[^@]+/, 'AVNS_[REDACTED]');
     }
 
     return safeConfig;

@@ -3,7 +3,7 @@ import { prisma } from '../../../lib/prisma';
 import { getClientIP } from '../../../lib/auth/auth-utils';
 import { verifyEmailSchema, validateInput } from '../../../lib/auth/validation';
 import { emailVerificationRateLimiter } from '../../../lib/auth/rate-limiter';
-import { sendWelcomeEmail } from '../../../lib/email';
+import { sendWelcomeEmail } from '../../../lib/services/email/email';
 import { AuthEvent } from '@prisma/client';
 import { logAuthEvent } from '../../../lib/auth';
 import { logger } from '@/lib/logger';

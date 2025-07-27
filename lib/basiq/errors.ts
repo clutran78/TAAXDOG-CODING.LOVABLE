@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger';
+
 // BASIQ Error Handling Utilities
 
 export enum BasiqErrorCode {
@@ -5,26 +7,26 @@ export enum BasiqErrorCode {
   AUTH_FAILED = 'AUTH_FAILED',
   TOKEN_EXPIRED = 'TOKEN_EXPIRED',
   INVALID_CREDENTIALS = 'INVALID_CREDENTIALS',
-  
+
   // Connection errors
   CONNECTION_FAILED = 'CONNECTION_FAILED',
   CONNECTION_TIMEOUT = 'CONNECTION_TIMEOUT',
   INSTITUTION_UNAVAILABLE = 'INSTITUTION_UNAVAILABLE',
   MFA_REQUIRED = 'MFA_REQUIRED',
-  
+
   // Data errors
   INVALID_REQUEST = 'INVALID_REQUEST',
   RESOURCE_NOT_FOUND = 'RESOURCE_NOT_FOUND',
   DUPLICATE_RESOURCE = 'DUPLICATE_RESOURCE',
-  
+
   // Rate limiting
   RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
   QUOTA_EXCEEDED = 'QUOTA_EXCEEDED',
-  
+
   // Server errors
   INTERNAL_ERROR = 'INTERNAL_ERROR',
   SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
-  
+
   // Business logic errors
   CONSENT_EXPIRED = 'CONSENT_EXPIRED',
   CONSENT_REVOKED = 'CONSENT_REVOKED',
@@ -49,7 +51,7 @@ export class BasiqAPIError extends Error {
       details?: any;
       retryable?: boolean;
       retryAfter?: number;
-    }
+    },
   ) {
     super(message);
     this.name = 'BasiqAPIError';
@@ -69,7 +71,7 @@ export class BasiqAPIError extends Error {
       BasiqErrorCode.SERVICE_UNAVAILABLE,
       BasiqErrorCode.INSTITUTION_UNAVAILABLE,
     ];
-    
+
     return retryableCodes.includes(this.code) || this.statusCode >= 500;
   }
 }
@@ -86,7 +88,7 @@ export function parseBasiqError(response: any, statusCode: number): BasiqAPIErro
     if (response.error) {
       message = response.error.detail || response.error.title || response.error;
       correlationId = response.error.correlationId;
-      
+
       // Map BASIQ error types to our error codes
       switch (response.error.type) {
         case 'invalid-credentials':
@@ -116,14 +118,15 @@ export function parseBasiqError(response: any, statusCode: number): BasiqAPIErro
           break;
       }
     }
-    
+
     // Handle specific status codes
     switch (statusCode) {
       case 401:
         code = code === BasiqErrorCode.INTERNAL_ERROR ? BasiqErrorCode.AUTH_FAILED : code;
         break;
       case 403:
-        code = code === BasiqErrorCode.INTERNAL_ERROR ? BasiqErrorCode.INSUFFICIENT_PERMISSIONS : code;
+        code =
+          code === BasiqErrorCode.INTERNAL_ERROR ? BasiqErrorCode.INSUFFICIENT_PERMISSIONS : code;
         break;
       case 404:
         code = BasiqErrorCode.RESOURCE_NOT_FOUND;
@@ -165,7 +168,7 @@ export class RetryStrategy {
 
   async execute<T>(
     operation: () => Promise<T>,
-    onRetry?: (attempt: number, error: Error) => void
+    onRetry?: (attempt: number, error: Error) => void,
   ): Promise<T> {
     let lastError: Error | null = null;
 
@@ -187,7 +190,7 @@ export class RetryStrategy {
 
         // Calculate delay
         let delay = this.calculateDelay(attempt);
-        
+
         // Use retry-after header if available
         if (error instanceof BasiqAPIError && error.retryAfter) {
           delay = error.retryAfter * 1000;
@@ -212,7 +215,7 @@ export class RetryStrategy {
   }
 
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
 
@@ -221,10 +224,10 @@ export class CircuitBreaker {
   private failures = 0;
   private lastFailTime: Date | null = null;
   private state: 'CLOSED' | 'OPEN' | 'HALF_OPEN' = 'CLOSED';
-  
+
   constructor(
     private readonly threshold: number = 5,
-    private readonly timeout: number = 60000 // 1 minute
+    private readonly timeout: number = 60000, // 1 minute
   ) {}
 
   async execute<T>(operation: () => Promise<T>): Promise<T> {
@@ -236,7 +239,7 @@ export class CircuitBreaker {
           'Circuit breaker is open',
           BasiqErrorCode.SERVICE_UNAVAILABLE,
           503,
-          { retryable: true }
+          { retryable: true },
         );
       }
     }
@@ -252,10 +255,7 @@ export class CircuitBreaker {
   }
 
   private shouldAttemptReset(): boolean {
-    return (
-      this.lastFailTime !== null &&
-      Date.now() - this.lastFailTime.getTime() >= this.timeout
-    );
+    return this.lastFailTime !== null && Date.now() - this.lastFailTime.getTime() >= this.timeout;
   }
 
   private onSuccess(): void {
@@ -266,7 +266,7 @@ export class CircuitBreaker {
   private onFailure(): void {
     this.failures++;
     this.lastFailTime = new Date();
-    
+
     if (this.failures >= this.threshold) {
       this.state = 'OPEN';
     }
@@ -287,10 +287,10 @@ export const ErrorRecovery = {
   async handleAuthError(error: BasiqAPIError): Promise<void> {
     if (error.code === BasiqErrorCode.TOKEN_EXPIRED) {
       // Token will be refreshed automatically on next request
-      console.log('Token expired, will refresh on next request');
+      logger.info('Token expired, will refresh on next request');
     } else if (error.code === BasiqErrorCode.INVALID_CREDENTIALS) {
       // Log security event
-      console.error('Invalid BASIQ credentials');
+      logger.error('Invalid BASIQ credentials');
       throw error;
     }
   },
@@ -299,18 +299,18 @@ export const ErrorRecovery = {
   async handleConnectionError(error: BasiqAPIError, connectionId: string): Promise<void> {
     if (error.code === BasiqErrorCode.MFA_REQUIRED) {
       // Handle MFA flow
-      console.log('MFA required for connection:', connectionId);
+      logger.info('MFA required for connection:', connectionId);
       // Implementation depends on BASIQ MFA flow
     } else if (error.code === BasiqErrorCode.INSTITUTION_UNAVAILABLE) {
       // Mark institution as temporarily unavailable
-      console.warn('Institution temporarily unavailable');
+      logger.warn('Institution temporarily unavailable');
     }
   },
 
   // Handle rate limiting
   async handleRateLimit(error: BasiqAPIError): Promise<void> {
     const retryAfter = error.retryAfter || 60;
-    console.warn(`Rate limited. Retry after ${retryAfter} seconds`);
+    logger.warn(`Rate limited. Retry after ${retryAfter} seconds`);
     // Could implement queue or notification system here
   },
 };

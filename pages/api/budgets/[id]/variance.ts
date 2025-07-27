@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../auth/[...nextauth]';
 import { PrismaClient } from '@prisma/client';
-import { getVarianceAnalysis } from '../../../../lib/budget-tracking';
+import { getVarianceAnalysis } from '../../../../lib/services/budget/budget-tracking';
 import { logger } from '@/lib/logger';
 import { apiResponse } from '@/lib/api/response';
 

@@ -21,13 +21,7 @@ interface CleanupResult {
 }
 
 class LogCleanup {
-  private logDirectories = [
-    'logs',
-    '.next',
-    'node_modules/.cache',
-    'tmp',
-    '/tmp'
-  ];
+  private logDirectories = ['logs', '.next', 'node_modules/.cache', 'tmp', '/tmp'];
 
   private logPatterns = [
     '*.log',
@@ -36,7 +30,7 @@ class LogCleanup {
     '*.cache',
     'npm-debug.log*',
     'yarn-debug.log*',
-    'yarn-error.log*'
+    'yarn-error.log*',
   ];
 
   async cleanup(options: CleanupOptions = {}): Promise<CleanupResult> {
@@ -44,23 +38,25 @@ class LogCleanup {
       dryRun = false,
       maxAge = 7, // 7 days default
       maxSize = 100 * 1024 * 1024, // 100MB default
-      preserveRecent = 5
+      preserveRecent = 5,
     } = options;
 
     console.log('🧹 Starting log cleanup...');
-    console.log(`Options: maxAge=${maxAge} days, maxSize=${this.formatBytes(maxSize)}, preserveRecent=${preserveRecent}`);
+    console.log(
+      `Options: maxAge=${maxAge} days, maxSize=${this.formatBytes(maxSize)}, preserveRecent=${preserveRecent}`,
+    );
     if (dryRun) console.log('🔍 DRY RUN MODE - No files will be deleted');
 
     const result: CleanupResult = {
       filesDeleted: [],
       spaceFreed: 0,
-      errors: []
+      errors: [],
     };
 
     // Clean each log directory
     for (const dir of this.logDirectories) {
       const fullPath = path.isAbsolute(dir) ? dir : path.join(process.cwd(), dir);
-      
+
       if (!fs.existsSync(fullPath)) {
         continue;
       }
@@ -70,9 +66,9 @@ class LogCleanup {
           dryRun,
           maxAge,
           maxSize,
-          preserveRecent
+          preserveRecent,
         });
-        
+
         result.filesDeleted.push(...cleanupDirResult.filesDeleted);
         result.spaceFreed += cleanupDirResult.spaceFreed;
         result.errors.push(...cleanupDirResult.errors);
@@ -95,12 +91,12 @@ class LogCleanup {
 
   private async cleanupDirectory(
     dirPath: string,
-    options: Required<CleanupOptions>
+    options: Required<CleanupOptions>,
   ): Promise<CleanupResult> {
     const result: CleanupResult = {
       filesDeleted: [],
       spaceFreed: 0,
-      errors: []
+      errors: [],
     };
 
     try {
@@ -114,13 +110,13 @@ class LogCleanup {
           } catch {
             return null;
           }
-        })
+        }),
       );
 
       // Filter out nulls and directories
       const validFiles = fileStats
         .filter((f): f is NonNullable<typeof f> => f !== null && f.stat.isFile())
-        .filter(f => this.isLogFile(f.fileName));
+        .filter((f) => this.isLogFile(f.fileName));
 
       // Sort by modification time (newest first)
       validFiles.sort((a, b) => b.stat.mtime.getTime() - a.stat.mtime.getTime());
@@ -146,7 +142,9 @@ class LogCleanup {
               result.errors.push(`Failed to delete ${filePath}: ${error}`);
             }
           } else {
-            console.log(`Would delete: ${filePath} (${this.formatBytes(stat.size)}, ${Math.round(ageInDays)} days old)`);
+            console.log(
+              `Would delete: ${filePath} (${this.formatBytes(stat.size)}, ${Math.round(ageInDays)} days old)`,
+            );
             result.filesDeleted.push(filePath);
             result.spaceFreed += stat.size;
           }
@@ -171,13 +169,11 @@ class LogCleanup {
     );
   }
 
-  private async cleanupSpecificFiles(result: CleanupResult, options: { dryRun: boolean; maxAge: number }) {
-    const specificFiles = [
-      '.DS_Store',
-      'Thumbs.db',
-      '.npm/_logs/*',
-      '.yarn/cache/*'
-    ];
+  private async cleanupSpecificFiles(
+    result: CleanupResult,
+    options: { dryRun: boolean; maxAge: number },
+  ) {
+    const specificFiles = ['.DS_Store', 'Thumbs.db', '.npm/_logs/*', '.yarn/cache/*'];
 
     for (const pattern of specificFiles) {
       try {
@@ -253,15 +249,15 @@ class LogCleanup {
     console.log('\n📊 Cleanup Summary:');
     console.log(`Files deleted: ${result.filesDeleted.length}`);
     console.log(`Space freed: ${this.formatBytes(result.spaceFreed)}`);
-    
+
     if (result.errors.length > 0) {
       console.log(`\n⚠️  Errors encountered: ${result.errors.length}`);
-      result.errors.forEach(err => console.log(`  - ${err}`));
+      result.errors.forEach((err) => console.log(`  - ${err}`));
     }
 
     if (result.filesDeleted.length > 0) {
       console.log('\n🗑️  Files deleted:');
-      result.filesDeleted.slice(0, 10).forEach(file => {
+      result.filesDeleted.slice(0, 10).forEach((file) => {
         console.log(`  - ${file}`);
       });
       if (result.filesDeleted.length > 10) {
@@ -276,7 +272,7 @@ class LogCleanup {
 
     for (const dir of this.logDirectories) {
       const fullPath = path.isAbsolute(dir) ? dir : path.join(process.cwd(), dir);
-      
+
       if (!fs.existsSync(fullPath)) {
         continue;
       }
@@ -295,7 +291,7 @@ class LogCleanup {
 
   private async getDirectorySize(dirPath: string): Promise<number> {
     let size = 0;
-    
+
     const files = await fs.promises.readdir(dirPath);
     for (const file of files) {
       const filePath = path.join(dirPath, file);
@@ -318,12 +314,12 @@ class LogCleanup {
 // Main execution
 async function main() {
   const cleanup = new LogCleanup();
-  
+
   // Parse command line arguments
   const args = process.argv.slice(2);
   const dryRun = args.includes('--dry-run');
   const force = args.includes('--force');
-  
+
   // Get current disk usage
   const usage = await cleanup.getLogSpaceUsage();
   console.log(`\n📈 Current log space usage: ${cleanup['formatBytes'](usage.total)}`);
@@ -337,7 +333,7 @@ async function main() {
     dryRun,
     maxAge: force ? 1 : 7, // More aggressive if force flag
     maxSize: force ? 10 * 1024 * 1024 : 100 * 1024 * 1024, // 10MB vs 100MB
-    preserveRecent: force ? 1 : 5
+    preserveRecent: force ? 1 : 5,
   });
 
   // Exit with appropriate code

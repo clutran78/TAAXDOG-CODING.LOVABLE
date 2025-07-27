@@ -11,7 +11,7 @@ const prisma = new PrismaClient();
  */
 async function checkCriticalAlerts() {
   console.log('Checking for critical compliance alerts...');
-  
+
   try {
     const alerts = [];
 
@@ -44,7 +44,7 @@ async function checkCriticalAlerts() {
         severity: 'CRITICAL',
         count: highRiskAML.length,
         message: `${highRiskAML.length} high-risk AML transactions require immediate review`,
-        details: highRiskAML.map(t => ({
+        details: highRiskAML.map((t) => ({
           id: t.id,
           riskScore: t.riskScore.toNumber(),
           amount: t.amount.toNumber(),
@@ -86,7 +86,7 @@ async function checkCriticalAlerts() {
 
     for (const incident of unreportedIncidents) {
       const hoursSinceDetection = (Date.now() - incident.detectedAt.getTime()) / (1000 * 60 * 60);
-      
+
       if (hoursSinceDetection > 48) {
         alerts.push({
           type: 'APRA_REPORT_OVERDUE',
@@ -111,7 +111,7 @@ async function checkCriticalAlerts() {
     if (lastBackupCheck) {
       const lastBackupTime = new Date(lastBackupCheck.configData as any);
       const hoursSinceBackup = (Date.now() - lastBackupTime.getTime()) / (1000 * 60 * 60);
-      
+
       if (hoursSinceBackup > 24) {
         alerts.push({
           type: 'BACKUP_OVERDUE',
@@ -130,7 +130,7 @@ async function checkCriticalAlerts() {
       console.log('✅ No critical alerts at this time');
     } else {
       console.log(`\n🚨 ${alerts.length} CRITICAL ALERTS REQUIRE ATTENTION:\n`);
-      
+
       alerts.forEach((alert, index) => {
         console.log(`${index + 1}. [${alert.severity}] ${alert.type}`);
         console.log(`   ${alert.message}`);
@@ -147,7 +147,6 @@ async function checkCriticalAlerts() {
     }
 
     console.log(`\nAlert check completed: ${new Date().toISOString()}`);
-
   } catch (error) {
     console.error('Error checking alerts:', error);
     process.exit(1);
@@ -162,7 +161,7 @@ async function sendAlertNotifications(alerts: any[]) {
   // 2. Post to Slack/Teams
   // 3. Create dashboard notifications
   // 4. Log to monitoring system
-  
+
   console.log('📧 Alert notifications would be sent in production');
 }
 

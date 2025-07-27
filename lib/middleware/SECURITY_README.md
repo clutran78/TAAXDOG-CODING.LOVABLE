@@ -2,7 +2,9 @@
 
 ## Overview
 
-This security middleware provides comprehensive protection for your API endpoints including:
+This security middleware provides comprehensive protection for your API
+endpoints including:
+
 - Rate limiting
 - Request validation and sanitization
 - Security headers (CSP, HSTS, etc.)
@@ -42,9 +44,12 @@ const validations = [
   body('amount').isFloat({ min: 0 }),
 ];
 
-export default withSecurity(async (req, res) => {
-  // Handler with validated inputs
-}, { validations });
+export default withSecurity(
+  async (req, res) => {
+    // Handler with validated inputs
+  },
+  { validations },
+);
 ```
 
 ### 4. Public Endpoint (No Auth Required)
@@ -62,9 +67,12 @@ export default securePublicEndpoint(async (req, res) => {
 ```typescript
 import { withSecurity } from '@/lib/middleware/security';
 
-export default withSecurity(async (req, res) => {
-  // Receipt processing with 10 req/min limit
-}, { rateLimit: 'receipts' });
+export default withSecurity(
+  async (req, res) => {
+    // Receipt processing with 10 req/min limit
+  },
+  { rateLimit: 'receipts' },
+);
 ```
 
 ## Rate Limits
@@ -98,7 +106,7 @@ import { apiKeyManager } from '@/lib/services/apiKeyManager';
 const response = await apiKeyManager.makeSecureRequest(
   'basiq', // service name
   'https://api.example.com/endpoint',
-  { method: 'GET' }
+  { method: 'GET' },
 );
 
 // Get secure headers for manual requests

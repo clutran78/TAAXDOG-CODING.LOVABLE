@@ -1,6 +1,7 @@
 import { stripe } from '../stripe';
 import { prisma } from '../prisma';
 import Stripe from 'stripe';
+import { logger } from '@/lib/logger';
 
 export class PaymentService {
   async getPaymentMethods(userId: string) {
@@ -17,7 +18,7 @@ export class PaymentService {
       type: 'card',
     });
 
-    return paymentMethods.data.map(pm => ({
+    return paymentMethods.data.map((pm) => ({
       id: pm.id,
       brand: pm.card?.brand,
       last4: pm.card?.last4,
@@ -163,7 +164,7 @@ export class PaymentService {
     const emailConfig = emailTemplates[attempt as keyof typeof emailTemplates] || emailTemplates[1];
 
     // TODO: Integrate with email service
-    console.log(`Sending ${emailConfig.subject} email to ${user.email}`);
+    logger.info(`Sending ${emailConfig.subject} email to ${user.email}`);
   }
 
   private async schedulePaymentRetry(subscription: Stripe.Subscription, attempt: number) {
@@ -221,7 +222,7 @@ export class PaymentService {
           payment_method: paymentMethodId,
         });
       } catch (error) {
-        console.error(`Failed to pay invoice ${invoice.id}:`, error);
+        logger.error(`Failed to pay invoice ${invoice.id}:`, error);
       }
     }
 

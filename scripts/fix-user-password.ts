@@ -27,7 +27,7 @@ Example:
         name: true,
         emailVerified: true,
         password: true,
-      }
+      },
     });
 
     if (!user) {
@@ -49,11 +49,11 @@ Example:
     console.log('💾 Updating password in database...');
     await prisma.user.update({
       where: { id: user.id },
-      data: { 
+      data: {
         password: hashedPassword,
         // Also set emailVerified if it's not set
-        emailVerified: user.emailVerified || new Date()
-      }
+        emailVerified: user.emailVerified || new Date(),
+      },
     });
 
     console.log('✅ Password updated successfully!\n');
@@ -61,13 +61,13 @@ Example:
     // Test the new password
     console.log('🧪 Testing new password...');
     const updatedUser = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() }
+      where: { email: email.toLowerCase() },
     });
 
     if (updatedUser && updatedUser.password) {
       const isValid = await bcrypt.compare(newPassword, updatedUser.password);
       console.log(`   Password verification: ${isValid ? '✅ PASSED' : '❌ FAILED'}`);
-      
+
       if (isValid) {
         console.log('\n🎉 Success! User can now login with:');
         console.log(`   Email: ${email}`);
@@ -78,10 +78,9 @@ Example:
     // Clear any existing password reset tokens
     console.log('\n🧹 Clearing any existing reset tokens...');
     await prisma.passwordResetToken.deleteMany({
-      where: { email: email.toLowerCase() }
+      where: { email: email.toLowerCase() },
     });
     console.log('✅ Reset tokens cleared');
-
   } catch (error) {
     console.error('❌ Error:', error);
     process.exit(1);

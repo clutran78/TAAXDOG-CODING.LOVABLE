@@ -1,14 +1,14 @@
-import { PrismaClient } from "@prisma/client";
-import { hashPassword } from "../lib/auth";
+import { PrismaClient } from '@prisma/client';
+import { hashPassword } from '../lib/auth';
 
 const prisma = new PrismaClient();
 
 async function unlockAndResetPassword() {
-  const email = "a.stroe.3022@gmail.com";
-  const newPassword = "password123";
-  
+  const email = 'a.stroe.3022@gmail.com';
+  const newPassword = 'password123';
+
   console.log(`Unlocking and resetting password for: ${email}`);
-  
+
   try {
     // First, let's check the current status
     const user = await prisma.user.findUnique({
@@ -18,22 +18,22 @@ async function unlockAndResetPassword() {
         email: true,
         name: true,
         failedLoginAttempts: true,
-        lockedUntil: true
-      }
+        lockedUntil: true,
+      },
     });
 
     if (!user) {
-      console.log("❌ User not found");
+      console.log('❌ User not found');
       return;
     }
 
-    console.log("\nCurrent status:");
+    console.log('\nCurrent status:');
     console.log(`Failed attempts: ${user.failedLoginAttempts}`);
-    console.log(`Locked until: ${user.lockedUntil || "Not locked"}`);
+    console.log(`Locked until: ${user.lockedUntil || 'Not locked'}`);
 
     // Hash the new password
     const hashedPassword = await hashPassword(newPassword);
-    
+
     // Update user: reset password, unlock account, reset failed attempts
     const updatedUser = await prisma.user.update({
       where: { id: user.id },
@@ -41,32 +41,31 @@ async function unlockAndResetPassword() {
         password: hashedPassword,
         failedLoginAttempts: 0,
         lockedUntil: null,
-        lastLoginAt: null
+        lastLoginAt: null,
       },
       select: {
         id: true,
         email: true,
         name: true,
         failedLoginAttempts: true,
-        lockedUntil: true
-      }
+        lockedUntil: true,
+      },
     });
 
-    console.log("\n✅ Account unlocked and password reset!");
-    console.log("Updated status:");
+    console.log('\n✅ Account unlocked and password reset!');
+    console.log('Updated status:');
     console.log(`Failed attempts: ${updatedUser.failedLoginAttempts}`);
-    console.log(`Locked until: ${updatedUser.lockedUntil || "Not locked"}`);
-    
-    console.log("\n📝 You can now login with:");
+    console.log(`Locked until: ${updatedUser.lockedUntil || 'Not locked'}`);
+
+    console.log('\n📝 You can now login with:');
     console.log(`Email: ${email}`);
     console.log(`Password: [Password has been reset - check secure output]`);
-    console.log("\n🌐 Login at any of these pages:");
-    console.log("- http://localhost:3000/auth/modern-login");
-    console.log("- http://localhost:3000/auth/login");
-    console.log("- http://localhost:3000/auth-test");
-
+    console.log('\n🌐 Login at any of these pages:');
+    console.log('- http://localhost:3000/auth/modern-login');
+    console.log('- http://localhost:3000/auth/login');
+    console.log('- http://localhost:3000/auth-test');
   } catch (error) {
-    console.error("❌ Error:", error);
+    console.error('❌ Error:', error);
   } finally {
     await prisma.$disconnect();
   }

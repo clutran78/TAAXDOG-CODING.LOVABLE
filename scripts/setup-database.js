@@ -7,7 +7,9 @@ async function setupDatabase() {
   if (!process.env.DATABASE_URL) {
     console.error('❌ DATABASE_URL environment variable is not set');
     console.error('Please create a .env.local file with your PostgreSQL connection string');
-    console.error('Example: DATABASE_URL="postgresql://username:password@localhost:5432/taaxdog_db"');
+    console.error(
+      'Example: DATABASE_URL="postgresql://username:password@localhost:5432/taaxdog_db"',
+    );
     process.exit(1);
   }
 
@@ -26,7 +28,7 @@ async function setupDatabase() {
       FROM information_schema.tables 
       WHERE table_schema = 'public'
     `;
-    
+
     if (tables.length === 0) {
       console.log('⚠️  No tables found. Please run: npx prisma migrate dev');
     } else {
@@ -43,7 +45,6 @@ async function setupDatabase() {
     console.log('1. Run: npm run build');
     console.log('2. Run: npm run dev');
     console.log('3. Test registration at: http://localhost:3000/auth/register');
-
   } catch (error) {
     console.error('❌ Database setup failed:', error.message);
     console.error('\nTroubleshooting:');

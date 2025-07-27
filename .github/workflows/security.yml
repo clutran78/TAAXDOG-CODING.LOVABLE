@@ -5,22 +5,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.8'
-          
+
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
-          
+
       - name: Run Safety Scan
         run: |
           pip install safety
           safety scan --file requirements.txt
-          
+
       - name: Run npm audit (backend)
         working-directory: ./
         run: |
@@ -29,9 +29,9 @@ jobs:
           else
             echo "No package.json found in root directory"
           fi
-          
+
       - name: Run npm audit (frontend)
         working-directory: ./next-frontend
         run: |
           npm install
-          npm audit 
+          npm audit

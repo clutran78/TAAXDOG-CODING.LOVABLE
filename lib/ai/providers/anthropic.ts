@@ -23,8 +23,8 @@ export class AnthropicProvider extends BaseAIProvider {
     const startTime = Date.now();
 
     try {
-      const systemMessage = messages.find(m => m.role === 'system');
-      const userMessages = messages.filter(m => m.role !== 'system');
+      const systemMessage = messages.find((m) => m.role === 'system');
+      const userMessages = messages.filter((m) => m.role !== 'system');
 
       const response = await this.retryWithBackoff(async () => {
         return await this.client.messages.create({
@@ -32,7 +32,7 @@ export class AnthropicProvider extends BaseAIProvider {
           max_tokens: this.config.maxTokens || 4096,
           temperature: this.config.temperature || 0.7,
           system: systemMessage?.content,
-          messages: userMessages.map(msg => ({
+          messages: userMessages.map((msg) => ({
             role: msg.role === 'user' ? 'user' : 'assistant',
             content: msg.content,
           })),
@@ -65,15 +65,15 @@ export class AnthropicProvider extends BaseAIProvider {
       };
     } catch (error) {
       await this.recordFailure(error as Error);
-      
+
       if (error instanceof Anthropic.APIError) {
         throw this.createError(
           error.message,
           error.status,
-          error.status === 429 || error.status >= 500
+          error.status === 429 || error.status >= 500,
         );
       }
-      
+
       throw error;
     }
   }
@@ -84,7 +84,7 @@ export class AnthropicProvider extends BaseAIProvider {
     // Output: $15 per million tokens
     const inputCost = (tokensInput / 1_000_000) * 3;
     const outputCost = (tokensOutput / 1_000_000) * 15;
-    
+
     return Number((inputCost + outputCost).toFixed(6));
   }
 }

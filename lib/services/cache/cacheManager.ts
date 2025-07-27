@@ -10,20 +10,22 @@ export const CacheKeys = {
   userTransactions: (userId: string, page = 1) => `user:${userId}:transactions:page:${page}`,
   userAnalytics: (userId: string) => `user:${userId}:analytics`,
   userFinancialSummary: (userId: string) => `user:${userId}:financial-summary`,
-  
+
   // Goal-specific keys
   goalDetails: (goalId: string) => `goal:${goalId}:details`,
   goalProgress: (goalId: string) => `goal:${goalId}:progress`,
-  
+
   // Transaction keys
   transactionDetails: (transactionId: string) => `transaction:${transactionId}`,
-  transactionsByCategory: (userId: string, category: string) => `user:${userId}:transactions:category:${category}`,
-  
+  transactionsByCategory: (userId: string, category: string) =>
+    `user:${userId}:transactions:category:${category}`,
+
   // Analytics keys
-  monthlySpending: (userId: string, year: number, month: number) => `analytics:${userId}:spending:${year}:${month}`,
+  monthlySpending: (userId: string, year: number, month: number) =>
+    `analytics:${userId}:spending:${year}:${month}`,
   taxSummary: (userId: string, year: number) => `analytics:${userId}:tax:${year}`,
   categoryTrends: (userId: string, category: string) => `analytics:${userId}:trends:${category}`,
-  
+
   // Session keys
   sessionData: (sessionId: string) => `session:${sessionId}`,
   userSession: (userId: string) => `user:${userId}:session`,
@@ -33,11 +35,11 @@ export const CacheKeys = {
  * Cache TTL values (in seconds)
  */
 export const CacheTTL = {
-  SHORT: 60,           // 1 minute - for frequently changing data
-  MEDIUM: 300,         // 5 minutes - for user profiles, etc
-  LONG: 3600,          // 1 hour - for analytics, reports
-  DAY: 86400,          // 24 hours - for rarely changing data
-  WEEK: 604800,        // 7 days - for historical data
+  SHORT: 60, // 1 minute - for frequently changing data
+  MEDIUM: 300, // 5 minutes - for user profiles, etc
+  LONG: 3600, // 1 hour - for analytics, reports
+  DAY: 86400, // 24 hours - for rarely changing data
+  WEEK: 604800, // 7 days - for historical data
 };
 
 /**
@@ -53,11 +55,7 @@ export class CacheManager {
   /**
    * Cache wrapper with automatic key generation and TTL
    */
-  async remember<T>(
-    key: string,
-    ttl: number,
-    fetcher: () => Promise<T>
-  ): Promise<T> {
+  async remember<T>(key: string, ttl: number, fetcher: () => Promise<T>): Promise<T> {
     if (!this.cache) {
       return fetcher();
     }
@@ -70,10 +68,10 @@ export class CacheManager {
 
     // Fetch fresh data
     const fresh = await fetcher();
-    
+
     // Store in cache
     await this.cache.set(key, fresh, ttl);
-    
+
     return fresh;
   }
 
@@ -83,10 +81,7 @@ export class CacheManager {
   async invalidateUserCache(userId: string): Promise<void> {
     if (!this.cache) return;
 
-    const patterns = [
-      `user:${userId}:*`,
-      `analytics:${userId}:*`,
-    ];
+    const patterns = [`user:${userId}:*`, `analytics:${userId}:*`];
 
     for (const pattern of patterns) {
       await this.cache.delPattern(pattern);
@@ -135,45 +130,44 @@ export class CacheManager {
   /**
    * Cache warming strategy for user login
    */
-  async warmUserCache(userId: string, data: {
-    profile?: any;
-    goals?: any[];
-    recentTransactions?: any[];
-    financialSummary?: any;
-  }): Promise<void> {
+  async warmUserCache(
+    userId: string,
+    data: {
+      profile?: any;
+      goals?: any[];
+      recentTransactions?: any[];
+      financialSummary?: any;
+    },
+  ): Promise<void> {
     if (!this.cache) return;
 
     const promises: Promise<void>[] = [];
 
     if (data.profile) {
-      promises.push(
-        this.cache.set(CacheKeys.userProfile(userId), data.profile, CacheTTL.MEDIUM)
-      );
+      promises.push(this.cache.set(CacheKeys.userProfile(userId), data.profile, CacheTTL.MEDIUM));
     }
 
     if (data.goals) {
-      promises.push(
-        this.cache.set(CacheKeys.userGoals(userId), data.goals, CacheTTL.MEDIUM)
-      );
+      promises.push(this.cache.set(CacheKeys.userGoals(userId), data.goals, CacheTTL.MEDIUM));
     }
 
     if (data.recentTransactions) {
       promises.push(
         this.cache.set(
-          CacheKeys.userTransactions(userId, 1), 
-          data.recentTransactions, 
-          CacheTTL.SHORT
-        )
+          CacheKeys.userTransactions(userId, 1),
+          data.recentTransactions,
+          CacheTTL.SHORT,
+        ),
       );
     }
 
     if (data.financialSummary) {
       promises.push(
         this.cache.set(
-          CacheKeys.userFinancialSummary(userId), 
-          data.financialSummary, 
-          CacheTTL.LONG
-        )
+          CacheKeys.userFinancialSummary(userId),
+          data.financialSummary,
+          CacheTTL.LONG,
+        ),
       );
     }
 
@@ -190,7 +184,12 @@ export class CacheManager {
     return this.cache.get<T>(sessionKey);
   }
 
-  async setSessionCache(sessionId: string, key: string, value: any, ttl = CacheTTL.SHORT): Promise<void> {
+  async setSessionCache(
+    sessionId: string,
+    key: string,
+    value: any,
+    ttl = CacheTTL.SHORT,
+  ): Promise<void> {
     if (!this.cache) return;
 
     const sessionKey = `${CacheKeys.sessionData(sessionId)}:${key}`;
@@ -200,7 +199,11 @@ export class CacheManager {
   /**
    * Rate limiting helper
    */
-  async checkRateLimit(key: string, limit: number, window: number): Promise<{
+  async checkRateLimit(
+    key: string,
+    limit: number,
+    window: number,
+  ): Promise<{
     allowed: boolean;
     remaining: number;
     resetIn: number;
@@ -210,13 +213,13 @@ export class CacheManager {
     }
 
     const count = await this.cache.incr(key);
-    
+
     if (count === 1) {
       await this.cache.expire(key, window);
     }
 
     const ttl = await this.cache.ttl(key);
-    
+
     return {
       allowed: count <= limit,
       remaining: Math.max(0, limit - count),

@@ -2,7 +2,10 @@
 
 ## Overview
 
-The Stripe payment system has been fully migrated with your exact credentials and Australian subscription pricing structure. The implementation includes comprehensive subscription management, Australian tax compliance, and all requested features.
+The Stripe payment system has been fully migrated with your exact credentials
+and Australian subscription pricing structure. The implementation includes
+comprehensive subscription management, Australian tax compliance, and all
+requested features.
 
 ## Implementation Status
 
@@ -10,19 +13,21 @@ The Stripe payment system has been fully migrated with your exact credentials an
 
 1. **Stripe Configuration**
    - Live Mode Credentials:
-     - Publishable Key: `pk_live_51Re1oyLl1e8i03PEfTJeJ6DBeX1T7gzcXRCPWDzePSJGTwBJZ...`
-     - Secret Key: `sk_live_51Re1oyLl1e8i03PEo64mPVpsDo0MLn0R6cN2Ul8KtkucNUZbw9pMM...`
+     - Publishable Key:
+       `pk_live_51Re1oyLl1e8i03PEfTJeJ6DBeX1T7gzcXRCPWDzePSJGTwBJZ...`
+     - Secret Key:
+       `sk_live_51Re1oyLl1e8i03PEo64mPVpsDo0MLn0R6cN2Ul8KtkucNUZbw9pMM...`
      - Webhook Secret: `whsec_z2rEeYEZBAbBjxMvCzfKc8Trs1wlTC9L`
    - Test Mode Credentials configured for development
 
 2. **Subscription Pricing Implementation**
-   
+
    **TAAX Smart Plan:**
    - ✅ 3-day free trial
    - ✅ Early Access: $4.99/month AUD (inc. GST) for first 2 months
    - ✅ Regular: $9.99/month AUD (inc. GST) ongoing
    - ✅ Annual: $99.00/year AUD (inc. GST, 2 months free)
-   
+
    **TAAX Pro Plan:**
    - ✅ 7-day free trial
    - ✅ Early Access: $10.99/month AUD (inc. GST) for first 2 months
@@ -90,7 +95,8 @@ NODE_ENV=production npm run setup-stripe
 
 ### 2. Configure Webhook Endpoint
 
-The setup script will create a webhook endpoint. Update your environment variables with the webhook secret provided.
+The setup script will create a webhook endpoint. Update your environment
+variables with the webhook secret provided.
 
 ### 3. Environment Variables
 
@@ -195,11 +201,13 @@ STRIPE_WEBHOOK_SECRET="whsec_8049f1f9ead95d8933afc149782bfdf4b82c3aa940fcfe3c2e1
 ## Pricing Transitions
 
 ### Monthly Subscriptions
+
 1. Customer signs up → 3/7 day free trial begins
 2. Trial ends → Promotional pricing starts ($4.99/$10.99)
 3. After 2 months → Regular pricing applies ($9.99/$18.99)
 
 ### Annual Subscriptions
+
 1. Customer signs up → 3/7 day free trial begins
 2. Trial ends → Annual pricing applies ($99/$189)
 3. No promotional period for annual plans
@@ -207,18 +215,21 @@ STRIPE_WEBHOOK_SECRET="whsec_8049f1f9ead95d8933afc149782bfdf4b82c3aa940fcfe3c2e1
 ## Australian Tax Compliance
 
 ### GST Handling
+
 - All prices include 10% GST
 - GST amount calculated: `Total × 1/11`
 - Displayed on all invoices
 - Separate line items for GST
 
 ### Tax Invoices
+
 - Generated automatically for paid invoices
 - Include business ABN (when configured)
 - Show GST breakdown
 - Compliant with ATO requirements
 
 ### Customer Information
+
 - ABN collection for business customers
 - Australian address validation
 - Tax ID storage and validation
@@ -226,6 +237,7 @@ STRIPE_WEBHOOK_SECRET="whsec_8049f1f9ead95d8933afc149782bfdf4b82c3aa940fcfe3c2e1
 ## Testing
 
 ### Test Cards (Development)
+
 ```
 Success: 4242 4242 4242 4242
 Decline: 4000 0000 0000 0002
@@ -233,6 +245,7 @@ Decline: 4000 0000 0000 0002
 ```
 
 ### Webhook Testing
+
 ```bash
 # Install Stripe CLI
 brew install stripe/stripe-cli/stripe
@@ -263,6 +276,7 @@ stripe listen --forward-to localhost:3000/api/stripe/webhooks
 ## Monitoring and Maintenance
 
 ### Key Metrics to Monitor
+
 - Trial conversion rate
 - Failed payment rate
 - Churn rate by plan
@@ -270,6 +284,7 @@ stripe listen --forward-to localhost:3000/api/stripe/webhooks
 - Promotional to regular conversion
 
 ### Regular Tasks
+
 1. Review failed payments
 2. Monitor webhook failures
 3. Update tax rates if changed
@@ -325,4 +340,5 @@ stripe listen --forward-to localhost:3000/api/stripe/webhooks
 - Australian Compliance: https://stripe.com/au/guides/tax-invoices
 - Webhook Events: https://stripe.com/docs/webhooks
 
-The Stripe payment system is now fully integrated with comprehensive Australian compliance, automatic pricing transitions, and all requested features.
+The Stripe payment system is now fully integrated with comprehensive Australian
+compliance, automatic pricing transitions, and all requested features.

@@ -1,5 +1,19 @@
-import db from './database';
+import db from './services/database/database';
 import { envConfig } from './env-config';
+import axios from 'axios';
+import { createRedisClient } from './services/cache/redisClient';
+import { BasiqClient } from './basiq/client';
+import { aiService } from './ai/service';
+import { AIOperationType } from './ai/config';
+import Stripe from 'stripe';
+import sgMail from '@sendgrid/mail';
+
+interface ExternalServiceCheck {
+  status: 'pass' | 'fail';
+  responseTime?: number;
+  details?: any;
+  error?: string;
+}
 
 interface HealthCheckResult {
   status: 'healthy' | 'degraded' | 'unhealthy';
@@ -7,12 +21,8 @@ interface HealthCheckResult {
   version: string;
   environment: string;
   checks: {
-    database: {
-      status: 'pass' | 'fail';
-      responseTime?: number;
-      details?: any;
-      error?: string;
-    };
+    database: ExternalServiceCheck;
+    redis: ExternalServiceCheck;
     memory: {
       status: 'pass' | 'fail';
       usage: NodeJS.MemoryUsage;
@@ -22,6 +32,10 @@ interface HealthCheckResult {
       status: 'pass' | 'fail';
       seconds: number;
     };
+    basiq: ExternalServiceCheck;
+    ai: ExternalServiceCheck;
+    stripe: ExternalServiceCheck;
+    sendgrid: ExternalServiceCheck;
   };
 }
 
@@ -59,16 +73,35 @@ class HealthCheckService {
     const environment = envConfig.getConfig().NODE_ENV;
     const version = process.env.npm_package_version || '1.0.0';
 
-    const [databaseCheck, memoryCheck, uptimeCheck] = await Promise.all([
+    const [
+      databaseCheck,
+      redisCheck,
+      memoryCheck,
+      uptimeCheck,
+      basiqCheck,
+      aiCheck,
+      stripeCheck,
+      sendgridCheck,
+    ] = await Promise.all([
       this.checkDatabase(),
+      this.checkRedis(),
       this.checkMemory(),
       this.checkUptime(),
+      this.checkBasiq(),
+      this.checkAI(),
+      this.checkStripe(),
+      this.checkSendGrid(),
     ]);
 
     const overallStatus = this.calculateOverallStatus(
       databaseCheck.status,
+      redisCheck.status,
       memoryCheck.status,
-      uptimeCheck.status
+      uptimeCheck.status,
+      basiqCheck.status,
+      aiCheck.status,
+      stripeCheck.status,
+      sendgridCheck.status,
     );
 
     return {
@@ -78,16 +111,21 @@ class HealthCheckService {
       environment,
       checks: {
         database: databaseCheck,
+        redis: redisCheck,
         memory: memoryCheck,
         uptime: uptimeCheck,
+        basiq: basiqCheck,
+        ai: aiCheck,
+        stripe: stripeCheck,
+        sendgrid: sendgridCheck,
       },
     };
   }
 
-  private async checkDatabase(): Promise<HealthCheckResult['checks']['database']> {
+  private async checkDatabase(): Promise<ExternalServiceCheck> {
     try {
       const dbHealth = await db.healthCheck();
-      
+
       const status = dbHealth.status === 'healthy' ? 'pass' : 'fail';
       const responseTime = dbHealth.details.responseTime;
 
@@ -143,22 +181,214 @@ class HealthCheckService {
   private calculateOverallStatus(
     ...statuses: ('pass' | 'fail')[]
   ): 'healthy' | 'degraded' | 'unhealthy' {
-    const failCount = statuses.filter(s => s === 'fail').length;
-    
+    const failCount = statuses.filter((s) => s === 'fail').length;
+
     if (failCount === 0) return 'healthy';
     if (failCount === statuses.length) return 'unhealthy';
     return 'degraded';
   }
 
+  private async checkRedis(): Promise<ExternalServiceCheck> {
+    const startTime = Date.now();
+    try {
+      const redis = createRedisClient();
+      if (!redis.isConnected()) {
+        return {
+          status: 'fail',
+          error: 'Redis not connected',
+        };
+      }
+
+      // Test basic operation
+      const testKey = 'health:check:test';
+      await redis.set(testKey, 'ok', 5); // 5 second TTL
+      const value = await redis.get(testKey);
+
+      const responseTime = Date.now() - startTime;
+
+      if (value !== 'ok') {
+        return {
+          status: 'fail',
+          responseTime,
+          error: 'Redis test operation failed',
+        };
+      }
+
+      return {
+        status: 'pass',
+        responseTime,
+        details: {
+          connected: true,
+        },
+      };
+    } catch (error) {
+      return {
+        status: 'fail',
+        responseTime: Date.now() - startTime,
+        error: error instanceof Error ? error.message : 'Redis check failed',
+      };
+    }
+  }
+
+  private async checkBasiq(): Promise<ExternalServiceCheck> {
+    const startTime = Date.now();
+    try {
+      // Check if BASIQ is configured
+      if (!process.env.BASIQ_API_KEY) {
+        return {
+          status: 'fail',
+          error: 'BASIQ not configured',
+        };
+      }
+
+      const basiqClient = new BasiqClient();
+      // Perform a simple API check - get user consent URL which doesn't require user-specific data
+      const testResponse = await basiqClient.getConsentUrl('health-check-test');
+
+      const responseTime = Date.now() - startTime;
+
+      return {
+        status: 'pass',
+        responseTime,
+        details: {
+          apiAvailable: true,
+          environment: process.env.BASIQ_ENV || 'production',
+        },
+      };
+    } catch (error) {
+      return {
+        status: 'fail',
+        responseTime: Date.now() - startTime,
+        error: error instanceof Error ? error.message : 'BASIQ check failed',
+      };
+    }
+  }
+
+  private async checkAI(): Promise<ExternalServiceCheck> {
+    const startTime = Date.now();
+    try {
+      // Test with a simple prompt that should return quickly
+      const testPrompt = 'Respond with OK';
+      const response = await aiService.processRequest({
+        operation: AIOperationType.COMPLIANCE_CHECK,
+        prompt: testPrompt,
+        userId: 'health-check',
+        context: { skipCache: true },
+      });
+
+      const responseTime = Date.now() - startTime;
+
+      if (!response || !response.content) {
+        return {
+          status: 'fail',
+          responseTime,
+          error: 'AI service returned empty response',
+        };
+      }
+
+      return {
+        status: 'pass',
+        responseTime,
+        details: {
+          provider: response.provider,
+          model: response.model,
+          tokensUsed: response.tokensUsed?.total,
+        },
+      };
+    } catch (error) {
+      return {
+        status: 'fail',
+        responseTime: Date.now() - startTime,
+        error: error instanceof Error ? error.message : 'AI service check failed',
+      };
+    }
+  }
+
+  private async checkStripe(): Promise<ExternalServiceCheck> {
+    const startTime = Date.now();
+    try {
+      if (!process.env.STRIPE_SECRET_KEY) {
+        return {
+          status: 'fail',
+          error: 'Stripe not configured',
+        };
+      }
+
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+        apiVersion: '2024-12-18.acacia',
+      });
+
+      // List products with limit 1 - minimal API call
+      const products = await stripe.products.list({ limit: 1 });
+
+      const responseTime = Date.now() - startTime;
+
+      return {
+        status: 'pass',
+        responseTime,
+        details: {
+          apiAvailable: true,
+          mode: process.env.STRIPE_SECRET_KEY.includes('sk_test') ? 'test' : 'live',
+        },
+      };
+    } catch (error) {
+      return {
+        status: 'fail',
+        responseTime: Date.now() - startTime,
+        error: error instanceof Error ? error.message : 'Stripe check failed',
+      };
+    }
+  }
+
+  private async checkSendGrid(): Promise<ExternalServiceCheck> {
+    const startTime = Date.now();
+    try {
+      if (!process.env.SENDGRID_API_KEY) {
+        return {
+          status: 'fail',
+          error: 'SendGrid not configured',
+        };
+      }
+
+      // Set API key
+      sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+      // Verify sender - this is a lightweight API call
+      const response = await axios.get('https://api.sendgrid.com/v3/verified_senders', {
+        headers: {
+          Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`,
+        },
+        timeout: 5000,
+      });
+
+      const responseTime = Date.now() - startTime;
+
+      return {
+        status: 'pass',
+        responseTime,
+        details: {
+          apiAvailable: true,
+          verifiedSenders: response.data.results?.length || 0,
+        },
+      };
+    } catch (error) {
+      return {
+        status: 'fail',
+        responseTime: Date.now() - startTime,
+        error: error instanceof Error ? error.message : 'SendGrid check failed',
+      };
+    }
+  }
+
   public recordQueryMetric(query: string, responseTime: number): void {
     const metrics = this.queryMetrics.get(query) || [];
     metrics.push(responseTime);
-    
+
     // Keep only last 100 metrics per query
     if (metrics.length > 100) {
       metrics.shift();
     }
-    
+
     this.queryMetrics.set(query, metrics);
   }
 
@@ -166,13 +396,14 @@ class HealthCheckService {
     const queryLogs = db.getQueryLogs();
     const totalQueries = queryLogs.length;
     const slowQueries = queryLogs.filter(
-      log => log.duration > envConfig.getConfig().DATABASE_SLOW_QUERY_THRESHOLD!
+      (log) => log.duration > envConfig.getConfig().DATABASE_SLOW_QUERY_THRESHOLD!,
     ).length;
 
-    const responseTimes = queryLogs.map(log => log.duration);
-    const averageResponseTime = responseTimes.length > 0
-      ? responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length
-      : 0;
+    const responseTimes = queryLogs.map((log) => log.duration);
+    const averageResponseTime =
+      responseTimes.length > 0
+        ? responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length
+        : 0;
 
     return {
       totalQueries,
@@ -205,4 +436,4 @@ class HealthCheckService {
 }
 
 export const healthCheck = HealthCheckService.getInstance();
-export { HealthCheckResult, DatabaseMetrics };
+export { HealthCheckResult, DatabaseMetrics, ExternalServiceCheck };

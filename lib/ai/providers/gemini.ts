@@ -21,7 +21,7 @@ export class GeminiProvider extends BaseAIProvider {
     const startTime = Date.now();
 
     try {
-      const model = this.client.getGenerativeModel({ 
+      const model = this.client.getGenerativeModel({
         model: this.config.model,
         generationConfig: {
           temperature: this.config.temperature,
@@ -31,7 +31,7 @@ export class GeminiProvider extends BaseAIProvider {
 
       // Convert messages to Gemini format
       const chat = model.startChat({
-        history: messages.slice(0, -1).map(msg => ({
+        history: messages.slice(0, -1).map((msg) => ({
           role: msg.role === 'assistant' ? 'model' : 'user',
           parts: [{ text: msg.content }],
         })),
@@ -47,7 +47,7 @@ export class GeminiProvider extends BaseAIProvider {
       const responseTimeMs = Date.now() - startTime;
 
       // Estimate tokens (Gemini doesn't provide exact counts)
-      const tokensInput = this.estimateTokens(messages.map(m => m.content).join(' '));
+      const tokensInput = this.estimateTokens(messages.map((m) => m.content).join(' '));
       const tokensOutput = this.estimateTokens(content);
       const totalTokens = tokensInput + tokensOutput;
 
@@ -70,15 +70,15 @@ export class GeminiProvider extends BaseAIProvider {
       };
     } catch (error) {
       await this.recordFailure(error as Error);
-      
+
       if (error instanceof Error) {
         throw this.createError(
           error.message,
           undefined,
-          error.message.includes('429') || error.message.includes('500')
+          error.message.includes('429') || error.message.includes('500'),
         );
       }
-      
+
       throw error;
     }
   }
@@ -144,7 +144,7 @@ export class GeminiProvider extends BaseAIProvider {
     // Output: $1.50 per million tokens
     const inputCost = (tokensInput / 1_000_000) * 0.5;
     const outputCost = (tokensOutput / 1_000_000) * 1.5;
-    
+
     return Number((inputCost + outputCost).toFixed(6));
   }
 }

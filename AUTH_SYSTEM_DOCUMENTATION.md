@@ -2,7 +2,9 @@
 
 ## Overview
 
-A complete authentication system for the TAAXDOG Next.js application with PostgreSQL, implementing secure user registration, login, password reset, and email verification.
+A complete authentication system for the TAAXDOG Next.js application with
+PostgreSQL, implementing secure user registration, login, password reset, and
+email verification.
 
 ## Features
 
@@ -20,6 +22,7 @@ A complete authentication system for the TAAXDOG Next.js application with Postgr
 ## Security Features
 
 ### Password Security
+
 - Bcrypt hashing with 12 salt rounds
 - Password strength validation:
   - Minimum 8 characters
@@ -30,12 +33,14 @@ A complete authentication system for the TAAXDOG Next.js application with Postgr
 - Password history check (prevents reuse)
 
 ### Rate Limiting
+
 - **Auth endpoints**: 5 requests per minute
 - **Password reset**: 3 requests per hour
 - **Email verification**: 3 requests per minute
 - **General API**: 100 requests per minute
 
 ### Account Security
+
 - Account lockout after 5 failed login attempts
 - Exponential backoff for lockout duration
 - Email verification required for login
@@ -45,6 +50,7 @@ A complete authentication system for the TAAXDOG Next.js application with Postgr
 ## API Endpoints
 
 ### 1. Register - `POST /api/auth/register`
+
 ```json
 // Request
 {
@@ -77,6 +83,7 @@ A complete authentication system for the TAAXDOG Next.js application with Postgr
 ```
 
 ### 2. Login - `POST /api/auth/login`
+
 ```json
 // Request
 {
@@ -98,6 +105,7 @@ A complete authentication system for the TAAXDOG Next.js application with Postgr
 ```
 
 ### 3. Logout - `POST /api/auth/logout`
+
 ```json
 // Request
 {} // No body required
@@ -109,6 +117,7 @@ A complete authentication system for the TAAXDOG Next.js application with Postgr
 ```
 
 ### 4. Forgot Password - `POST /api/auth/forgot-password`
+
 ```json
 // Request
 {
@@ -122,6 +131,7 @@ A complete authentication system for the TAAXDOG Next.js application with Postgr
 ```
 
 ### 5. Reset Password - `POST /api/auth/reset-password`
+
 ```json
 // Request
 {
@@ -138,6 +148,7 @@ A complete authentication system for the TAAXDOG Next.js application with Postgr
 ```
 
 ### 6. Verify Email - `POST /api/auth/verify-email`
+
 ```json
 // Request
 {
@@ -154,6 +165,7 @@ A complete authentication system for the TAAXDOG Next.js application with Postgr
 ## Middleware Usage
 
 ### Protected Routes
+
 ```typescript
 import { withAuth, AuthenticatedRequest } from '@/lib/auth/middleware';
 
@@ -165,18 +177,25 @@ export default withAuth(async (req: AuthenticatedRequest, res) => {
 });
 
 // With role restrictions
-export default withAuth(async (req: AuthenticatedRequest, res) => {
-  // Only ADMIN users can access
-  // ... your handler logic
-}, { allowedRoles: [Role.ADMIN] });
+export default withAuth(
+  async (req: AuthenticatedRequest, res) => {
+    // Only ADMIN users can access
+    // ... your handler logic
+  },
+  { allowedRoles: [Role.ADMIN] },
+);
 
 // Without email verification requirement
-export default withAuth(async (req: AuthenticatedRequest, res) => {
-  // ... your handler logic
-}, { requireVerifiedEmail: false });
+export default withAuth(
+  async (req: AuthenticatedRequest, res) => {
+    // ... your handler logic
+  },
+  { requireVerifiedEmail: false },
+);
 ```
 
 ### Role-Based Shortcuts
+
 ```typescript
 import { withUser, withAdmin, withAccountant } from '@/lib/auth/middleware';
 
@@ -197,6 +216,7 @@ export default withAccountant(async (req, res) => {
 ```
 
 ### CSRF Protection
+
 ```typescript
 import { csrfProtection } from '@/lib/auth/csrf-protection';
 
@@ -239,15 +259,15 @@ The authentication system adds the following fields to the User model:
 ```prisma
 model User {
   // ... existing fields ...
-  
+
   // Email verification
   emailVerificationToken String?   @unique
   emailVerificationExpires DateTime?
-  
+
   // Password reset
   passwordResetToken String?       @unique
   passwordResetExpires DateTime?
-  
+
   // Security fields (existing)
   failedLoginAttempts Int         @default(0)
   lockedUntil     DateTime?
@@ -264,13 +284,15 @@ All endpoints return consistent error responses:
 {
   "error": "Error type",
   "message": "Human-readable error message",
-  "errors": { // Optional validation errors
+  "errors": {
+    // Optional validation errors
     "field": ["Error message 1", "Error message 2"]
   }
 }
 ```
 
 Common HTTP status codes:
+
 - `400` - Bad Request (validation errors)
 - `401` - Unauthorized (not authenticated)
 - `403` - Forbidden (authenticated but not authorized)
@@ -304,6 +326,7 @@ curl -X POST http://localhost:3000/api/auth/login \
 ## Migration Notes
 
 1. Run Prisma migrations to add new fields:
+
    ```bash
    npx prisma generate
    npx prisma db push

@@ -1,0 +1,65 @@
+# EditorConfig is awesome: https://EditorConfig.org
+
+# top-most EditorConfig file
+root = true
+
+# Unix-style newlines with a newline ending every file
+[*]
+indent_style = space
+indent_size = 2
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+max_line_length = 100
+
+# TypeScript and JavaScript files
+[*.{ts,tsx,js,jsx}]
+quote_type = single
+
+# JSON files
+[*.json]
+indent_size = 2
+max_line_length = 200
+
+# YAML files
+[*.{yml,yaml}]
+indent_size = 2
+
+# Markdown files
+[*.md]
+trim_trailing_whitespace = false
+max_line_length = 80
+
+# Package files
+[package.json]
+indent_size = 2
+
+# Configuration files
+[.*rc]
+indent_size = 2
+
+# Makefiles
+[Makefile]
+indent_style = tab
+
+# Python files (for backend scripts)
+[*.py]
+indent_size = 4
+max_line_length = 88
+
+# Shell scripts
+[*.sh]
+indent_size = 2
+
+# Prisma schema
+[*.prisma]
+indent_size = 2
+
+# Git files
+[.gitignore]
+indent_size = 2
+
+# Environment files
+[.env*]
+indent_size = 2

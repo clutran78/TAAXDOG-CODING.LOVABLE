@@ -1,10 +1,14 @@
 // BASIQ API Configuration
 export const BASIQ_CONFIG = {
-  API_KEY: process.env.BASIQ_API_KEY || 'MThmYjA5ZWEtNzRhMi00Nzc5LTk0ZjAtYmRkOTExZDgwMGI4OjhjZjUzZWUzLTYxYm',
+  API_KEY:
+    process.env.BASIQ_API_KEY ||
+    'MThmYjA5ZWEtNzRhMi00Nzc5LTk0ZjAtYmRkOTExZDgwMGI4OjhjZjUzZWUzLTYxYm',
   BASE_URL: 'https://au-api.basiq.io',
   AUTH_URL: 'https://au-api.basiq.io/token',
-  WEBHOOK_URL: process.env.NEXTAUTH_URL ? `${process.env.NEXTAUTH_URL}/api/basiq/webhook` : 'https://taxreturnpro.com.au/api/basiq/webhook',
-  
+  WEBHOOK_URL: process.env.NEXTAUTH_URL
+    ? `${process.env.NEXTAUTH_URL}/api/basiq/webhook`
+    : 'https://taxreturnpro.com.au/api/basiq/webhook',
+
   // API Endpoints
   ENDPOINTS: {
     TOKEN: '/token',
@@ -44,31 +48,31 @@ export const BASIQ_CONFIG = {
 
   // Transaction categories mapped to ATO tax categories
   TAX_CATEGORY_MAPPING: {
-    'groceries': 'personal',
-    'restaurants': 'meals_entertainment',
-    'fuel': 'vehicle_expenses',
-    'transport': 'travel_expenses',
-    'utilities': 'utilities',
-    'insurance': 'insurance',
-    'medical': 'medical_expenses',
-    'education': 'education_training',
-    'entertainment': 'personal',
-    'shopping': 'personal',
-    'fees': 'bank_fees',
-    'interest': 'interest_charges',
-    'transfers': 'transfers',
-    'deposits': 'income',
-    'withdrawals': 'cash_withdrawals',
-    'rent': 'rent',
-    'mortgage': 'mortgage',
-    'telecommunications': 'phone_internet',
-    'subscriptions': 'subscriptions',
+    groceries: 'personal',
+    restaurants: 'meals_entertainment',
+    fuel: 'vehicle_expenses',
+    transport: 'travel_expenses',
+    utilities: 'utilities',
+    insurance: 'insurance',
+    medical: 'medical_expenses',
+    education: 'education_training',
+    entertainment: 'personal',
+    shopping: 'personal',
+    fees: 'bank_fees',
+    interest: 'interest_charges',
+    transfers: 'transfers',
+    deposits: 'income',
+    withdrawals: 'cash_withdrawals',
+    rent: 'rent',
+    mortgage: 'mortgage',
+    telecommunications: 'phone_internet',
+    subscriptions: 'subscriptions',
     'professional-services': 'professional_fees',
     'office-supplies': 'office_expenses',
-    'equipment': 'equipment',
-    'software': 'software',
-    'advertising': 'advertising',
-    'repairs': 'repairs_maintenance',
+    equipment: 'equipment',
+    software: 'software',
+    advertising: 'advertising',
+    repairs: 'repairs_maintenance',
   },
 
   // Webhook event types

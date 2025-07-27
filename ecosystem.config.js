@@ -5,13 +5,13 @@ module.exports = {
       script: 'npm',
       args: 'start',
       env: {
-        NODE_ENV: 'production'
+        NODE_ENV: 'production',
       },
       error_file: './logs/pm2-error.log',
       out_file: './logs/pm2-out.log',
       log_file: './logs/pm2-combined.log',
-      time: true
-    }
+      time: true,
+    },
   ],
 
   // Cron-like scheduled tasks
@@ -25,7 +25,7 @@ module.exports = {
       error_file: './logs/aml-monitoring.log',
       out_file: './logs/aml-monitoring.log',
       log_file: './logs/aml-monitoring.log',
-      time: true
+      time: true,
     },
     {
       name: 'compliance-privacy',
@@ -36,7 +36,7 @@ module.exports = {
       error_file: './logs/privacy-monitoring.log',
       out_file: './logs/privacy-monitoring.log',
       log_file: './logs/privacy-monitoring.log',
-      time: true
+      time: true,
     },
     {
       name: 'compliance-apra',
@@ -47,7 +47,7 @@ module.exports = {
       error_file: './logs/apra-monitoring.log',
       out_file: './logs/apra-monitoring.log',
       log_file: './logs/apra-monitoring.log',
-      time: true
+      time: true,
     },
     {
       name: 'compliance-all',
@@ -58,7 +58,7 @@ module.exports = {
       error_file: './logs/compliance-all.log',
       out_file: './logs/compliance-all.log',
       log_file: './logs/compliance-all.log',
-      time: true
+      time: true,
     },
     {
       name: 'compliance-monthly-report',
@@ -69,7 +69,7 @@ module.exports = {
       error_file: './logs/monthly-report.log',
       out_file: './logs/monthly-report.log',
       log_file: './logs/monthly-report.log',
-      time: true
+      time: true,
     },
     {
       name: 'compliance-check-alerts',
@@ -80,7 +80,7 @@ module.exports = {
       error_file: './logs/compliance-alerts.log',
       out_file: './logs/compliance-alerts.log',
       log_file: './logs/compliance-alerts.log',
-      time: true
+      time: true,
     },
     {
       name: 'compliance-backup-reports',
@@ -91,7 +91,7 @@ module.exports = {
       error_file: './logs/backup-reports.log',
       out_file: './logs/backup-reports.log',
       log_file: './logs/backup-reports.log',
-      time: true
-    }
-  ]
+      time: true,
+    },
+  ],
 };

@@ -1,15 +1,19 @@
 # DigitalOcean Environment Variables to Add
 
-The following environment variables need to be added to your DigitalOcean App Platform configuration:
+The following environment variables need to be added to your DigitalOcean App
+Platform configuration:
 
 ## Email Configuration (Required for password reset functionality)
+
 - `EMAIL_FROM`: noreply@taxreturnpro.com.au
 - `EMAIL_HOST`: smtp.gmail.com
 - `EMAIL_PORT`: 587
 - `EMAIL_USER`: [Your Gmail address - e.g., noreply@yourdomain.com]
-- `EMAIL_PASSWORD`: [Your Gmail app-specific password - NOT your regular password]
+- `EMAIL_PASSWORD`: [Your Gmail app-specific password - NOT your regular
+  password]
 
 ## Flask Backend Configuration (If using Flask backend)
+
 - `SECRET_KEY`: [Generate a secure secret key for production]
 - `JWT_SECRET_KEY`: [Generate a secure JWT secret for production]
 - `CORS_ORIGINS`: https://taxreturnpro.com.au
@@ -35,8 +39,11 @@ The following environment variables need to be added to your DigitalOcean App Pl
 
 - The app now uses PostgreSQL (database connection already configured)
 - No Firebase configuration needed - the app has been migrated to PostgreSQL
-- Generate strong, unique secrets for production use (use `openssl rand -base64 32`)
-- For production, consider using email services like SendGrid or AWS SES instead of Gmail
+- Generate strong, unique secrets for production use (use
+  `openssl rand -base64 32`)
+- For production, consider using email services like SendGrid or AWS SES instead
+  of Gmail
 - CORS_ORIGINS should only include your production domain for security
 
-After adding these variables, redeploy your application for the changes to take effect.
+After adding these variables, redeploy your application for the changes to take
+effect.

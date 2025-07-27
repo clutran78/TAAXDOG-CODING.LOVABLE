@@ -1,12 +1,15 @@
 # DigitalOcean Database Setup Guide
 
 ## Current Status
+
 - ✅ Connection working with SSL
 - ✅ Database exists: `taaxdog-production`
 - ❌ User `taaxdog-admin` cannot create tables (insufficient permissions)
 
 ## Problem
-The database `taaxdog-production` is owned by `doadmin` (DigitalOcean's admin user), not by `taaxdog-admin`. This prevents the user from creating tables.
+
+The database `taaxdog-production` is owned by `doadmin` (DigitalOcean's admin
+user), not by `taaxdog-admin`. This prevents the user from creating tables.
 
 ## Solutions
 
@@ -120,13 +123,13 @@ async function testDatabase() {
     user: 'taaxdog-admin',
     password: '[STORED IN ENVIRONMENT VARIABLES]',
     database: 'taaxdog-production',
-    ssl: { rejectUnauthorized: false }
+    ssl: { rejectUnauthorized: false },
   });
 
   try {
     await client.connect();
     console.log('✅ Connected');
-    
+
     // Test table creation
     await client.query(`
       CREATE TABLE IF NOT EXISTS permission_test (
@@ -134,10 +137,9 @@ async function testDatabase() {
       )
     `);
     console.log('✅ Can create tables!');
-    
+
     await client.query('DROP TABLE IF EXISTS permission_test');
     console.log('✅ Permissions are working!');
-    
   } catch (error) {
     console.error('❌ Still no permissions:', error.message);
   } finally {
@@ -150,4 +152,6 @@ testDatabase();
 
 ## Action Required
 
-Please follow Option 1 above to grant permissions through the DigitalOcean control panel. This is the simplest and most secure approach for managed databases.
+Please follow Option 1 above to grant permissions through the DigitalOcean
+control panel. This is the simplest and most secure approach for managed
+databases.

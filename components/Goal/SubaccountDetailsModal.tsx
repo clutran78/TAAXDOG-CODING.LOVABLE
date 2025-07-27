@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Subaccount, 
-  SubaccountTransaction, 
+import { logger } from '@/lib/logger';
+import {
+  Subaccount,
+  SubaccountTransaction,
   SubaccountAnalytics,
   GrowthProjection,
-  SubaccountTransferRequest 
+  SubaccountTransferRequest,
 } from '@/lib/types/subaccount';
-import subaccountService from '@/services/subaccount-service';
+import subaccountService from '@/lib/services/goals/subaccount-service';
 import { useDarkMode } from '@/providers/dark-mode-provider';
 
 interface SubaccountDetailsModalProps {
@@ -26,7 +27,7 @@ const SubaccountDetailsModal: React.FC<SubaccountDetailsModalProps> = ({
   isOpen,
   onClose,
   subaccountId,
-  goalName
+  goalName,
 }) => {
   const { darkMode } = useDarkMode();
 
@@ -53,7 +54,7 @@ const SubaccountDetailsModal: React.FC<SubaccountDetailsModalProps> = ({
     { id: 'overview', name: 'Overview', icon: 'fas fa-chart-pie' },
     { id: 'transactions', name: 'Transactions', icon: 'fas fa-list' },
     { id: 'analytics', name: 'Analytics', icon: 'fas fa-chart-line' },
-    { id: 'transfer', name: 'Transfer', icon: 'fas fa-exchange-alt' }
+    { id: 'transfer', name: 'Transfer', icon: 'fas fa-exchange-alt' },
   ];
 
   // Load subaccount data when modal opens
@@ -85,7 +86,7 @@ const SubaccountDetailsModal: React.FC<SubaccountDetailsModalProps> = ({
       const response = await subaccountService.getSubaccount(subaccountId);
       if (response.success && response.data) {
         setSubaccount(response.data);
-        
+
         // Load projections
         const projectionResponse = await subaccountService.calculateGrowthProjections(subaccountId);
         if (projectionResponse.success && projectionResponse.data) {
@@ -96,7 +97,7 @@ const SubaccountDetailsModal: React.FC<SubaccountDetailsModalProps> = ({
       }
     } catch (error) {
       setError('Error loading subaccount information');
-      console.error('Failed to load subaccount:', error);
+      logger.error('Failed to load subaccount:', error);
     } finally {
       setLoading(false);
     }
@@ -106,14 +107,14 @@ const SubaccountDetailsModal: React.FC<SubaccountDetailsModalProps> = ({
     try {
       const response = await subaccountService.getSubaccountTransactions(subaccountId, {
         page: transactionPage,
-        limit: transactionsPerPage
+        limit: transactionsPerPage,
       });
 
       if (response.success && response.data) {
         setTransactions(response.data);
       }
     } catch (error) {
-      console.error('Failed to load transactions:', error);
+      logger.error('Failed to load transactions:', error);
     }
   };
 
@@ -124,14 +125,14 @@ const SubaccountDetailsModal: React.FC<SubaccountDetailsModalProps> = ({
 
       const response = await subaccountService.getSubaccountAnalytics(subaccountId, {
         startDate,
-        endDate
+        endDate,
       });
 
       if (response.success && response.data) {
         setAnalytics(response.data);
       }
     } catch (error) {
-      console.error('Failed to load analytics:', error);
+      logger.error('Failed to load analytics:', error);
     }
   };
 
@@ -148,16 +149,16 @@ const SubaccountDetailsModal: React.FC<SubaccountDetailsModalProps> = ({
         subaccountId,
         amount: parseFloat(transferAmount),
         type: transferType,
-        description: transferDescription || `Manual ${transferType}`
+        description: transferDescription || `Manual ${transferType}`,
       };
 
       const response = await subaccountService.processTransfer(transferRequest);
-      
+
       if (response.success) {
         alert(`${transferType === 'deposit' ? 'Deposit' : 'Withdrawal'} successful!`);
         setTransferAmount('');
         setTransferDescription('');
-        
+
         // Reload subaccount data
         await loadSubaccountData();
         if (activeTab === 'transactions') {
@@ -168,7 +169,7 @@ const SubaccountDetailsModal: React.FC<SubaccountDetailsModalProps> = ({
       }
     } catch (error) {
       alert('Transfer failed. Please try again.');
-      console.error('Transfer error:', error);
+      logger.error('Transfer error:', error);
     } finally {
       setProcessingTransfer(false);
     }
@@ -184,19 +185,29 @@ const SubaccountDetailsModal: React.FC<SubaccountDetailsModalProps> = ({
 
   const getTransactionTypeIcon = (type: string): string => {
     switch (type) {
-      case 'deposit': return 'fas fa-arrow-down text-success';
-      case 'withdrawal': return 'fas fa-arrow-up text-danger';
-      case 'interest': return 'fas fa-percentage text-info';
-      case 'transfer_in': return 'fas fa-arrow-right text-success';
-      case 'transfer_out': return 'fas fa-arrow-left text-warning';
-      default: return 'fas fa-exchange-alt text-muted';
+      case 'deposit':
+        return 'fas fa-arrow-down text-success';
+      case 'withdrawal':
+        return 'fas fa-arrow-up text-danger';
+      case 'interest':
+        return 'fas fa-percentage text-info';
+      case 'transfer_in':
+        return 'fas fa-arrow-right text-success';
+      case 'transfer_out':
+        return 'fas fa-arrow-left text-warning';
+      default:
+        return 'fas fa-exchange-alt text-muted';
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+    <div
+      className="modal show d-block"
+      tabIndex={-1}
+      style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+    >
       <div className="modal-dialog modal-xl">
         <div className={`modal-content ${darkMode ? 'bg-dark text-light' : ''}`}>
           <div className="modal-header">
@@ -227,8 +238,11 @@ const SubaccountDetailsModal: React.FC<SubaccountDetailsModalProps> = ({
               <>
                 {/* Tab Navigation */}
                 <ul className="nav nav-tabs mb-4">
-                  {tabs.map(tab => (
-                    <li key={tab.id} className="nav-item">
+                  {tabs.map((tab) => (
+                    <li
+                      key={tab.id}
+                      className="nav-item"
+                    >
                       <button
                         className={`nav-link ${activeTab === tab.id ? 'active' : ''}`}
                         onClick={() => setActiveTab(tab.id)}
@@ -270,7 +284,7 @@ const SubaccountDetailsModal: React.FC<SubaccountDetailsModalProps> = ({
                               </div>
                             </div>
                           </div>
-                          
+
                           {subaccount.balance.pending > 0 && (
                             <div className="mt-3 text-center">
                               <div className="h6 text-warning mb-0">
@@ -315,28 +329,41 @@ const SubaccountDetailsModal: React.FC<SubaccountDetailsModalProps> = ({
                         </div>
                         <div className="card-body">
                           {projections.map((projection, index) => (
-                            <div key={index} className="mb-3">
+                            <div
+                              key={index}
+                              className="mb-3"
+                            >
                               <div className="d-flex justify-content-between align-items-center">
                                 <span className="fw-bold">
-                                  {projection.timeframe === 'month' ? 'Next Month' : 
-                                   projection.timeframe === 'quarter' ? 'Next Quarter' : 'Next Year'}
+                                  {projection.timeframe === 'month'
+                                    ? 'Next Month'
+                                    : projection.timeframe === 'quarter'
+                                      ? 'Next Quarter'
+                                      : 'Next Year'}
                                 </span>
                                 <span className="text-success">
                                   {formatCurrency(projection.projectedAmount)}
                                 </span>
                               </div>
-                              <div className="progress mt-1" style={{ height: '4px' }}>
+                              <div
+                                className="progress mt-1"
+                                style={{ height: '4px' }}
+                              >
                                 <div
                                   className="progress-bar bg-success"
-                                  style={{ width: `${Math.min((projection.transferComponent / projection.projectedAmount) * 100, 100)}%` }}
+                                  style={{
+                                    width: `${Math.min((projection.transferComponent / projection.projectedAmount) * 100, 100)}%`,
+                                  }}
                                 ></div>
                                 <div
                                   className="progress-bar bg-info"
-                                  style={{ width: `${Math.min((projection.interestComponent / projection.projectedAmount) * 100, 100)}%` }}
+                                  style={{
+                                    width: `${Math.min((projection.interestComponent / projection.projectedAmount) * 100, 100)}%`,
+                                  }}
                                 ></div>
                               </div>
                               <small className="text-muted">
-                                Transfers: {formatCurrency(projection.transferComponent)} | 
+                                Transfers: {formatCurrency(projection.transferComponent)} |
                                 Interest: {formatCurrency(projection.interestComponent)}
                               </small>
                             </div>
@@ -385,8 +412,15 @@ const SubaccountDetailsModal: React.FC<SubaccountDetailsModalProps> = ({
                                   <span className="ms-2">{transaction.type.replace('_', ' ')}</span>
                                 </td>
                                 <td>{transaction.description}</td>
-                                <td className={transaction.type === 'withdrawal' ? 'text-danger' : 'text-success'}>
-                                  {transaction.type === 'withdrawal' ? '-' : '+'}{formatCurrency(Math.abs(transaction.amount))}
+                                <td
+                                  className={
+                                    transaction.type === 'withdrawal'
+                                      ? 'text-danger'
+                                      : 'text-success'
+                                  }
+                                >
+                                  {transaction.type === 'withdrawal' ? '-' : '+'}
+                                  {formatCurrency(Math.abs(transaction.amount))}
                                 </td>
                                 <td>
                                   <span className="badge bg-secondary">
@@ -449,7 +483,9 @@ const SubaccountDetailsModal: React.FC<SubaccountDetailsModalProps> = ({
                           <div className="mb-3">
                             <div className="d-flex justify-content-between">
                               <span>Average Balance:</span>
-                              <span className="fw-bold">{formatCurrency(analytics.averageBalance)}</span>
+                              <span className="fw-bold">
+                                {formatCurrency(analytics.averageBalance)}
+                              </span>
                             </div>
                           </div>
                           <div className="mb-3">
@@ -462,7 +498,7 @@ const SubaccountDetailsModal: React.FC<SubaccountDetailsModalProps> = ({
                             <div className="d-flex justify-content-between">
                               <span>Period:</span>
                               <span className="fw-bold">
-                                {new Date(analytics.period.startDate).toLocaleDateString()} - 
+                                {new Date(analytics.period.startDate).toLocaleDateString()} -
                                 {new Date(analytics.period.endDate).toLocaleDateString()}
                               </span>
                             </div>
@@ -486,7 +522,10 @@ const SubaccountDetailsModal: React.FC<SubaccountDetailsModalProps> = ({
                         <div className="card-body">
                           <div className="mb-3">
                             <label className="form-label">Transfer Type</label>
-                            <div className="btn-group w-100" role="group">
+                            <div
+                              className="btn-group w-100"
+                              role="group"
+                            >
                               <input
                                 type="radio"
                                 className="btn-check"
@@ -495,7 +534,10 @@ const SubaccountDetailsModal: React.FC<SubaccountDetailsModalProps> = ({
                                 checked={transferType === 'deposit'}
                                 onChange={() => setTransferType('deposit')}
                               />
-                              <label className="btn btn-outline-success" htmlFor="deposit">
+                              <label
+                                className="btn btn-outline-success"
+                                htmlFor="deposit"
+                              >
                                 <i className="fas fa-arrow-down me-1"></i>Deposit
                               </label>
 
@@ -507,7 +549,10 @@ const SubaccountDetailsModal: React.FC<SubaccountDetailsModalProps> = ({
                                 checked={transferType === 'withdrawal'}
                                 onChange={() => setTransferType('withdrawal')}
                               />
-                              <label className="btn btn-outline-danger" htmlFor="withdrawal">
+                              <label
+                                className="btn btn-outline-danger"
+                                htmlFor="withdrawal"
+                              >
                                 <i className="fas fa-arrow-up me-1"></i>Withdrawal
                               </label>
                             </div>
@@ -543,10 +588,9 @@ const SubaccountDetailsModal: React.FC<SubaccountDetailsModalProps> = ({
                           <div className="mb-3">
                             <div className="alert alert-info">
                               <i className="fas fa-info-circle me-2"></i>
-                              {transferType === 'deposit' 
+                              {transferType === 'deposit'
                                 ? 'Funds will be added to your subaccount balance.'
-                                : 'Funds will be deducted from your subaccount balance.'
-                              }
+                                : 'Funds will be deducted from your subaccount balance.'}
                             </div>
                           </div>
 
@@ -562,8 +606,13 @@ const SubaccountDetailsModal: React.FC<SubaccountDetailsModalProps> = ({
                               </>
                             ) : (
                               <>
-                                <i className={`fas fa-${transferType === 'deposit' ? 'arrow-down' : 'arrow-up'} me-2`}></i>
-                                {transferType === 'deposit' ? 'Deposit' : 'Withdraw'} {transferAmount ? formatCurrency(parseFloat(transferAmount)) : 'Funds'}
+                                <i
+                                  className={`fas fa-${transferType === 'deposit' ? 'arrow-down' : 'arrow-up'} me-2`}
+                                ></i>
+                                {transferType === 'deposit' ? 'Deposit' : 'Withdraw'}{' '}
+                                {transferAmount
+                                  ? formatCurrency(parseFloat(transferAmount))
+                                  : 'Funds'}
                               </>
                             )}
                           </button>
@@ -591,4 +640,4 @@ const SubaccountDetailsModal: React.FC<SubaccountDetailsModalProps> = ({
   );
 };
 
-export default SubaccountDetailsModal; 
+export default SubaccountDetailsModal;

@@ -1,20 +1,152 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { BudgetOverview } from './BudgetOverview';
 import { InsightsPanel } from './InsightsPanel';
 import { CreateBudgetModal } from './CreateBudgetModal';
+import { Button } from '@/components/ui/Button';
+import { SkeletonBudgetItem, SkeletonCard, Skeleton } from '@/components/ui/SkeletonLoaders';
+import { logger } from '@/lib/logger';
 
-export const BudgetDashboard: React.FC = () => {
-  const [budgets, setBudgets] = useState<any[]>([]);
-  const [insights, setInsights] = useState<any[]>([]);
+// ============================================================================
+// TYPES & INTERFACES
+// ============================================================================
+
+interface Budget {
+  id: string;
+  name: string;
+  monthlyBudget: number;
+  status: 'ACTIVE' | 'INACTIVE' | 'DRAFT';
+  tracking?: BudgetTracking[];
+}
+
+interface BudgetTracking {
+  category: string;
+  spent: number;
+  limit: number;
+}
+
+interface Insight {
+  id: string;
+  type: 'spending_pattern' | 'tax_optimization' | 'cash_flow';
+  title: string;
+  description: string;
+  recommendations?: string[];
+}
+
+interface BudgetFormData {
+  name: string;
+  monthlyBudget: number;
+  categories: {
+    name: string;
+    limit: number;
+  }[];
+}
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+const INSIGHT_TYPES = ['spending_pattern', 'tax_optimization', 'cash_flow'] as const;
+
+// ============================================================================
+// MEMOIZED SUB-COMPONENTS
+// ============================================================================
+
+const LoadingSkeleton = memo(() => (
+  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    {/* Header skeleton */}
+    <div className="mb-8 flex justify-between items-center">
+      <div>
+        <Skeleton
+          height={36}
+          width={250}
+          rounded
+          className="mb-2"
+        />
+        <Skeleton
+          height={20}
+          width={350}
+          rounded
+        />
+      </div>
+      <div className="flex gap-4">
+        <Skeleton
+          height={40}
+          width={120}
+          rounded
+        />
+        <Skeleton
+          height={40}
+          width={140}
+          rounded
+        />
+      </div>
+    </div>
+
+    {/* Main content skeleton */}
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* Budget Overview skeleton */}
+      <div className="lg:col-span-2 space-y-4">
+        <SkeletonCard className="h-64" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <SkeletonBudgetItem />
+          <SkeletonBudgetItem />
+          <SkeletonBudgetItem />
+          <SkeletonBudgetItem />
+        </div>
+      </div>
+
+      {/* Insights Panel skeleton */}
+      <div className="lg:col-span-1">
+        <SkeletonCard className="h-96" />
+      </div>
+    </div>
+  </div>
+));
+
+LoadingSkeleton.displayName = 'LoadingSkeleton';
+
+const BudgetItem = memo<{
+  budget: Budget;
+  isSelected: boolean;
+  onClick: (budget: Budget) => void;
+}>(({ budget, isSelected, onClick }) => (
+  <div
+    className={`bg-white rounded-lg shadow p-4 cursor-pointer border-2 ${
+      isSelected ? 'border-blue-500' : 'border-transparent'
+    }`}
+    onClick={() => onClick(budget)}
+  >
+    <h3 className="font-medium">{budget.name}</h3>
+    <p className="text-sm text-gray-500">${budget.monthlyBudget}/month</p>
+    <p className="text-sm text-gray-500">Status: {budget.status}</p>
+  </div>
+));
+
+BudgetItem.displayName = 'BudgetItem';
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
+const BudgetDashboard: React.FC = () => {
+  // ========================================
+  // STATE
+  // ========================================
+
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [insights, setInsights] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedBudget, setSelectedBudget] = useState<any>(null);
+  const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
+  const [generatingInsights, setGeneratingInsights] = useState(false);
+  const [creatingBudget, setCreatingBudget] = useState(false);
+  const [lastFetched, setLastFetched] = useState<Date | null>(null);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // ========================================
+  // CALLBACKS
+  // ========================================
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [budgetsRes, insightsRes] = await Promise.all([
         fetch('/api/budgets?includeTracking=true'),
@@ -26,43 +158,51 @@ export const BudgetDashboard: React.FC = () => {
 
       setBudgets(budgetsData.budgets);
       setInsights(insightsData.insights);
-      
+      setLastFetched(new Date());
+
       // Select active budget by default
-      const activeBudget = budgetsData.budgets.find((b: any) => b.status === 'ACTIVE');
+      const activeBudget = budgetsData.budgets.find((b: Budget) => b.status === 'ACTIVE');
       if (activeBudget) {
         setSelectedBudget(activeBudget);
       }
     } catch (error) {
-      console.error('Failed to fetch data:', error);
+      logger.error('Failed to fetch data:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleCreateBudget = async (budgetData: any) => {
-    try {
-      const response = await fetch('/api/budgets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(budgetData),
-      });
+  const handleCreateBudget = useCallback(
+    async (budgetData: BudgetFormData) => {
+      try {
+        setCreatingBudget(true);
+        const response = await fetch('/api/budgets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(budgetData),
+        });
 
-      if (response.ok) {
-        setShowCreateModal(false);
-        fetchData();
+        if (response.ok) {
+          setShowCreateModal(false);
+          fetchData();
+        }
+      } catch (error) {
+        logger.error('Failed to create budget:', error);
+      } finally {
+        setCreatingBudget(false);
       }
-    } catch (error) {
-      console.error('Failed to create budget:', error);
-    }
-  };
+    },
+    [fetchData],
+  );
 
-  const handleGenerateInsights = async () => {
+  const handleGenerateInsights = useCallback(async () => {
     try {
+      setGeneratingInsights(true);
       const response = await fetch('/api/insights', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          insightTypes: ['spending_pattern', 'tax_optimization', 'cash_flow'],
+          insightTypes: INSIGHT_TYPES,
         }),
       });
 
@@ -70,16 +210,62 @@ export const BudgetDashboard: React.FC = () => {
         fetchData();
       }
     } catch (error) {
-      console.error('Failed to generate insights:', error);
+      logger.error('Failed to generate insights:', error);
+    } finally {
+      setGeneratingInsights(false);
     }
-  };
+  }, [fetchData]);
+
+  const handleDismissInsight = useCallback((id: string) => {
+    setInsights((prev) => prev.filter((i) => i.id !== id));
+  }, []);
+
+  const handleSelectBudget = useCallback((budget: Budget) => {
+    setSelectedBudget(budget);
+  }, []);
+
+  const handleCloseCreateModal = useCallback(() => {
+    setShowCreateModal(false);
+  }, []);
+
+  const handleOpenCreateModal = useCallback(() => {
+    setShowCreateModal(true);
+  }, []);
+
+  // ========================================
+  // MEMOIZED VALUES
+  // ========================================
+
+  const hasMultipleBudgets = useMemo(() => budgets.length > 1, [budgets.length]);
+
+  // ========================================
+  // EFFECTS
+  // ========================================
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Auto-refresh every 5 minutes
+  useEffect(() => {
+    if (!loading && lastFetched) {
+      const interval = setInterval(
+        () => {
+          fetchData();
+        },
+        5 * 60 * 1000,
+      );
+
+      return () => clearInterval(interval);
+    }
+  }, [loading, lastFetched, fetchData]);
+
+  // ========================================
+  // RENDER
+  // ========================================
 
   if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <LoadingSkeleton />;
   }
 
   return (
@@ -90,18 +276,20 @@ export const BudgetDashboard: React.FC = () => {
           <p className="mt-2 text-gray-600">AI-powered financial planning and analysis</p>
         </div>
         <div className="flex gap-4">
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+          <Button
+            onClick={handleOpenCreateModal}
+            variant="primary"
           >
             Create Budget
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleGenerateInsights}
-            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
+            loading={generatingInsights}
+            disabled={generatingInsights}
+            variant="success"
           >
             Generate Insights
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -116,12 +304,12 @@ export const BudgetDashboard: React.FC = () => {
           ) : (
             <div className="bg-white rounded-lg shadow p-6 text-center">
               <p className="text-gray-500 mb-4">No active budget found</p>
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+              <Button
+                onClick={handleOpenCreateModal}
+                variant="primary"
               >
                 Create Your First Budget
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -130,34 +318,23 @@ export const BudgetDashboard: React.FC = () => {
         <div className="lg:col-span-1">
           <InsightsPanel
             insights={insights}
-            onDismiss={(id) => {
-              setInsights(insights.filter(i => i.id !== id));
-            }}
+            onDismiss={handleDismissInsight}
           />
         </div>
       </div>
 
       {/* Budget List */}
-      {budgets.length > 1 && (
+      {hasMultipleBudgets && (
         <div className="mt-8">
           <h2 className="text-xl font-semibold mb-4">All Budgets</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {budgets.map((budget) => (
-              <div
+              <BudgetItem
                 key={budget.id}
-                className={`bg-white rounded-lg shadow p-4 cursor-pointer border-2 ${
-                  selectedBudget?.id === budget.id ? 'border-blue-500' : 'border-transparent'
-                }`}
-                onClick={() => setSelectedBudget(budget)}
-              >
-                <h3 className="font-medium">{budget.name}</h3>
-                <p className="text-sm text-gray-500">
-                  ${budget.monthlyBudget}/month
-                </p>
-                <p className="text-sm text-gray-500">
-                  Status: {budget.status}
-                </p>
-              </div>
+                budget={budget}
+                isSelected={selectedBudget?.id === budget.id}
+                onClick={handleSelectBudget}
+              />
             ))}
           </div>
         </div>
@@ -166,10 +343,17 @@ export const BudgetDashboard: React.FC = () => {
       {/* Create Budget Modal */}
       {showCreateModal && (
         <CreateBudgetModal
-          onClose={() => setShowCreateModal(false)}
+          onClose={handleCloseCreateModal}
           onCreate={handleCreateBudget}
         />
       )}
     </div>
   );
 };
+
+BudgetDashboard.displayName = 'BudgetDashboard';
+
+const MemoizedBudgetDashboard = memo(BudgetDashboard);
+
+export { MemoizedBudgetDashboard as BudgetDashboard };
+export default MemoizedBudgetDashboard;

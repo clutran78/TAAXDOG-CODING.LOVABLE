@@ -2,11 +2,14 @@
 
 ## Overview
 
-This comprehensive system transforms Firebase Firestore data to PostgreSQL format for the Taaxdog-coding project, with full Australian compliance validation and data integrity checks.
+This comprehensive system transforms Firebase Firestore data to PostgreSQL
+format for the Taaxdog-coding project, with full Australian compliance
+validation and data integrity checks.
 
 ## System Components
 
 ### 1. **Data Transformer** (`firebase-to-postgresql-transformer.js`)
+
 - Converts Firebase document IDs to PostgreSQL UUIDs
 - Transforms timestamps to ISO format
 - Validates Australian-specific data formats
@@ -14,6 +17,7 @@ This comprehensive system transforms Firebase Firestore data to PostgreSQL forma
 - Handles nested objects as JSONB fields
 
 ### 2. **Australian Validators**
+
 - **BSB Validation**: 6-digit format with range checking
 - **Phone Numbers**: Australian mobile/landline formats
 - **ABN Validation**: 11-digit with checksum verification
@@ -22,6 +26,7 @@ This comprehensive system transforms Firebase Firestore data to PostgreSQL forma
 - **Currency**: AUD with 2 decimal precision
 
 ### 3. **PostgreSQL Importer** (`postgresql-import.js`)
+
 - Batch import with retry logic
 - Foreign key relationship preservation
 - Sequence management
@@ -29,6 +34,7 @@ This comprehensive system transforms Firebase Firestore data to PostgreSQL forma
 - Detailed import reporting
 
 ### 4. **Pipeline Orchestrator** (`firebase-postgresql-pipeline.js`)
+
 - Automated end-to-end migration
 - Interactive or batch mode
 - Progress tracking
@@ -79,23 +85,23 @@ npm run firebase:import firebase-transformed
 
 ### User Collection
 
-| Firebase Field | PostgreSQL Field | Transformation |
-|----------------|------------------|----------------|
-| Document ID | id (UUID) | Deterministic UUID generation |
-| email | email | Lowercase, validated format |
-| phone | phone | +61 international format |
-| abn | abn | 11-digit validated ABN |
-| tfn | tfn | 8-9 digit validated TFN |
-| timestamps | created_at/updated_at | ISO 8601 format |
+| Firebase Field | PostgreSQL Field      | Transformation                |
+| -------------- | --------------------- | ----------------------------- |
+| Document ID    | id (UUID)             | Deterministic UUID generation |
+| email          | email                 | Lowercase, validated format   |
+| phone          | phone                 | +61 international format      |
+| abn            | abn                   | 11-digit validated ABN        |
+| tfn            | tfn                   | 8-9 digit validated TFN       |
+| timestamps     | created_at/updated_at | ISO 8601 format               |
 
 ### Financial Data
 
-| Field Type | Validation | Format |
-|------------|------------|--------|
-| Amounts | Decimal precision | DECIMAL(15,2) |
-| GST | 10% calculation | Auto-calculated for expenses |
-| Tax Categories | ATO compliance | Mapped to valid categories |
-| BSB | Australian banks | XXX-XXX format |
+| Field Type     | Validation        | Format                       |
+| -------------- | ----------------- | ---------------------------- |
+| Amounts        | Decimal precision | DECIMAL(15,2)                |
+| GST            | 10% calculation   | Auto-calculated for expenses |
+| Tax Categories | ATO compliance    | Mapped to valid categories   |
+| BSB            | Australian banks  | XXX-XXX format               |
 
 ### Relationships
 
@@ -107,12 +113,14 @@ npm run firebase:import firebase-transformed
 ## Australian Compliance Features
 
 ### Tax Compliance
+
 - ATO-compliant tax categories
 - GST calculation and validation
 - Business expense classification
 - Tax year handling (July-June)
 
 ### Data Formats
+
 - Australian phone number formats
 - BSB validation against known ranges
 - ABN checksum verification
@@ -120,6 +128,7 @@ npm run firebase:import firebase-transformed
 - Australian institution verification
 
 ### Financial Validation
+
 - Currency amounts in AUD
 - GST at 10% rate
 - Decimal precision for financial data
@@ -146,18 +155,21 @@ firebase-transformed/
 ## Error Handling
 
 ### Validation Errors
+
 - Field-level validation with detailed messages
 - Warning vs error severity levels
 - Australian compliance checks
 - Data type validations
 
 ### Transformation Errors
+
 - Document-level error tracking
 - Partial success handling
 - Detailed error reporting
 - Recovery procedures
 
 ### Import Errors
+
 - Batch failure recovery
 - Individual record retry
 - Transaction rollback
@@ -166,6 +178,7 @@ firebase-transformed/
 ## Monitoring Progress
 
 The system provides real-time progress updates:
+
 - Export progress by collection
 - Validation summary
 - Transformation statistics
@@ -174,12 +187,14 @@ The system provides real-time progress updates:
 ## Data Integrity
 
 ### Pre-Import Checks
+
 - Email uniqueness validation
 - Foreign key relationship verification
 - Required field validation
 - Data type constraint checks
 
 ### Post-Import Verification
+
 - Record count validation
 - Relationship integrity checks
 - Sequence synchronization
@@ -228,6 +243,7 @@ NODE_ENV=debug npm run firebase:pipeline
 ## Support
 
 For issues or questions:
+
 1. Check transformation reports
 2. Review validation summaries
 3. Examine error logs

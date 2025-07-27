@@ -13,7 +13,7 @@ export interface StripeConfig {
 // Create Stripe instance with proper configuration
 export function createStripeClient(): StripeConfig {
   const config = getStripeConfig();
-  
+
   // Initialize Stripe with the secret key
   const stripe = new Stripe(config.secretKey, {
     apiVersion: '2024-12-18.acacia',
@@ -22,10 +22,10 @@ export function createStripeClient(): StripeConfig {
     timeout: 10000, // 10 seconds
     telemetry: false, // Disable telemetry for privacy
   });
-  
+
   // Determine if using live mode
   const isLiveMode = config.publishableKey.startsWith('pk_live_');
-  
+
   return {
     stripe,
     publishableKey: config.publishableKey,
@@ -65,15 +65,11 @@ export const SUBSCRIPTION_PLANS = {
       promotional: {
         amount: 499, // $4.99 AUD including GST
         months: 2,
-        stripePriceId: isProduction() 
-          ? 'price_live_smart_promo' 
-          : 'price_test_smart_promo',
+        stripePriceId: isProduction() ? 'price_live_smart_promo' : 'price_test_smart_promo',
       },
       regular: {
         amount: 999, // $9.99 AUD including GST
-        stripePriceId: isProduction()
-          ? 'price_live_smart_regular'
-          : 'price_test_smart_regular',
+        stripePriceId: isProduction() ? 'price_live_smart_regular' : 'price_test_smart_regular',
       },
     },
     features: [
@@ -96,15 +92,11 @@ export const SUBSCRIPTION_PLANS = {
       promotional: {
         amount: 1099, // $10.99 AUD including GST
         months: 2,
-        stripePriceId: isProduction()
-          ? 'price_live_pro_promo'
-          : 'price_test_pro_promo',
+        stripePriceId: isProduction() ? 'price_live_pro_promo' : 'price_test_pro_promo',
       },
       regular: {
         amount: 1899, // $18.99 AUD including GST
-        stripePriceId: isProduction()
-          ? 'price_live_pro_regular'
-          : 'price_test_pro_regular',
+        stripePriceId: isProduction() ? 'price_live_pro_regular' : 'price_test_pro_regular',
       },
     },
     features: [
@@ -122,10 +114,10 @@ export const SUBSCRIPTION_PLANS = {
 
 // Australian GST configuration
 export const GST_CONFIG = {
-  rate: 0.10, // 10% GST
-  isIncluded: true, // Prices include GST
-  businessName: 'TaxReturnPro',
-  abn: '', // Add your ABN here
+  RATE: 0.1, // 10% GST
+  IS_INCLUDED: true, // Prices include GST
+  BUSINESS_NAME: 'TaxReturnPro',
+  ABN: '', // Add your ABN here
 };
 
 // Calculate GST from a total amount (when GST is included)
@@ -133,9 +125,9 @@ export function calculateGSTFromTotal(totalAmount: number): {
   gstAmount: number;
   amountExGST: number;
 } {
-  const gstAmount = Math.round(totalAmount * (GST_CONFIG.rate / (1 + GST_CONFIG.rate)));
+  const gstAmount = Math.round(totalAmount * (GST_CONFIG.RATE / (1 + GST_CONFIG.RATE)));
   const amountExGST = totalAmount - gstAmount;
-  
+
   return {
     gstAmount,
     amountExGST,
@@ -156,23 +148,23 @@ export const WEBHOOK_EVENTS = {
   CUSTOMER_CREATED: 'customer.created',
   CUSTOMER_UPDATED: 'customer.updated',
   CUSTOMER_DELETED: 'customer.deleted',
-  
+
   // Subscription events
   SUBSCRIPTION_CREATED: 'customer.subscription.created',
   SUBSCRIPTION_UPDATED: 'customer.subscription.updated',
   SUBSCRIPTION_DELETED: 'customer.subscription.deleted',
   SUBSCRIPTION_TRIAL_WILL_END: 'customer.subscription.trial_will_end',
-  
+
   // Payment events
   PAYMENT_INTENT_SUCCEEDED: 'payment_intent.succeeded',
   PAYMENT_INTENT_FAILED: 'payment_intent.payment_failed',
-  
+
   // Invoice events
   INVOICE_CREATED: 'invoice.created',
   INVOICE_PAID: 'invoice.paid',
   INVOICE_PAYMENT_FAILED: 'invoice.payment_failed',
   INVOICE_FINALIZED: 'invoice.finalized',
-  
+
   // Checkout events
   CHECKOUT_SESSION_COMPLETED: 'checkout.session.completed',
 } as const;
@@ -195,18 +187,10 @@ export async function validateWebhookSignature(
   signature: string,
 ): Promise<Stripe.Event> {
   const { stripe, webhookSecret } = getStripe();
-  
+
   try {
-    return stripe.webhooks.constructEvent(
-      payload,
-      signature,
-      webhookSecret,
-    );
+    return stripe.webhooks.constructEvent(payload, signature, webhookSecret);
   } catch (error) {
-    throw new StripeError(
-      'Invalid webhook signature',
-      'invalid_signature',
-      400,
-    );
+    throw new StripeError('Invalid webhook signature', 'invalid_signature', 400);
   }
 }

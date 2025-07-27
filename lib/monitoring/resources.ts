@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { logger } from '@/lib/logger';
 
 const execAsync = promisify(exec);
 
@@ -47,11 +48,11 @@ export class ResourceMonitor {
   private metrics: ResourceMetrics[] = [];
   private maxMetricsHistory = 100;
   private monitoringInterval: NodeJS.Timer | null = null;
-  
+
   private thresholds: ResourceThresholds = {
     memory: { warning: 80, critical: 90 },
     cpu: { warning: 80, critical: 95 },
-    disk: { warning: 80, critical: 90 }
+    disk: { warning: 80, critical: 90 },
   };
 
   private constructor() {}
@@ -67,7 +68,7 @@ export class ResourceMonitor {
     const [memory, cpu, disk] = await Promise.all([
       this.getMemoryMetrics(),
       this.getCPUMetrics(),
-      this.getDiskMetrics()
+      this.getDiskMetrics(),
     ]);
 
     const alerts = this.checkThresholds(memory, cpu, disk);
@@ -77,7 +78,7 @@ export class ResourceMonitor {
       memory,
       cpu,
       disk,
-      alerts
+      alerts,
     };
 
     // Store metrics
@@ -87,9 +88,11 @@ export class ResourceMonitor {
     }
 
     // Log critical alerts
-    alerts.filter(a => a.severity === 'critical').forEach(alert => {
-      console.error(`🚨 CRITICAL: ${alert.message}`);
-    });
+    alerts
+      .filter((a) => a.severity === 'critical')
+      .forEach((alert) => {
+        logger.error(`🚨 CRITICAL: ${alert.message}`);
+      });
 
     return metrics;
   }
@@ -104,7 +107,7 @@ export class ResourceMonitor {
       total: totalMemory,
       used: usedMemory,
       free: freeMemory,
-      percentage
+      percentage,
     };
   }
 
@@ -117,7 +120,7 @@ export class ResourceMonitor {
     return {
       cores,
       loadAverage,
-      percentage
+      percentage,
     };
   }
 
@@ -133,15 +136,15 @@ export class ResourceMonitor {
         total: totalSpace,
         used: usedSpace,
         free: availableSpace,
-        percentage
+        percentage,
       };
     } catch (error) {
-      console.error('Error getting disk metrics:', error);
+      logger.error('Error getting disk metrics:', error);
       return {
         total: 0,
         used: 0,
         free: 0,
-        percentage: 0
+        percentage: 0,
       };
     }
   }
@@ -156,7 +159,7 @@ export class ResourceMonitor {
         severity: 'critical',
         message: `Memory usage at ${memory.percentage}% - Immediate action required!`,
         value: memory.percentage,
-        threshold: this.thresholds.memory.critical
+        threshold: this.thresholds.memory.critical,
       });
     } else if (memory.percentage >= this.thresholds.memory.warning) {
       alerts.push({
@@ -164,7 +167,7 @@ export class ResourceMonitor {
         severity: 'warning',
         message: `Memory usage at ${memory.percentage}% - Monitoring required`,
         value: memory.percentage,
-        threshold: this.thresholds.memory.warning
+        threshold: this.thresholds.memory.warning,
       });
     }
 
@@ -175,7 +178,7 @@ export class ResourceMonitor {
         severity: 'critical',
         message: `CPU load at ${cpu.percentage}% - System overloaded!`,
         value: cpu.percentage,
-        threshold: this.thresholds.cpu.critical
+        threshold: this.thresholds.cpu.critical,
       });
     } else if (cpu.percentage >= this.thresholds.cpu.warning) {
       alerts.push({
@@ -183,7 +186,7 @@ export class ResourceMonitor {
         severity: 'warning',
         message: `CPU load at ${cpu.percentage}% - High load detected`,
         value: cpu.percentage,
-        threshold: this.thresholds.cpu.warning
+        threshold: this.thresholds.cpu.warning,
       });
     }
 
@@ -194,7 +197,7 @@ export class ResourceMonitor {
         severity: 'critical',
         message: `Disk usage at ${disk.percentage}% - Storage critically low!`,
         value: disk.percentage,
-        threshold: this.thresholds.disk.critical
+        threshold: this.thresholds.disk.critical,
       });
     } else if (disk.percentage >= this.thresholds.disk.warning) {
       alerts.push({
@@ -202,7 +205,7 @@ export class ResourceMonitor {
         severity: 'warning',
         message: `Disk usage at ${disk.percentage}% - Consider cleanup`,
         value: disk.percentage,
-        threshold: this.thresholds.disk.warning
+        threshold: this.thresholds.disk.warning,
       });
     }
 
@@ -218,7 +221,7 @@ export class ResourceMonitor {
       try {
         await this.collectMetrics();
       } catch (error) {
-        console.error('Error collecting resource metrics:', error);
+        logger.error('Error collecting resource metrics:', error);
       }
     }, intervalMs);
 
@@ -244,19 +247,21 @@ export class ResourceMonitor {
   async detectMemoryLeaks(durationMs: number = 300000): Promise<boolean> {
     // Collect metrics over time to detect memory leaks
     const startMetrics = await this.collectMetrics();
-    
+
     return new Promise((resolve) => {
       setTimeout(async () => {
         const endMetrics = await this.collectMetrics();
-        
+
         // Check if memory usage increased significantly
         const memoryIncrease = endMetrics.memory.percentage - startMetrics.memory.percentage;
         const hasLeak = memoryIncrease > 10; // 10% increase indicates potential leak
-        
+
         if (hasLeak) {
-          console.error(`🚨 Potential memory leak detected! Memory increased by ${memoryIncrease}%`);
+          console.error(
+            `🚨 Potential memory leak detected! Memory increased by ${memoryIncrease}%`,
+          );
         }
-        
+
         resolve(hasLeak);
       }, durationMs);
     });
@@ -265,17 +270,19 @@ export class ResourceMonitor {
   async generateResourceReport(): Promise<string> {
     const metrics = await this.collectMetrics();
     const history = this.getMetricsHistory();
-    
+
     const report = {
       current: metrics,
       summary: {
         averageMemory: this.calculateAverage(history, 'memory'),
         averageCPU: this.calculateAverage(history, 'cpu'),
         averageDisk: this.calculateAverage(history, 'disk'),
-        criticalAlerts: history.flatMap(m => m.alerts).filter(a => a.severity === 'critical').length,
-        warningAlerts: history.flatMap(m => m.alerts).filter(a => a.severity === 'warning').length
+        criticalAlerts: history.flatMap((m) => m.alerts).filter((a) => a.severity === 'critical')
+          .length,
+        warningAlerts: history.flatMap((m) => m.alerts).filter((a) => a.severity === 'warning')
+          .length,
       },
-      recommendations: this.generateRecommendations(metrics)
+      recommendations: this.generateRecommendations(metrics),
     };
 
     return JSON.stringify(report, null, 2);

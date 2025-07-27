@@ -1,8 +1,17 @@
 import React, { useState } from 'react';
+import { TransactionCategory } from '@/lib/types';
+
+interface BudgetFormData {
+  name: string;
+  monthlyBudget: number;
+  targetSavings?: number;
+  monthlyIncome?: number;
+  categoryLimits?: Record<string, number>;
+}
 
 interface CreateBudgetModalProps {
   onClose: () => void;
-  onCreate: (data: any) => void;
+  onCreate: (data: BudgetFormData) => void;
 }
 
 export const CreateBudgetModal: React.FC<CreateBudgetModalProps> = ({ onClose, onCreate }) => {
@@ -27,14 +36,17 @@ export const CreateBudgetModal: React.FC<CreateBudgetModalProps> = ({ onClose, o
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const categoryLimits = Object.entries(formData.categoryLimits).reduce((acc, [key, value]) => {
-      if (value) {
-        acc[key] = parseFloat(value);
-      }
-      return acc;
-    }, {} as Record<string, number>);
-    
+
+    const categoryLimits = Object.entries(formData.categoryLimits).reduce(
+      (acc, [key, value]) => {
+        if (value) {
+          acc[key] = parseFloat(value);
+        }
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+
     onCreate({
       name: formData.name,
       monthlyBudget: parseFloat(formData.monthlyBudget),
@@ -45,7 +57,7 @@ export const CreateBudgetModal: React.FC<CreateBudgetModalProps> = ({ onClose, o
   };
 
   const updateCategoryLimit = (category: string, value: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       categoryLimits: {
         ...prev.categoryLimits,
@@ -68,24 +80,25 @@ export const CreateBudgetModal: React.FC<CreateBudgetModalProps> = ({ onClose, o
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-6"
+          >
             {/* Basic Information */}
             <div>
               <h3 className="text-lg font-medium mb-4">Basic Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Budget Name
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700">Budget Name</label>
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Monthly Budget (AUD)
@@ -94,12 +107,14 @@ export const CreateBudgetModal: React.FC<CreateBudgetModalProps> = ({ onClose, o
                     type="number"
                     step="0.01"
                     value={formData.monthlyBudget}
-                    onChange={(e) => setFormData(prev => ({ ...prev, monthlyBudget: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, monthlyBudget: e.target.value }))
+                    }
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Target Monthly Savings (AUD)
@@ -108,12 +123,14 @@ export const CreateBudgetModal: React.FC<CreateBudgetModalProps> = ({ onClose, o
                     type="number"
                     step="0.01"
                     value={formData.targetSavings}
-                    onChange={(e) => setFormData(prev => ({ ...prev, targetSavings: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, targetSavings: e.target.value }))
+                    }
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     placeholder="Optional"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Monthly Income (AUD)
@@ -122,7 +139,9 @@ export const CreateBudgetModal: React.FC<CreateBudgetModalProps> = ({ onClose, o
                     type="number"
                     step="0.01"
                     value={formData.monthlyIncome}
-                    onChange={(e) => setFormData(prev => ({ ...prev, monthlyIncome: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, monthlyIncome: e.target.value }))
+                    }
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     placeholder="Optional"
                   />
@@ -134,14 +153,13 @@ export const CreateBudgetModal: React.FC<CreateBudgetModalProps> = ({ onClose, o
             <div>
               <h3 className="text-lg font-medium mb-4">Category Limits (Optional)</h3>
               <p className="text-sm text-gray-500 mb-4">
-                Set spending limits for specific categories. AI will use these to generate better predictions.
+                Set spending limits for specific categories. AI will use these to generate better
+                predictions.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {categories.map((category) => (
                   <div key={category}>
-                    <label className="block text-sm font-medium text-gray-700">
-                      {category}
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700">{category}</label>
                     <input
                       type="number"
                       step="0.01"

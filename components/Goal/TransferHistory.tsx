@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDarkMode } from '@/providers/dark-mode-provider';
+import { logger } from '@/lib/logger';
 
 interface TransferRecord {
   id: string;
@@ -9,7 +10,14 @@ interface TransferRecord {
   source_account_id: string;
   target_subaccount_id: string;
   amount: number;
-  status: 'pending' | 'processing' | 'completed' | 'failed' | 'retrying' | 'cancelled' | 'scheduled';
+  status:
+    | 'pending'
+    | 'processing'
+    | 'completed'
+    | 'failed'
+    | 'retrying'
+    | 'cancelled'
+    | 'scheduled';
   scheduled_date: string;
   executed_date?: string;
   external_transaction_id?: string;
@@ -17,7 +25,12 @@ interface TransferRecord {
   retry_count: number;
   detected_income_amount?: number;
   income_source?: string;
-  surplus_calculation?: any;
+  surplus_calculation?: {
+    detected_income: number;
+    essential_expenses: number;
+    available_surplus: number;
+    transfer_percentage: number;
+  };
   created_at: string;
   updated_at: string;
 }
@@ -30,10 +43,13 @@ interface TransferStatistics {
   success_rate: number;
   total_amount_transferred: number;
   average_transfer_amount: number;
-  goal_breakdown: Record<string, {
-    total_amount: number;
-    transfer_count: number;
-  }>;
+  goal_breakdown: Record<
+    string,
+    {
+      total_amount: number;
+      transfer_count: number;
+    }
+  >;
 }
 
 interface TransferHistoryProps {
@@ -43,20 +59,15 @@ interface TransferHistoryProps {
   goalName?: string;
 }
 
-const TransferHistory: React.FC<TransferHistoryProps> = ({
-  isOpen,
-  onClose,
-  goalId,
-  goalName
-}) => {
+const TransferHistory: React.FC<TransferHistoryProps> = ({ isOpen, onClose, goalId, goalName }) => {
   const { darkMode } = useDarkMode();
-  
+
   // State management
   const [transfers, setTransfers] = useState<TransferRecord[]>([]);
   const [statistics, setStatistics] = useState<TransferStatistics | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Filter and pagination state
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('30'); // Last 30 days
@@ -64,10 +75,10 @@ const TransferHistory: React.FC<TransferHistoryProps> = ({
   const [itemsPerPage] = useState<number>(20);
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'status'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  
+
   // Export state
   const [exporting, setExporting] = useState<boolean>(false);
-  
+
   // Load transfer history when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -75,47 +86,49 @@ const TransferHistory: React.FC<TransferHistoryProps> = ({
       loadStatistics();
     }
   }, [isOpen, goalId, dateFilter, statusFilter]);
-  
+
   const loadTransferHistory = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const params = new URLSearchParams({
         limit: '100', // Load more for filtering
       });
-      
+
       if (goalId) {
         params.append('goal_id', goalId);
       }
-      
+
       if (dateFilter !== 'all') {
         const days = parseInt(dateFilter);
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - days);
         params.append('start_date', startDate.toISOString());
       }
-      
+
       const response = await fetch(`/api/automated-transfers/history?${params}`, {
         headers: {
-          'X-User-ID': 'current-user-id' // Replace with actual user ID
-        }
+          'X-User-ID': 'current-user-id', // Replace with actual user ID
+        },
       });
-      
+
       const result = await response.json();
-      
+
       if (result.success) {
         let filteredTransfers = result.data || [];
-        
+
         // Apply status filter
         if (statusFilter !== 'all') {
-          filteredTransfers = filteredTransfers.filter((t: TransferRecord) => t.status === statusFilter);
+          filteredTransfers = filteredTransfers.filter(
+            (t: TransferRecord) => t.status === statusFilter,
+          );
         }
-        
+
         // Apply sorting
         filteredTransfers.sort((a: TransferRecord, b: TransferRecord) => {
           let aValue, bValue;
-          
+
           switch (sortBy) {
             case 'date':
               aValue = new Date(a.scheduled_date).getTime();
@@ -133,101 +146,105 @@ const TransferHistory: React.FC<TransferHistoryProps> = ({
               aValue = new Date(a.scheduled_date).getTime();
               bValue = new Date(b.scheduled_date).getTime();
           }
-          
+
           if (sortOrder === 'asc') {
             return aValue > bValue ? 1 : -1;
           } else {
             return aValue < bValue ? 1 : -1;
           }
         });
-        
+
         setTransfers(filteredTransfers);
       } else {
         setError(result.error || 'Failed to load transfer history');
       }
     } catch (error) {
       setError('Error loading transfer history');
-      console.error('Failed to load transfer history:', error);
+      logger.error('Failed to load transfer history:', error);
     } finally {
       setLoading(false);
     }
   };
-  
+
   const loadStatistics = async () => {
     try {
       const params = new URLSearchParams();
-      
+
       if (dateFilter !== 'all') {
         params.append('period_days', dateFilter);
       }
-      
+
       const response = await fetch(`/api/automated-transfers/statistics?${params}`, {
         headers: {
-          'X-User-ID': 'current-user-id' // Replace with actual user ID
-        }
+          'X-User-ID': 'current-user-id', // Replace with actual user ID
+        },
       });
-      
+
       const result = await response.json();
-      
+
       if (result.success) {
         setStatistics(result.data);
       }
     } catch (error) {
-      console.error('Failed to load transfer statistics:', error);
+      logger.error('Failed to load transfer statistics:', error);
     }
   };
-  
+
   const exportTransferHistory = async () => {
     setExporting(true);
-    
+
     try {
       const params = new URLSearchParams({
         format: 'csv',
-        limit: '1000'
+        limit: '1000',
       });
-      
+
       if (goalId) {
         params.append('goal_id', goalId);
       }
-      
+
       if (dateFilter !== 'all') {
         const days = parseInt(dateFilter);
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - days);
         params.append('start_date', startDate.toISOString());
       }
-      
+
       // Create CSV content
       const csvHeader = 'Date,Amount,Status,Goal,Account,Type,Reference\n';
-      const csvData = transfers.map(transfer => {
-        const date = new Date(transfer.scheduled_date).toLocaleDateString();
-        const amount = transfer.amount.toFixed(2);
-        const status = transfer.status;
-        const reference = transfer.external_transaction_id || transfer.id;
-        
-        return `${date},${amount},${status},${goalName || 'Goal'},Account,Transfer,${reference}`;
-      }).join('\n');
-      
+      const csvData = transfers
+        .map((transfer) => {
+          const date = new Date(transfer.scheduled_date).toLocaleDateString();
+          const amount = transfer.amount.toFixed(2);
+          const status = transfer.status;
+          const reference = transfer.external_transaction_id || transfer.id;
+
+          return `${date},${amount},${status},${goalName || 'Goal'},Account,Transfer,${reference}`;
+        })
+        .join('\n');
+
       const csvContent = csvHeader + csvData;
-      
+
       // Download CSV file
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
-      link.setAttribute('download', `transfer-history-${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute(
+        'download',
+        `transfer-history-${new Date().toISOString().split('T')[0]}.csv`,
+      );
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
     } catch (error) {
-      console.error('Failed to export transfer history:', error);
+      logger.error('Failed to export transfer history:', error);
     } finally {
       setExporting(false);
     }
   };
-  
+
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { color: string; icon: string; label: string }> = {
       completed: { color: 'success', icon: 'check-circle', label: 'Completed' },
@@ -236,11 +253,11 @@ const TransferHistory: React.FC<TransferHistoryProps> = ({
       processing: { color: 'info', icon: 'spinner fa-spin', label: 'Processing' },
       retrying: { color: 'warning', icon: 'redo', label: 'Retrying' },
       cancelled: { color: 'secondary', icon: 'ban', label: 'Cancelled' },
-      scheduled: { color: 'primary', icon: 'calendar', label: 'Scheduled' }
+      scheduled: { color: 'primary', icon: 'calendar', label: 'Scheduled' },
     };
-    
+
     const config = statusConfig[status] || { color: 'secondary', icon: 'question', label: status };
-    
+
     return (
       <span className={`badge bg-${config.color}`}>
         <i className={`fas fa-${config.icon} me-1`}></i>
@@ -248,34 +265,37 @@ const TransferHistory: React.FC<TransferHistoryProps> = ({
       </span>
     );
   };
-  
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-AU', {
       style: 'currency',
-      currency: 'AUD'
+      currency: 'AUD',
     }).format(amount);
   };
-  
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-AU', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
-  
+
   // Pagination
   const totalPages = Math.ceil(transfers.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentTransfers = transfers.slice(startIndex, endIndex);
-  
+
   if (!isOpen) return null;
-  
+
   return (
-    <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+    <div
+      className="modal fade show d-block"
+      style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+    >
       <div className="modal-dialog modal-xl">
         <div className={`modal-content ${darkMode ? 'bg-dark text-light' : ''}`}>
           <div className="modal-header">
@@ -290,15 +310,18 @@ const TransferHistory: React.FC<TransferHistoryProps> = ({
               aria-label="Close"
             ></button>
           </div>
-          
+
           <div className="modal-body">
             {error && (
-              <div className="alert alert-danger" role="alert">
+              <div
+                className="alert alert-danger"
+                role="alert"
+              >
                 <i className="fas fa-exclamation-triangle me-2"></i>
                 {error}
               </div>
             )}
-            
+
             {/* Statistics Cards */}
             {statistics && (
               <div className="row mb-4">
@@ -324,7 +347,9 @@ const TransferHistory: React.FC<TransferHistoryProps> = ({
                   <div className="card text-center">
                     <div className="card-body">
                       <i className="fas fa-dollar-sign fa-2x text-info mb-2"></i>
-                      <h4 className="mb-0">{formatCurrency(statistics.total_amount_transferred)}</h4>
+                      <h4 className="mb-0">
+                        {formatCurrency(statistics.total_amount_transferred)}
+                      </h4>
                       <small className="text-muted">Total Transferred</small>
                     </div>
                   </div>
@@ -340,7 +365,7 @@ const TransferHistory: React.FC<TransferHistoryProps> = ({
                 </div>
               </div>
             )}
-            
+
             {/* Filters and Controls */}
             <div className="row mb-3">
               <div className="col-md-3">
@@ -415,7 +440,7 @@ const TransferHistory: React.FC<TransferHistoryProps> = ({
                 </div>
               </div>
             </div>
-            
+
             {/* Transfer Table */}
             <div className="table-responsive">
               {loading ? (
@@ -512,7 +537,7 @@ const TransferHistory: React.FC<TransferHistoryProps> = ({
                                 className="btn btn-outline-primary"
                                 onClick={() => {
                                   // Show transfer details
-                                  console.log('Transfer details:', transfer);
+                                  logger.info('Transfer details:', transfer);
                                 }}
                                 title="View Details"
                               >
@@ -523,7 +548,7 @@ const TransferHistory: React.FC<TransferHistoryProps> = ({
                                   className="btn btn-outline-warning"
                                   onClick={() => {
                                     // Retry transfer
-                                    console.log('Retry transfer:', transfer.id);
+                                    logger.info('Retry transfer:', transfer.id);
                                   }}
                                   title="Retry Transfer"
                                 >
@@ -536,7 +561,7 @@ const TransferHistory: React.FC<TransferHistoryProps> = ({
                       ))}
                     </tbody>
                   </table>
-                  
+
                   {/* Pagination */}
                   {totalPages > 1 && (
                     <nav aria-label="Transfer history pagination">
@@ -550,7 +575,7 @@ const TransferHistory: React.FC<TransferHistoryProps> = ({
                             Previous
                           </button>
                         </li>
-                        
+
                         {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                           let pageNum;
                           if (totalPages <= 5) {
@@ -562,9 +587,12 @@ const TransferHistory: React.FC<TransferHistoryProps> = ({
                           } else {
                             pageNum = currentPage - 2 + i;
                           }
-                          
+
                           return (
-                            <li key={pageNum} className={`page-item ${currentPage === pageNum ? 'active' : ''}`}>
+                            <li
+                              key={pageNum}
+                              className={`page-item ${currentPage === pageNum ? 'active' : ''}`}
+                            >
                               <button
                                 className="page-link"
                                 onClick={() => setCurrentPage(pageNum)}
@@ -574,7 +602,7 @@ const TransferHistory: React.FC<TransferHistoryProps> = ({
                             </li>
                           );
                         })}
-                        
+
                         <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
                           <button
                             className="page-link"
@@ -591,7 +619,7 @@ const TransferHistory: React.FC<TransferHistoryProps> = ({
               )}
             </div>
           </div>
-          
+
           <div className="modal-footer">
             <button
               type="button"
@@ -607,4 +635,4 @@ const TransferHistory: React.FC<TransferHistoryProps> = ({
   );
 };
 
-export default TransferHistory; 
+export default TransferHistory;

@@ -4,12 +4,9 @@ import { OpenRouterProvider } from '../providers/openrouter';
 import { GeminiProvider } from '../providers/gemini';
 import { getAIConfig } from '../../config';
 import { AI_MODELS } from '../config';
-import { 
-  FinancialInsight, 
-  AIInsightType, 
-  AIOperationType 
-} from '../types';
+import { FinancialInsight, AIInsightType, AIOperationType } from '../types';
 import { prisma } from '../../prisma';
+import { logger } from '@/lib/logger';
 
 export class FinancialInsightsService {
   private aiService: AIService;
@@ -20,21 +17,21 @@ export class FinancialInsightsService {
   constructor() {
     this.aiService = new AIService();
     const config = getAIConfig();
-    
+
     // Initialize providers for multi-provider system
     this.anthropic = new AnthropicProvider(
       config.anthropic.apiKey,
-      AI_MODELS.CLAUDE_4_SONNET // Primary for complex analysis
+      AI_MODELS.CLAUDE_4_SONNET, // Primary for complex analysis
     );
-    
+
     this.openrouter = new OpenRouterProvider(
       config.openrouter.apiKey,
-      AI_MODELS.CLAUDE_3_SONNET // Secondary via OpenRouter
+      AI_MODELS.CLAUDE_3_SONNET, // Secondary via OpenRouter
     );
-    
+
     this.gemini = new GeminiProvider(
       config.gemini.apiKey,
-      AI_MODELS.GEMINI_PRO // Tertiary for specific tasks
+      AI_MODELS.GEMINI_PRO, // Tertiary for specific tasks
     );
   }
 
@@ -47,7 +44,7 @@ export class FinancialInsightsService {
       category?: string;
       description?: string;
     }>,
-    period: 'monthly' | 'quarterly' | 'yearly' = 'monthly'
+    period: 'monthly' | 'quarterly' | 'yearly' = 'monthly',
   ): Promise<FinancialInsight[]> {
     const prompt = `Analyze this cash flow data and provide actionable insights for an Australian individual/business:
 
@@ -87,7 +84,7 @@ Provide response as JSON array of insights:
         content: prompt,
       },
     ]);
-    
+
     // Track usage
     await this.trackUsage({
       userId,
@@ -101,10 +98,10 @@ Provide response as JSON array of insights:
     });
 
     const insights = JSON.parse(response.content);
-    
+
     // Store insights
     const storedInsights: FinancialInsight[] = [];
-    
+
     for (const insight of insights) {
       const financialInsight: FinancialInsight = {
         type: AIInsightType.CASH_FLOW,
@@ -144,7 +141,7 @@ Provide response as JSON array of insights:
       category: string;
       merchant?: string;
       isRecurring?: boolean;
-    }>
+    }>,
   ): Promise<FinancialInsight[]> {
     const prompt = `Analyze expense patterns and identify optimization opportunities:
 
@@ -166,14 +163,15 @@ Provide response as JSON array with same structure as before.`;
     const response = await this.gemini.sendMessage([
       {
         role: 'system',
-        content: 'You are an expert in personal finance optimization and Australian tax efficiency.',
+        content:
+          'You are an expert in personal finance optimization and Australian tax efficiency.',
       },
       {
         role: 'user',
         content: prompt,
       },
     ]);
-    
+
     // Track usage
     await this.trackUsage({
       userId,
@@ -226,7 +224,7 @@ Provide response as JSON array with same structure as before.`;
       inventory?: Array<{ date: Date; value: number }>;
       receivables?: number;
       payables?: number;
-    }
+    },
   ): Promise<FinancialInsight[]> {
     const prompt = `Analyze business performance data for an Australian small business:
 
@@ -260,7 +258,7 @@ Provide actionable recommendations with estimated financial impact.`;
         content: prompt,
       },
     ]);
-    
+
     // Track usage
     await this.trackUsage({
       userId,
@@ -285,7 +283,7 @@ Provide actionable recommendations with estimated financial impact.`;
       assets?: any[];
       liabilities?: any[];
       family?: { spouse?: boolean; dependents?: number };
-    }
+    },
   ): Promise<FinancialInsight[]> {
     const prompt = `Identify tax saving opportunities for an Australian taxpayer:
 
@@ -312,14 +310,15 @@ Ensure all suggestions are ATO compliant and include:
     const response = await this.anthropic.sendMessage([
       {
         role: 'system',
-        content: 'You are an Australian tax optimization specialist with deep knowledge of ATO regulations.',
+        content:
+          'You are an Australian tax optimization specialist with deep knowledge of ATO regulations.',
       },
       {
         role: 'user',
         content: prompt,
       },
     ]);
-    
+
     // Track usage
     await this.trackUsage({
       userId,
@@ -343,7 +342,7 @@ Ensure all suggestions are ATO compliant and include:
       deductions: Record<string, number>;
       businessExpenses?: Record<string, number>;
       cryptoTransactions?: any[];
-    }
+    },
   ): Promise<FinancialInsight[]> {
     const prompt = `Analyze tax data for ATO compliance risks:
 
@@ -374,7 +373,7 @@ For each risk:
         content: prompt,
       },
     ]);
-    
+
     // Track usage
     await this.trackUsage({
       userId,
@@ -395,7 +394,7 @@ For each risk:
     userId: string,
     insights: any[],
     type: AIInsightType,
-    aiResponse: any
+    aiResponse: any,
   ): Promise<FinancialInsight[]> {
     const storedInsights: FinancialInsight[] = [];
 
@@ -444,17 +443,11 @@ For each risk:
     return categoryMap[type] || 'general';
   }
 
-  async getActiveInsights(
-    userId: string,
-    types?: AIInsightType[]
-  ): Promise<FinancialInsight[]> {
+  async getActiveInsights(userId: string, types?: AIInsightType[]): Promise<FinancialInsight[]> {
     const where: any = {
       userId,
       isActive: true,
-      OR: [
-        { expiresAt: null },
-        { expiresAt: { gte: new Date() } },
-      ],
+      OR: [{ expiresAt: null }, { expiresAt: { gte: new Date() } }],
     };
 
     if (types && types.length > 0) {
@@ -466,7 +459,7 @@ For each risk:
       orderBy: { createdAt: 'desc' },
     });
 
-    return insights.map(insight => insight.content as unknown as FinancialInsight);
+    return insights.map((insight) => insight.content as unknown as FinancialInsight);
   }
 
   private async trackUsage(data: {
@@ -496,19 +489,19 @@ For each risk:
         },
       });
     } catch (error) {
-      console.error('Usage tracking error:', error);
+      logger.error('Usage tracking error:', error);
     }
   }
 
   // Circuit breaker for provider failover
   private async executeWithFailover<T>(
     primaryFn: () => Promise<T>,
-    fallbackFn: () => Promise<T>
+    fallbackFn: () => Promise<T>,
   ): Promise<T> {
     try {
       return await primaryFn();
     } catch (error) {
-      console.error('Primary provider failed, trying fallback:', error);
+      logger.error('Primary provider failed, trying fallback:', error);
       return await fallbackFn();
     }
   }

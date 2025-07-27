@@ -2,31 +2,45 @@
 
 ## Overview
 
-TAAXDOG has been enhanced with comprehensive advanced UX and business intelligence features, transforming it from a basic receipt processing application into a sophisticated financial management and tax compliance platform. This document outlines all the advanced features that have been implemented.
+TAAXDOG has been enhanced with comprehensive advanced UX and business
+intelligence features, transforming it from a basic receipt processing
+application into a sophisticated financial management and tax compliance
+platform. This document outlines all the advanced features that have been
+implemented.
 
 ---
 
 ## 🧠 **Smart Insights Engine**
 
 ### Intelligent Financial Analytics
-The Smart Insights Engine provides comprehensive financial intelligence using advanced algorithms and machine learning techniques.
+
+The Smart Insights Engine provides comprehensive financial intelligence using
+advanced algorithms and machine learning techniques.
 
 #### **Features Implemented:**
-- **Spending Pattern Analysis**: Trend detection, anomaly identification, and predictive analytics
-- **Tax Optimization Insights**: ATO compliance checking, deduction recommendations, and risk assessment
-- **Budget Recommendations**: 50/30/20 rule implementation and category-specific suggestions
-- **Savings Opportunities**: Subscription efficiency analysis and cost optimization
+
+- **Spending Pattern Analysis**: Trend detection, anomaly identification, and
+  predictive analytics
+- **Tax Optimization Insights**: ATO compliance checking, deduction
+  recommendations, and risk assessment
+- **Budget Recommendations**: 50/30/20 rule implementation and category-specific
+  suggestions
+- **Savings Opportunities**: Subscription efficiency analysis and cost
+  optimization
 - **Cash Flow Predictions**: Investment suggestions and negative flow warnings
 - **Audit Risk Assessment**: Compliance scoring and risk factor identification
 
 #### **Technical Implementation:**
+
 - **File**: `backend/smart_insights.py`
 - **API Routes**: `backend/routes/insights_routes.py`
-- **Key Classes**: `SmartInsightsEngine`, `SmartInsight`, `InsightType`, `InsightPriority`
+- **Key Classes**: `SmartInsightsEngine`, `SmartInsight`, `InsightType`,
+  `InsightPriority`
 - **Integration**: Claude 3.7 AI, Basiq API, Firebase Firestore
 - **Analytics**: NumPy for trend analysis, confidence scoring algorithms
 
 #### **API Endpoints:**
+
 ```
 GET  /api/insights                        # Comprehensive insights (Premium)
 GET  /api/insights/spending-patterns      # Spending analysis
@@ -43,15 +57,20 @@ GET  /api/insights/summary               # Dashboard summary
 ## 💳 **Subscription Management System**
 
 ### Tiered Business Model
-Comprehensive subscription system with feature-gated access control and Stripe integration.
+
+Comprehensive subscription system with feature-gated access control and Stripe
+integration.
 
 #### **Subscription Tiers:**
+
 1. **FREE**: 50 receipts/month, basic features
 2. **PREMIUM**: $19.99/month, 500 receipts, tax insights, advanced reports
-3. **BUSINESS**: $49.99/month, unlimited receipts, API access, team collaboration
+3. **BUSINESS**: $49.99/month, unlimited receipts, API access, team
+   collaboration
 4. **ENTERPRISE**: $199.99/month, all features including tax agent portal
 
 #### **Technical Implementation:**
+
 - **File**: `backend/subscription_manager.py`
 - **API Routes**: `backend/routes/subscription_routes.py`
 - **Key Classes**: `SubscriptionManager`, `SubscriptionPlan`, `FeatureAccess`
@@ -59,6 +78,7 @@ Comprehensive subscription system with feature-gated access control and Stripe i
 - **Features**: Usage tracking, trial management, webhook handling
 
 #### **API Endpoints:**
+
 ```
 GET  /api/subscription/plans              # Available plans
 GET  /api/subscription/current            # User subscription details
@@ -74,9 +94,12 @@ GET  /api/subscription/billing-portal     # Customer billing portal
 ## 📊 **Automated Tax Reports**
 
 ### Professional Report Generation
-Advanced system for generating comprehensive tax reports and ATO-compliant documentation.
+
+Advanced system for generating comprehensive tax reports and ATO-compliant
+documentation.
 
 #### **Report Types:**
+
 - Individual Tax Return
 - Business Activity Statement (BAS)
 - Expense Summary
@@ -87,6 +110,7 @@ Advanced system for generating comprehensive tax reports and ATO-compliant docum
 - Depreciation Schedules
 
 #### **Output Formats:**
+
 - **PDF**: Professional layout with ReportLab
 - **Excel**: Multi-worksheet with formatting
 - **CSV**: Data export
@@ -94,12 +118,15 @@ Advanced system for generating comprehensive tax reports and ATO-compliant docum
 - **XML**: ATO-compliant formats
 
 #### **Technical Implementation:**
+
 - **File**: `backend/automated_reports.py`
 - **API Routes**: `backend/routes/reports_routes.py`
 - **Key Classes**: `AutomatedReportGenerator`, `ReportType`, `TaxReportData`
-- **Integration**: Australian Tax Categorizer, GST calculations, compliance checking
+- **Integration**: Australian Tax Categorizer, GST calculations, compliance
+  checking
 
 #### **API Endpoints:**
+
 ```
 POST /api/reports/generate                # Generate tax report
 GET  /api/reports/download/<report_id>    # Download generated report
@@ -114,9 +141,11 @@ POST /api/reports/schedule                # Schedule automated reports
 ## 👥 **Team Collaboration System**
 
 ### Business Team Management
+
 Comprehensive team collaboration features for business users and tax agents.
 
 #### **Team Roles:**
+
 - **Owner**: Full access and team management
 - **Admin**: Team management without ownership transfer
 - **Accountant**: Full financial access with BAS submission
@@ -125,6 +154,7 @@ Comprehensive team collaboration features for business users and tax agents.
 - **Tax Agent**: Specialized access for tax professionals
 
 #### **Collaborative Features:**
+
 - Team creation and member management
 - Role-based permission system
 - Activity logging and audit trails
@@ -133,12 +163,14 @@ Comprehensive team collaboration features for business users and tax agents.
 - Real-time collaboration tracking
 
 #### **Technical Implementation:**
+
 - **File**: `backend/team_collaboration.py`
 - **API Routes**: `backend/routes/team_routes.py`
 - **Key Classes**: `TeamCollaborationManager`, `TeamMember`, `TeamRole`
 - **Features**: Permission checking, activity logging, invitation management
 
 #### **API Endpoints:**
+
 ```
 POST /api/team/create                     # Create new team
 POST /api/team/<team_id>/invite           # Invite team member
@@ -155,9 +187,12 @@ POST /api/team/<team_id>/share-report     # Share report with team
 ## 🔔 **Enhanced Notification System**
 
 ### Smart Notifications (Existing + Enhanced)
-The existing notification system has been enhanced to work with the new features.
+
+The existing notification system has been enhanced to work with the new
+features.
 
 #### **Notification Types:**
+
 - Overspending alerts by category
 - Goal progress updates
 - Subscription management alerts
@@ -167,6 +202,7 @@ The existing notification system has been enhanced to work with the new features
 - Report generation completion
 
 #### **Technical Integration:**
+
 - **Existing File**: `backend/notifications/notification_system.py`
 - **Enhanced Features**: Integration with smart insights and team collaboration
 - **Channels**: Email, in-app, push notifications (planned)
@@ -176,9 +212,11 @@ The existing notification system has been enhanced to work with the new features
 ## 🛡️ **Security & Compliance**
 
 ### Enterprise-Grade Security
+
 Comprehensive security measures and compliance features.
 
 #### **Security Features:**
+
 - Role-based access control (RBAC)
 - Feature-gated API endpoints
 - Request rate limiting
@@ -187,6 +225,7 @@ Comprehensive security measures and compliance features.
 - Data encryption and privacy protection
 
 #### **Compliance Features:**
+
 - Australian Business Compliance system
 - GST extraction and validation
 - ABN verification
@@ -199,9 +238,11 @@ Comprehensive security measures and compliance features.
 ## 🚀 **Performance & Scalability**
 
 ### Optimized Architecture
+
 Built for enterprise-scale performance and reliability.
 
 #### **Performance Features:**
+
 - Async/await patterns throughout
 - Database query optimization
 - Caching strategies (ABN lookups, merchant rules)
@@ -210,6 +251,7 @@ Built for enterprise-scale performance and reliability.
 - Request performance tracking
 
 #### **Scalability Features:**
+
 - Modular blueprint architecture
 - Microservices-ready design
 - Horizontal scaling support
@@ -221,9 +263,11 @@ Built for enterprise-scale performance and reliability.
 ## 📈 **Analytics & Business Intelligence**
 
 ### Advanced Analytics Dashboard
+
 Comprehensive business intelligence capabilities.
 
 #### **Analytics Features:**
+
 - Real-time financial insights
 - Predictive cash flow analysis
 - Tax optimization recommendations
@@ -232,6 +276,7 @@ Comprehensive business intelligence capabilities.
 - Performance metrics tracking
 
 #### **Business Intelligence:**
+
 - ML-based anomaly detection
 - Trend analysis algorithms
 - Confidence scoring systems
@@ -243,6 +288,7 @@ Comprehensive business intelligence capabilities.
 ## 🔧 **Configuration & Setup**
 
 ### Environment Configuration
+
 ```bash
 # Core API Keys
 GOOGLE_API_KEY=your_gemini_api_key
@@ -267,6 +313,7 @@ STRIPE_ENTERPRISE_YEARLY_PRICE_ID=price_xxx
 ```
 
 ### Database Collections
+
 ```
 Firebase Collections:
 - users/                    # User profiles
@@ -287,26 +334,27 @@ Firebase Collections:
 
 ## 🎯 **Feature Access Matrix**
 
-| Feature | Free | Premium | Business | Enterprise |
-|---------|------|---------|----------|------------|
-| Basic Receipt Scanning | ✅ | ✅ | ✅ | ✅ |
-| Auto Categorization | ❌ | ✅ | ✅ | ✅ |
-| Smart Insights | ❌ | ✅ | ✅ | ✅ |
-| Tax Optimization | ❌ | ✅ | ✅ | ✅ |
-| Advanced Reports | ❌ | ✅ | ✅ | ✅ |
-| Automated Reports | ❌ | ✅ | ✅ | ✅ |
-| Team Collaboration | ❌ | ❌ | ✅ | ✅ |
-| API Access | ❌ | ❌ | ✅ | ✅ |
-| Tax Agent Portal | ❌ | ❌ | ❌ | ✅ |
-| Priority Support | ❌ | ❌ | ❌ | ✅ |
-| Receipt Limit | 50/month | 500/month | Unlimited | Unlimited |
-| Team Members | 1 | 1 | 5 | Unlimited |
+| Feature                | Free     | Premium   | Business  | Enterprise |
+| ---------------------- | -------- | --------- | --------- | ---------- |
+| Basic Receipt Scanning | ✅       | ✅        | ✅        | ✅         |
+| Auto Categorization    | ❌       | ✅        | ✅        | ✅         |
+| Smart Insights         | ❌       | ✅        | ✅        | ✅         |
+| Tax Optimization       | ❌       | ✅        | ✅        | ✅         |
+| Advanced Reports       | ❌       | ✅        | ✅        | ✅         |
+| Automated Reports      | ❌       | ✅        | ✅        | ✅         |
+| Team Collaboration     | ❌       | ❌        | ✅        | ✅         |
+| API Access             | ❌       | ❌        | ✅        | ✅         |
+| Tax Agent Portal       | ❌       | ❌        | ❌        | ✅         |
+| Priority Support       | ❌       | ❌        | ❌        | ✅         |
+| Receipt Limit          | 50/month | 500/month | Unlimited | Unlimited  |
+| Team Members           | 1        | 1         | 5         | Unlimited  |
 
 ---
 
 ## 🔮 **Future Enhancements**
 
 ### Planned Features
+
 - Real-time ATO integration for lodgment
 - Machine learning model improvements
 - Advanced data visualization dashboard
@@ -317,6 +365,7 @@ Firebase Collections:
 - Integration with accounting software (Xero, MYOB)
 
 ### Technical Roadmap
+
 - Microservices architecture migration
 - GraphQL API implementation
 - Advanced caching strategies
@@ -329,6 +378,7 @@ Firebase Collections:
 ## 📋 **Testing & Verification**
 
 ### Test Your Features
+
 1. **Smart Insights**: Upload receipts and check `/api/insights/summary`
 2. **Subscription Management**: Test plan upgrades at `/api/subscription/plans`
 3. **Report Generation**: Generate reports at `/api/reports/generate`
@@ -336,6 +386,7 @@ Firebase Collections:
 5. **Feature Access**: Verify gated features work correctly
 
 ### Verification Commands
+
 ```bash
 # Test smart insights
 curl -H "Authorization: Bearer <token>" \
@@ -353,4 +404,7 @@ curl -X POST -H "Authorization: Bearer <token>" \
 
 ---
 
-This implementation transforms TAAXDOG into a comprehensive financial management platform with advanced business intelligence, collaboration features, and professional tax reporting capabilities. All features are built with enterprise-grade security, scalability, and compliance in mind. 
+This implementation transforms TAAXDOG into a comprehensive financial management
+platform with advanced business intelligence, collaboration features, and
+professional tax reporting capabilities. All features are built with
+enterprise-grade security, scalability, and compliance in mind.

@@ -9,12 +9,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # TAAXDOG PROJECT CONFIGURATION
 
 ## Project Identity
-
 - Project Name: Taaxdog-coding
 - Domain: taxreturnpro.com.au
 - Framework: Next.js 15.3.4 with TypeScript and React 19
-- Database: PostgreSQL on DigitalOcean Sydney
+- Database: PostgreSQL with Prisma ORM (migrated from Firebase)
 - Deployment: DigitalOcean App Platform (Sydney region)
+- Containerization: Docker with multi-stage optimized builds
 
 ## Infrastructure Details
 
@@ -46,7 +46,10 @@ npm run dev                # Start development server (http://localhost:3000)
 npm run build              # Build for production with Prisma generation
 npm run start              # Start production server
 npm run lint               # Run ESLint
-npm run build:production   # Full production build with scripts
+npm run lint:fix           # Fix ESLint issues automatically
+npm run type-check         # Run TypeScript type checking
+npm run quality:check      # Run all code quality checks
+npm run fix:all            # Fix naming, console statements, lint, and format
 ```
 
 ### Database Commands
@@ -63,18 +66,22 @@ npm run db:import          # Import data using optimized orchestrator
 ### Testing & Verification
 
 ```bash
+npm test                   # Run all Jest tests
+npm test -- --coverage     # Run tests with coverage report (80%+ target)
+npm test -- --watch        # Run tests in watch mode
+npm test [filename]        # Run specific test file
+npm run test:integration   # Run integration tests only
+npm run test:api           # Test API endpoints
+npm run test:db-performance # Test database performance
+npm run test:security      # Run security tests
+npm run test-auth          # Test authentication system
+npm run test-ai            # Test AI service integrations
+npm run test-basiq         # Test banking integration
 npm run verify:quick       # Quick system verification
 npm run verify:full        # Comprehensive migration verification
 npm run verify:compliance  # Check Australian compliance
 npm run security:validate  # Security validation
 npm run env:validate       # Environment validation
-npm run test-auth          # Test authentication system
-npm run test-ai            # Test AI service integrations
-npm run test-basiq         # Test banking integration
-npm run test-subscription  # Test Stripe subscription flow
-npm test                   # Run all Jest tests
-npm test -- --coverage     # Run tests with coverage report
-npm test [filename]        # Run specific test file
 ```
 
 ### Deployment
@@ -113,6 +120,7 @@ npm run optimization:report # Generate optimization report
   - Middleware composition in `lib/auth/middleware.ts`
   - Account locking and suspicious activity tracking
   - Email verification requirements
+  - Enhanced password reset flow with SendGrid integration
 
 ### 2. AI Service Integration
 
@@ -140,13 +148,15 @@ npm run optimization:report # Generate optimization report
 ### 4. Database Access Patterns
 
 - **Location**: `lib/db/`, `prisma/`
-- **Architecture**: Prisma ORM with PostgreSQL
+- **Architecture**: Prisma ORM with PostgreSQL (migrated from Firebase)
 - **Key Patterns**:
-  - Singleton pattern for Prisma client
+  - Singleton pattern for Prisma client in `lib/prisma.ts`
   - Connection pooling optimization
   - Query performance monitoring
   - Environment-aware logging
   - Health checks with metrics
+  - 6 critical performance indexes added for optimization
+  - Row-Level Security (RLS) implementation
 
 ### 5. Security Middleware Stack
 
@@ -234,9 +244,11 @@ npm run optimization:report # Generate optimization report
 
 1. Create route in `pages/api/`
 2. Apply appropriate middleware wrapper (withAuth, withRateLimit, etc.)
-3. Add input validation
-4. Implement business logic
-5. Add audit logging for sensitive operations
+3. Add input validation using Zod schemas from `lib/validation/api-schemas.ts`
+4. Use standardized response format from `lib/api/response.ts`
+5. Implement business logic
+6. Add audit logging for sensitive operations
+7. Write tests for the new endpoint
 
 ### Working with AI Services
 
@@ -244,14 +256,17 @@ npm run optimization:report # Generate optimization report
 2. Select appropriate operation type
 3. Handle provider fallback gracefully
 4. Track token usage for cost monitoring
+5. Implement caching for expensive operations
 
 ### Database Schema Changes
 
 1. Update `prisma/schema.prisma`
 2. Run `npx prisma generate`
-3. Create migration: `npx prisma migrate dev`
+3. Create migration: `npx prisma migrate dev --name descriptive_name`
 4. Test with `npm run test-db`
 5. Update any affected TypeScript types
+6. Consider performance indexes for new fields
+7. Update relevant API schemas and tests
 
 ### Implementing Australian Tax Features
 
@@ -260,6 +275,14 @@ npm run optimization:report # Generate optimization report
 3. Use ATO-compliant categories (D1-D15, P8)
 4. Validate ABN format when collected
 5. Generate proper tax invoices with all required fields
+
+### Working with React Query
+
+1. Use custom hooks from `hooks/queries/`
+2. Follow consistent query key patterns
+3. Implement optimistic updates for better UX
+4. Use proper cache invalidation strategies
+5. Handle loading and error states appropriately
 
 ## Environment Variables
 
@@ -286,14 +309,27 @@ npm run env:backup         # Backup current environment
 
 ## Deployment Process
 
+### Local Deployment with Docker
+```bash
+# Development
+docker-compose -f docker-compose.dev.yml up
+
+# Production
+docker-compose up
+
+# Rebuild containers
+docker-compose build --no-cache
+```
+
+### Cloud Deployment
 1. Ensure on main branch: `git branch --show-current`
 2. Run validation: `npm run deploy:validate`
-3. Commit changes: `git add . && git commit -m "your message"`
-4. Push to trigger auto-deploy: `git push origin main`
-5. Monitor at: https://cloud.digitalocean.com/apps
+3. Run tests: `npm test -- --coverage`
+4. Commit changes: `git add . && git commit -m "your message"`
+5. Push to trigger auto-deploy: `git push origin main`
+6. Monitor at: https://cloud.digitalocean.com/apps
 
-**Important**: Use `app.yaml` for deployment configuration, NOT
-`digitalocean-app-spec.yaml`
+**Important**: Use `app.yaml` for deployment configuration, NOT `digitalocean-app-spec.yaml`
 
 ## Project Configuration Notes
 
@@ -302,7 +338,8 @@ npm run env:backup         # Backup current environment
 - TypeScript errors are ignored during production builds for faster deployment
 - ESLint warnings don't block builds
 - Custom webpack configuration ignores RLS-migrated files
-- Separate TypeScript configs for app (`tsconfig.json`) and scripts (`tsconfig.node.json`)
+- Separate TypeScript configs for app (`tsconfig.json`) and scripts
+  (`tsconfig.node.json`)
 - Bundle optimization with code splitting and lazy loading
 - SWC minification enabled for smaller builds
 - Compression plugin for gzip assets in production
@@ -326,26 +363,24 @@ npm run env:backup         # Backup current environment
 ## Recent Architecture Improvements
 
 ### API Response Standardization
+
 - All API routes use `lib/api/response.ts` utilities
 - Consistent error handling and response formats
 - TypeScript types for all API responses
 
 ### Code Quality Tools
+
 - ESLint with custom rules for consistency
 - Prettier for code formatting
 - TypeScript strict mode enabled
 - Automated scripts for fixing common issues (`fix:naming`, `fix:console`)
 
 ### Bundle Size Optimization
+
 - Webpack configuration with advanced code splitting
 - Separate chunks for framework, libraries, and common code
 - Dynamic import patterns for lazy loading
 - Performance budgets defined in `lib/config/bundle-optimization.ts`
-# important-instruction-reminders
-Do what has been asked; nothing more, nothing less.
-NEVER create files unless they're absolutely necessary for achieving your goal.
-ALWAYS prefer editing an existing file to creating a new one.
-NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
 
 ### Security Configuration
 
@@ -364,3 +399,31 @@ NEVER proactively create documentation files (*.md) or README files. Only create
 - Audit logging for all sensitive operations
 - Sentry integration for error tracking and performance monitoring
 - Web Vitals tracking for client-side performance
+
+## Docker Configuration
+
+- Multi-stage Dockerfile for optimized builds (200MB vs 1.5GB)
+- Separate development and production configurations
+- Health checks for all services
+- Redis for caching and session storage
+- Nginx for load balancing and reverse proxy
+- Prometheus and Grafana for metrics
+
+## Quick Troubleshooting
+
+### Common Issues
+- **TypeScript errors**: Run `npm run type-check` and fix any type issues
+- **Database connection**: Check DATABASE_URL and run `npm run test-db`
+- **Build failures**: Clear `.next` directory and run `npm run build`
+- **Test failures**: Clear Jest cache with `npm test -- --clearCache`
+- **Docker issues**: Run `docker-compose build --no-cache`
+
+### Performance Issues
+- Check bundle size: `npm run analyze-bundle`
+- Review database queries: `npm run test:db-performance`
+- Monitor with Sentry dashboard
+- Check for memory leaks in long-running operations
+
+# important-instruction-reminders
+
+Do what has been asked; nothing more, nothing less. NEVER create files unless they're absolutely necessary for achieving your goal. ALWAYS prefer editing an existing file to creating a new one. NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.

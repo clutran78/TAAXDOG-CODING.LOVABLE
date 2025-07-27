@@ -16,13 +16,13 @@ async function runTest(name: string, testFn: () => Promise<boolean>): Promise<vo
     results.push({
       test: name,
       status: success ? 'PASS' : 'FAIL',
-      message: success ? 'OK' : 'Test failed'
+      message: success ? 'OK' : 'Test failed',
     });
   } catch (error: any) {
     results.push({
       test: name,
       status: 'FAIL',
-      message: error.message
+      message: error.message,
     });
   }
 }
@@ -60,14 +60,14 @@ async function runCompleteTests() {
   // Test 5: Create Test User
   const testEmail = `test-${Date.now()}@example.com`;
   let testUserId: string | null = null;
-  
+
   await runTest('Create Test User', async () => {
     const user = await prisma.user.create({
       data: {
         email: testEmail,
         name: 'Test User',
         password: 'hashed_password_here',
-      }
+      },
     });
     testUserId = user.id;
     console.log('Created test user:', user.id);
@@ -85,8 +85,8 @@ async function runCompleteTests() {
           targetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           userId: testUserId!,
           category: 'savings',
-          status: 'ACTIVE'
-        }
+          status: 'ACTIVE',
+        },
       });
       console.log('Created test goal:', goal.id);
       return !!goal.id;
@@ -97,10 +97,10 @@ async function runCompleteTests() {
   if (testUserId) {
     await runTest('Clean Up Test Data', async () => {
       await prisma.goal.deleteMany({
-        where: { userId: testUserId! }
+        where: { userId: testUserId! },
       });
       await prisma.user.delete({
-        where: { id: testUserId! }
+        where: { id: testUserId! },
       });
       return true;
     });
@@ -113,14 +113,14 @@ async function runCompleteTests() {
     console.log(`${icon} ${result.test}: ${result.message || 'OK'}`);
   });
 
-  const passed = results.filter(r => r.status === 'PASS').length;
-  const failed = results.filter(r => r.status === 'FAIL').length;
+  const passed = results.filter((r) => r.status === 'PASS').length;
+  const failed = results.filter((r) => r.status === 'FAIL').length;
 
   console.log(`\n📈 Summary: ${passed} passed, ${failed} failed`);
-  
+
   // Disconnect from database
   await prisma.$disconnect();
-  
+
   if (failed > 0) {
     process.exit(1);
   }

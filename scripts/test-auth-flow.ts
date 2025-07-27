@@ -16,7 +16,7 @@ async function testEndpoint(
   method: string,
   path: string,
   body?: any,
-  expectedStatus: number = 200
+  expectedStatus: number = 200,
 ): Promise<void> {
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -60,37 +60,22 @@ async function runAuthTests() {
   const testEmail = `test-${Date.now()}@example.com`;
   const testPassword = 'TestPassword123!';
 
-  await testEndpoint(
-    'Register new user',
-    'POST',
-    '/api/auth/register',
-    {
-      email: testEmail,
-      password: testPassword,
-      name: 'Test User',
-    }
-  );
+  await testEndpoint('Register new user', 'POST', '/api/auth/register', {
+    email: testEmail,
+    password: testPassword,
+    name: 'Test User',
+  });
 
   // Test 2: Login with the registered user
-  await testEndpoint(
-    'Login with credentials',
-    'POST',
-    '/api/auth/simple-login',
-    {
-      email: testEmail,
-      password: testPassword,
-    }
-  );
+  await testEndpoint('Login with credentials', 'POST', '/api/auth/simple-login', {
+    email: testEmail,
+    password: testPassword,
+  });
 
   // Test 3: Test forgot password
-  await testEndpoint(
-    'Forgot password',
-    'POST',
-    '/api/auth/forgot-password',
-    {
-      email: testEmail,
-    }
-  );
+  await testEndpoint('Forgot password', 'POST', '/api/auth/forgot-password', {
+    email: testEmail,
+  });
 
   // Test 4: Test invalid login
   await testEndpoint(
@@ -101,15 +86,11 @@ async function runAuthTests() {
       email: testEmail,
       password: 'WrongPassword',
     },
-    401
+    401,
   );
 
   // Test 5: Check NextAuth configuration
-  await testEndpoint(
-    'NextAuth providers',
-    'GET',
-    '/api/auth/providers'
-  );
+  await testEndpoint('NextAuth providers', 'GET', '/api/auth/providers');
 
   // Print results
   console.log('\n📊 Test Results:\n');
@@ -121,11 +102,11 @@ async function runAuthTests() {
     }
   });
 
-  const passed = results.filter(r => r.status === 'PASS').length;
-  const failed = results.filter(r => r.status === 'FAIL').length;
+  const passed = results.filter((r) => r.status === 'PASS').length;
+  const failed = results.filter((r) => r.status === 'FAIL').length;
 
   console.log(`\n📈 Summary: ${passed} passed, ${failed} failed`);
-  
+
   if (failed > 0) {
     process.exit(1);
   }

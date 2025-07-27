@@ -1,26 +1,24 @@
-"use client";
-import { useState } from "react";
-import { Formik, Form, Field, ErrorMessage } from "formik";
-import * as Yup from "yup";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { FaEye, FaEyeSlash } from "react-icons/fa";
-import { useDarkMode } from "@/providers/dark-mode-provider";
+'use client';
+import { useState } from 'react';
+import { Formik, Form, Field, ErrorMessage } from 'formik';
+import * as Yup from 'yup';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import { useDarkMode } from '@/providers/dark-mode-provider';
 
 const SignupSchema = Yup.object().shape({
-  email: Yup.string()
-    .email("Invalid email address")
-    .required("Email is required"),
+  email: Yup.string().email('Invalid email address').required('Email is required'),
   password: Yup.string()
-    .required("Password is required")
-    .min(8, "Password must be at least 8 characters")
-    .matches(/[a-z]/, "Must contain at least one lowercase letter")
-    .matches(/[A-Z]/, "Must contain at least one uppercase letter")
-    .matches(/\d/, "Must contain at least one number")
-    .matches(/[@$!%*?&#]/, "Must contain at least one special character"),
+    .required('Password is required')
+    .min(8, 'Password must be at least 8 characters')
+    .matches(/[a-z]/, 'Must contain at least one lowercase letter')
+    .matches(/[A-Z]/, 'Must contain at least one uppercase letter')
+    .matches(/\d/, 'Must contain at least one number')
+    .matches(/[@$!%*?&#]/, 'Must contain at least one special character'),
   confirmPassword: Yup.string()
-    .oneOf([Yup.ref("password"), ""], "Passwords must match")
-    .required("Confirm your password"),
+    .oneOf([Yup.ref('password'), ''], 'Passwords must match')
+    .required('Confirm your password'),
 });
 
 export default function SignupPage() {
@@ -28,47 +26,51 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const [firebaseError, setFirebaseError] = useState("");
+  const [firebaseError, setFirebaseError] = useState('');
   const router = useRouter();
 
-  const handleSubmit = async (values: any) => {
-    setFirebaseError("");
+  interface SignupFormValues {
+    email: string;
+    password: string;
+    confirmPassword: string;
+  }
+
+  const handleSubmit = async (values: SignupFormValues) => {
+    setFirebaseError('');
     try {
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: values.email,
-          password: values.password
-        })
+          password: values.password,
+        }),
       });
-      
+
       const data = await response.json();
-      
+
       if (response.ok) {
-        router.push("/login");
+        router.push('/login');
       } else {
-        if (data.error === "Email already exists") {
+        if (data.error === 'Email already exists') {
           setFirebaseError(
-            "This email is already registered. Please log in or use a different email."
+            'This email is already registered. Please log in or use a different email.',
           );
-        } else if (data.error === "Weak password") {
-          setFirebaseError(
-            "The password is too weak. Please use a stronger password."
-          );
+        } else if (data.error === 'Weak password') {
+          setFirebaseError('The password is too weak. Please use a stronger password.');
         } else {
-          setFirebaseError(data.error || "Signup failed. Please try again.");
+          setFirebaseError(data.error || 'Signup failed. Please try again.');
         }
       }
-    } catch (error: any) {
-      setFirebaseError("Signup failed. Please try again.");
+    } catch (error) {
+      setFirebaseError('Signup failed. Please try again.');
     }
   };
 
   return (
     <div
       className={`min-h-screen flex items-center justify-center ${
-        darkMode ? "" : "bg-gray-100"
+        darkMode ? '' : 'bg-gray-100'
       } p-4`}
     >
       {/* Dark Mode Toggle Icon */}
@@ -76,23 +78,21 @@ export default function SignupPage() {
         onClick={toggleDarkMode}
         className={`mb-4 px-2 py-1 rounded absolute top-10 right-10 ${
           darkMode
-            ? "bg-gray-700 text-white hover:bg-gray-600"
-            : "bg-gray-200 text-black hover:bg-gray-300"
+            ? 'bg-gray-700 text-white hover:bg-gray-600'
+            : 'bg-gray-200 text-black hover:bg-gray-300'
         }`}
       >
-        <i className={`fas ${darkMode ? "fa-sun" : "fa-moon"} fa-1x`}></i>
+        <i className={`fas ${darkMode ? 'fa-sun' : 'fa-moon'} fa-1x`}></i>
       </button>
 
       <div
         className={`max-w-md w-full ${
-          darkMode ? "bg-[#343a40]" : "bg-white"
+          darkMode ? 'bg-[#343a40]' : 'bg-white'
         } shadow-md rounded-md p-6`}
       >
-        <h2 className="text-2xl font-semibold text-center mb-6">
-          Create Your Account
-        </h2>
+        <h2 className="text-2xl font-semibold text-center mb-6">Create Your Account</h2>
         <Formik
-          initialValues={{ email: "", password: "", confirmPassword: "" }}
+          initialValues={{ email: '', password: '', confirmPassword: '' }}
           validationSchema={SignupSchema}
           onSubmit={handleSubmit}
         >
@@ -102,7 +102,7 @@ export default function SignupPage() {
                 <label
                   htmlFor="email"
                   className={`block text-sm font-medium ${
-                    darkMode ? "text-gray-300" : "text-gray-700"
+                    darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}
                 >
                   Email
@@ -123,14 +123,14 @@ export default function SignupPage() {
               <div>
                 <label
                   className={`block text-sm font-medium ${
-                    darkMode ? "text-gray-300" : "text-gray-700"
+                    darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}
                 >
                   Password
                 </label>
                 <div className="relative">
                   <Field
-                    type={showPassword ? "text" : "password"}
+                    type={showPassword ? 'text' : 'password'}
                     autoComplete="new-password"
                     name="password"
                     className="mt-1 w-full border px-3 py-2 rounded-md focus:outline-none focus:ring focus:ring-blue-400 pr-10"
@@ -153,14 +153,14 @@ export default function SignupPage() {
               <div>
                 <label
                   className={`block text-sm font-medium ${
-                    darkMode ? "text-gray-300" : "text-gray-700"
+                    darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}
                 >
                   Confirm Password
                 </label>
                 <div className="relative">
                   <Field
-                    type={showConfirmPassword ? "text" : "password"}
+                    type={showConfirmPassword ? 'text' : 'password'}
                     name="confirmPassword"
                     autoComplete="current-password"
                     className="mt-1 w-full border px-3 py-2 rounded-md focus:outline-none focus:ring focus:ring-blue-400 pr-10"
@@ -173,8 +173,8 @@ export default function SignupPage() {
                   </span>
                 </div>
                 <p className="text-xs text-gray-400 mt-1">
-                  Must be at least 8 characters and include uppercase,
-                  lowercase, a number, and a special character.
+                  Must be at least 8 characters and include uppercase, lowercase, a number, and a
+                  special character.
                 </p>
                 <ErrorMessage
                   name="confirmPassword"
@@ -194,7 +194,7 @@ export default function SignupPage() {
                 disabled={isSubmitting}
                 className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition"
               >
-                {isSubmitting ? "Creating Account..." : "Sign Up"}
+                {isSubmitting ? 'Creating Account...' : 'Sign Up'}
               </button>
             </Form>
           )}
@@ -207,12 +207,8 @@ export default function SignupPage() {
 
         {/* Login Up Redirect */}
         <div className="text-center mt-4">
-          <p
-            className={`text-sm ${
-              darkMode ? "text-gray-300" : "text-gray-700"
-            }`}
-          >
-            Already have an account?{" "}
+          <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+            Already have an account?{' '}
             <Link
               href="/login"
               className="text-blue-600 hover:underline font-semibold"

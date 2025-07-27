@@ -16,7 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const { token, password } = req.body;
-    logger.info(`[ResetPassword] Reset attempt with token: ${token?.substring(0, 10);}...`);
+    logger.info(`[ResetPassword] Reset attempt with token: ${token?.substring(0, 10)}...`);
 
     if (!token || !password) {
       return apiResponse.error(res, {
@@ -37,7 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const resetToken = await verifyPasswordResetToken(token);
 
     if (!resetToken) {
-      logger.info(`[ResetPassword] Invalid or expired token: ${token?.substring(0, 10);}...`);
+      logger.info(`[ResetPassword] Invalid or expired token: ${token?.substring(0, 10)}...`);
       return apiResponse.error(res, {
         error: 'Invalid token',
         message: 'Password reset token is invalid or has expired',

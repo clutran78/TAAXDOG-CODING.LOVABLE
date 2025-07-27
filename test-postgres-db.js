@@ -9,7 +9,7 @@ async function testPostgresDatabase() {
     user: process.env.DB_USER || 'taaxdog-admin',
     password: process.env.DB_PASSWORD,
     database: 'postgres', // Default database
-    ssl: { rejectUnauthorized: false }
+    ssl: { rejectUnauthorized: false },
   };
 
   if (!postgresConfig.password) {
@@ -37,7 +37,7 @@ async function testPostgresDatabase() {
     } else {
       console.log('❌ Database "taaxdog-production" does not exist');
       console.log('\nCreating database...');
-      
+
       try {
         await postgresClient.query('CREATE DATABASE "taaxdog-production"');
         console.log('✅ Database created successfully');
@@ -50,14 +50,14 @@ async function testPostgresDatabase() {
 
     // Now connect to our actual database
     console.log('\n=== Connecting to taaxdog-production database ===\n');
-    
+
     const client = new Client({
       host: process.env.DB_HOST || 'taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com',
       port: parseInt(process.env.DB_PORT || '25060'),
       user: process.env.DB_USER || 'taaxdog-admin',
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME || 'taaxdog-production',
-      ssl: { rejectUnauthorized: false }
+      ssl: { rejectUnauthorized: false },
     });
 
     await client.connect();
@@ -81,7 +81,7 @@ async function testPostgresDatabase() {
 
     // Try to create schema permissions
     console.log('\n=== Setting up schema permissions ===\n');
-    
+
     try {
       // First, check who owns the public schema
       const schemaOwnerResult = await client.query(`
@@ -118,21 +118,22 @@ async function testPostgresDatabase() {
       console.log('✅ Test table removed');
 
       console.log('\n🎉 Database is fully configured and ready to use!');
-
     } catch (error) {
       console.log('❌ Permission setup failed:', error.message);
-      
-      if (error.code === '42501') { // Insufficient privilege
+
+      if (error.code === '42501') {
+        // Insufficient privilege
         console.log('\n=== Manual Setup Required ===');
         console.log('Please ask DigitalOcean support or use their control panel to:');
         console.log('1. Make "taaxdog-admin" the owner of the database');
         console.log('2. Or grant CREATE privileges on the public schema');
-        console.log('\nAlternatively, we can work without the public schema by creating our own schema.');
+        console.log(
+          '\nAlternatively, we can work without the public schema by creating our own schema.',
+        );
       }
     }
 
     await client.end();
-
   } catch (error) {
     console.error('❌ Connection failed:', error.message);
     console.error('Error code:', error.code);

@@ -7,7 +7,7 @@ export interface CircuitBreakerConfig {
 export enum CircuitBreakerState {
   CLOSED = 'closed',
   OPEN = 'open',
-  HALF_OPEN = 'half_open'
+  HALF_OPEN = 'half_open',
 }
 
 export class CircuitBreaker {
@@ -76,7 +76,7 @@ export class CircuitBreaker {
       failureCount: this.failureCount,
       lastFailureTime: this.lastFailureTime,
       nextAttemptTime: this.nextAttemptTime,
-      isOpen: this.isOpen()
+      isOpen: this.isOpen(),
     };
   }
 }
