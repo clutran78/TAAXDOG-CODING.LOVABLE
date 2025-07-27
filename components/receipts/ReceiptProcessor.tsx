@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
-import { Alert } from '@/components/ui/Alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert } from '@/components/ui/alert';
 import { ReceiptUploader } from './ReceiptUploader';
 import { ReceiptDataExtractor } from './ReceiptDataExtractor';
 import { ReceiptEditor } from './ReceiptEditor';
