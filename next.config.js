@@ -69,20 +69,6 @@ const nextConfig = {
           'typeof navigator': '"undefined"',
         })
       );
-      
-      // More aggressive polyfills for server-side
-      config.plugins.push(
-        new webpack.ProvidePlugin({
-          self: [path.join(__dirname, 'lib/polyfills/self-polyfill.js'), 'default'],
-        })
-      );
-    } else {
-      // Ensure self is available in browser
-      config.plugins.push(
-        new webpack.ProvidePlugin({
-          self: 'self',
-        })
-      );
     }
 
     // Fix for winston and other node modules
@@ -97,6 +83,14 @@ const nextConfig = {
         readline: false,
       };
     }
+
+    // Add node polyfills for globals
+    config.node = {
+      ...config.node,
+      global: true,
+      __filename: true,
+      __dirname: true,
+    };
 
     // Enable module concatenation for smaller bundles
     config.optimization.concatenateModules = true;
@@ -147,6 +141,8 @@ const nextConfig = {
       '@hooks': path.join(__dirname, 'hooks'),
       '@utils': path.join(__dirname, 'lib/utils'),
       '@types': path.join(__dirname, 'lib/types'),
+      // Fix for 'self' module resolution
+      'self': path.join(__dirname, 'lib/polyfills/self.js'),
     };
     
     // Optimize moment.js by removing unused locales
