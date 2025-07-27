@@ -951,3 +951,4 @@ class BasiqAPIClient {
 
 // Export singleton instance
 export const basiqClient = new BasiqAPIClient();
+export { BasiqAPIClient as BasiqClient };

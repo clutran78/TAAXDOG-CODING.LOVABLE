@@ -2,7 +2,7 @@ import * as Sentry from '@sentry/nextjs';
 import { logger } from '../logger';
 
 /**
- * Custom performance monitoring utilities that integrate with Sentry
+ * Custom performance monitoring utilities that integrate with Sentry v8
  */
 
 export interface PerformanceMetric {
@@ -14,26 +14,25 @@ export interface PerformanceMetric {
 
 export class SentryPerformanceMonitor {
   /**
-   * Start a transaction for monitoring
+   * Start a span for monitoring (v8 API)
    */
-  static startTransaction(name: string, op: string, data?: Record<string, unknown>) {
-    return Sentry.startTransaction({
-      name,
-      op,
-      data,
-      trimEnd: true,
-    });
+  static startSpan(name: string, op: string, fn?: () => void) {
+    if (fn) {
+      return Sentry.startSpan({ name, op }, fn);
+    }
+    return Sentry.startInactiveSpan({ name, op });
   }
 
   /**
-   * Start a span within current transaction
+   * Start a child span within current span
    */
-  static startSpan(op: string, description?: string) {
-    const transaction = Sentry.getCurrentHub().getScope()?.getTransaction();
-    if (transaction) {
-      return transaction.startChild({
+  static startChildSpan(op: string, description?: string) {
+    const activeSpan = Sentry.getActiveSpan();
+    if (activeSpan) {
+      return Sentry.startInactiveSpan({
         op,
-        description,
+        name: description || op,
+        parentSpan: activeSpan,
       });
     }
     return null;
@@ -44,12 +43,12 @@ export class SentryPerformanceMonitor {
    */
   static trackMetric(metric: PerformanceMetric) {
     try {
-      const transaction = Sentry.getCurrentHub().getScope()?.getTransaction();
-      if (transaction) {
-        transaction.setMeasurement(metric.name, metric.value, metric.unit);
+      const activeSpan = Sentry.getActiveSpan();
+      if (activeSpan) {
+        activeSpan.setMeasurement(metric.name, metric.value, metric.unit);
         if (metric.tags) {
           Object.entries(metric.tags).forEach(([key, value]) => {
-            transaction.setTag(key, value);
+            activeSpan.setAttribute(key, value);
           });
         }
       }
@@ -178,35 +177,41 @@ export class SentryPerformanceMonitor {
     fn: () => Promise<T>,
     tags?: Record<string, string>
   ): Promise<T> {
-    const startTime = performance.now();
-    const span = this.startSpan('function', name);
-
-    try {
-      const result = await fn();
-      const duration = performance.now() - startTime;
-      
-      this.trackMetric({
+    return Sentry.startSpan(
+      {
         name: `function.${name}`,
-        value: duration,
-        unit: 'millisecond',
-        tags: { ...tags, status: 'success' },
-      });
+        op: 'function',
+        attributes: tags,
+      },
+      async (span) => {
+        const startTime = performance.now();
+        try {
+          const result = await fn();
+          const duration = performance.now() - startTime;
+          
+          this.trackMetric({
+            name: `function.${name}`,
+            value: duration,
+            unit: 'millisecond',
+            tags: { ...tags, status: 'success' },
+          });
 
-      return result;
-    } catch (error) {
-      const duration = performance.now() - startTime;
-      
-      this.trackMetric({
-        name: `function.${name}`,
-        value: duration,
-        unit: 'millisecond',
-        tags: { ...tags, status: 'error' },
-      });
+          return result;
+        } catch (error) {
+          const duration = performance.now() - startTime;
+          
+          this.trackMetric({
+            name: `function.${name}`,
+            value: duration,
+            unit: 'millisecond',
+            tags: { ...tags, status: 'error' },
+          });
 
-      throw error;
-    } finally {
-      span?.finish();
-    }
+          span.setStatus({ code: 2, message: 'Internal Error' });
+          throw error;
+        }
+      }
+    );
   }
 
   /**
@@ -214,46 +219,53 @@ export class SentryPerformanceMonitor {
    */
   static apiMiddleware(handler: Function) {
     return async (req: any, res: any) => {
-      const startTime = performance.now();
-      const transaction = this.startTransaction(
-        `${req.method} ${req.url}`,
-        'http.server',
+      return Sentry.startSpan(
         {
-          method: req.method,
-          url: req.url,
+          name: `${req.method} ${req.url}`,
+          op: 'http.server',
+          attributes: {
+            'http.method': req.method,
+            'http.url': req.url,
+          },
+        },
+        async (span) => {
+          const startTime = performance.now();
+          
+          const originalEnd = res.end;
+          res.end = function(...args: any[]) {
+            const duration = performance.now() - startTime;
+            
+            SentryPerformanceMonitor.trackApiResponseTime(
+              req.url,
+              duration,
+              res.statusCode
+            );
+
+            span.setAttribute('http.status_code', res.statusCode);
+            span.setStatus({
+              code: res.statusCode >= 400 ? 2 : 0,
+              message: res.statusCode >= 400 ? 'HTTP Error' : 'OK',
+            });
+
+            return originalEnd.apply(res, args);
+          };
+
+          try {
+            await handler(req, res);
+          } catch (error) {
+            span.setStatus({ code: 2, message: 'Internal Error' });
+            throw error;
+          }
         }
       );
-
-      const originalEnd = res.end;
-      res.end = function(...args: any[]) {
-        const duration = performance.now() - startTime;
-        
-        SentryPerformanceMonitor.trackApiResponseTime(
-          req.url,
-          duration,
-          res.statusCode
-        );
-
-        transaction?.setHttpStatus(res.statusCode);
-        transaction?.finish();
-
-        return originalEnd.apply(res, args);
-      };
-
-      try {
-        await handler(req, res);
-      } catch (error) {
-        transaction?.setStatus('internal_error');
-        throw error;
-      }
     };
   }
 }
 
 // Export convenience functions
 export const {
-  startTransaction,
   startSpan,
+  startChildSpan,
   trackMetric,
   trackApiResponseTime,
   trackDatabaseQuery,
@@ -263,3 +275,6 @@ export const {
   measureAsync,
   apiMiddleware,
 } = SentryPerformanceMonitor;
+
+// For backward compatibility
+export const startTransaction = startSpan;

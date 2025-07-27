@@ -1,6 +1,17 @@
 // Central monitoring exports and initialization
 export { DatabaseMonitor, createPrismaWithMonitoring } from './database';
-export { ApiMonitor, withApiMonitoring } from './api';
+export { 
+  withApiMonitoring,
+  startMonitoring,
+  completeMonitoring,
+  getCurrentMetrics,
+  getEndpointMetrics,
+  getHealthMetrics,
+  resetEndpointMetrics,
+  resetAllMetrics,
+} from './api';
+// Backward compatibility export
+export { withApiMonitoring as ApiMonitor } from './api';
 export { ApplicationMonitor, withPerformanceMonitoring } from './application';
 export { ClientMonitor } from './client';
 

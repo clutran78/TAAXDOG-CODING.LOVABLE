@@ -1,5 +1,4 @@
 import * as Sentry from '@sentry/nextjs';
-import { BrowserProfilingIntegration } from '@sentry/browser';
 
 const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
@@ -31,7 +30,7 @@ if (SENTRY_DSN && typeof window !== 'undefined') {
 
     // Integrations
     integrations: [
-      new Sentry.replayIntegration({
+      Sentry.replayIntegration({
         maskAllText: true,
         blockAllMedia: true,
         maskAllInputs: true,
@@ -39,12 +38,10 @@ if (SENTRY_DSN && typeof window !== 'undefined') {
         mask: ['.sensitive', '[data-sensitive]'],
         block: ['.no-capture', '[data-no-capture]'],
       }),
-      new Sentry.browserTracingIntegration({
-        // Set up automatic route change tracking in Next.js
-        routingInstrumentation: Sentry.nextRouterInstrumentation,
+      Sentry.browserTracingIntegration({
         // Enable automatic pageload transaction
-        startTransactionOnPageLoad: true,
-        startTransactionOnLocationChange: true,
+        enableLongTask: true,
+        enableInp: true,
         // Track slow navigation
         idleTimeout: 3000,
         // Track backend fetches
@@ -60,11 +57,9 @@ if (SENTRY_DSN && typeof window !== 'undefined') {
         },
       }),
       // Performance monitoring for specific operations
-      new Sentry.httpIntegration({
+      Sentry.httpIntegration({
         tracing: true,
       }),
-      // Browser profiling for performance bottlenecks
-      new BrowserProfilingIntegration(),
     ],
 
     // Filtering
@@ -160,3 +155,6 @@ if (SENTRY_DSN && typeof window !== 'undefined') {
     ],
   });
 }
+
+// Export function for router transition tracking
+export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

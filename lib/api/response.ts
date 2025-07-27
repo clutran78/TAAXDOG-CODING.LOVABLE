@@ -267,6 +267,19 @@ export class ApiResponseHelper {
 // Export a shorter alias for convenience
 export const apiResponse = ApiResponseHelper;
 
+// Backward compatibility exports
+export const sendPaginatedSuccess = ApiResponseHelper.paginated;
+export const sendError = ApiResponseHelper.error;
+export const ERROR_CODES = {
+  UNAUTHORIZED: 'UNAUTHORIZED',
+  FORBIDDEN: 'FORBIDDEN',
+  NOT_FOUND: 'NOT_FOUND',
+  BAD_REQUEST: 'BAD_REQUEST',
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
+} as const;
+
 // Type guards
 export function isApiSuccessResponse<T>(
   response: ApiResponse<T>

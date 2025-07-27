@@ -65,6 +65,22 @@ const nextConfig = {
         new webpack.DefinePlugin({
           'typeof self': '"undefined"',
           'typeof window': '"undefined"',
+          'typeof document': '"undefined"',
+          'typeof navigator': '"undefined"',
+        })
+      );
+      
+      // More aggressive polyfills for server-side
+      config.plugins.push(
+        new webpack.ProvidePlugin({
+          self: [path.join(__dirname, 'lib/polyfills/self-polyfill.js'), 'default'],
+        })
+      );
+    } else {
+      // Ensure self is available in browser
+      config.plugins.push(
+        new webpack.ProvidePlugin({
+          self: 'self',
         })
       );
     }

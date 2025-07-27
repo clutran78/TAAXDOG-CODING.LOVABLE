@@ -677,3 +677,92 @@ export const adminSchemas = {
     }),
   },
 };
+
+/**
+ * Compliance API Schemas
+ */
+export const complianceSchemas = {
+  // GST calculation
+  gstCalculate: {
+    body: z.object({
+      amount: commonSchemas.amount,
+      isInclusive: z.boolean().default(true),
+    }),
+    response: z.object({
+      success: z.boolean(),
+      data: z.object({
+        amount: z.number(),
+        gstAmount: z.number(),
+        netAmount: z.number(),
+        isInclusive: z.boolean(),
+      }),
+    }),
+  },
+
+  // ABN validation
+  abnValidate: {
+    body: z.object({
+      abn: z.string().regex(/^\d{11}$/, 'ABN must be 11 digits'),
+    }),
+    response: z.object({
+      success: z.boolean(),
+      data: z.object({
+        isValid: z.boolean(),
+        formattedAbn: z.string().optional(),
+        message: z.string().optional(),
+      }),
+    }),
+  },
+
+  // BAS report
+  basReport: {
+    query: z.object({
+      period: z.string(),
+      year: z.number().min(2020).max(2030),
+    }),
+    response: z.object({
+      success: z.boolean(),
+      data: z.object({
+        period: z.string(),
+        year: z.number(),
+        totalSales: z.number(),
+        totalPurchases: z.number(),
+        gstCollected: z.number(),
+        gstPaid: z.number(),
+        netGst: z.number(),
+      }),
+    }),
+  },
+
+  // Comprehensive report
+  comprehensiveReport: {
+    query: z.object({
+      startDate: z.string(),
+      endDate: z.string(),
+    }),
+    response: z.object({
+      success: z.boolean(),
+      data: z.object({
+        period: z.object({
+          start: z.string(),
+          end: z.string(),
+        }),
+        income: z.object({
+          total: z.number(),
+          taxable: z.number(),
+          nonTaxable: z.number(),
+        }),
+        expenses: z.object({
+          total: z.number(),
+          deductible: z.number(),
+          nonDeductible: z.number(),
+        }),
+        gst: z.object({
+          collected: z.number(),
+          paid: z.number(),
+          net: z.number(),
+        }),
+      }),
+    }),
+  },
+};

@@ -10,6 +10,12 @@ import {
   RateLimitError,
   ExternalServiceError,
 } from './index';
+
+// Re-export for backward compatibility
+export {
+  AuthenticationError,
+  NotFoundError,
+} from './index';
 import { logApiError } from './errorLogger';
 import { AuthenticatedRequest } from '../middleware/auth';
 
