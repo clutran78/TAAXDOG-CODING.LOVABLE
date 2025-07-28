@@ -26,32 +26,37 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     // Extract user ID from session if available
     const userId = (req as any).session?.user?.id;
 
-    // Send Web Vitals to Sentry
-    if (webVitals) {
-      const transaction = Sentry.startTransaction({
-        name: 'web-vitals',
-        op: 'web.vitals',
-      });
+    // Send Web Vitals to Sentry (only if properly initialized)
+    if (webVitals && Sentry.startTransaction) {
+      try {
+        const transaction = Sentry.startTransaction({
+          name: 'web-vitals',
+          op: 'web.vitals',
+        });
 
-      // Add measurements
-      if (webVitals.CLS !== undefined) {
-        transaction.setMeasurement('cls', webVitals.CLS, 'none');
-      }
-      if (webVitals.FCP !== undefined) {
-        transaction.setMeasurement('fcp', webVitals.FCP, 'millisecond');
-      }
-      if (webVitals.FID !== undefined) {
-        transaction.setMeasurement('fid', webVitals.FID, 'millisecond');
-      }
-      if (webVitals.LCP !== undefined) {
-        transaction.setMeasurement('lcp', webVitals.LCP, 'millisecond');
-      }
-      if (webVitals.TTFB !== undefined) {
-        transaction.setMeasurement('ttfb', webVitals.TTFB, 'millisecond');
-      }
+        // Add measurements
+        if (webVitals.CLS !== undefined) {
+          transaction.setMeasurement('cls', webVitals.CLS, 'none');
+        }
+        if (webVitals.FCP !== undefined) {
+          transaction.setMeasurement('fcp', webVitals.FCP, 'millisecond');
+        }
+        if (webVitals.FID !== undefined) {
+          transaction.setMeasurement('fid', webVitals.FID, 'millisecond');
+        }
+        if (webVitals.LCP !== undefined) {
+          transaction.setMeasurement('lcp', webVitals.LCP, 'millisecond');
+        }
+        if (webVitals.TTFB !== undefined) {
+          transaction.setMeasurement('ttfb', webVitals.TTFB, 'millisecond');
+        }
 
-      transaction.setTag('url', url);
-      transaction.finish();
+        transaction.setTag('url', url);
+        transaction.finish();
+      } catch (sentryError) {
+        // Log but don't fail the request if Sentry has issues
+        logger.warn('Failed to send metrics to Sentry:', sentryError);
+      }
     }
 
     // Log performance data for analytics

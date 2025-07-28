@@ -1,5 +1,4 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { prisma } from '@/lib/prisma';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -19,6 +18,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // Check database connection
   try {
+    // Dynamically import prisma to avoid initialization issues
+    const { prisma } = await import('@/lib/prisma');
     await prisma.$queryRaw`SELECT 1`;
     health.checks.database = true;
   } catch (error) {
