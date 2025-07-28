@@ -72,7 +72,9 @@ const keyGenerators = {
   user: (req: NextApiRequest): string => {
     const userId = (req as any).userId || (req as any).session?.user?.id;
     if (!userId) {
-      throw new Error('User ID not found for rate limiting');
+      // Fallback to IP-based rate limiting if no user ID
+      const ip = getClientIp(req) || 'unknown';
+      return `ip:${ip}`;
     }
     return `user:${userId}`;
   },
@@ -110,6 +112,14 @@ export function createRateLimiter(options: RateLimitOptions) {
     next?: () => void | Promise<void>,
   ): Promise<boolean> => {
     try {
+      // Skip rate limiting during static generation
+      if (typeof window === 'undefined' && !req.headers) {
+        if (next) {
+          await next();
+        }
+        return true;
+      }
+
       // Generate key for this request
       const key = keyGenerator(req);
       const endpoint = req.url || 'unknown';

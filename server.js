@@ -14,18 +14,8 @@ const handle = app.getRequestHandler();
 app.prepare().then(() => {
   createServer(async (req, res) => {
     try {
-      // Use WHATWG URL API with proper fallback
-      const baseUrl = `http://${req.headers.host || `${hostname}:${port}`}`;
-      const parsedUrl = new URL(req.url, baseUrl);
-
-      // Convert to the format Next.js expects
-      const query = Object.fromEntries(parsedUrl.searchParams);
-      const urlObject = {
-        pathname: parsedUrl.pathname,
-        query: query,
-      };
-
-      await handle(req, res, urlObject);
+      // Parse the URL - handle the request properly
+      await handle(req, res);
     } catch (err) {
       console.error('Error occurred handling', req.url, err);
       res.statusCode = 500;

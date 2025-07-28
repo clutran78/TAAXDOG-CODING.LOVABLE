@@ -56,7 +56,10 @@ export class AIService {
   private rateLimiter = new RateLimiter();
 
   constructor() {
-    this.initializeProviders();
+    // Only initialize on server side
+    if (typeof window === 'undefined') {
+      this.initializeProviders();
+    }
   }
 
   private initializeProviders() {
