@@ -21,9 +21,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const subscriptionService = new SubscriptionService();
 
-    const protocol = req.headers['x-forwarded-proto'] || 'http';
-    const host = req.headers.host;
-    const returnUrl = `${protocol}://${host}/account/subscription`;
+    // Get the host from various sources (handle potential array values)
+    const forwardedHost = req.headers['x-forwarded-host'];
+    const hostHeader = req.headers.host;
+    const host = 
+      (Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost) ||
+      (Array.isArray(hostHeader) ? hostHeader[0] : hostHeader);
+    
+    // Construct return URL
+    let returnUrl: string;
+    if (host) {
+      const protocol = req.headers['x-forwarded-proto'] || 'http';
+      returnUrl = `${protocol}://${host}/account/subscription`;
+    } else {
+      // Fallback to NEXTAUTH_URL if host is not available
+      const fallbackUrl = process.env.NEXTAUTH_URL;
+      if (!fallbackUrl) {
+        return apiResponse.error(res, 'Unable to determine application URL', 500);
+      }
+      returnUrl = `${fallbackUrl}/account/subscription`;
+    }
 
     const portalSession = await subscriptionService.createBillingPortalSession(
       session.user.id,
