@@ -1,6 +1,32 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { queryMonitor } from './monitoring/query-monitor';
 import { logger } from '@/lib/logger';
+import { getDatabaseUrl, validateProductionDatabaseUrl, logDatabaseConnectionInfo } from './utils/database-url';
+
+// Get and validate database URL
+let databaseUrl: string;
+try {
+  databaseUrl = getDatabaseUrl();
+  
+  // Validate in production
+  if (process.env.NODE_ENV === 'production') {
+    const validation = validateProductionDatabaseUrl(databaseUrl);
+    if (!validation.valid) {
+      logger.error('Database URL validation failed:', validation.errors);
+      throw new Error(`Invalid database configuration: ${validation.errors.join(', ')}`);
+    }
+  }
+  
+  // Log connection info (safe, no passwords)
+  logDatabaseConnectionInfo(databaseUrl);
+} catch (error) {
+  logger.error('Failed to configure database URL:', error);
+  // Set a dummy URL to prevent immediate crash, actual connection will fail with better error
+  databaseUrl = 'postgresql://dummy:dummy@localhost:5432/dummy';
+}
+
+// Set the DATABASE_URL for Prisma
+process.env.DATABASE_URL = databaseUrl;
 
 // Prevent multiple instances of Prisma Client in development
 const globalForPrisma = globalThis as unknown as {
