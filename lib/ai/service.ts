@@ -68,6 +68,8 @@ export class AIService {
       const anthropicConfig = getProviderConfig(AIProvider.ANTHROPIC);
       this.anthropic = new Anthropic({
         apiKey: anthropicConfig.apiKey,
+        // Explicitly set to false to prevent browser detection issues
+        dangerouslyAllowBrowser: false,
       });
 
       // Initialize Gemini

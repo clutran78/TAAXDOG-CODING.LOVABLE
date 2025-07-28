@@ -112,8 +112,8 @@ export function createRateLimiter(options: RateLimitOptions) {
     next?: () => void | Promise<void>,
   ): Promise<boolean> => {
     try {
-      // Skip rate limiting during static generation
-      if (typeof window === 'undefined' && !req.headers) {
+      // Skip rate limiting during static generation or when res is not available
+      if (typeof window === 'undefined' && (!req?.headers || !res?.setHeader)) {
         if (next) {
           await next();
         }
@@ -140,36 +140,42 @@ export function createRateLimiter(options: RateLimitOptions) {
       const remaining = Math.max(0, max - limitData.count);
       const reset = new Date(limitData.resetTime);
 
-      // Add rate limit headers
-      if (standardHeaders) {
-        res.setHeader('RateLimit-Limit', max.toString());
-        res.setHeader('RateLimit-Remaining', remaining.toString());
-        res.setHeader('RateLimit-Reset', reset.toISOString());
-        res.setHeader('RateLimit-Policy', `${max};w=${window / 1000}`);
-      }
+      // Add rate limit headers (only if response object is available)
+      if (res && typeof res.setHeader === 'function') {
+        if (standardHeaders) {
+          res.setHeader('RateLimit-Limit', max.toString());
+          res.setHeader('RateLimit-Remaining', remaining.toString());
+          res.setHeader('RateLimit-Reset', reset.toISOString());
+          res.setHeader('RateLimit-Policy', `${max};w=${window / 1000}`);
+        }
 
-      if (legacyHeaders) {
-        res.setHeader('X-RateLimit-Limit', max.toString());
-        res.setHeader('X-RateLimit-Remaining', remaining.toString());
-        res.setHeader('X-RateLimit-Reset', Math.floor(limitData.resetTime / 1000).toString());
+        if (legacyHeaders) {
+          res.setHeader('X-RateLimit-Limit', max.toString());
+          res.setHeader('X-RateLimit-Remaining', remaining.toString());
+          res.setHeader('X-RateLimit-Reset', Math.floor(limitData.resetTime / 1000).toString());
+        }
       }
 
       // Check if limit exceeded
       if (limitData.count >= max) {
         const retryAfter = Math.ceil((limitData.resetTime - now) / 1000);
-        res.setHeader('Retry-After', retryAfter.toString());
+        
+        // Only set headers and respond if res is available
+        if (res && typeof res.setHeader === 'function' && typeof res.status === 'function') {
+          res.setHeader('Retry-After', retryAfter.toString());
 
-        // Don't count this request if configured
-        if (!skipFailedRequests) {
-          limitData.count++;
+          // Don't count this request if configured
+          if (!skipFailedRequests) {
+            limitData.count++;
+          }
+
+          res.status(429).json({
+            error: 'Too Many Requests',
+            message,
+            retryAfter,
+            resetAt: reset.toISOString(),
+          });
         }
-
-        res.status(429).json({
-          error: 'Too Many Requests',
-          message,
-          retryAfter,
-          resetAt: reset.toISOString(),
-        });
 
         return false;
       }
@@ -256,21 +262,27 @@ export const rateLimiters = {
 };
 
 // Helper to apply rate limiting to session-based endpoints
-export function withSessionRateLimit(handler: any, config: Partial<RateLimitOptions> = {}) {
-  return withRateLimit(handler, {
-    ...RATE_LIMIT_CONFIGS.api.standard,
-    keyGenerator: keyGenerators.user,
-    ...config,
-  });
+export function withSessionRateLimit(config: Partial<RateLimitOptions> = {}) {
+  // Return a middleware function that takes a handler
+  return (handler: any) => {
+    return withRateLimit(handler, {
+      ...RATE_LIMIT_CONFIGS.api.standard,
+      keyGenerator: keyGenerators.user,
+      ...config,
+    });
+  };
 }
 
 // Helper to apply rate limiting to public endpoints
-export function withPublicRateLimit(handler: any, config: Partial<RateLimitOptions> = {}) {
-  return withRateLimit(handler, {
-    ...RATE_LIMIT_CONFIGS.public.health,
-    keyGenerator: keyGenerators.ip,
-    ...config,
-  });
+export function withPublicRateLimit(config: Partial<RateLimitOptions> = {}) {
+  // Return a middleware function that takes a handler
+  return (handler: any) => {
+    return withRateLimit(handler, {
+      ...RATE_LIMIT_CONFIGS.public.health,
+      keyGenerator: keyGenerators.ip,
+      ...config,
+    });
+  };
 }
 
 // Sliding window rate limiter for more accurate limiting
@@ -298,12 +310,15 @@ export function createSlidingWindowRateLimiter(options: RateLimitOptions) {
       const oldestEntry = Math.min(...log);
       const retryAfter = Math.ceil((oldestEntry + window - now) / 1000);
 
-      res.setHeader('Retry-After', retryAfter.toString());
-      res.status(429).json({
-        error: 'Too Many Requests',
-        message: options.message || 'Rate limit exceeded',
-        retryAfter,
-      });
+      // Only set headers and respond if res is available
+      if (res && typeof res.setHeader === 'function' && typeof res.status === 'function') {
+        res.setHeader('Retry-After', retryAfter.toString());
+        res.status(429).json({
+          error: 'Too Many Requests',
+          message: options.message || 'Rate limit exceeded',
+          retryAfter,
+        });
+      }
 
       return false;
     }

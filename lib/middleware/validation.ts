@@ -456,5 +456,13 @@ export function validateMethod(allowedMethods: string[]) {
  * Compose multiple middlewares
  */
 export function composeMiddleware(...middlewares: any[]) {
-  return middlewares.reduce((a, b) => (handler: any) => a(b(handler)));
+  return (handler: any) => {
+    // Apply middlewares in reverse order so they execute in the order they were passed
+    return middlewares.reduceRight((next, middleware) => {
+      return (req: any, res: any) => {
+        // Ensure req and res are passed through the middleware chain
+        return middleware(next)(req, res);
+      };
+    }, handler);
+  };
 }
