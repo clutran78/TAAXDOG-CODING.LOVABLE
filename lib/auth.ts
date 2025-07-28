@@ -11,6 +11,28 @@ import { logger } from '@/lib/logger';
 export { logAuthEvent } from './auth/auth-utils';
 export const hashPassword = async (password: string) => bcrypt.hash(password, 12);
 
+// Validate required environment variables
+const requiredEnvVars = {
+  NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
+  NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+};
+
+// Check for missing environment variables
+const missingVars = Object.entries(requiredEnvVars)
+  .filter(([_, value]) => !value)
+  .map(([key]) => key);
+
+if (missingVars.length > 0) {
+  const errorMsg = `Missing required environment variables: ${missingVars.join(', ')}`;
+  logger.error(errorMsg);
+  
+  // In production, log the error but don't throw to prevent app from crashing
+  // The error will be handled in the NextAuth API route
+  if (process.env.NODE_ENV === 'production') {
+    console.error(`[CRITICAL] ${errorMsg}`);
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
