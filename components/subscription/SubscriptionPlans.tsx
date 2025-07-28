@@ -5,7 +5,19 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import { logger } from '@/lib/logger';
 
-const stripePromise = loadStripe(getStripePublishableKey());
+// Only load Stripe on the client side
+let stripePromise: ReturnType<typeof loadStripe> | null = null;
+
+const getStripe = (): ReturnType<typeof loadStripe> | null => {
+  if (!stripePromise && typeof window !== 'undefined') {
+    try {
+      stripePromise = loadStripe(getStripePublishableKey());
+    } catch (error) {
+      logger.error('Failed to load Stripe:', error);
+    }
+  }
+  return stripePromise;
+};
 
 export const SubscriptionPlans: React.FC = () => {
   const { data: session } = useSession();
@@ -15,7 +27,7 @@ export const SubscriptionPlans: React.FC = () => {
 
   const handleSubscribe = async (planId: string) => {
     if (!session?.user) {
-      router.push('/auth/login');
+      void router.push('/auth/login');
       return;
     }
 
@@ -34,7 +46,7 @@ export const SubscriptionPlans: React.FC = () => {
       });
 
       const { sessionId } = await response.json();
-      const stripe = await stripePromise;
+      const stripe = await getStripe();
 
       if (stripe) {
         const { error } = await stripe.redirectToCheckout({ sessionId });

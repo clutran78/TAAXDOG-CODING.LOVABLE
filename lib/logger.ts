@@ -1,5 +1,3 @@
-import { logger } from '@/lib/logger';
-
 /**
  * Centralized logging utility
  * Replaces console statements for production-ready logging
@@ -10,15 +8,15 @@ type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 interface LogEntry {
   level: LogLevel;
   message: string;
-  data?: any;
+  data?: unknown;
   timestamp: string;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
 }
 
 class Logger {
-  private isDevelopment = process.env.NODE_ENV === 'development';
+  private readonly _isDevelopment = process.env.NODE_ENV === 'development';
   
-  private log(level: LogLevel, message: string, data?: any) {
+  private log(level: LogLevel, message: string, data?: unknown): void {
     const logEntry: LogEntry = {
       level,
       message,
@@ -27,7 +25,7 @@ class Logger {
     };
     
     // In development, use console
-    if (this.isDevelopment) {
+    if (this._isDevelopment) {
       const consoleMethod = level === 'error' ? console.error : 
                            level === 'warn' ? console.warn : 
                            console.log;
@@ -37,31 +35,31 @@ class Logger {
     }
     
     // In production, send to logging service
-    // TODO: Implement production logging (e.g., Sentry, LogRocket, etc.)
     this.sendToLoggingService(logEntry);
   }
   
-  private sendToLoggingService(logEntry: LogEntry) {
+  private sendToLoggingService(logEntry: LogEntry): void {
     // Implement your preferred logging service here
     // For now, we'll use a safe console fallback
-    if (logEntry.level === 'error') {
-      logger.error('[LOGGER]', logEntry);
+    if (typeof console !== 'undefined') {
+      const logData = logEntry.data ? JSON.stringify(logEntry.data) : '';
+      console.log(`[${logEntry.level.toUpperCase()}] ${logEntry.timestamp} ${logEntry.message} ${logData}`);
     }
   }
   
-  debug(message: string, data?: any) {
+  public debug(message: string, data?: unknown): void {
     this.log('debug', message, data);
   }
   
-  info(message: string, data?: any) {
+  public info(message: string, data?: unknown): void {
     this.log('info', message, data);
   }
   
-  warn(message: string, data?: any) {
+  public warn(message: string, data?: unknown): void {
     this.log('warn', message, data);
   }
   
-  error(message: string, error?: any) {
+  public error(message: string, error?: unknown): void {
     const errorData = error instanceof Error ? {
       message: error.message,
       stack: error.stack,

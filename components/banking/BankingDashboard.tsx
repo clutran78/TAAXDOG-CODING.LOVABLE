@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, memo } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
+import { Alert } from '@/components/ui/Alert';
 import { BankConnectionManager } from './BankConnectionManager';
 import { AccountBalances } from './AccountBalances';
 import { TransactionList } from './TransactionList';

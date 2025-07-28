@@ -16,26 +16,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Deployment: DigitalOcean App Platform (Sydney region)
 - Containerization: Docker with multi-stage optimized builds
 
-## Infrastructure Details
-
-### Droplets
-- Production Droplet: taxreturnpro-droplet (IP: 170.64.206.137)
-- Staging Droplet: taxreturnpro-staging-droplet (IP: 170.64.195.235)
-
-### Database Configuration
-
-#### Development Database
-```
-DATABASE_URL="postgresql://[username]@localhost:5432/taaxdog_development"
-```
-
-#### Production Database
-- Host: taaxdog-production-do-user-23438582-0.d.db.ondigitalocean.com
-- Port: 25060 (main) / 25061 (application)
-- Database: taaxdog-production
-- SSL Mode: require
-- Connection Pool: taaxdog-connection-pool
-
 ## Core Development Commands
 
 ### Essential Commands
@@ -60,7 +40,7 @@ npx prisma studio          # Open Prisma Studio GUI
 npm run db:import          # Import data using optimized orchestrator
 ```
 
-### Testing & Verification
+### Testing Commands
 ```bash
 npm test                   # Run all Jest tests
 npm test -- --coverage     # Run tests with coverage report (80%+ target)
@@ -70,36 +50,24 @@ npm run test:integration   # Run integration tests only
 npm run test:api           # Test API endpoints
 npm run test:db-performance # Test database performance
 npm run test:security      # Run security tests
-npm run test-auth          # Test authentication system
-npm run test-ai            # Test AI service integrations
-npm run test-basiq         # Test banking integration
-npm run verify:quick       # Quick system verification
-npm run verify:full        # Comprehensive migration verification
-npm run verify:compliance  # Check Australian compliance
-npm run security:validate  # Security validation
-npm run env:validate       # Environment validation
 ```
 
-### Deployment
+### Deployment & Monitoring
 ```bash
 npm run deploy:validate    # Run deployment checklist
-npm run deploy:check:env   # Validate environment
-npm run deploy:check:security  # Security checklist
-npm run deploy:check:golive    # Go-live validation
-```
-
-### Monitoring & Maintenance
-```bash
-npm run monitoring:setup   # Setup performance monitoring
 npm run compliance:all     # Run all compliance checks
 npm run backup:full        # Full database backup
-npm run audit:verify       # Verify audit logs
-npm run optimize:queries   # Optimize database queries
-npm run monitor:resources  # Monitor system resources
-npm run backup:incremental # Incremental backup
-npm run audit:maintain     # Cleanup old audit logs
 npm run analyze-bundle     # Analyze bundle size with webpack
-npm run optimization:report # Generate optimization report
+npm run monitoring:setup   # Setup performance monitoring
+```
+
+### Environment Management
+```bash
+npm run env:switch:dev     # Switch to development environment
+npm run env:switch:staging # Switch to staging environment  
+npm run env:switch:prod    # Switch to production environment
+npm run env:backup         # Backup current environment
+npm run env:validate       # Environment validation
 ```
 
 ## High-Level Architecture
@@ -114,16 +82,18 @@ npm run optimization:report # Generate optimization report
   - Account locking and suspicious activity tracking
   - Email verification requirements
   - Enhanced password reset flow with SendGrid integration
+  - Session validation uses `getServerSession` with authOptions
 
 ### 2. AI Service Integration
 - **Location**: `lib/ai/`, `pages/api/ai/`
 - **Architecture**: Multi-provider with fallback (Anthropic → OpenRouter → Gemini)
 - **Key Patterns**:
   - Operation-based model selection (TAX_ANALYSIS, RECEIPT_SCANNING, etc.)
-  - 24-hour response caching
-  - Rate limiting per provider
+  - 24-hour response caching in database
+  - Rate limiting per provider with in-memory store
   - Australian tax context in system prompts
   - Token usage tracking and cost calculation
+  - Automatic retry with provider fallback on failure
 
 ### 3. Banking Integration (BASIQ)
 - **Location**: `lib/basiq/`, `pages/api/banking/`
@@ -133,7 +103,8 @@ npm run optimization:report # Generate optimization report
   - Webhook-based real-time updates
   - Automatic GST calculation (10%)
   - Tax category mapping (D1-D15, P8)
-  - Batch sync with pagination
+  - Batch sync with pagination (500 transactions per page)
+  - Transaction categorization based on merchant and description
 
 ### 4. Database Access Patterns
 - **Location**: `lib/db/`, `prisma/`
@@ -142,31 +113,26 @@ npm run optimization:report # Generate optimization report
   - Singleton pattern for Prisma client in `lib/prisma.ts`
   - Connection pooling optimization
   - Query performance monitoring
-  - Environment-aware logging
-  - Health checks with metrics
-  - 6 critical performance indexes added for optimization
   - Row-Level Security (RLS) implementation
+  - Field-level encryption for sensitive data (AES-256-GCM)
+  - 6 critical performance indexes added for optimization
 
 ### 5. Security Middleware Stack
 - **Location**: `lib/middleware/`
-- **Layers**:
-  1. Authentication validation
-  2. Authorization (role-based)
-  3. Rate limiting (configurable per endpoint)
-  4. CSRF protection
+- **Layers** (applied in order):
+  1. Security headers
+  2. Authentication validation
+  3. Authorization (role-based)
+  4. CSRF protection (for state-changing operations)
   5. Input validation/sanitization
-  6. Security headers
-- **Usage**: `withMiddleware` composable pattern
+  6. Rate limiting (configurable per endpoint)
+- **Usage**: `withMiddleware` composable pattern or `withSecurity` wrapper
 
-### 6. Python Flask Backend
-- **Location**: `backend/`
-- **Purpose**: Heavy processing, ML tasks, background jobs
-- **Integration**: RESTful API with correlation IDs
-- **Key Services**:
-  - Transfer scheduler
-  - Savings advisor
-  - Receipt processing pipeline
-  - Analytics engine
+### 6. API Response Patterns
+- **Location**: `lib/api/response.ts`
+- **Standard format**: `{ success: boolean, data?: any, error?: string }`
+- **Error codes**: Consistent across all endpoints
+- **Pagination**: `{ items: [], total: number, page: number, pageSize: number }`
 
 ### 7. Subscription/Payment Flow (Stripe)
 - **Location**: `lib/stripe/`, `pages/api/stripe/`
@@ -198,32 +164,14 @@ npm run optimization:report # Generate optimization report
 5. **Cost Optimization**: AI response caching, token tracking
 6. **Australian-First Design**: All features comply with Australian regulations
 
-## Key Technical Patterns
-
-### Error Handling
-- Consistent error response format with error codes
-- Comprehensive logging with correlation IDs
-- User-friendly error messages with actionable steps
-- Automatic error reporting for critical failures
-
-### Performance Optimization
-- Redis caching for frequently accessed data
-- Materialized views for analytics queries
-- Connection pooling with pgbouncer
-- Query optimization with Prisma's `explain`
-- Lazy loading and code splitting
-
-### Testing Strategy
-- Component-specific test scripts (`test-auth`, `test-ai`, etc.)
-- Environment validation before deployment
-- Compliance verification suite
-- Performance monitoring with alerts
-
 ## Common Development Tasks
 
 ### Adding a New API Endpoint
 1. Create route in `pages/api/`
-2. Apply appropriate middleware wrapper (withAuth, withRateLimit, etc.)
+2. Apply appropriate middleware wrapper:
+   - `withAuth()` for authenticated endpoints
+   - `withRateLimit()` for rate-limited endpoints
+   - `withSecurity()` for full security stack
 3. Add input validation using Zod schemas from `lib/validation/api-schemas.ts`
 4. Use standardized response format from `lib/api/response.ts`
 5. Implement business logic
@@ -231,11 +179,11 @@ npm run optimization:report # Generate optimization report
 7. Write tests for the new endpoint
 
 ### Working with AI Services
-1. Use `AIService` from `lib/ai/service.ts`
-2. Select appropriate operation type
-3. Handle provider fallback gracefully
-4. Track token usage for cost monitoring
-5. Implement caching for expensive operations
+1. Use `aiService` singleton from `lib/ai/service.ts`
+2. Select appropriate operation type from `AIOperationType` enum
+3. Check for cached response first
+4. Handle provider fallback gracefully
+5. Track token usage for cost monitoring
 
 ### Database Schema Changes
 1. Update `prisma/schema.prisma`
@@ -247,18 +195,18 @@ npm run optimization:report # Generate optimization report
 7. Update relevant API schemas and tests
 
 ### Implementing Australian Tax Features
-1. Always use Australian tax year (July 1 - June 30)
+1. Use Australian tax year (July 1 - June 30) from `date-fns-tz`
 2. Include GST in all calculations (10%)
-3. Use ATO-compliant categories (D1-D15, P8)
+3. Use ATO-compliant categories (D1-D15, P8) from `TAX_CATEGORIES`
 4. Validate ABN format when collected
 5. Generate proper tax invoices with all required fields
 
 ### Working with React Query
 1. Use custom hooks from `hooks/queries/`
-2. Follow consistent query key patterns
+2. Query keys follow pattern: `['resource', id, params]`
 3. Implement optimistic updates for better UX
 4. Use proper cache invalidation strategies
-5. Handle loading and error states appropriately
+5. Handle loading and error states with UI components
 
 ## Environment Variables
 
@@ -273,29 +221,9 @@ Critical variables that must be set:
 
 See `.env.example` for complete list with descriptions.
 
-### Environment Management
-```bash
-npm run env:switch:dev     # Switch to development environment
-npm run env:switch:staging # Switch to staging environment  
-npm run env:switch:prod    # Switch to production environment
-npm run env:backup         # Backup current environment
-```
-
 ## Deployment Process
 
-### Local Deployment with Docker
-```bash
-# Development
-docker-compose -f docker-compose.dev.yml up
-
-# Production
-docker-compose up
-
-# Rebuild containers
-docker-compose build --no-cache
-```
-
-### Cloud Deployment
+### Cloud Deployment (DigitalOcean)
 1. Ensure on main branch: `git branch --show-current`
 2. Run validation: `npm run deploy:validate`
 3. Run tests: `npm test -- --coverage`
@@ -310,68 +238,23 @@ docker-compose build --no-cache
 ### Build Configuration
 - TypeScript errors are ignored during production builds for faster deployment
 - ESLint warnings don't block builds
-- Custom webpack configuration ignores RLS-migrated files
-- Separate TypeScript configs for app (`tsconfig.json`) and scripts (`tsconfig.node.json`)
-- Bundle optimization with code splitting and lazy loading
-- SWC minification enabled for smaller builds
-- Compression plugin for gzip assets in production
+- Custom webpack configuration with code splitting
+- Bundle optimization with compression plugin
+- SWC minification enabled
 
 ### Performance Optimization
-- React Query for optimized data fetching with caching
+- React Query for data fetching with 5-minute cache
 - Dynamic imports for heavy components (insights, receipts, charts)
 - Lazy loading utilities in `lib/utils/dynamic-import.tsx`
-- Bundle analyzer available via `npm run analyze-bundle`
 - Web Vitals monitoring integrated with Sentry
+- Database query optimization with materialized views
 
 ### Testing Infrastructure
-- Jest configured with TypeScript support
+- Jest with TypeScript support
 - React Testing Library for component tests
-- Test files use `.test.ts` or `.test.tsx` extension
+- Test files: `.test.ts` or `.test.tsx`
 - Mock files in `__mocks__/` directory
-- Coverage reports via `npm test -- --coverage`
-
-## Recent Architecture Improvements
-
-### API Response Standardization
-- All API routes use `lib/api/response.ts` utilities
-- Consistent error handling and response formats
-- TypeScript types for all API responses
-
-### Code Quality Tools
-- ESLint with custom rules for consistency
-- Prettier for code formatting
-- TypeScript strict mode enabled
-- Automated scripts for fixing common issues (`fix:naming`, `fix:console`)
-
-### Bundle Size Optimization
-- Webpack configuration with advanced code splitting
-- Separate chunks for framework, libraries, and common code
-- Dynamic import patterns for lazy loading
-- Performance budgets defined in `lib/config/bundle-optimization.ts`
-
-### Security Configuration
-- Comprehensive security headers in `next.config.js`
-- Field-level encryption for sensitive data (AES-256-GCM)
-- Row-Level Security (RLS) enforced in PostgreSQL
-- CSRF protection on all state-changing endpoints
-- Rate limiting configured per endpoint and provider
-
-### Monitoring & Logging
-- Application performance monitoring in `lib/monitoring/`
-- Database query monitoring with performance metrics
-- Resource usage tracking (CPU, memory, connections)
-- Correlation IDs for request tracing
-- Audit logging for all sensitive operations
-- Sentry integration for error tracking and performance monitoring
-- Web Vitals tracking for client-side performance
-
-## Docker Configuration
-- Multi-stage Dockerfile for optimized builds (200MB vs 1.5GB)
-- Separate development and production configurations
-- Health checks for all services
-- Redis for caching and session storage
-- Nginx for load balancing and reverse proxy
-- Prometheus and Grafana for metrics
+- Integration tests in `__tests__/integration/`
 
 ## Quick Troubleshooting
 
@@ -387,7 +270,3 @@ docker-compose build --no-cache
 - Review database queries: `npm run test:db-performance`
 - Monitor with Sentry dashboard
 - Check for memory leaks in long-running operations
-
-## important-instruction-reminders
-
-Do what has been asked; nothing more, nothing less. NEVER create files unless they're absolutely necessary for achieving your goal. ALWAYS prefer editing an existing file to creating a new one. NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.

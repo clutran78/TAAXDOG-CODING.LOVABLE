@@ -1,6 +1,7 @@
 import dynamic from 'next/dynamic';
 import { ComponentType, ReactElement } from 'react';
 import { getDynamicImportConfig } from '../config/bundle-optimization';
+import { logger } from '@/lib/logger';
 
 /**
  * Loading component with skeleton loader
@@ -38,7 +39,7 @@ export function lazyImport<T extends ComponentType<any>>(
         const module = await importFn();
         return 'default' in module ? module : { default: module };
       } catch (error) {
-        console.error(`Failed to load component: ${componentName}`, error);
+        logger.error(`Failed to load component: ${componentName}`, error);
         throw error;
       }
     },
@@ -88,9 +89,9 @@ export async function preloadComponent(
 ): Promise<void> {
   try {
     await importFn();
-    console.log(`Preloaded component: ${componentName}`);
+    logger.info(`Preloaded component: ${componentName}`);
   } catch (error) {
-    console.error(`Failed to preload component: ${componentName}`, error);
+    logger.error(`Failed to preload component: ${componentName}`, error);
   }
 }
 
