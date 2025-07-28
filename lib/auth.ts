@@ -135,7 +135,7 @@ export async function createPasswordResetToken(email: string): Promise<string> {
 
   logger.info(`✅ Password reset token generated for: ${email}`);
   console.log(
-    `🔗 Reset link: ${process.env.NEXTAUTH_URL || 'https://dev.taxreturnpro.com.au'}/auth/reset-password?token=${token}`,
+    `🔗 Reset link: ${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/auth/reset-password?token=${token}`,
   );
 
   return token;

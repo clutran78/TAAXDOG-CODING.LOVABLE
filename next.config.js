@@ -182,7 +182,7 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value:
               process.env.NODE_ENV === 'production'
-                ? "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.taaxdog.com https://taxreturnpro.com.au; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+                ? "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.taaxdog.com https://*.taxreturnpro.com.au https://taxreturnpro.com.au; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
                 : "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: https:; connect-src 'self' http://localhost:* ws://localhost:*; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
           },
         ],

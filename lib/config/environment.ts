@@ -218,7 +218,7 @@ function validateConfig(config: EnvironmentConfig): void {
 
   if (errors.length > 0) {
     logger.error('❌ Configuration validation failed:');
-    errors.forEach((error) => logger.error(`  - ${error}`););
+    errors.forEach((error) => logger.error(`  - ${error}`));
     throw new Error(`Invalid configuration for ${config.env} environment`);
   }
 }

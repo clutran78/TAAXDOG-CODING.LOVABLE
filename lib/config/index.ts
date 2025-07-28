@@ -69,7 +69,7 @@ const baseConfigSchema = z.object({
   app: z.object({
     url: z.string().url(),
     apiUrl: z.string().url(),
-    domain: z.string().default('taxreturnpro.com.au'),
+    domain: z.string().default('localhost'),
   }),
 
   // Feature Flags
@@ -173,7 +173,7 @@ function loadProductionConfig(): Config {
       slowQueryThreshold: 500,
     },
     auth: {
-      url: process.env.NEXTAUTH_URL || 'https://taxreturnpro.com.au',
+      url: process.env.NEXTAUTH_URL || 'http://localhost:3000',
       secret: process.env.NEXTAUTH_SECRET || '',
       providers: {
         google: {
@@ -203,9 +203,9 @@ function loadProductionConfig(): Config {
       serverUrl: 'https://au-api.basiq.io',
     },
     app: {
-      url: process.env.APP_URL || 'https://taxreturnpro.com.au',
-      apiUrl: process.env.API_URL || 'https://taxreturnpro.com.au/api',
-      domain: 'taxreturnpro.com.au',
+      url: process.env.APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000',
+      apiUrl: process.env.API_URL || (process.env.NEXTAUTH_URL ? `${process.env.NEXTAUTH_URL}/api` : 'http://localhost:3000/api'),
+      domain: process.env.APP_DOMAIN || 'localhost',
     },
     features: {
       stripeWebhooks: true,
@@ -214,8 +214,8 @@ function loadProductionConfig(): Config {
     },
     security: {
       enableRateLimiting: true,
-      corsOrigin: 'https://taxreturnpro.com.au',
-      sessionCookieSecure: true,
+      corsOrigin: process.env.CORS_ORIGIN || process.env.NEXTAUTH_URL || 'http://localhost:3000',
+      sessionCookieSecure: process.env.NODE_ENV === 'production',
       healthCheckToken: process.env.HEALTH_CHECK_TOKEN || '',
     },
     logging: {
