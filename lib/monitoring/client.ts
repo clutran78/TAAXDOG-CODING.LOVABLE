@@ -34,6 +34,11 @@ class ClientMonitor {
   private errorBatchTimer: NodeJS.Timeout | null = null;
   private readonly ERROR_BATCH_INTERVAL = 5000; // 5 seconds
   private readonly MAX_BATCH_SIZE = 50;
+  
+  // Metrics debouncing
+  private metricsDebounceTimer: NodeJS.Timeout | null = null;
+  private readonly METRICS_DEBOUNCE_DELAY = 5000; // 5 seconds
+  private isAuthenticating = false;
 
   // Rate limiting configuration
   private errorsSentInWindow = 0;
@@ -143,6 +148,11 @@ class ClientMonitor {
 
   // Track API response times
   trackApiCall(endpoint: string, duration: number) {
+    // Skip tracking during authentication to prevent loops
+    if (this.isAuthenticating || endpoint.includes('/auth/')) {
+      return;
+    }
+    
     this.metrics.apiResponseTimes.push({
       endpoint,
       duration,
@@ -154,10 +164,20 @@ class ClientMonitor {
       this.metrics.apiResponseTimes.shift();
     }
 
-    // Send metrics if we have collected enough data
-    if (this.metrics.apiResponseTimes.length % 10 === 0) {
-      this.sendMetricsToServer();
+    // Use debounced sending instead of sending every 10 calls
+    this.debouncedSendMetrics();
+  }
+  
+  private debouncedSendMetrics() {
+    // Clear existing timer
+    if (this.metricsDebounceTimer) {
+      clearTimeout(this.metricsDebounceTimer);
     }
+    
+    // Set new timer
+    this.metricsDebounceTimer = setTimeout(() => {
+      this.sendMetricsToServer();
+    }, this.METRICS_DEBOUNCE_DELAY);
   }
 
   // Intercept fetch to track API calls
@@ -167,12 +187,21 @@ class ClientMonitor {
     window.fetch = async (...args) => {
       const start = performance.now();
       const url = args[0] instanceof Request ? args[0].url : args[0].toString();
+      
+      // Detect authentication flow
+      if (url.includes('/api/auth/') || url.includes('/auth/')) {
+        this.isAuthenticating = true;
+        // Reset flag after a delay
+        setTimeout(() => {
+          this.isAuthenticating = false;
+        }, 10000); // 10 seconds
+      }
 
       try {
         const response = await originalFetch(...args);
         const duration = performance.now() - start;
 
-        if (url.includes('/api/')) {
+        if (url.includes('/api/') && !url.includes('/api/monitoring/')) {
           this.trackApiCall(url, duration);
         }
 

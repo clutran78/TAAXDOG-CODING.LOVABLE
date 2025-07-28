@@ -174,13 +174,19 @@ export const authOptions: NextAuthOptions = {
     async redirect({ url, baseUrl }) {
       logger.info(`Redirect callback:`, { url, baseUrl });
       
+      // If the URL is the login page and we're already authenticated, redirect to dashboard
+      if (url.includes('/auth/login') || url === baseUrl) {
+        return `${baseUrl}/dashboard`;
+      }
+      
       // Allows relative callback URLs
       if (url.startsWith("/")) return `${baseUrl}${url}`;
       
       // Allows callback URLs on the same origin
       if (new URL(url).origin === baseUrl) return url;
       
-      return baseUrl;
+      // Default to dashboard
+      return `${baseUrl}/dashboard`;
     },
   },
   pages: {

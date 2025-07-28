@@ -263,8 +263,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (status === 'loading') return;
-    if (!session) router.push('/auth/login');
-  }, [session, status, router]);
+    if (status === 'unauthenticated') {
+      router.push('/auth/login');
+    }
+  }, [status, router]);
 
   useEffect(() => {
     if (session) {
