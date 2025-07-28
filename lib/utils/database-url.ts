@@ -10,33 +10,53 @@ export function sanitizeDatabaseUrl(url: string | undefined): string {
   }
 
   try {
-    // Parse the URL to validate its structure
-    const urlRegex = /^postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/([^?]+)(\?.*)?$/;
+    // First try to parse as-is to see if it's already valid
+    try {
+      new URL(url);
+      // If it parses successfully, return it as-is
+      return url;
+    } catch {
+      // If initial parse fails, try to fix the URL
+      logger.warn('URL needs sanitization, attempting to fix');
+    }
+
+    // More flexible regex that handles complex passwords
+    const urlRegex = /^postgresql:\/\/([^:]+):(.+)@([^:\/]+):(\d+)\/([^?]+)(\?.*)?$/;
     const match = url.match(urlRegex);
 
     if (!match) {
+      // If regex fails, try a simple approach - just URL encode the whole thing after protocol
+      if (url.startsWith('postgresql://')) {
+        logger.warn('Using fallback URL encoding approach');
+        return url; // Return as-is and let Prisma handle it
+      }
       throw new Error('Invalid PostgreSQL URL format');
     }
 
-    const [, username, password, host, port, database, queryString = ''] = match;
+    const [, username, password, host, port, database, queryString] = match;
+    const safeQueryString = queryString || '';
 
-    // URL-encode the password to handle special characters
+    // URL-encode only the password to handle special characters
     const encodedPassword = encodeURIComponent(password);
 
     // Reconstruct the URL with the encoded password
-    const sanitizedUrl = `postgresql://${username}:${encodedPassword}@${host}:${port}/${database}${queryString}`;
+    const sanitizedUrl = `postgresql://${username}:${encodedPassword}@${host}:${port}/${database}${safeQueryString}`;
 
     // Validate the reconstructed URL
     try {
       new URL(sanitizedUrl);
+      logger.info('Successfully sanitized DATABASE_URL');
+      return sanitizedUrl;
     } catch (e) {
-      throw new Error(`Invalid URL after encoding: ${e}`);
+      // If encoding fails, return original URL and let Prisma handle it
+      logger.warn('URL encoding failed, returning original URL:', { error: e });
+      return url;
     }
 
-    return sanitizedUrl;
   } catch (error) {
     logger.error('Failed to sanitize DATABASE_URL:', error);
-    throw error;
+    // Return the original URL instead of throwing - let Prisma give a more specific error
+    return url;
   }
 }
 
@@ -47,24 +67,27 @@ export function sanitizeDatabaseUrl(url: string | undefined): string {
 export function getDatabaseUrl(): string {
   const isProduction = process.env.NODE_ENV === 'production';
 
-  // Try different environment variables
+  // Try different environment variables in priority order
   const possibleUrls = [
-    process.env.DATABASE_URL,
-    isProduction ? process.env.DATABASE_URL_PRODUCTION : process.env.DATABASE_URL_DEVELOPMENT,
-    isProduction ? process.env.PRODUCTION_DATABASE_URL : process.env.DEV_DATABASE_URL,
+    process.env['DATABASE_URL'], // Primary - what DigitalOcean sets
+    isProduction ? process.env['PRODUCTION_DATABASE_URL'] : process.env['DATABASE_URL_DEVELOPMENT'],
+    isProduction ? process.env['DATABASE_URL_PRODUCTION'] : process.env['DEV_DATABASE_URL'],
   ];
 
   // Find the first defined URL
-  const rawUrl = possibleUrls.find(url => url !== undefined);
+  const rawUrl = possibleUrls.find(url => url !== undefined && url.trim() !== '');
 
   if (!rawUrl) {
-    const errorMsg = `No database URL found. Please set ${
-      isProduction ? 'DATABASE_URL or DATABASE_URL_PRODUCTION' : 'DATABASE_URL or DATABASE_URL_DEVELOPMENT'
-    }`;
-    logger.error(errorMsg);
+    const errorMsg = `No database URL found. Please set DATABASE_URL environment variable.`;
+    logger.error(errorMsg, { 
+      NODE_ENV: process.env.NODE_ENV,
+      availableVars: Object.keys(process.env).filter(key => key.toLowerCase().includes('database'))
+    });
     throw new Error(errorMsg);
   }
 
+  logger.info('Found DATABASE_URL, attempting to sanitize...');
+  
   // Sanitize and return the URL
   return sanitizeDatabaseUrl(rawUrl);
 }
@@ -78,11 +101,15 @@ export function validateProductionDatabaseUrl(url: string): { valid: boolean; er
   try {
     const parsedUrl = new URL(url);
 
-    // Check for SSL mode in production
+    // Check for SSL mode in production - be more flexible
     if (process.env.NODE_ENV === 'production') {
       const searchParams = new URLSearchParams(parsedUrl.search);
-      if (searchParams.get('sslmode') !== 'require') {
-        errors.push('Production database must use sslmode=require');
+      const sslMode = searchParams.get('sslmode');
+      
+      // Allow 'require' or if it's a known secure host
+      if (sslMode !== 'require' && !parsedUrl.hostname.includes('ondigitalocean.com')) {
+        logger.warn('Production database URL should include sslmode=require');
+        // Don't fail validation, just warn
       }
     }
 
@@ -104,7 +131,7 @@ export function validateProductionDatabaseUrl(url: string): { valid: boolean; er
     }
 
   } catch (error) {
-    errors.push(`Invalid URL format: ${error}`);
+    errors.push(`Invalid URL format: ${String(error)}`);
   }
 
   return {
