@@ -78,11 +78,19 @@ export async function register() {
 
           // Remove sensitive query parameters
           if (event.request?.url) {
-            const url = new URL(event.request.url);
-            url.searchParams.delete('token');
-            url.searchParams.delete('api_key');
-            url.searchParams.delete('password');
-            event.request.url = url.toString();
+            try {
+              // Validate URL before parsing
+              if (event.request.url && event.request.url !== 'https://') {
+                const url = new URL(event.request.url);
+                url.searchParams.delete('token');
+                url.searchParams.delete('api_key');
+                url.searchParams.delete('password');
+                event.request.url = url.toString();
+              }
+            } catch (e) {
+              // If URL parsing fails, leave it as is
+              // This prevents Invalid URL errors from breaking the instrumentation
+            }
           }
 
           return event;
