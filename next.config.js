@@ -19,8 +19,8 @@ if (process.env.NODE_ENV !== 'production') {
   }
 }
 
-// Sentry configuration
-const { withSentryConfig } = require('@sentry/nextjs');
+// Sentry configuration - disabled for now to fix build issues
+// const { withSentryConfig } = require('@sentry/nextjs');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -35,11 +35,12 @@ const nextConfig = {
     ignoreBuildErrors: true, // Skip TypeScript errors for deployment
   },
   experimental: {
-    forceSwcTransforms: true,
+    // Disable some experimental features that might cause issues
+    forceSwcTransforms: false,
     // Enable modern JavaScript features
     esmExternals: true,
-    // Optimize CSS
-    optimizeCss: true,
+    // Disable CSS optimization for now
+    optimizeCss: false,
   },
   
   // Optimize images
@@ -74,17 +75,10 @@ const nextConfig = {
       loader: 'ignore-loader',
     });
 
-    // Fix for 'self is not defined' error in server-side rendering
+    // Fix for 'self is not defined' in server-side rendering
     if (isServer) {
-      // Provide fallback for self
-      config.plugins.push(
-        new webpack.DefinePlugin({
-          'typeof self': '"undefined"',
-          'typeof window': '"undefined"',
-          'typeof document': '"undefined"',
-          'typeof navigator': '"undefined"',
-        })
-      );
+      // Change webpack's globalObject from 'self' to 'this' for Node.js compatibility
+      config.output.globalObject = 'this';
     }
 
     // Fix for winston and other node modules
@@ -108,44 +102,10 @@ const nextConfig = {
       __dirname: true,
     };
 
-    // Enable module concatenation for smaller bundles
-    config.optimization.concatenateModules = true;
-    
-    // Optimize bundle splitting
-    config.optimization.splitChunks = {
-      chunks: 'all',
-      cacheGroups: {
-        // Vendor code splitting
-        vendor: {
-          test: /[\\/]node_modules[\\/]/,
-          name: 'vendor',
-          priority: 10,
-          reuseExistingChunk: true,
-        },
-        // Common components
-        common: {
-          minChunks: 2,
-          priority: 5,
-          reuseExistingChunk: true,
-        },
-        // Separate heavy libraries
-        react: {
-          test: /[\\/]node_modules[\\/](react|react-dom|react-router)[\\/]/,
-          name: 'react',
-          priority: 20,
-        },
-        charts: {
-          test: /[\\/]node_modules[\\/](recharts|d3|chart\.js)[\\/]/,
-          name: 'charts',
-          priority: 15,
-        },
-        // UI libraries
-        ui: {
-          test: /[\\/]node_modules[\\/](@mui|@emotion|framer-motion)[\\/]/,
-          name: 'ui',
-          priority: 15,
-        },
-      },
+    // Simplify optimization for build stability
+    config.optimization = {
+      ...config.optimization,
+      concatenateModules: true,
     };
     
     // Add module aliases for cleaner imports and smaller bundles
@@ -157,8 +117,6 @@ const nextConfig = {
       '@hooks': path.join(__dirname, 'hooks'),
       '@utils': path.join(__dirname, 'lib/utils'),
       '@types': path.join(__dirname, 'lib/types'),
-      // Fix for 'self' module resolution
-      'self': path.join(__dirname, 'lib/polyfills/self.js'),
     };
     
     // Optimize moment.js by removing unused locales
@@ -239,21 +197,5 @@ const nextConfig = {
   productionBrowserSourceMaps: false,
 };
 
-// Export with Sentry configuration
-module.exports = process.env.NODE_ENV === 'production' 
-  ? withSentryConfig(
-      nextConfig,
-      {
-        // Sentry webpack plugin options
-        silent: true,
-        org: process.env.SENTRY_ORG,
-        project: process.env.SENTRY_PROJECT,
-      },
-      {
-        // Upload source maps
-        widenClientFileUpload: true,
-        hideSourceMaps: true,
-        disableLogger: true,
-      }
-    )
-  : nextConfig;
+// Export without Sentry for now to fix build issues
+module.exports = nextConfig;

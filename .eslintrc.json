@@ -231,6 +231,20 @@
   },
   "overrides": [
     {
+      "files": ["next.config.js", "tailwind.config.js", "scripts/**/*.js"],
+      "extends": ["eslint:recommended"],
+      "parser": "espree",
+      "parserOptions": {
+        "ecmaVersion": 2020,
+        "sourceType": "module"
+      },
+      "rules": {
+        "no-console": "off",
+        "no-var": "error",
+        "prefer-const": "error"
+      }
+    },
+    {
       "files": ["**/*.js"],
       "rules": {
         "@typescript-eslint/no-var-requires": "off"
