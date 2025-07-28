@@ -14,6 +14,14 @@ const handle = app.getRequestHandler();
 app.prepare().then(() => {
   createServer(async (req, res) => {
     try {
+      // Log incoming requests for debugging
+      console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - Headers:`, {
+        host: req.headers.host,
+        'x-forwarded-host': req.headers['x-forwarded-host'],
+        'x-forwarded-proto': req.headers['x-forwarded-proto'],
+        'user-agent': req.headers['user-agent']?.substring(0, 50) + '...'
+      });
+      
       // Parse the URL - handle the request properly
       await handle(req, res);
     } catch (err) {
