@@ -9,12 +9,21 @@ export function sanitizeDatabaseUrl(url: string | undefined): string {
     throw new Error('DATABASE_URL is not defined');
   }
 
+  // Remove all whitespace, newlines, and tabs from the URL
+  // This handles cases where environment variables might have line breaks
+  const cleanedUrl = url.replace(/[\s\n\r\t]+/g, '');
+  
+  // Log if we had to clean the URL
+  if (cleanedUrl !== url) {
+    logger.info('Cleaned whitespace/newlines from DATABASE_URL');
+  }
+
   try {
-    // First try to parse as-is to see if it's already valid
+    // First try to parse the cleaned URL to see if it's valid
     try {
-      new URL(url);
-      // If it parses successfully, return it as-is
-      return url;
+      new URL(cleanedUrl);
+      // If it parses successfully, return the cleaned URL
+      return cleanedUrl;
     } catch {
       // If initial parse fails, try to fix the URL
       logger.warn('URL needs sanitization, attempting to fix');
@@ -22,13 +31,13 @@ export function sanitizeDatabaseUrl(url: string | undefined): string {
 
     // More flexible regex that handles complex passwords
     const urlRegex = /^postgresql:\/\/([^:]+):(.+)@([^:\/]+):(\d+)\/([^?]+)(\?.*)?$/;
-    const match = url.match(urlRegex);
+    const match = cleanedUrl.match(urlRegex);
 
     if (!match) {
       // If regex fails, try a simple approach - just URL encode the whole thing after protocol
-      if (url.startsWith('postgresql://')) {
+      if (cleanedUrl.startsWith('postgresql://')) {
         logger.warn('Using fallback URL encoding approach');
-        return url; // Return as-is and let Prisma handle it
+        return cleanedUrl; // Return cleaned URL and let Prisma handle it
       }
       throw new Error('Invalid PostgreSQL URL format');
     }
@@ -49,14 +58,14 @@ export function sanitizeDatabaseUrl(url: string | undefined): string {
       return sanitizedUrl;
     } catch (e) {
       // If encoding fails, return original URL and let Prisma handle it
-      logger.warn('URL encoding failed, returning original URL:', { error: e });
-      return url;
+      logger.warn('URL encoding failed, returning cleaned URL:', { error: e });
+      return cleanedUrl;
     }
 
   } catch (error) {
     logger.error('Failed to sanitize DATABASE_URL:', error);
-    // Return the original URL instead of throwing - let Prisma give a more specific error
-    return url;
+    // Return the cleaned URL instead of throwing - let Prisma give a more specific error
+    return cleanedUrl;
   }
 }
 
@@ -74,8 +83,11 @@ export function getDatabaseUrl(): string {
     isProduction ? process.env['DATABASE_URL_PRODUCTION'] : process.env['DEV_DATABASE_URL'],
   ];
 
-  // Find the first defined URL
-  const rawUrl = possibleUrls.find(url => url !== undefined && url.trim() !== '');
+  // Find the first defined URL and trim it
+  const rawUrl = possibleUrls
+    .filter(url => url !== undefined && url !== '')
+    .map(url => url!.trim())
+    .find(url => url.length > 0);
 
   if (!rawUrl) {
     const errorMsg = `No database URL found. Please set DATABASE_URL environment variable.`;
