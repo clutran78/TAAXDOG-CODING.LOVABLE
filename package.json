@@ -9,7 +9,8 @@
   "scripts": {
     "dev": "node server.js",
     "build": "prisma generate && next build",
-    "build:do": "./scripts/build-prod.sh",
+    "build:polyfills": "prisma generate && node scripts/build-with-polyfills.js",
+    "build:do": "npm run build:polyfills",
     "build:analyze": "ANALYZE=true npm run build",
     "analyze-bundle": "ts-node --project tsconfig.node.json scripts/analyze-bundle.ts",
     "optimization:report": "ts-node --project tsconfig.node.json scripts/optimization-report.ts",
