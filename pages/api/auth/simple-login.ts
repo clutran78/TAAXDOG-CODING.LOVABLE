@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { signIn } from 'next-auth/react';
-import { prisma } from '../../../lib/prisma';
+import prisma from '../../../lib/prisma';
 import bcrypt from 'bcryptjs';
 import { logger } from '@/lib/logger';
 import { apiResponse } from '@/lib/api/response';

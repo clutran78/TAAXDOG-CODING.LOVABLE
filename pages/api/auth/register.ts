@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { prisma } from '../../../lib/prisma';
+import prisma from '../../../lib/prisma';
 import bcrypt from 'bcryptjs';
 import { withRateLimit, RATE_LIMIT_CONFIGS } from '../../../lib/security/rateLimiter';
 import { addSecurityHeaders } from '../../../lib/security/sanitizer';

@@ -1,5 +1,5 @@
 import { GoalService } from '@/lib/goals/goal-service';
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
 
 async function testGoalsAPI() {
   console.log('Testing Goals API with PostgreSQL...\n');

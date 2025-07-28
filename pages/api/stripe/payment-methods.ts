@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import authOptions from '../auth/[...nextauth]';
 import { getStripe } from '@/lib/stripe/config';
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
 import { z } from 'zod';
 import Stripe from 'stripe';
 import { logger } from '@/lib/logger';

@@ -10,7 +10,7 @@ import {
   AUSTRALIAN_TAX_CONFIG,
   AIOperationType,
 } from '../config';
-import { prisma } from '../../prisma';
+import prisma from '../../prisma';
 
 export class TaxConsultationService {
   private aiService: AIService;

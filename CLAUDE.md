@@ -63,10 +63,10 @@ npm run monitoring:setup   # Setup performance monitoring
 
 ### Environment Management
 ```bash
-npm run env:switch:dev     # Switch to development environment
-npm run env:switch:staging # Switch to staging environment  
-npm run env:switch:prod    # Switch to production environment
-npm run env:backup         # Backup current environment
+npm run env:dev            # Switch to development environment
+npm run env:staging        # Switch to staging environment  
+npm run env:prod           # Switch to production environment
+npm run env:status         # Check current environment
 npm run env:validate       # Environment validation
 ```
 
@@ -255,6 +255,7 @@ See `.env.example` for complete list with descriptions.
 - Test files: `.test.ts` or `.test.tsx`
 - Mock files in `__mocks__/` directory
 - Integration tests in `__tests__/integration/`
+- Coverage threshold: 70% for all metrics
 
 ## Quick Troubleshooting
 

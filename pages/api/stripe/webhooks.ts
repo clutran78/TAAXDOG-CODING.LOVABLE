@@ -3,7 +3,7 @@ import { buffer } from 'micro';
 import Stripe from 'stripe';
 import { getStripe } from '@/lib/stripe/config';
 import { subscriptionManager } from '@/lib/stripe/subscription-manager';
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 import { apiResponse } from '@/lib/api/response';
 

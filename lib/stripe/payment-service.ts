@@ -1,5 +1,5 @@
 import { stripe } from '../stripe';
-import { prisma } from '../prisma';
+import prisma from '../prisma';
 import Stripe from 'stripe';
 import { logger } from '@/lib/logger';
 

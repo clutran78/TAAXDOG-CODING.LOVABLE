@@ -1,7 +1,7 @@
 // Comprehensive Stripe Subscription Management Service
 import { Stripe } from 'stripe';
 import { getStripe } from './config';
-import { prisma } from '../prisma';
+import prisma from '../prisma';
 import { logger } from '@/lib/logger';
 import {
   SUBSCRIPTION_PLANS,

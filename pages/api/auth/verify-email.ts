@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { prisma } from '../../../lib/prisma';
+import prisma from '../../../lib/prisma';
 import { getClientIP } from '../../../lib/auth/auth-utils';
 import { verifyEmailSchema, validateInput } from '../../../lib/auth/validation';
 import { emailVerificationRateLimiter } from '../../../lib/auth/rate-limiter';

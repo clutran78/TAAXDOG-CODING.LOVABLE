@@ -5,7 +5,7 @@ import { GeminiProvider } from '../providers/gemini';
 import { getAIConfig } from '../../config';
 import { AI_MODELS } from '../config';
 import { FinancialInsight, AIInsightType, AIOperationType } from '../types';
-import { prisma } from '../../prisma';
+import prisma from '../../prisma';
 import { logger } from '@/lib/logger';
 
 export class FinancialInsightsService {

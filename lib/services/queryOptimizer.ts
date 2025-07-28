@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { logger } from '@/lib/logger';
 
 // Internal dependencies
-import { prisma } from '../prisma';
+import prisma from '../prisma';
 
 // Cache configuration
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes

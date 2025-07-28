@@ -3,7 +3,7 @@ import { basiqDB } from '@/lib/basiq/database';
 import { basiqClient } from '@/lib/basiq/client';
 import { BASIQ_CONFIG } from '@/lib/basiq/config';
 import { BasiqWebhookEvent } from '@/lib/basiq/types';
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
 import crypto from 'crypto';
 import { logger } from '@/lib/logger';
 import { apiResponse } from '@/lib/api/response';

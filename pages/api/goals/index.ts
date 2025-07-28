@@ -3,7 +3,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { AuthEvent } from '@prisma/client';
 
 // Database
-import { prisma } from '../../../lib/prisma';
+import prisma from '../../../lib/prisma';
 import {
   findManyWithPagination,
   createSecure,

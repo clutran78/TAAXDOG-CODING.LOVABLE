@@ -1,10 +1,10 @@
-import { NextAuthOptions } from 'next-auth';
+import NextAuth, { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 import { PrismaAdapter } from '@next-auth/prisma-adapter';
-import { prisma } from './prisma';
 import bcrypt from 'bcryptjs';
-import crypto from 'crypto';
+
+import prisma from './prisma';
 import { logger } from '@/lib/logger';
 
 // Re-export commonly used auth utilities
@@ -44,59 +44,143 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
+          logger.info('Missing credentials in authorize function');
           return null;
         }
 
         try {
+          logger.info(`Attempting login for email: ${credentials.email}`);
+          
           const user = await prisma.user.findUnique({
             where: { email: credentials.email.toLowerCase() },
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              password: true,
+              emailVerified: true,
+              role: true,
+              failedLoginAttempts: true,
+              lockedUntil: true,
+            },
           });
 
-          if (!user || !user.password) {
+          if (!user) {
+            logger.info(`User not found: ${credentials.email}`);
+            return null;
+          }
+
+          if (!user.password) {
+            logger.info(`User has no password set: ${credentials.email}`);
+            return null;
+          }
+
+          // Check if account is locked
+          if (user.lockedUntil && user.lockedUntil > new Date()) {
+            logger.info(`Account locked: ${credentials.email}`);
             return null;
           }
 
           const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
 
           if (!isPasswordValid) {
+            logger.info(`Invalid password for user: ${credentials.email}`);
+            
+            // Update failed login attempts
+            await prisma.user.update({
+              where: { id: user.id },
+              data: {
+                failedLoginAttempts: user.failedLoginAttempts + 1,
+                lockedUntil: user.failedLoginAttempts >= 4 
+                  ? new Date(Date.now() + 15 * 60 * 1000) // Lock for 15 minutes after 5 attempts
+                  : null,
+              },
+            });
+            
             return null;
           }
+
+          // Reset failed attempts on successful login
+          if (user.failedLoginAttempts > 0) {
+            await prisma.user.update({
+              where: { id: user.id },
+              data: {
+                failedLoginAttempts: 0,
+                lockedUntil: null,
+                lastLoginAt: new Date(),
+              },
+            });
+          }
+
+          logger.info(`✅ Login successful for: ${user.email}`);
 
           return {
             id: user.id,
             email: user.email,
             name: user.name,
             role: user.role,
+            emailVerified: user.emailVerified,
           };
         } catch (error) {
-          logger.error('Auth error:', error);
+          logger.error('Auth error in authorize function:', error);
           return null;
         }
       },
     }),
     // Google OAuth - only if credentials are provided
-    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+    ...(process.env['GOOGLE_CLIENT_ID'] && process.env['GOOGLE_CLIENT_SECRET']
       ? [
           GoogleProvider({
-            clientId: process.env.GOOGLE_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            clientId: process.env['GOOGLE_CLIENT_ID']!,
+            clientSecret: process.env['GOOGLE_CLIENT_SECRET']!,
           }),
         ]
       : []),
   ],
   callbacks: {
     async session({ session, token }) {
+      logger.info(`Session callback for user: ${session.user?.email}`);
       if (token && session.user) {
         session.user.id = token.sub!;
         session.user.role = token.role as string;
+        session.user.emailVerified = token.emailVerified as Date | null;
       }
       return session;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
+        logger.info(`JWT callback for user: ${user.email}`);
         token.role = (user as any).role;
+        token.emailVerified = (user as any).emailVerified;
       }
+      
+      // Log the provider for OAuth logins
+      if (account) {
+        logger.info(`User logged in via: ${account.provider}`);
+      }
+      
       return token;
+    },
+    async signIn({ user, account, profile, email, credentials }) {
+      logger.info(`Sign in attempt:`, {
+        userEmail: user.email,
+        provider: account?.provider,
+        profileEmail: (profile as any)?.email,
+      });
+      
+      // Always allow sign in, let the authorize function handle validation
+      return true;
+    },
+    async redirect({ url, baseUrl }) {
+      logger.info(`Redirect callback:`, { url, baseUrl });
+      
+      // Allows relative callback URLs
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      
+      // Allows callback URLs on the same origin
+      if (new URL(url).origin === baseUrl) return url;
+      
+      return baseUrl;
     },
   },
   pages: {
@@ -105,9 +189,23 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV === 'development',
+  secret: process.env.NEXTAUTH_SECRET || 'fallback-secret-key-for-development',
+  debug: process.env.NODE_ENV === 'development' || process.env['NEXTAUTH_DEBUG'] === 'true',
+  logger: {
+    error(code, metadata) {
+      logger.error(`NextAuth Error [${code}]:`, metadata);
+    },
+    warn(code) {
+      logger.warn(`NextAuth Warning [${code}]`);
+    },
+    debug(code, metadata) {
+      if (process.env.NODE_ENV === 'development') {
+        logger.info(`NextAuth Debug [${code}]:`, metadata);
+      }
+    },
+  },
 };
 
 // Password validation function

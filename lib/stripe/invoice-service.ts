@@ -5,7 +5,7 @@ import {
   generateTaxInvoiceNumber,
   TaxInvoiceData,
 } from '../stripe';
-import { prisma } from '../prisma';
+import prisma from '../prisma';
 import Stripe from 'stripe';
 
 export class InvoiceService {

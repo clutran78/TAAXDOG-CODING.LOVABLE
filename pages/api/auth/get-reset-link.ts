@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { prisma } from '../../../lib/prisma';
+import prisma from '../../../lib/prisma';
 import { createPasswordResetToken } from '../../../lib/auth';
 import { logger } from '@/lib/logger';
 import { apiResponse } from '@/lib/api/response';

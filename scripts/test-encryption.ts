@@ -2,7 +2,7 @@
 
 import { encrypt, decrypt, hash, verifyHash, maskSensitiveData } from '../lib/encryption';
 import { isEncrypted } from '../lib/prisma-encryption-middleware';
-import { prisma } from '../lib/prisma';
+import prisma from '../lib/prisma';
 import { randomBytes } from 'crypto';
 
 // Ensure encryption key is set for testing

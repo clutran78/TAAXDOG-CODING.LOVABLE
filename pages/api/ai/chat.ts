@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { AIService } from '../../../lib/ai/ai-service';
 import { AIOperationType, SYSTEM_PROMPTS } from '../../../lib/ai/config';
-import { prisma } from '../../../lib/prisma';
+import prisma from '../../../lib/prisma';
 import { authMiddleware, AuthenticatedRequest } from '../../../lib/middleware/auth';
 import { withSessionRateLimit } from '../../../lib/security/rateLimiter';
 import { sanitizers, addSecurityHeaders, sanitizedSchemas } from '../../../lib/security/sanitizer';

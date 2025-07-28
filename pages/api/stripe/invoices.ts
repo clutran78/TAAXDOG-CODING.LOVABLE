@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { getStripe } from '@/lib/stripe/config';
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
 import { subscriptionManager } from '@/lib/stripe/subscription-manager';
 import { logger } from '@/lib/logger';
 import { apiResponse } from '@/lib/api/response';

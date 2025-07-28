@@ -1,4 +1,4 @@
-import { prisma } from '../../prisma';
+import prisma from '../../prisma';
 import { z } from 'zod';
 import { AUSTRALIAN_TAX_CONFIG } from '../../ai/config';
 import { logger } from '@/lib/logger';

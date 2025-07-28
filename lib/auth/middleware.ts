@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse, NextApiHandler } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth';
 import { Role, AuthEvent } from '@prisma/client';
-import { prisma } from '../prisma';
+import prisma from '../prisma';
 import { verifyJWT, getClientIP, logAuthEvent } from './auth-utils';
 import { csrfProtection } from './csrf-protection';
 import { apiRateLimiter } from './rate-limiter';

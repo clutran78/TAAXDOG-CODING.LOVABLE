@@ -24,7 +24,7 @@ import {
   CircuitBreaker,
   ErrorRecovery,
 } from './errors';
-import { prisma } from '../prisma';
+import prisma from '../prisma';
 
 // Rate limiting configuration
 const RATE_LIMIT = {

@@ -7,7 +7,7 @@ import {
   hashPassword,
   logAuthEvent as logAuth,
 } from '../../../lib/auth';
-import { prisma } from '../../../lib/prisma';
+import prisma from '../../../lib/prisma';
 import bcrypt from 'bcryptjs';
 import { AuthEvent } from '@prisma/client';
 import { sendPasswordChangeNotification } from '../../../lib/services/email/email';

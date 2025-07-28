@@ -6,7 +6,7 @@
  */
 
 import { Prisma, PrismaClient } from '@prisma/client';
-import { prisma } from '../prisma';
+import prisma from '../prisma';
 import {
   findManyWithPagination,
   findUniqueSecure,

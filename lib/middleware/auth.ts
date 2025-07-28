@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../pages/api/auth/[...nextauth]';
-import { prisma } from '../prisma';
+import prisma from '../prisma';
 import { getClientIp } from 'request-ip';
 import { logger } from '@/lib/logger';
 

@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { prisma } from '../../../lib/prisma';
+import prisma from '../../../lib/prisma';
 import { createBudget } from '../../../lib/ai-budget-prediction';
 import { logger } from '@/lib/logger';
 import {

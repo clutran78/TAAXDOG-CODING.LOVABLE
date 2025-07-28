@@ -5,7 +5,7 @@ import formidable from 'formidable';
 import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { prisma } from '../../../lib/prisma';
+import prisma from '../../../lib/prisma';
 import { fileValidation, addSecurityHeaders, sanitizers } from '../../../lib/security/sanitizer';
 import { z } from 'zod';
 import { logger } from '@/lib/logger';

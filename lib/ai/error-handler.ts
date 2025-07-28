@@ -1,5 +1,5 @@
 import { AIProvider } from './config';
-import { prisma } from '../prisma';
+import prisma from '../prisma';
 import { logger } from '@/lib/logger';
 
 export class AIError extends Error {

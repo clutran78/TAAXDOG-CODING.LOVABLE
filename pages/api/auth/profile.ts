@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions, logAuthEvent } from '../../../lib/auth';
-import { prisma } from '../../../lib/prisma';
+import prisma from '../../../lib/prisma';
 import { InputValidator } from '../../../lib/security/middleware';
 import { encryptTFN, decryptTFN, maskSensitiveData } from '../../../lib/security/encryption';
 import { TaxResidency } from '@prisma/client';

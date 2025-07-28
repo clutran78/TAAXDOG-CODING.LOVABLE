@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { prisma } from '../../../lib/prisma';
+import prisma from '../../../lib/prisma';
 import { authMiddleware, AuthenticatedRequest } from '../../../lib/middleware/auth';
 import { withSessionRateLimit } from '../../../lib/security/rateLimiter';
 import { addSecurityHeaders, sanitizedSchemas } from '../../../lib/security/sanitizer';

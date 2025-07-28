@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 
-import { prisma } from '../lib/prisma';
+import prisma from '../lib/prisma';
 import { logger } from '../lib/utils/logger';
 import { performance } from 'perf_hooks';
 

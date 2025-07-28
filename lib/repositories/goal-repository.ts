@@ -7,7 +7,7 @@
 
 import { Goal, Prisma } from '@prisma/client';
 import { BaseRepository } from './base-repository';
-import { prisma } from '../prisma';
+import prisma from '../prisma';
 
 // ============================================================================
 // TYPES & INTERFACES

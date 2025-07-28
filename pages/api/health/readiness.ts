@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { prisma } from '../../../lib/prisma';
+import prisma from '../../../lib/prisma';
 import { getConfig } from '../../../lib/config';
 import { withPublicRateLimit } from '../../../lib/security/rateLimiter';
 import {

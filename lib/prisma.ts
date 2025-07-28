@@ -3,42 +3,16 @@ import { PrismaClient } from '@prisma/client';
 import { logger } from '@/lib/logger';
 
 // Get database URL with better error handling
+import { getDatabaseUrl, logDatabaseConnectionInfo } from '@/lib/utils/database-url';
+
+// Get database URL using the utility function
 let databaseUrl: string;
 try {
-  // Simple approach - use DATABASE_URL directly if available
-  databaseUrl = process.env['DATABASE_URL'] || '';
-  
-  if (!databaseUrl) {
-    // Try alternative environment variables for production
-    if (process.env.NODE_ENV === 'production') {
-      databaseUrl = process.env['PRODUCTION_DATABASE_URL'] || process.env['DATABASE_URL_PRODUCTION'] || '';
-    } else {
-      databaseUrl = process.env['DATABASE_URL_DEVELOPMENT'] || process.env['DEV_DATABASE_URL'] || '';
-    }
-  }
-
-  if (!databaseUrl) {
-    throw new Error('No DATABASE_URL found in environment variables');
-  }
-
-  // Log connection info safely
-  try {
-    const parsedUrl = new URL(databaseUrl);
-    logger.info('Database connection configured:', {
-      host: parsedUrl.hostname,
-      port: parsedUrl.port,
-      database: parsedUrl.pathname.substring(1),
-      ssl: parsedUrl.searchParams.get('sslmode') || 'none',
-      username: parsedUrl.username,
-    });
-  } catch {
-    logger.warn('Could not parse DATABASE_URL for logging, but proceeding with connection');
-  }
-
+  databaseUrl = getDatabaseUrl();
+  logDatabaseConnectionInfo(databaseUrl);
 } catch (error) {
   logger.error('Failed to configure database URL:', error);
-  // Use fallback URL for better error messages
-  databaseUrl = 'postgresql://error:error@localhost:5432/error_database';
+  throw error; // Fail fast instead of using a fake URL
 }
 
 // Set the DATABASE_URL for Prisma

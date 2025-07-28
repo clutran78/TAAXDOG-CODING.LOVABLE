@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { prisma } from '../../../lib/prisma';
+import prisma from '../../../lib/prisma';
 import { z } from 'zod';
 import { addSecurityHeaders } from '../../../lib/security/sanitizer';
 import {

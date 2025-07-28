@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { prisma } from '../../../lib/prisma';
+import prisma from '../../../lib/prisma';
 import { verifyJWT, getClientIP } from '../../../lib/auth/auth-utils';
 import { AuthEvent } from '@prisma/client';
 import { logger } from '@/lib/logger';

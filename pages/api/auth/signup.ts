@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
 import { hashPassword, generateSecureToken } from '@/lib/auth/auth-utils';
 import { isPasswordStrong } from '@/lib/auth/validation';
 import { logger } from '@/lib/logger';

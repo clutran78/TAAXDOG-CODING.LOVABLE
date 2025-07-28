@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
-import { prisma } from '../../../lib/prisma';
+import prisma from '../../../lib/prisma';
 import { getTransactionsWithRelations } from '../../../lib/services/queryOptimizer';
 import { getCacheManager, CacheKeys, CacheTTL } from '../../../lib/services/cache/cacheManager';
 import { logger } from '@/lib/logger';

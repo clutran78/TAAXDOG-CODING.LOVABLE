@@ -1,5 +1,5 @@
 import { AIMessage, AIResponse, AIProviderConfig, AIError } from './types';
-import { prisma } from '../prisma';
+import prisma from '../prisma';
 import { logger } from '@/lib/logger';
 
 export abstract class BaseAIProvider {

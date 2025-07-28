@@ -11,7 +11,7 @@ import {
   AI_COST_OPTIMIZATION,
   AUSTRALIAN_TAX_CONFIG,
 } from './config';
-import { prisma } from '../prisma';
+import prisma from '../prisma';
 import { createHash } from 'crypto';
 
 export class AIService {

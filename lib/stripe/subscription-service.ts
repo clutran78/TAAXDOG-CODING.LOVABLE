@@ -1,5 +1,5 @@
 import { stripe, SUBSCRIPTION_PLANS, SubscriptionPlan } from '../stripe';
-import { prisma } from '../prisma';
+import prisma from '../prisma';
 import Stripe from 'stripe';
 
 export class SubscriptionService {

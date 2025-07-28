@@ -1,6 +1,6 @@
 import { Anthropic } from '@anthropic-ai/sdk';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { prisma } from '../prisma';
+import prisma from '../prisma';
 import { logger } from '@/lib/logger';
 import {
   AIProvider,

@@ -12,7 +12,7 @@ import { logger } from '../../../lib/utils/logger';
 import { getClientIp } from 'request-ip';
 import { z } from 'zod';
 import { AuthEvent } from '@prisma/client';
-import { prisma } from '../../../lib/prisma';
+import prisma from '../../../lib/prisma';
 import { apiResponse } from '@/lib/api/response';
 
 // Query schema

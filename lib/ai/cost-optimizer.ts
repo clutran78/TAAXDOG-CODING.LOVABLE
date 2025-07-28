@@ -5,7 +5,7 @@ import {
   MODEL_COSTS,
   getProviderFromModel,
 } from './config';
-import { prisma } from '../prisma';
+import prisma from '../prisma';
 
 interface CostOptimizationStrategy {
   provider: AIProvider;

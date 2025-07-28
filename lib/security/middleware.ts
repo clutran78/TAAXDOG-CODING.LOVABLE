@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSecurityConfig } from '../config';
-import { prisma } from '../prisma';
+import prisma from '../prisma';
 import crypto from 'crypto';
 import { logger } from '@/lib/logger';
 

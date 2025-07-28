@@ -2,7 +2,7 @@ import { GeminiProvider } from '../providers/gemini';
 import { getAIConfig } from '../../config';
 import { AIOperationType, AI_PROVIDERS, AUSTRALIAN_TAX_CONFIG } from '../config';
 import { AIService } from '../ai-service';
-import { prisma } from '../../prisma';
+import prisma from '../../prisma';
 import { logger } from '@/lib/logger';
 
 export interface ReceiptData {

@@ -1,6 +1,6 @@
 // BASIQ Security Utilities
 import crypto from 'crypto';
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 
 // Security configuration

@@ -3,7 +3,7 @@ import { SubscriptionPlans } from '../../components/subscription/SubscriptionPla
 import { GetServerSideProps } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../api/auth/[...nextauth]';
-import { prisma } from '../../lib/prisma';
+import prisma from '../../lib/prisma';
 
 interface PlansPageProps {
   hasActiveSubscription: boolean;

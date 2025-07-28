@@ -1,4 +1,4 @@
-import { prisma } from '../lib/prisma';
+import prisma from '../lib/prisma';
 import { Transaction, Goal, BankAccount, User } from '@prisma/client';
 import { AIService } from '../lib/ai/ai-service';
 import { AIOperationType } from '../lib/ai/config';

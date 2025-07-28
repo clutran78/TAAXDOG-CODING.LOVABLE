@@ -1,4 +1,4 @@
-import { prisma } from '../lib/prisma';
+import prisma from '../lib/prisma';
 import { createPasswordResetToken, verifyPasswordResetToken, resetPassword } from '../lib/auth';
 
 async function testPasswordResetFlow() {
