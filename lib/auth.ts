@@ -1,15 +1,36 @@
-import NextAuth, { NextAuthOptions } from 'next-auth';
-import CredentialsProvider from 'next-auth/providers/credentials';
-import GoogleProvider from 'next-auth/providers/google';
+import { randomBytes } from 'crypto';
+
 import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import bcrypt from 'bcryptjs';
 
-import prisma from './prisma';
+import { NextAuthOptions } from 'next-auth';
+import credentialsProvider from 'next-auth/providers/credentials';
+import googleProvider from 'next-auth/providers/google';
+
+import type { Role } from '@prisma/client';
+
 import { logger } from '@/lib/logger';
+import prisma from './prisma';
+
+// Constants for security and timing
+const BCRYPT_ROUNDS = 12;
+const MAX_FAILED_ATTEMPTS = 4;
+const ACCOUNT_LOCK_DURATION_MINUTES = 15;
+const MINUTES_TO_MS = 60 * 1000;
+const ACCOUNT_LOCK_DURATION_MS = ACCOUNT_LOCK_DURATION_MINUTES * MINUTES_TO_MS;
+const SESSION_MAX_AGE_DAYS = 30;
+const HOURS_IN_DAY = 24;
+const MINUTES_IN_HOUR = 60;
+const SECONDS_IN_MINUTE = 60;
+const SESSION_MAX_AGE_SECONDS = SESSION_MAX_AGE_DAYS * HOURS_IN_DAY * MINUTES_IN_HOUR * SECONDS_IN_MINUTE;
+const PASSWORD_MIN_LENGTH = 8;
+const RESET_TOKEN_LENGTH = 32;
+const RESET_TOKEN_EXPIRY_HOURS = 1;
+const RESET_TOKEN_EXPIRY_MS = RESET_TOKEN_EXPIRY_HOURS * MINUTES_IN_HOUR * MINUTES_TO_MS;
 
 // Re-export commonly used auth utilities
 export { logAuthEvent } from './auth/auth-utils';
-export const hashPassword = async (password: string) => bcrypt.hash(password, 12);
+export const hashPassword = async (password: string): Promise<string> => bcrypt.hash(password, BCRYPT_ROUNDS);
 
 // Validate required environment variables
 const requiredEnvVars = {
@@ -36,7 +57,7 @@ if (missingVars.length > 0) {
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
-    CredentialsProvider({
+    credentialsProvider({
       name: 'credentials',
       credentials: {
         email: { label: 'Email', type: 'email' },
@@ -91,8 +112,8 @@ export const authOptions: NextAuthOptions = {
               where: { id: user.id },
               data: {
                 failedLoginAttempts: user.failedLoginAttempts + 1,
-                lockedUntil: user.failedLoginAttempts >= 4 
-                  ? new Date(Date.now() + 15 * 60 * 1000) // Lock for 15 minutes after 5 attempts
+                lockedUntil: user.failedLoginAttempts >= MAX_FAILED_ATTEMPTS 
+                  ? new Date(Date.now() + ACCOUNT_LOCK_DURATION_MS)
                   : null,
               },
             });
@@ -130,7 +151,7 @@ export const authOptions: NextAuthOptions = {
     // Google OAuth - only if credentials are provided
     ...(process.env['GOOGLE_CLIENT_ID'] && process.env['GOOGLE_CLIENT_SECRET']
       ? [
-          GoogleProvider({
+          googleProvider({
             clientId: process.env['GOOGLE_CLIENT_ID']!,
             clientSecret: process.env['GOOGLE_CLIENT_SECRET']!,
           }),
@@ -138,20 +159,25 @@ export const authOptions: NextAuthOptions = {
       : []),
   ],
   callbacks: {
-    async session({ session, token }) {
+    session({ session, token }) {
       logger.info(`Session callback for user: ${session.user?.email}`);
       if (token && session.user) {
+        // eslint-disable-next-line no-param-reassign
         session.user.id = token.sub!;
+        // eslint-disable-next-line no-param-reassign
         session.user.role = token.role as string;
+        // eslint-disable-next-line no-param-reassign
         session.user.emailVerified = token.emailVerified as Date | null;
       }
       return session;
     },
-    async jwt({ token, user, account }) {
+    jwt({ token, user, account }) {
       if (user) {
         logger.info(`JWT callback for user: ${user.email}`);
-        token.role = (user as any).role;
-        token.emailVerified = (user as any).emailVerified;
+        // eslint-disable-next-line no-param-reassign
+        token.role = (user as { role?: string }).role;
+        // eslint-disable-next-line no-param-reassign
+        token.emailVerified = (user as { emailVerified?: Date | null }).emailVerified;
       }
       
       // Log the provider for OAuth logins
@@ -161,17 +187,17 @@ export const authOptions: NextAuthOptions = {
       
       return token;
     },
-    async signIn({ user, account, profile, email, credentials }) {
+    signIn({ user, account, profile }) {
       logger.info(`Sign in attempt:`, {
         userEmail: user.email,
         provider: account?.provider,
-        profileEmail: (profile as any)?.email,
+        profileEmail: (profile as { email?: string })?.email,
       });
       
       // Always allow sign in, let the authorize function handle validation
       return true;
     },
-    async redirect({ url, baseUrl }) {
+    redirect({ url, baseUrl }) {
       logger.info(`Redirect callback:`, { url, baseUrl });
       
       // If the URL is the login page and we're already authenticated, redirect to dashboard
@@ -195,7 +221,7 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: SESSION_MAX_AGE_SECONDS,
   },
   secret: process.env.NEXTAUTH_SECRET || 'fallback-secret-key-for-development',
   debug: process.env.NODE_ENV === 'development' || process.env['NEXTAUTH_DEBUG'] === 'true',
@@ -218,8 +244,8 @@ export const authOptions: NextAuthOptions = {
 export function validatePassword(password: string): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
-  if (password.length < 8) {
-    errors.push('Password must be at least 8 characters long');
+  if (password.length < PASSWORD_MIN_LENGTH) {
+    errors.push(`Password must be at least ${PASSWORD_MIN_LENGTH} characters long`);
   }
 
   if (!/[a-z]/.test(password)) {
@@ -242,8 +268,8 @@ export function validatePassword(password: string): { valid: boolean; errors: st
 
 // Create password reset token
 export async function createPasswordResetToken(email: string): Promise<string> {
-  const token = crypto.randomBytes(32).toString('hex');
-  const expires = new Date(Date.now() + 3600000); // 1 hour
+  const token = randomBytes(RESET_TOKEN_LENGTH).toString('hex');
+  const expires = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
 
   // Delete any existing tokens for this email
   await prisma.passwordResetToken.deleteMany({
@@ -260,15 +286,17 @@ export async function createPasswordResetToken(email: string): Promise<string> {
   });
 
   logger.info(`✅ Password reset token generated for: ${email}`);
-  console.log(
-    `🔗 Reset link: ${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/auth/reset-password?token=${token}`,
-  );
 
   return token;
 }
 
 // Verify password reset token
-export async function verifyPasswordResetToken(token: string) {
+export async function verifyPasswordResetToken(token: string): Promise<{
+  id: string;
+  email: string;
+  token: string;
+  expires: Date;
+} | null> {
   const resetToken = await prisma.passwordResetToken.findUnique({
     where: { token },
   });
@@ -281,14 +309,14 @@ export async function verifyPasswordResetToken(token: string) {
 }
 
 // Reset password
-export async function resetPassword(token: string, newPassword: string) {
+export async function resetPassword(token: string, newPassword: string): Promise<boolean> {
   const resetToken = await verifyPasswordResetToken(token);
 
   if (!resetToken) {
     throw new Error('Invalid or expired token');
   }
 
-  const hashedPassword = await bcrypt.hash(newPassword, 12);
+  const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
 
   // Update user password
   await prisma.user.update({

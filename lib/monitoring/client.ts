@@ -1,6 +1,17 @@
 import { logger } from '@/lib/logger';
 
-22; // Client-side performance monitoring
+// Constants for monitoring configuration
+const ERROR_BATCH_INTERVAL_MS = 5000; // 5 seconds
+const MAX_BATCH_SIZE = 50;
+const METRICS_DEBOUNCE_DELAY_MS = 5000; // 5 seconds
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+const MAX_ERRORS_PER_WINDOW = 100;
+const MAX_STORED_ERRORS = 100;
+const MAX_STORED_API_CALLS = 100;
+const AUTH_TIMEOUT_MS = 10000; // 10 seconds
+const METRICS_SEND_DELAY_MS = 1000; // 1 second
+
+// Client-side performance monitoring
 interface PerformanceMetrics {
   pageLoadTime: number;
   domContentLoadedTime: number;
@@ -10,9 +21,18 @@ interface PerformanceMetrics {
   apiResponseTimes: { endpoint: string; duration: number; timestamp: number }[];
 }
 
+interface ErrorEntry {
+  message: string;
+  stack?: string;
+  timestamp: number;
+  url?: string;
+  line?: number;
+  column?: number;
+}
+
 class ClientMonitor {
-  private static instance: ClientMonitor;
-  private metrics: PerformanceMetrics = {
+  private static _instance: ClientMonitor;
+  private _metrics: PerformanceMetrics = {
     pageLoadTime: 0,
     domContentLoadedTime: 0,
     firstContentfulPaint: 0,
@@ -20,31 +40,24 @@ class ClientMonitor {
     timeToInteractive: 0,
     apiResponseTimes: [],
   };
-  private errors: Array<{
-    message: string;
-    stack?: string;
-    timestamp: number;
-    url?: string;
-    line?: number;
-    column?: number;
-  }> = [];
+  private _errors: ErrorEntry[] = [];
 
   // Error batching configuration
-  private errorBatch: Array<any> = [];
-  private errorBatchTimer: NodeJS.Timeout | null = null;
-  private readonly ERROR_BATCH_INTERVAL = 5000; // 5 seconds
-  private readonly MAX_BATCH_SIZE = 50;
+  private _errorBatch: ErrorEntry[] = [];
+  private _errorBatchTimer: NodeJS.Timeout | null = null;
+  private readonly _errorBatchInterval = ERROR_BATCH_INTERVAL_MS;
+  private readonly _maxBatchSize = MAX_BATCH_SIZE;
   
   // Metrics debouncing
-  private metricsDebounceTimer: NodeJS.Timeout | null = null;
-  private readonly METRICS_DEBOUNCE_DELAY = 5000; // 5 seconds
-  private isAuthenticating = false;
+  private _metricsDebounceTimer: NodeJS.Timeout | null = null;
+  private readonly _metricsDebounceDelay = METRICS_DEBOUNCE_DELAY_MS;
+  private _isAuthenticating = false;
 
   // Rate limiting configuration
-  private errorsSentInWindow = 0;
-  private rateLimitWindowStart = Date.now();
-  private readonly RATE_LIMIT_WINDOW = 60000; // 1 minute
-  private readonly MAX_ERRORS_PER_WINDOW = 100;
+  private _errorsSentInWindow = 0;
+  private _rateLimitWindowStart = Date.now();
+  private readonly _rateLimitWindow = RATE_LIMIT_WINDOW_MS;
+  private readonly _maxErrorsPerWindow = MAX_ERRORS_PER_WINDOW;
 
   private constructor() {
     if (typeof window !== 'undefined') {
@@ -54,25 +67,25 @@ class ClientMonitor {
 
       // Clean up on page unload
       window.addEventListener('beforeunload', () => {
-        this.flushErrorBatch();
+        void this.flushErrorBatch();
       });
     }
   }
 
   static getInstance(): ClientMonitor {
-    if (!ClientMonitor.instance) {
-      ClientMonitor.instance = new ClientMonitor();
+    if (!ClientMonitor._instance) {
+      ClientMonitor._instance = new ClientMonitor();
     }
-    return ClientMonitor.instance;
+    return ClientMonitor._instance;
   }
 
-  private initializePerformanceObserver() {
+  private initializePerformanceObserver(): void {
     if ('PerformanceObserver' in window) {
       // Observe paint timing
       const paintObserver = new PerformanceObserver((list) => {
         list.getEntries().forEach((entry) => {
           if (entry.name === 'first-contentful-paint') {
-            this.metrics.firstContentfulPaint = entry.startTime;
+            this._metrics.firstContentfulPaint = entry.startTime;
           }
         });
       });
@@ -82,106 +95,106 @@ class ClientMonitor {
       const lcpObserver = new PerformanceObserver((list) => {
         const entries = list.getEntries();
         const lastEntry = entries[entries.length - 1];
-        this.metrics.largestContentfulPaint = lastEntry.startTime;
+        this._metrics.largestContentfulPaint = lastEntry.startTime;
       });
       lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });
     }
   }
 
-  private initializeErrorTracking() {
+  private _initializeErrorTracking(): void {
     window.addEventListener('error', (event) => {
       const sanitizedError = {
-        message: this.sanitizeErrorMessage(event.message),
-        stack: this.sanitizeStackTrace(event.error?.stack),
+        message: this._sanitizeErrorMessage(event.message),
+        stack: this._sanitizeStackTrace(event.error?.stack),
         timestamp: Date.now(),
-        url: this.sanitizeUrl(event.filename),
+        url: this._sanitizeUrl(event.filename),
         line: event.lineno,
         column: event.colno,
       };
 
-      this.errors.push(sanitizedError);
+      this._errors.push(sanitizedError);
 
-      // Keep only last 100 errors
-      if (this.errors.length > 100) {
-        this.errors.shift();
+      // Keep only last MAX_STORED_ERRORS errors
+      if (this._errors.length > MAX_STORED_ERRORS) {
+        this._errors.shift();
       }
 
       // Add to batch instead of sending immediately
-      this.addErrorToBatch(sanitizedError);
+      this._addErrorToBatch(sanitizedError);
     });
 
     window.addEventListener('unhandledrejection', (event) => {
       const sanitizedError = {
-        message: this.sanitizeErrorMessage(`Unhandled Promise Rejection: ${event.reason}`),
-        stack: this.sanitizeStackTrace(event.reason?.stack),
+        message: this._sanitizeErrorMessage(`Unhandled Promise Rejection: ${String(event.reason)}`),
+        stack: this._sanitizeStackTrace(event.reason?.stack),
         timestamp: Date.now(),
       };
 
-      this.errors.push(sanitizedError);
+      this._errors.push(sanitizedError);
 
       // Add to batch instead of sending immediately
-      this.addErrorToBatch(sanitizedError);
+      this._addErrorToBatch(sanitizedError);
     });
   }
 
-  private measurePageLoadMetrics() {
+  private _measurePageLoadMetrics(): void {
     window.addEventListener('load', () => {
       const navigation = performance.getEntriesByType(
         'navigation',
       )[0] as PerformanceNavigationTiming;
 
       if (navigation) {
-        this.metrics.pageLoadTime = navigation.loadEventEnd - navigation.fetchStart;
-        this.metrics.domContentLoadedTime =
+        this._metrics.pageLoadTime = navigation.loadEventEnd - navigation.fetchStart;
+        this._metrics.domContentLoadedTime =
           navigation.domContentLoadedEventEnd - navigation.fetchStart;
 
         // Estimate Time to Interactive
-        this.metrics.timeToInteractive = navigation.domInteractive - navigation.fetchStart;
+        this._metrics.timeToInteractive = navigation.domInteractive - navigation.fetchStart;
       }
 
       // Send initial metrics after page load
       setTimeout(() => {
-        this.sendMetricsToServer();
-      }, 1000);
+        void this._sendMetricsToServer();
+      }, METRICS_SEND_DELAY_MS);
     });
   }
 
   // Track API response times
-  trackApiCall(endpoint: string, duration: number) {
+  trackApiCall(endpoint: string, duration: number): void {
     // Skip tracking during authentication to prevent loops
-    if (this.isAuthenticating || endpoint.includes('/auth/')) {
+    if (this._isAuthenticating || endpoint.includes('/auth/')) {
       return;
     }
     
-    this.metrics.apiResponseTimes.push({
+    this._metrics.apiResponseTimes.push({
       endpoint,
       duration,
       timestamp: Date.now(),
     });
 
-    // Keep only last 100 API calls
-    if (this.metrics.apiResponseTimes.length > 100) {
-      this.metrics.apiResponseTimes.shift();
+    // Keep only last MAX_STORED_API_CALLS API calls
+    if (this._metrics.apiResponseTimes.length > MAX_STORED_API_CALLS) {
+      this._metrics.apiResponseTimes.shift();
     }
 
     // Use debounced sending instead of sending every 10 calls
-    this.debouncedSendMetrics();
+    this._debouncedSendMetrics();
   }
   
-  private debouncedSendMetrics() {
+  private _debouncedSendMetrics(): void {
     // Clear existing timer
-    if (this.metricsDebounceTimer) {
-      clearTimeout(this.metricsDebounceTimer);
+    if (this._metricsDebounceTimer) {
+      clearTimeout(this._metricsDebounceTimer);
     }
     
     // Set new timer
-    this.metricsDebounceTimer = setTimeout(() => {
-      this.sendMetricsToServer();
-    }, this.METRICS_DEBOUNCE_DELAY);
+    this._metricsDebounceTimer = setTimeout(() => {
+      void this._sendMetricsToServer();
+    }, this._METRICS_DEBOUNCE_DELAY);
   }
 
   // Intercept fetch to track API calls
-  interceptFetch() {
+  interceptFetch(): void {
     const originalFetch = window.fetch;
 
     window.fetch = async (...args) => {
@@ -190,11 +203,11 @@ class ClientMonitor {
       
       // Detect authentication flow
       if (url.includes('/api/auth/') || url.includes('/auth/')) {
-        this.isAuthenticating = true;
+        this._isAuthenticating = true;
         // Reset flag after a delay
         setTimeout(() => {
-          this.isAuthenticating = false;
-        }, 10000); // 10 seconds
+          this._isAuthenticating = false;
+        }, AUTH_TIMEOUT_MS);
       }
 
       try {
@@ -214,13 +227,13 @@ class ClientMonitor {
     };
   }
 
-  private async sendMetricsToServer() {
+  private async _sendMetricsToServer(): Promise<void> {
     try {
       await fetch('/api/monitoring/client-metrics', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          metrics: this.metrics,
+          metrics: this._metrics,
           userAgent: navigator.userAgent,
           timestamp: Date.now(),
         }),
@@ -231,7 +244,7 @@ class ClientMonitor {
   }
 
   // Sanitization methods
-  private sanitizeErrorMessage(message: string): string {
+  private _sanitizeErrorMessage(message: string): string {
     if (!message) return 'Unknown error';
 
     // Remove potential PII patterns
@@ -258,7 +271,7 @@ class ClientMonitor {
     );
   }
 
-  private sanitizeStackTrace(stack?: string): string | undefined {
+  private _sanitizeStackTrace(stack?: string): string | undefined {
     if (!stack) return undefined;
 
     return (
@@ -269,12 +282,12 @@ class ClientMonitor {
         .replace(/C:\\Users\\[^\\]+/g, 'C:\\Users\\[USER]')
         // Apply same PII sanitization as messages
         .split('\n')
-        .map((line) => this.sanitizeErrorMessage(line))
+        .map((line) => this._sanitizeErrorMessage(line))
         .join('\n')
     );
   }
 
-  private sanitizeUrl(url?: string): string | undefined {
+  private _sanitizeUrl(url?: string): string | undefined {
     if (!url) return undefined;
 
     try {
@@ -292,67 +305,67 @@ class ClientMonitor {
   }
 
   // Error batching methods
-  private addErrorToBatch(error: any) {
+  private _addErrorToBatch(error: ErrorEntry): void {
     // Check rate limit
-    if (!this.checkRateLimit()) {
+    if (!this._checkRateLimit()) {
       logger.warn('Error rate limit exceeded, dropping error');
       return;
     }
 
-    this.errorBatch.push(error);
+    this._errorBatch.push(error);
 
     // Send immediately if batch is full
-    if (this.errorBatch.length >= this.MAX_BATCH_SIZE) {
-      this.flushErrorBatch();
+    if (this._errorBatch.length >= this._MAX_BATCH_SIZE) {
+      void this._flushErrorBatch();
       return;
     }
 
     // Schedule batch send if not already scheduled
-    if (!this.errorBatchTimer) {
-      this.errorBatchTimer = setTimeout(() => {
-        this.flushErrorBatch();
-      }, this.ERROR_BATCH_INTERVAL);
+    if (!this._errorBatchTimer) {
+      this._errorBatchTimer = setTimeout(() => {
+        void this._flushErrorBatch();
+      }, this._ERROR_BATCH_INTERVAL);
     }
   }
 
-  private checkRateLimit(): boolean {
+  private _checkRateLimit(): boolean {
     const now = Date.now();
 
     // Reset window if needed
-    if (now - this.rateLimitWindowStart > this.RATE_LIMIT_WINDOW) {
-      this.rateLimitWindowStart = now;
-      this.errorsSentInWindow = 0;
+    if (now - this._rateLimitWindowStart > this._RATE_LIMIT_WINDOW) {
+      this._rateLimitWindowStart = now;
+      this._errorsSentInWindow = 0;
     }
 
     // Check if under limit
-    return this.errorsSentInWindow < this.MAX_ERRORS_PER_WINDOW;
+    return this._errorsSentInWindow < this._MAX_ERRORS_PER_WINDOW;
   }
 
-  private async flushErrorBatch() {
-    if (this.errorBatch.length === 0) return;
+  private async _flushErrorBatch(): Promise<void> {
+    if (this._errorBatch.length === 0) return;
 
     // Clear timer
-    if (this.errorBatchTimer) {
-      clearTimeout(this.errorBatchTimer);
-      this.errorBatchTimer = null;
+    if (this._errorBatchTimer) {
+      clearTimeout(this._errorBatchTimer);
+      this._errorBatchTimer = null;
     }
 
     // Get current batch and clear it
-    const batch = [...this.errorBatch];
-    this.errorBatch = [];
+    const batch = [...this._errorBatch];
+    this._errorBatch = [];
 
     // Update rate limit counter
-    this.errorsSentInWindow += batch.length;
+    this._errorsSentInWindow += batch.length;
 
     try {
       await fetch('/api/monitoring/errors', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           errors: batch,
           userAgent: navigator.userAgent,
           timestamp: Date.now(),
-          url: this.sanitizeUrl(window.location.href),
+          url: this._sanitizeUrl(window.location.href),
           batchSize: batch.length,
         }),
       });
@@ -362,17 +375,20 @@ class ClientMonitor {
     }
   }
 
-  private async sendErrorToServer(error: any) {
-    // This method is now deprecated in favor of batching
-    // Keep for backward compatibility but route through batching
-    this.addErrorToBatch(error);
-  }
-
-  getMetrics() {
+  getMetrics(): {
+    pageLoadTime: number;
+    domContentLoadedTime: number;
+    firstContentfulPaint: number;
+    largestContentfulPaint: number;
+    timeToInteractive: number;
+    apiResponseTimes: { endpoint: string; duration: number; timestamp: number }[];
+    errors: ErrorEntry[];
+    errorCount: number;
+  } {
     return {
-      ...this.metrics,
-      errors: this.errors,
-      errorCount: this.errors.length,
+      ...this._metrics,
+      errors: this._errors,
+      errorCount: this._errors.length,
     };
   }
 }

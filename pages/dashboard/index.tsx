@@ -1,21 +1,32 @@
+import React, { useEffect, useState, useCallback, useMemo, memo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
-import { useEffect, useState, useCallback, useMemo, memo, Suspense } from 'react';
+
 import Head from 'next/head';
-import dynamic from 'next/dynamic';
 import Layout from '../../components/Layout';
 import { Card, CardContent } from '../../components/dashboard/Card';
 import {
   SkeletonDashboardGrid,
-  SkeletonStatsCard,
   SkeletonCard,
   Skeleton,
 } from '@/components/ui/SkeletonLoaders';
 import { ErrorDisplay, NetworkError, EmptyState } from '@/components/ui/ErrorComponents';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useApiError } from '@/hooks/useApiError';
-import { logApiError } from '@/lib/errors/errorLogger';
 import { lazyLoadComponent } from '@/lib/utils/lazyLoad';
+
+// Constants
+const TAB_CONFIG = {
+  OVERVIEW: 'overview',
+  INSIGHTS: 'insights',
+  GOALS: 'goals',
+  BANKING: 'banking',
+  TAX: 'tax',
+} as const;
+
+const RESPONSE_STATUS_OK = 200;
+const ESTIMATED_TAX_RATE = 0.25;
+const DASHBOARD_GRID_COLS = [1, 2, 3, 4];
 
 // Lazy load InsightsDashboard as it's a heavy component
 const InsightsDashboard = lazyLoadComponent(
@@ -99,157 +110,116 @@ const StatCard = memo<{
     subtitleCount,
     loading = false,
   }) => (
-    <Card className="hover:shadow-lg transition-shadow duration-200">
+    <Card>
       <CardContent className="p-6">
         {loading ? (
-          <div className="animate-pulse">
-            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-2"></div>
-            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
-            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
+          <div className="space-y-2">
+            <Skeleton height={20} width="60%" rounded />
+            <Skeleton height={32} width="80%" rounded />
+            <Skeleton height={16} width="40%" rounded />
           </div>
         ) : (
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{title}</p>
-              <p className={`text-2xl font-bold ${colorClass} animate-fadeIn`}>{value}</p>
-              {subtitle && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {subtitleCount !== undefined ? `${subtitleCount} ${subtitle}` : subtitle}
-                </p>
-              )}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium text-gray-600">{title}</p>
+              <span className="text-lg">{icon}</span>
             </div>
-            <div
-              className="text-3xl animate-fadeInScale"
-              style={{ animationDelay: '100ms' }}
-            >
-              {icon}
-            </div>
+            <p className={`text-2xl font-bold ${colorClass}`}>{value}</p>
+            {subtitle && (
+              <p className="text-sm text-gray-500">
+                {subtitle}
+                {typeof subtitleCount === 'number' && ` (${subtitleCount})`}
+              </p>
+            )}
           </div>
         )}
       </CardContent>
     </Card>
   ),
 );
-
 StatCard.displayName = 'StatCard';
 
-// Memoized goal item component
-const GoalItem = memo<{
-  goal: {
-    id: string;
-    name: string;
-    targetAmount: number;
-    currentAmount: number;
-    progressPercentage: number;
-    daysRemaining: number;
-    isOnTrack: boolean;
-  };
+// Memoized Goal Card component
+const GoalCard = memo<{
+  goal: DashboardData['goals'][0];
   formatCurrency: (amount: number) => string;
 }>(({ goal, formatCurrency }) => (
-  <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.01] transform">
-    <CardContent className="p-6">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-lg font-semibold">{goal.name}</h3>
-        <span
-          className={`text-sm font-medium ${goal.isOnTrack ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'} animate-fadeIn`}
-        >
-          {goal.isOnTrack ? 'On Track' : 'Behind Schedule'}
-        </span>
+  <div className="bg-white p-4 border border-gray-200 rounded-lg">
+    <div className="flex items-center justify-between mb-3">
+      <h3 className="font-medium text-gray-900 truncate">{goal.name}</h3>
+      <span className={`text-sm px-2 py-1 rounded ${goal.isOnTrack ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+        {goal.isOnTrack ? 'On Track' : 'Behind'}
+      </span>
+    </div>
+    <div className="space-y-2">
+      <div className="flex justify-between text-sm">
+        <span className="text-gray-600">Progress</span>
+        <span className="font-medium">{goal.progressPercentage}%</span>
       </div>
-      <div className="mb-4">
-        <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
-          <span>
-            {formatCurrency(goal.currentAmount)} of {formatCurrency(goal.targetAmount)}
-          </span>
-          <span className="font-medium">{goal.progressPercentage}%</span>
-        </div>
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
-          <div
-            className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all duration-500 ease-out relative"
-            style={{ width: `${Math.min(100, goal.progressPercentage)}%` }}
-          >
-            <div className="absolute inset-0 bg-white bg-opacity-20 animate-pulse" />
-          </div>
-        </div>
-      </div>
-      <p className="text-sm text-gray-500 dark:text-gray-400">
-        {goal.daysRemaining} days remaining
-      </p>
-    </CardContent>
-  </Card>
-));
-
-GoalItem.displayName = 'GoalItem';
-
-// Memoized category item component
-const CategoryItem = memo<{
-  category: {
-    category: string;
-    totalAmount: number;
-    percentage: number;
-  };
-  formatCurrency: (amount: number) => string;
-}>(({ category, formatCurrency }) => (
-  <div className="flex items-center justify-between group hover:bg-gray-50 dark:hover:bg-gray-800 p-2 -m-2 rounded-lg transition-colors">
-    <div className="flex-1">
-      <div className="flex justify-between mb-1">
-        <span className="text-sm font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-          {category.category}
-        </span>
-        <span className="text-sm text-gray-600 dark:text-gray-400">
-          {formatCurrency(category.totalAmount)}
-        </span>
-      </div>
-      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+      <div className="w-full bg-gray-200 rounded-full h-2">
         <div
-          className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all duration-500 ease-out"
-          style={{ width: `${category.percentage}%` }}
+          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+          style={{ width: `${Math.min(goal.progressPercentage, ESTIMATED_TAX_RATE * 100)}%` }}
         />
+      </div>
+      <div className="flex justify-between text-sm">
+        <span className="text-gray-600">
+          {formatCurrency(goal.currentAmount)} / {formatCurrency(goal.targetAmount)}
+        </span>
+        <span className="text-gray-600">{goal.daysRemaining} days left</span>
       </div>
     </div>
   </div>
 ));
+GoalCard.displayName = 'GoalCard';
 
-CategoryItem.displayName = 'CategoryItem';
+// Memoized Category Card component
+const CategoryCard = memo<{
+  category: DashboardData['topCategories'][0];
+  formatCurrency: (amount: number) => string;
+}>(({ category, formatCurrency }) => (
+  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+    <div>
+      <p className="font-medium text-gray-900">{category.category}</p>
+      <p className="text-sm text-gray-600">{category.transactionCount} transactions</p>
+    </div>
+    <div className="text-right">
+      <p className="font-semibold text-gray-900">{formatCurrency(category.totalAmount)}</p>
+      <p className="text-sm text-gray-600">{category.percentage}%</p>
+    </div>
+  </div>
+));
+CategoryCard.displayName = 'CategoryCard';
 
-// Memoized tab navigation component
+// Tab Navigation component
 const TabNavigation = memo<{
   activeTab: string;
   setActiveTab: (tab: string) => void;
   tabs: Array<{ id: string; label: string; icon: string }>;
 }>(({ activeTab, setActiveTab, tabs }) => (
-  <div className="border-b border-gray-200 mb-6">
-    <nav
-      className="-mb-px flex space-x-8"
-      aria-label="Tabs"
-    >
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          onClick={() => setActiveTab(tab.id)}
-          className={`
-            whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-all duration-200
-            ${
-              activeTab === tab.id
-                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-            }
-          `}
-        >
-          <span className="mr-2">{tab.icon}</span>
-          {tab.label}
-        </button>
-      ))}
-    </nav>
+  <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+    {tabs.map((tab) => (
+      <button
+        key={tab.id}
+        onClick={() => setActiveTab(tab.id)}
+        className={`flex-1 flex items-center justify-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+          activeTab === tab.id
+            ? 'bg-white text-blue-700 shadow-sm'
+            : 'text-gray-500 hover:text-gray-700'
+        }`}
+      >
+        <span className="mr-2">{tab.icon}</span>
+        {tab.label}
+      </button>
+    ))}
   </div>
 ));
-
 TabNavigation.displayName = 'TabNavigation';
 
-export default function DashboardPage() {
+export default function DashboardPage(): React.JSX.Element {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState<string>(TAB_CONFIG.OVERVIEW);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -261,20 +231,7 @@ export default function DashboardPage() {
     setActiveTab(tab);
   }, []);
 
-  useEffect(() => {
-    if (status === 'loading') return;
-    if (status === 'unauthenticated') {
-      router.push('/auth/login');
-    }
-  }, [status, router]);
-
-  useEffect(() => {
-    if (session) {
-      fetchDashboardData();
-    }
-  }, [session, fetchDashboardData]);
-
-  const fetchDashboardData = useCallback(async () => {
+  const fetchDashboardData = useCallback(async (): Promise<void> => {
     try {
       setLoading(true);
       clearError();
@@ -282,12 +239,12 @@ export default function DashboardPage() {
       const response = await fetch('/api/optimized/user-dashboard');
 
       if (!response.ok) {
-        const error = new Error(`Failed to fetch dashboard: ${response.status}`);
-        (error as any).response = response;
-        throw error;
+        const fetchError = new Error(`Failed to fetch dashboard: ${response.status}`);
+        (fetchError as { response?: Response }).response = response;
+        throw fetchError;
       }
 
-      const result = await response.json();
+      const result = await response.json() as { success: boolean; data?: DashboardData; message?: string };
 
       if (result.success && result.data) {
         setDashboardData(result.data);
@@ -304,6 +261,68 @@ export default function DashboardPage() {
       setLoading(false);
     }
   }, [clearError, handleError]);
+
+  useEffect(() => {
+    if (status === 'loading') return;
+    if (status === 'unauthenticated') {
+      void router.push('/auth/login');
+    }
+  }, [status, router]);
+
+  useEffect(() => {
+    if (session) {
+      void fetchDashboardData();
+    }
+  }, [session, fetchDashboardData]);
+
+  // Memoized tabs array
+  const tabs = useMemo(
+    () => [
+      { id: TAB_CONFIG.OVERVIEW, label: 'Overview', icon: '📊' },
+      { id: TAB_CONFIG.INSIGHTS, label: 'AI Insights', icon: '🤖' },
+      { id: TAB_CONFIG.GOALS, label: 'Goals', icon: '🎯' },
+      { id: TAB_CONFIG.BANKING, label: 'Banking', icon: '🏦' },
+      { id: TAB_CONFIG.TAX, label: 'Tax Profile', icon: '📋' },
+    ],
+    [],
+  );
+
+  // Memoized calculations to prevent recalculation on every render
+  const financialMetrics = useMemo(() => {
+    if (!dashboardData) {
+      return {
+        totalBalance: 0,
+        netIncome: 0,
+        monthlySpend: 0,
+        goalProgress: 0,
+        taxSavings: 0,
+      };
+    }
+
+    const totalBalance = dashboardData.financialSummary?.totalBalance || 0;
+    const netIncome = dashboardData.financialSummary?.netIncome || 0;
+    const monthlySpend = dashboardData.insights?.averageMonthlySpending || 0;
+    const goalProgress =
+      dashboardData.goals?.length > 0
+        ? Math.round(
+            dashboardData.goals.reduce((sum, goal) => sum + goal.progressPercentage, 0) /
+              dashboardData.goals.length,
+          )
+        : 0;
+    const taxSavings = Math.max(0, netIncome * ESTIMATED_TAX_RATE);
+
+    return { totalBalance, netIncome, monthlySpend, goalProgress, taxSavings };
+  }, [dashboardData]);
+
+  // Memoized format currency function
+  const formatCurrency = useCallback((amount: number): string => {
+    return new Intl.NumberFormat('en-AU', {
+      style: 'currency',
+      currency: 'AUD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  }, []);
 
   if (status === 'loading' || loading) {
     return (
@@ -329,7 +348,7 @@ export default function DashboardPage() {
 
           {/* Tabs skeleton */}
           <div className="flex space-x-4 mb-6">
-            {[1, 2, 3, 4].map((i) => (
+            {DASHBOARD_GRID_COLS.map((i) => (
               <Skeleton
                 key={i}
                 height={40}
@@ -347,7 +366,7 @@ export default function DashboardPage() {
   }
 
   if (!session) {
-    return null;
+    return <div>No session</div>;
   }
 
   if (error) {
@@ -379,45 +398,6 @@ export default function DashboardPage() {
     );
   }
 
-  // Memoized tabs array
-  const tabs = useMemo(
-    () => [
-      { id: 'overview', label: 'Overview', icon: '📊' },
-      { id: 'insights', label: 'AI Insights', icon: '🤖' },
-      { id: 'goals', label: 'Goals', icon: '🎯' },
-      { id: 'banking', label: 'Banking', icon: '🏦' },
-      { id: 'tax', label: 'Tax Profile', icon: '📋' },
-    ],
-    [],
-  );
-
-  // Memoized calculations to prevent recalculation on every render
-  const { totalBalance, netIncome, monthlySpend, goalProgress, taxSavings } = useMemo(() => {
-    const totalBalance = dashboardData?.financialSummary?.totalBalance || 0;
-    const netIncome = dashboardData?.financialSummary?.netIncome || 0;
-    const monthlySpend = dashboardData?.insights?.averageMonthlySpending || 0;
-    const goalProgress =
-      dashboardData?.goals?.length > 0
-        ? Math.round(
-            dashboardData.goals.reduce((sum, goal) => sum + goal.progressPercentage, 0) /
-              dashboardData.goals.length,
-          )
-        : 0;
-    const taxSavings = Math.max(0, netIncome * 0.25); // Estimated tax savings (25% of net income)
-
-    return { totalBalance, netIncome, monthlySpend, goalProgress, taxSavings };
-  }, [dashboardData]);
-
-  // Memoized format currency function
-  const formatCurrency = useCallback((amount: number) => {
-    return new Intl.NumberFormat('en-AU', {
-      style: 'currency',
-      currency: 'AUD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  }, []);
-
   return (
     <>
       <Head>
@@ -432,7 +412,7 @@ export default function DashboardPage() {
               !
             </h1>
             <p className="mt-2 text-gray-600">
-              Here's your financial overview and AI-powered insights
+              Here&apos;s your financial overview and AI-powered insights
             </p>
           </div>
 
@@ -445,121 +425,96 @@ export default function DashboardPage() {
 
           {/* Tab Content */}
           <div className="mt-6">
-            {activeTab === 'overview' && (
+            {activeTab === TAB_CONFIG.OVERVIEW && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard
                   title="Total Balance"
-                  value={formatCurrency(totalBalance)}
-                  subtitle="transactions"
-                  subtitleCount={dashboardData?.financialSummary?.transactionCount}
+                  value={formatCurrency(financialMetrics.totalBalance)}
+                  subtitle="Across all accounts"
                   icon="💰"
-                />
-                <StatCard
-                  title="Tax Savings"
-                  value={formatCurrency(taxSavings)}
-                  subtitle="Estimated"
-                  icon="📈"
                   colorClass="text-green-600"
                 />
                 <StatCard
-                  title="Monthly Spend"
-                  value={formatCurrency(monthlySpend)}
+                  title="Net Income"
+                  value={formatCurrency(financialMetrics.netIncome)}
+                  subtitle="This month"
+                  icon="📈"
+                  colorClass="text-blue-600"
+                />
+                <StatCard
+                  title="Monthly Spending"
+                  value={formatCurrency(financialMetrics.monthlySpend)}
                   subtitle="Average"
                   icon="💳"
+                  colorClass="text-orange-600"
                 />
                 <StatCard
                   title="Goal Progress"
-                  value={`${goalProgress}%`}
-                  subtitle={
-                    dashboardData?.insights
-                      ? `${dashboardData.insights.goalsOnTrack}/${dashboardData.insights.totalActiveGoals} on track`
-                      : undefined
-                  }
+                  value={`${financialMetrics.goalProgress}%`}
+                  subtitle={`${dashboardData?.goals?.length || 0} active goals`}
                   icon="🎯"
-                  colorClass="text-blue-600"
+                  colorClass="text-purple-600"
                 />
               </div>
             )}
 
-            {activeTab === 'insights' && (
-              <ErrorBoundary
-                fallback={
-                  <ErrorDisplay
-                    error="Failed to load insights"
-                    onRetry={() => window.location.reload()}
-                  />
-                }
-              >
-                <InsightsDashboard />
-              </ErrorBoundary>
-            )}
+            {activeTab === TAB_CONFIG.INSIGHTS && <InsightsDashboard />}
 
-            {activeTab === 'goals' && (
-              <div className="space-y-4">
-                {dashboardData?.goals && dashboardData.goals.length > 0 ? (
-                  dashboardData.goals.map((goal) => (
-                    <GoalItem
-                      key={goal.id}
-                      goal={goal}
-                      formatCurrency={formatCurrency}
-                    />
-                  ))
-                ) : (
-                  <Card>
-                    <CardContent className="p-6">
-                      <EmptyState
-                        title="No financial goals yet"
-                        message="Create your first financial goal to track your progress and build better savings habits"
-                        action={{
-                          label: 'Create Goal',
-                          onClick: () => router.push('/goals/new'),
-                        }}
-                      />
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'banking' && (
+            {activeTab === TAB_CONFIG.GOALS && (
               <Card>
                 <CardContent className="p-6">
-                  <h2 className="text-xl font-semibold mb-4">Connected Accounts</h2>
-                  {dashboardData?.user?.counts?.accounts ? (
-                    <p className="text-gray-600">
-                      You have {dashboardData.user.counts.accounts} connected account
-                      {dashboardData.user.counts.accounts !== 1 ? 's' : ''}
-                    </p>
-                  ) : (
-                    <EmptyState
-                      title="No bank accounts connected"
-                      message="Connect your bank accounts to automatically track transactions and expenses"
-                      action={{
-                        label: 'Connect Bank',
-                        onClick: () => router.push('/banking/connect'),
-                      }}
-                      className="py-8"
-                    />
-                  )}
-                  {dashboardData?.topCategories && dashboardData.topCategories.length > 0 && (
-                    <div className="mt-6">
-                      <h3 className="text-lg font-medium mb-4">Top Spending Categories</h3>
-                      <div className="space-y-3">
-                        {dashboardData.topCategories.map((category) => (
-                          <CategoryItem
-                            key={category.category}
-                            category={category}
-                            formatCurrency={formatCurrency}
-                          />
-                        ))}
-                      </div>
+                  <h2 className="text-xl font-semibold mb-4">Financial Goals</h2>
+                  {dashboardData?.goals && dashboardData.goals.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {dashboardData.goals.map((goal) => (
+                        <GoalCard
+                          key={goal.id}
+                          goal={goal}
+                          formatCurrency={formatCurrency}
+                        />
+                      ))}
                     </div>
+                  ) : (
+                                         <EmptyState
+                       title="No Goals Set"
+                       message="Create your first financial goal to start tracking your progress."
+                       action={{
+                         label: "Create Goal",
+                         onClick: () => void router.push('/goals'),
+                       }}
+                     />
                   )}
                 </CardContent>
               </Card>
             )}
 
-            {activeTab === 'tax' && (
+            {activeTab === TAB_CONFIG.BANKING && (
+              <Card>
+                <CardContent className="p-6">
+                  <h2 className="text-xl font-semibold mb-4">Top Spending Categories</h2>
+                  {dashboardData?.topCategories && dashboardData.topCategories.length > 0 ? (
+                    <div className="space-y-3">
+                      {dashboardData.topCategories.map((category) => (
+                        <CategoryCard
+                          key={category.category}
+                          category={category}
+                          formatCurrency={formatCurrency}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyState
+                      title="No Transaction Data"
+                      description="Connect your bank account to see spending insights."
+                      actionText="Connect Bank"
+                      onAction={() => void router.push('/banking')}
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === TAB_CONFIG.TAX && (
               <Card>
                 <CardContent className="p-6">
                   <h2 className="text-xl font-semibold mb-4">Tax Profile</h2>
@@ -568,12 +523,12 @@ export default function DashboardPage() {
                       <p className="text-sm font-medium text-gray-600">
                         Net Income (Current Tax Year)
                       </p>
-                      <p className="text-lg font-semibold">{formatCurrency(netIncome)}</p>
+                      <p className="text-lg font-semibold">{formatCurrency(financialMetrics.netIncome)}</p>
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-600">Estimated Tax Savings</p>
                       <p className="text-lg font-semibold text-green-600">
-                        {formatCurrency(taxSavings)}
+                        {formatCurrency(financialMetrics.taxSavings)}
                       </p>
                     </div>
                     <div>
