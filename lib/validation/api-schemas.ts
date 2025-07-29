@@ -11,18 +11,38 @@ export const authSchemas = {
       email: commonSchemas.email,
       password: z.string().min(1, 'Password is required'),
     }),
-    response: z.object({
-      success: z.boolean(),
-      data: z.object({
-        user: z.object({
-          id: z.string().uuid(),
-          email: z.string().email(),
-          name: z.string(),
-          role: z.enum(['USER', 'ADMIN', 'ACCOUNTANT', 'SUPPORT']),
+    response: z.union([
+      // Success response
+      z.object({
+        success: z.literal(true),
+        data: z.object({
+          user: z.object({
+            id: z.string().uuid(),
+            email: z.string().email(),
+            name: z.string(),
+            role: z.enum(['USER', 'ADMIN', 'ACCOUNTANT', 'SUPPORT']),
+          }),
+          token: z.string().optional(),
         }),
-        token: z.string().optional(),
+        message: z.string().optional(),
+        metadata: z.record(z.unknown()).optional(),
+        timestamp: z.string(),
+        requestId: z.string().optional(),
       }),
-    }),
+      // Error response
+      z.object({
+        success: z.literal(false),
+        error: z.object({
+          message: z.string(),
+          code: z.string(),
+          details: z.unknown().optional(),
+          field: z.string().optional(),
+          stack: z.string().optional(),
+        }),
+        timestamp: z.string(),
+        requestId: z.string().optional(),
+      }),
+    ]),
   },
 
   // Register
@@ -40,18 +60,38 @@ export const authSchemas = {
       abn: z.string().optional(),
       acceptTerms: z.boolean().optional(),
     }).strict(), // Reject extra fields
-    response: z.object({
-      success: z.boolean(),
-      data: z.object({
-        user: z.object({
-          id: z.string().uuid(),
-          email: z.string().email(),
-          name: z.string(),
-          role: z.literal('USER'),
+    response: z.union([
+      // Success response
+      z.object({
+        success: z.literal(true),
+        data: z.object({
+          user: z.object({
+            id: z.string().uuid(),
+            email: z.string().email(),
+            name: z.string(),
+            role: z.literal('USER'),
+          }),
+          message: z.string().optional(),
         }),
         message: z.string().optional(),
+        metadata: z.record(z.unknown()).optional(),
+        timestamp: z.string(),
+        requestId: z.string().optional(),
       }),
-    }),
+      // Error response
+      z.object({
+        success: z.literal(false),
+        error: z.object({
+          message: z.string(),
+          code: z.string(),
+          details: z.unknown().optional(),
+          field: z.string().optional(),
+          stack: z.string().optional(),
+        }),
+        timestamp: z.string(),
+        requestId: z.string().optional(),
+      }),
+    ]),
   },
 
   // Forgot Password
