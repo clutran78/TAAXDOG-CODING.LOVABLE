@@ -1,6 +1,5 @@
 import { onCLS, onFCP, onINP, onLCP, onTTFB, Metric } from 'web-vitals';
 import { logger } from '@/lib/logger';
-import { performance } from 'perf_hooks';
 
 interface PerformanceData {
   CLS?: number;
