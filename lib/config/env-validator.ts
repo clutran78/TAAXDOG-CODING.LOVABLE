@@ -159,16 +159,16 @@ export function logEnvValidation(): void {
   const { isValid, errors, warnings } = validateEnv();
   const env = process.env.NODE_ENV || 'development';
 
-  logger.info(`\n=== Environment Validation (${env}); ===`);
+  logger.info(`\n=== Environment Validation (${env}) ===`);
 
   if (errors.length > 0) {
     logger.error('\n❌ Errors:');
-    errors.forEach((error) => logger.error(`   - ${error}`););
+    errors.forEach((error) => logger.error(`   - ${error}`));
   }
 
   if (warnings.length > 0) {
     logger.warn('\n⚠️  Warnings:');
-    warnings.forEach((warning) => logger.warn(`   - ${warning}`););
+    warnings.forEach((warning) => logger.warn(`   - ${warning}`));
   }
 
   if (isValid) {

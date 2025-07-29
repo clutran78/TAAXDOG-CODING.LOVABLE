@@ -116,7 +116,7 @@ class MigrationRunner {
 
     if (options.dryRun) {
       logger.info('Dry run - migrations that would be applied:');
-      pendingMigrations.forEach((m) => logger.info(`  - ${m.name}`););
+      pendingMigrations.forEach((m) => logger.info(`  - ${m.name}`));
       return;
     }
 
@@ -168,8 +168,8 @@ class MigrationRunner {
     const appliedIds = new Set(appliedMigrations.map((m) => m.id));
 
     logger.info('\nMigration Status:');
-    logger.info(`Environment: ${envConfig.getConfig();.NODE_ENV}`);
-    logger.info(`Database: ${envConfig.getDatabaseUrl();.replace(/:[^:@]+@/, ':[REDACTED]@')}\n`);
+    logger.info(`Environment: ${envConfig.getConfig().NODE_ENV}`);
+    logger.info(`Database: ${envConfig.getDatabaseUrl().replace(/:[^:@]+@/, ':[REDACTED]@')}\n`);
 
     for (const migration of allMigrations) {
       const applied = appliedIds.has(migration.id);
@@ -180,7 +180,7 @@ class MigrationRunner {
           `✓ ${migration.name} (applied at ${appliedMigration.applied_at}, ${appliedMigration.execution_time}ms)`,
         );
       } else {
-        logger.info(`  ${migration.name} (pending);`);
+        logger.info(`  ${migration.name} (pending)`);
       }
     }
   }

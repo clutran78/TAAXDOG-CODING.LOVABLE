@@ -1,87 +1,116 @@
-// Apply server-side polyfills
-require('./lib/polyfills/server-polyfills.js');
-
-// Run startup checks in development
-if (process.env.NODE_ENV !== 'production') {
-  try {
-    // Startup checks are optional - if the module exists, run it
-    const path = require('path');
-    const fs = require('fs');
-    const startupPath = path.join(__dirname, 'lib/startup.ts');
-
-    if (fs.existsSync(startupPath)) {
-      console.log('Running startup checks...');
-      // For now, just log that we would run checks
-      // In production, you'd use ts-node or compile the TypeScript
-    }
-  } catch (error) {
-    console.error('Failed to run startup checks:', error.message);
-  }
-}
-
-// Sentry configuration - disabled for now to fix build issues
-// const { withSentryConfig } = require('@sentry/nextjs');
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Removed standalone output for standard deployment
-
-  // Enable security checks - CRITICAL SECURITY FIX
+  // React strict mode for better development experience
+  reactStrictMode: true,
+  
+  // Standalone output for containerized deployments
+  output: 'standalone',
+  
+  // PoweredBy header disabled for security
+  poweredByHeader: false,
+  
+  // Enable compression
+  compress: true,
+  
+  // Disable source maps in production for security
+  productionBrowserSourceMaps: false,
+  
+  // ESLint configuration
   eslint: {
-    ignoreDuringBuilds: true, // Skip ESLint for faster builds
-    dirs: ['src', 'pages', 'components', 'lib'], // Check all important directories
-  },
-  typescript: {
-    ignoreBuildErrors: true, // Skip TypeScript errors for deployment
-  },
-  experimental: {
-    // Disable some experimental features that might cause issues
-    forceSwcTransforms: false,
-    // Enable modern JavaScript features
-    esmExternals: true,
-    // Disable CSS optimization for now
-    optimizeCss: false,
+    ignoreDuringBuilds: true, // TODO: Fix ESLint errors and re-enable
+    dirs: ['pages', 'components', 'lib', 'hooks'],
   },
   
-  // Optimize images
+  // TypeScript configuration
+  typescript: {
+    ignoreBuildErrors: true, // TODO: Fix remaining TypeScript errors
+  },
+  
+  // Experimental features
+  experimental: {
+    optimizeCss: true,
+    serverActions: {
+      bodySizeLimit: '2mb',
+    },
+  },
+  
+  // Image optimization
   images: {
     formats: ['image/avif', 'image/webp'],
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     minimumCacheTTL: 60 * 60 * 24 * 365, // 1 year
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.googleapis.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.gstatic.com',
+      },
+    ],
   },
   
-  // Add webpack configuration to ignore problematic files
+  // Webpack configuration
   webpack: (config, { isServer, webpack }) => {
-    const path = require('path');
+    // Optimize bundle size
+    config.optimization = {
+      ...config.optimization,
+      moduleIds: 'deterministic',
+      runtimeChunk: isServer ? undefined : 'single',
+      splitChunks: {
+        chunks: 'all',
+        cacheGroups: {
+          default: false,
+          vendors: false,
+          framework: {
+            name: 'framework',
+            chunks: 'all',
+            test: /[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types|use-subscription)[\\/]/,
+            priority: 40,
+            enforce: true,
+          },
+          lib: {
+            test(module) {
+              return module.size() > 160000 && /node_modules[/\\]/.test(module.nameForCondition() || '');
+            },
+            name(module) {
+              const hash = require('crypto').createHash('sha1');
+              hash.update(module.libIdent({ context: 'dir' }));
+              return hash.digest('hex').substring(0, 8);
+            },
+            priority: 30,
+            minChunks: 1,
+            reuseExistingChunk: true,
+          },
+          commons: {
+            name: 'commons',
+            chunks: 'all',
+            minChunks: 2,
+            priority: 20,
+          },
+          shared: {
+            name(_, chunks) {
+              return 'shared-' +
+                require('crypto')
+                  .createHash('sha1')
+                  .update(chunks.map(c => c.name).join('_'))
+                  .digest('hex')
+                  .substring(0, 8);
+            },
+            priority: 10,
+            minChunks: 2,
+            reuseExistingChunk: true,
+          },
+        },
+      },
+    };
     
-    // Add polyfills as entry point for server bundle
-    if (isServer) {
-      const originalEntry = config.entry;
-      config.entry = async () => {
-        const entries = await originalEntry();
-        
-        // Add polyfills before all other entries
-        if (entries['main.js'] && Array.isArray(entries['main.js'])) {
-          entries['main.js'].unshift(path.join(__dirname, 'lib/polyfills/runtime-polyfills.js'));
-        }
-        
-        return entries;
-      };
-    }
-    
-    config.module.rules.push({
-      test: /-rls-migrated\.(ts|tsx)$/,
-      loader: 'ignore-loader',
-    });
-
-    // Fix for 'self is not defined' in server-side rendering
-    if (isServer) {
-      // Change webpack's globalObject from 'self' to 'this' for Node.js compatibility
-      config.output.globalObject = 'this';
-    }
-
-    // Fix for winston and other node modules
+    // Fix node polyfills
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -91,35 +120,27 @@ const nextConfig = {
         dns: false,
         child_process: false,
         readline: false,
+        crypto: false,
+        stream: false,
+        path: false,
+        os: false,
       };
     }
-
-    // Add node polyfills for globals
-    config.node = {
-      ...config.node,
-      global: true,
-      __filename: true,
-      __dirname: true,
-    };
-
-    // Simplify optimization for build stability
-    config.optimization = {
-      ...config.optimization,
-      concatenateModules: true,
-    };
     
-    // Add module aliases for cleaner imports and smaller bundles
+    // Module aliases
+    const path = require('path');
     config.resolve.alias = {
       ...config.resolve.alias,
-      '@': __dirname,
-      '@components': path.join(__dirname, 'components'),
-      '@lib': path.join(__dirname, 'lib'),
-      '@hooks': path.join(__dirname, 'hooks'),
-      '@utils': path.join(__dirname, 'lib/utils'),
-      '@types': path.join(__dirname, 'lib/types'),
+      '@': path.resolve(__dirname),
+      '@components': path.resolve(__dirname, 'components'),
+      '@lib': path.resolve(__dirname, 'lib'),
+      '@hooks': path.resolve(__dirname, 'hooks'),
+      '@pages': path.resolve(__dirname, 'pages'),
+      '@styles': path.resolve(__dirname, 'styles'),
+      '@public': path.resolve(__dirname, 'public'),
     };
     
-    // Optimize moment.js by removing unused locales
+    // Ignore moment locales to reduce bundle size
     config.plugins.push(
       new webpack.IgnorePlugin({
         resourceRegExp: /^\.\/locale$/,
@@ -127,18 +148,7 @@ const nextConfig = {
       })
     );
     
-    // Add compression plugin in production
-    if (!isServer && process.env.NODE_ENV === 'production') {
-      const CompressionPlugin = require('compression-webpack-plugin');
-      config.plugins.push(
-        new CompressionPlugin({
-          test: /\.(js|css|html|svg)$/,
-          algorithm: 'gzip',
-        })
-      );
-    }
-
-    // Add webpack bundle analyzer in development
+    // Add bundle analyzer in analyze mode
     if (process.env.ANALYZE === 'true') {
       const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
       config.plugins.push(
@@ -146,18 +156,23 @@ const nextConfig = {
           analyzerMode: 'static',
           reportFilename: './analyze.html',
           openAnalyzer: true,
-        }),
+        })
       );
     }
-
+    
     return config;
   },
-  // Add security headers to prevent XSS, clickjacking, and other attacks
+  
+  // Security headers
   async headers() {
     return [
       {
-        source: '/(.*)',
+        source: '/:path*',
         headers: [
+          {
+            key: 'X-DNS-Prefetch-Control',
+            value: 'on',
+          },
           {
             key: 'X-Frame-Options',
             value: 'DENY',
@@ -175,27 +190,86 @@ const nextConfig = {
             value: 'strict-origin-when-cross-origin',
           },
           {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=()',
+          },
+          {
             key: 'Strict-Transport-Security',
-            value: 'max-age=31536000; includeSubDomains',
+            value: 'max-age=63072000; includeSubDomains; preload',
           },
           {
             key: 'Content-Security-Policy',
-            value:
-              process.env.NODE_ENV === 'production'
-                ? "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.taaxdog.com https://*.taxreturnpro.com.au https://taxreturnpro.com.au; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
-                : "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: https:; connect-src 'self' http://localhost:* ws://localhost:*; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+            value: process.env.NODE_ENV === 'production' 
+              ? [
+                  "default-src 'self'",
+                  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com",
+                  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+                  "font-src 'self' https://fonts.gstatic.com data:",
+                  "img-src 'self' data: https: blob:",
+                  "media-src 'self'",
+                  "connect-src 'self' https://api.stripe.com https://api.basiq.io https://www.google-analytics.com https://vitals.vercel-insights.com",
+                  "frame-src 'self' https://checkout.stripe.com https://js.stripe.com",
+                  "form-action 'self'",
+                  "base-uri 'self'",
+                  "object-src 'none'",
+                  "frame-ancestors 'none'",
+                ].join('; ')
+              : [
+                  "default-src 'self'",
+                  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+                  "style-src 'self' 'unsafe-inline'",
+                  "font-src 'self' data:",
+                  "img-src 'self' data: https: blob:",
+                  "connect-src 'self' http://localhost:* ws://localhost:*",
+                  "frame-src 'self'",
+                  "form-action 'self'",
+                  "base-uri 'self'",
+                  "object-src 'none'",
+                ].join('; '),
+          },
+        ],
+      },
+      {
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          },
+        ],
+      },
+      {
+        source: '/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
           },
         ],
       },
     ];
   },
-  // Disable powered-by header to reduce information disclosure
-  poweredByHeader: false,
-  // Enable compression for better performance
-  compress: true,
-  // Disable server-side error reporting in production
-  productionBrowserSourceMaps: false,
+  
+  // Redirects
+  async redirects() {
+    return [
+      {
+        source: '/home',
+        destination: '/',
+        permanent: true,
+      },
+    ];
+  },
+  
+  // Environment variables
+  env: {
+    NEXT_PUBLIC_APP_NAME: 'TaxReturnPro',
+    NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version || '1.0.0',
+  },
+  
+  // Tailwind CSS configuration
+  // PostCSS handles Tailwind CSS compilation automatically
+  // No additional configuration needed here
 };
 
-// Export without Sentry for now to fix build issues
 module.exports = nextConfig;

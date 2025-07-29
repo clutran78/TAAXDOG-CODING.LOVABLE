@@ -10,6 +10,8 @@ digitalocean-app-spec.yaml
 
 # Uploads (temporary files)
 uploads/
+public/uploads/profiles/*
+!public/uploads/profiles/.gitkeep
 
 # Python
 __pycache__/

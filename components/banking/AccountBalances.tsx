@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, formatCurrency } from '@/components/dashboard/Card';
-import { Account, AccountBalance } from '@/lib/basiq/types';
 import { logger } from '@/lib/logger';
 
 interface AccountBalancesProps {
@@ -9,9 +8,26 @@ interface AccountBalancesProps {
   className?: string;
 }
 
+interface AccountWithBalance {
+  id: string;
+  institution?: {
+    name: string;
+  };
+  name: string;
+  type: string;
+  accountNumber: string;
+  bsb?: string;
+  creditLimit?: number;
+  minimumPayment?: number;
+  balance?: {
+    current: number;
+    available: number;
+  };
+}
+
 interface AccountGroup {
   institution: string;
-  accounts: (Account & { balance: AccountBalance })[];
+  accounts: AccountWithBalance[];
   totalBalance: number;
   totalAvailable: number;
 }
@@ -47,7 +63,7 @@ export const AccountBalances: React.FC<AccountBalancesProps> = ({
       setAccounts(grouped);
 
       // Auto-expand first group
-      if (grouped.length > 0) {
+      if (grouped.length > 0 && grouped[0]) {
         setExpandedGroups(new Set([grouped[0].institution]));
       }
     } catch (error) {
@@ -81,7 +97,7 @@ export const AccountBalances: React.FC<AccountBalancesProps> = ({
 
   // Group accounts by institution
   const groupAccountsByInstitution = (
-    accountList: (Account & { balance: AccountBalance })[],
+    accountList: AccountWithBalance[],
   ): AccountGroup[] => {
     const groups: Record<string, AccountGroup> = {};
 

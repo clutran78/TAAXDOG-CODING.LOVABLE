@@ -1,18 +1,19 @@
 import { faker } from '@faker-js/faker';
 import {
   User,
-  Transaction,
+  bank_transactions,
   Goal,
   Receipt,
   Budget,
   Subscription,
-  BankAccount,
-  Category,
-  TransactionType,
-  SubscriptionStatus,
+  bank_accounts,
   GoalStatus,
   ReceiptStatus,
+  BudgetStatus,
+  Plan,
+  Role,
 } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 
 export class DataFactory {
   /**
@@ -26,11 +27,8 @@ export class DataFactory {
       password: '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewYpfQaX/jGFhIOa', // password123
       role: 'USER',
       emailVerified: new Date(),
-      atoId: null,
       abn: null,
       tfn: null,
-      encryptedTfn: null,
-      encryptedAbn: null,
       stripeCustomerId: null,
       subscriptionStatus: null,
       subscriptionPlan: null,
@@ -43,14 +41,14 @@ export class DataFactory {
   /**
    * Create transaction data
    */
-  static transaction(overrides: Partial<Transaction> = {}): Transaction {
+  static transaction(overrides: Partial<bank_transactions> = {}): bank_transactions {
     const amount = faker.number.float({ min: 10, max: 1000, multipleOf: 0.01 });
-    const type = faker.helpers.arrayElement(['INCOME', 'EXPENSE'] as TransactionType[]);
+    const type = faker.helpers.arrayElement(['income', 'expense']);
 
     return {
       id: faker.string.uuid(),
       userId: faker.string.uuid(),
-      amount: type === 'EXPENSE' ? -Math.abs(amount) : Math.abs(amount),
+      amount: new Decimal(type === 'expense' ? -Math.abs(amount) : Math.abs(amount)),
       currency: 'AUD',
       description: faker.commerce.productName(),
       category: faker.helpers.arrayElement([
@@ -60,7 +58,7 @@ export class DataFactory {
         'ENTERTAINMENT',
         'HEALTHCARE',
         'OTHER',
-      ] as Category[]),
+      ]),
       type,
       date: faker.date.recent(),
       status: 'COMPLETED',
@@ -133,7 +131,7 @@ export class DataFactory {
         'DINING',
         'SHOPPING',
         'OTHER',
-      ] as Category[]),
+      ]),
       taxCategory: null,
       gstAmount: totalAmount * 0.1,
       extractedData: {
@@ -173,14 +171,14 @@ export class DataFactory {
         'Entertainment',
         'Utilities',
       ]),
-      amount: faker.number.float({ min: 100, max: 2000, multipleOf: 50 }),
+      amount: new Decimal(faker.number.float({ min: 100, max: 2000, multipleOf: 50 })),
       period: 'MONTHLY',
       category: faker.helpers.arrayElement([
         'GROCERIES',
         'TRANSPORT',
         'ENTERTAINMENT',
         'UTILITIES',
-      ] as Category[]),
+      ]),
       startDate: new Date(),
       endDate: faker.date.future(),
       spent: faker.number.float({ min: 0, max: 1000, multipleOf: 0.01 }),
@@ -197,7 +195,7 @@ export class DataFactory {
    * Create subscription data
    */
   static subscription(overrides: Partial<Subscription> = {}): Subscription {
-    const plan = faker.helpers.arrayElement(['TAAX_SMART', 'TAAX_PRO']);
+    const plan = faker.helpers.arrayElement([Plan.SMART, Plan.PRO]);
 
     return {
       id: faker.string.uuid(),
@@ -205,7 +203,7 @@ export class DataFactory {
       stripeSubscriptionId: `sub_${faker.string.alphanumeric(14)}`,
       stripeCustomerId: `cus_${faker.string.alphanumeric(14)}`,
       plan,
-      status: 'ACTIVE' as SubscriptionStatus,
+      status: 'ACTIVE',
       currentPeriodStart: new Date(),
       currentPeriodEnd: faker.date.future(),
       cancelAtPeriodEnd: false,
@@ -215,7 +213,7 @@ export class DataFactory {
       trialStart: null,
       trialEnd: null,
       priceId: plan === 'TAAX_PRO' ? 'price_taax_pro' : 'price_taax_smart',
-      amount: plan === 'TAAX_PRO' ? 18.99 : 9.99,
+      amount: new Decimal(plan === Plan.PRO ? 18.99 : 9.99),
       currency: 'AUD',
       interval: 'month',
       paymentRetryAt: null,
@@ -229,7 +227,7 @@ export class DataFactory {
   /**
    * Create bank account data
    */
-  static bankAccount(overrides: Partial<BankAccount> = {}): BankAccount {
+  static bankAccount(overrides: Partial<bank_accounts> = {}): bank_accounts {
     return {
       id: faker.string.uuid(),
       userId: faker.string.uuid(),
@@ -240,7 +238,7 @@ export class DataFactory {
         'Savings Account',
         'Credit Card',
       ]),
-      balance: faker.number.float({ min: 0, max: 50000, multipleOf: 0.01 }),
+      balance: new Decimal(faker.number.float({ min: 0, max: 50000, multipleOf: 0.01 })),
       available: faker.number.float({ min: 0, max: 50000, multipleOf: 0.01 }),
       currency: 'AUD',
       type: faker.helpers.arrayElement(['TRANSACTION', 'SAVINGS', 'CREDIT_CARD']),
@@ -271,8 +269,8 @@ export class DataFactory {
 
       case 'premium':
         return {
-          user: { ...user, subscriptionStatus: 'ACTIVE', subscriptionPlan: 'TAAX_PRO' },
-          subscription: this.subscription({ userId: user.id, plan: 'TAAX_PRO' }),
+          user: { ...user, subscriptionStatus: 'ACTIVE', subscriptionPlan: Plan.PRO },
+          subscription: this.subscription({ userId: user.id, plan: Plan.PRO }),
           transactions: Array.from({ length: 50 }, () => this.transaction({ userId: user.id })),
           goals: Array.from({ length: 3 }, () => this.goal({ userId: user.id })),
           budgets: Array.from({ length: 4 }, () => this.budget({ userId: user.id })),
@@ -281,10 +279,10 @@ export class DataFactory {
 
       case 'trial':
         return {
-          user: { ...user, subscriptionStatus: 'TRIALING', subscriptionPlan: 'TAAX_SMART' },
+          user: { ...user, subscriptionStatus: 'TRIALING', subscriptionPlan: Plan.SMART },
           subscription: this.subscription({
             userId: user.id,
-            plan: 'TAAX_SMART',
+            plan: Plan.SMART,
             status: 'TRIALING',
             trialEnd: faker.date.future(),
           }),
@@ -293,8 +291,8 @@ export class DataFactory {
 
       case 'complete':
         return {
-          user: { ...user, subscriptionStatus: 'ACTIVE', subscriptionPlan: 'TAAX_PRO' },
-          subscription: this.subscription({ userId: user.id, plan: 'TAAX_PRO' }),
+          user: { ...user, subscriptionStatus: 'ACTIVE', subscriptionPlan: Plan.PRO },
+          subscription: this.subscription({ userId: user.id, plan: Plan.PRO }),
           transactions: Array.from({ length: 100 }, () => this.transaction({ userId: user.id })),
           goals: Array.from({ length: 5 }, () => this.goal({ userId: user.id })),
           budgets: Array.from({ length: 6 }, () => this.budget({ userId: user.id })),
@@ -331,14 +329,14 @@ export class DataFactory {
 
 // Export convenience functions
 export const createUser = (overrides?: Partial<User>) => DataFactory.user(overrides);
-export const createTransaction = (overrides?: Partial<Transaction>) =>
+export const createTransaction = (overrides?: Partial<bank_transactions>) =>
   DataFactory.transaction(overrides);
 export const createGoal = (overrides?: Partial<Goal>) => DataFactory.goal(overrides);
 export const createReceipt = (overrides?: Partial<Receipt>) => DataFactory.receipt(overrides);
 export const createBudget = (overrides?: Partial<Budget>) => DataFactory.budget(overrides);
 export const createSubscription = (overrides?: Partial<Subscription>) =>
   DataFactory.subscription(overrides);
-export const createBankAccount = (overrides?: Partial<BankAccount>) =>
+export const createBankAccount = (overrides?: Partial<bank_accounts>) =>
   DataFactory.bankAccount(overrides);
 export const createScenario = (scenario: 'basic' | 'premium' | 'trial' | 'complete') =>
   DataFactory.createScenario(scenario);

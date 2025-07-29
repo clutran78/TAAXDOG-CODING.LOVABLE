@@ -290,9 +290,9 @@ export const memoryLeakDetector = new MemoryLeakDetector();
 export function enableMemoryLeakDetection() {
   memoryLeakDetector.on('leak-detected', (report: MemoryLeakReport) => {
     logger.error('🚨 MEMORY LEAK DETECTED!');
-    logger.error(`Confidence: ${(report.confidence * 100);.toFixed(1)}%`);
-    logger.error(`Growth rate: ${report.growthRate.toFixed(2);} MB/minute`);
-    report.recommendations.forEach((rec) => logger.error(rec););
+    logger.error(`Confidence: ${(report.confidence * 100).toFixed(1)}%`);
+    logger.error(`Growth rate: ${report.growthRate.toFixed(2)} MB/minute`);
+    report.recommendations.forEach((rec) => logger.error(rec));
   });
 
   memoryLeakDetector.startMonitoring();

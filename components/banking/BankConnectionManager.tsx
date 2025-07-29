@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { Institution, Connection, ConnectionStatus } from '@/lib/basiq/types';
+import { BasiqInstitution, BasiqConnection } from '@/lib/basiq/types';
 import { Card } from '@/components/dashboard/Card';
 import {
   SkeletonBankAccount,
-  SkeletonCard,
   InlineLoader,
   LoadingButton,
   Skeleton,
@@ -13,10 +12,8 @@ import {
   ErrorDisplay,
   NetworkError,
   EmptyState,
-  RetryWrapper,
 } from '@/components/ui/ErrorComponents';
 import { useApiError } from '@/hooks/useApiError';
-import { logApiError } from '@/lib/errors/errorLogger';
 
 interface BankConnectionManagerProps {
   onConnectionUpdate?: () => void;
@@ -36,9 +33,9 @@ const POPULAR_BANKS = [
 export const BankConnectionManager: React.FC<BankConnectionManagerProps> = ({
   onConnectionUpdate,
 }) => {
-  const { data: session } = useSession();
-  const [institutions, setInstitutions] = useState<Institution[]>([]);
-  const [connections, setConnections] = useState<Connection[]>([]);
+  const { data: _session } = useSession();
+  const [institutions, setInstitutions] = useState<BasiqInstitution[]>([]);
+  const [connections, setConnections] = useState<BasiqConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -526,6 +523,8 @@ export const BankConnectionManager: React.FC<BankConnectionManagerProps> = ({
 };
 
 // Status Indicator Component
+type ConnectionStatus = 'pending' | 'fetching' | 'success' | 'error';
+
 const StatusIndicator: React.FC<{ status: ConnectionStatus }> = ({ status }) => {
   const statusConfig = {
     active: { color: 'text-green-600', icon: '✓', label: 'Active' },

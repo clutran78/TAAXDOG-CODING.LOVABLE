@@ -62,7 +62,7 @@ function validateEnvironment(): void {
   }
 
   if (missing.length > 0) {
-    logger.warn(`Missing required environment variables: ${missing.join(', ');}`);
+    logger.warn(`Missing required environment variables: ${missing.join(', ')}`);
   }
 }
 

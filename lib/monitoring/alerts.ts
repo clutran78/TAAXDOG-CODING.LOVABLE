@@ -102,13 +102,13 @@ export class AlertingSystem extends EventEmitter {
           : '\x1b[36m';
     const reset = '\x1b[0m';
 
-    logger.info(`\n${emoji} ${color}[${alert.severity.toUpperCase();}] ${alert.title}${reset}`);
+    logger.info(`\n${emoji} ${color}[${alert.severity.toUpperCase()}] ${alert.title}${reset}`);
     logger.info(`Type: ${alert.type}`);
-    logger.info(`Time: ${alert.timestamp.toISOString();}`);
+    logger.info(`Time: ${alert.timestamp.toISOString()}`);
     logger.info(`Message: ${alert.message}`);
 
     if (alert.metadata) {
-      logger.info('Details:', JSON.stringify(alert.metadata, null, 2););
+      logger.info('Details:', JSON.stringify(alert.metadata, null, 2));
     }
     logger.info('---');
   }

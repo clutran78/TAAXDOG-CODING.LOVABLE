@@ -1,4 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
+import crypto from 'crypto';
+import { z } from 'zod';
 import prisma from '../../../lib/prisma';
 import { logger } from '@/lib/logger';
 import {
@@ -6,11 +8,58 @@ import {
   AuthenticatedRequest,
   buildUserScopedFilters,
 } from '../../../lib/middleware/auth';
-import { withSessionRateLimit } from '../../../lib/security/rateLimiter';
+import { withSessionRateLimit, RATE_LIMIT_CONFIGS } from '../../../lib/security/rateLimiter';
 import { addSecurityHeaders } from '../../../lib/security/sanitizer';
-import { getClientIp } from 'request-ip';
+import { getClientIP } from '../../../lib/auth/auth-utils';
 import { getCacheManager, CacheTTL } from '../../../lib/services/cache/cacheManager';
-import { apiResponse } from '../../../lib/api/response';
+import { apiResponse } from '@/lib/api/response';
+import {
+  withValidation,
+  validateMethod,
+  composeMiddleware,
+} from '../../../lib/middleware/validation';
+import {
+  withErrorHandler,
+  AuthenticationError,
+  ValidationError,
+} from '../../../lib/errors/api-error-handler';
+import { aiService } from '../../../lib/ai/service';
+import { withCSRFProtection } from '../../../lib/auth/csrf-protection';
+import { sessionManager } from '../../../lib/auth/session-manager';
+import { AuthEvent, TransactionType } from '@prisma/client';
+
+// Validation schemas
+const insightTypes = ['all', 'spending', 'savings', 'tax', 'goals', 'cash_flow'] as const;
+const periodTypes = ['week', 'month', 'quarter', 'year', 'custom'] as const;
+
+const getInsightsSchema = z.object({
+  type: z.enum(insightTypes).default('all'),
+  refresh: z.enum(['true', 'false']).optional().default('false'),
+  period: z.enum(periodTypes).optional(),
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
+});
+
+const generateInsightsSchema = z.object({
+  type: z.enum(insightTypes),
+  period: z.enum(periodTypes).optional(),
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
+  options: z.object({
+    includeReceipts: z.boolean().optional(),
+    includeGoals: z.boolean().optional(),
+    includePredictions: z.boolean().optional(),
+    detailLevel: z.enum(['summary', 'detailed', 'comprehensive']).optional(),
+  }).optional(),
+});
+
+// Performance monitoring
+const insightMetrics = {
+  cacheHits: 0,
+  cacheMisses: 0,
+  generationTime: [] as number[],
+  errors: 0,
+};
 
 /**
  * AI insights API endpoint
@@ -20,82 +69,89 @@ async function insightsHandler(req: AuthenticatedRequest, res: NextApiResponse) 
   // Add security headers
   addSecurityHeaders(res);
 
+  const requestId = (req as any).requestId || crypto.randomUUID();
+  const userId = req.userId;
+  const userEmail = req.userEmail;
+  const clientIp = getClientIP(req);
+  const sessionId = req.session?.id;
+  const startTime = Date.now();
+
+  // Validate authentication
+  if (!userId) {
+    logger.error('Missing user ID in authenticated request', { requestId });
+    throw new AuthenticationError('User authentication failed');
+  }
+
+  // Update session activity
+  if (sessionId) {
+    await sessionManager.updateSessionActivity(sessionId, req);
+  }
+
+  logger.info('AI insights API access', {
+    userId,
+    userEmail,
+    method: req.method,
+    clientIp,
+    requestId,
+    sessionId,
+  });
+
   try {
-    const userId = req.userId;
-    const userEmail = req.userEmail;
-    const clientIp = getClientIp(req) || 'unknown';
-
-    // Validate userId exists
-    if (!userId) {
-      return res.status(401).json({
-        error: 'Authentication Error',
-        message: 'User ID not found in authenticated request',
-      });
-    }
-
-    // Log AI insights access for audit
-    await prisma.auditLog
-      .create({
-        data: {
-          event: 'AI_INSIGHTS_ACCESS',
-          userId,
-          ipAddress: clientIp,
-          userAgent: req.headers['user-agent'] || '',
-          success: true,
-          metadata: {
-            method: req.method,
-            endpoint: '/api/ai/insights',
-            timestamp: new Date().toISOString(),
-          },
+    // Log access for audit
+    await prisma.auditLog.create({
+      data: {
+        event: AuthEvent.AI_ACCESS,
+        userId,
+        ipAddress: clientIp,
+        userAgent: req.headers['user-agent'] || '',
+        success: true,
+        metadata: {
+          service: 'insights',
+          method: req.method,
+          requestId,
         },
-      })
-      .catch((err) => logger.error('Audit log error:', err));
+      },
+    });
 
     switch (req.method) {
       case 'GET':
-        return handleGetInsights(userId, req.query, res, req);
+        return await handleGetInsights(userId, req.query, res, req, requestId);
 
       case 'POST':
-        return handleGenerateInsights(userId, req.body, res, req);
+        return await handleGenerateInsights(userId, req.body, res, req, requestId);
 
       default:
         res.setHeader('Allow', ['GET', 'POST']);
-        return res.status(405).json({
-          error: 'Method not allowed',
-          message: `Method ${req.method} is not allowed`,
-        });
+        throw new ValidationError(`Method ${req.method} is not allowed`);
     }
   } catch (error) {
-    logger.error('AI insights API error:', error, { userId });
-
-    // Log error for security monitoring
-    await prisma.auditLog
-      .create({
-        data: {
-          event: 'AI_INSIGHTS_ERROR',
-          userId,
-          ipAddress: getClientIp(req) || 'unknown',
-          userAgent: req.headers['user-agent'] || '',
-          success: false,
-          metadata: {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            method: req.method,
-            timestamp: new Date().toISOString(),
-          },
-        },
-      })
-      .catch((err) => logger.error('Audit log error:', err));
-
-    return res.status(500).json({
-      error: 'Internal server error',
-      message: 'An error occurred while processing your request',
-      details:
-        process.env.NODE_ENV === 'development'
-          ? error instanceof Error
-            ? error.message
-            : 'Unknown error'
-          : undefined,
+    insightMetrics.errors++;
+    
+    logger.error('AI insights API error', {
+      error,
+      userId,
+      method: req.method,
+      duration: Date.now() - startTime,
+      requestId,
     });
+
+    // Log error for monitoring
+    await prisma.auditLog.create({
+      data: {
+        event: AuthEvent.AI_ERROR,
+        userId,
+        ipAddress: clientIp,
+        userAgent: req.headers['user-agent'] || '',
+        success: false,
+        metadata: {
+          service: 'insights',
+          error: error instanceof Error ? error.message : 'Unknown error',
+          requestId,
+        },
+      },
+    }).catch(err => logger.error('Audit log error', { err }));
+
+    throw error;
   }
 }
 
@@ -106,103 +162,102 @@ async function handleGetInsights(
   userId: string,
   query: any,
   res: NextApiResponse,
-  req?: AuthenticatedRequest,
+  req: AuthenticatedRequest,
+  requestId: string,
 ) {
-  const clientIp = req ? getClientIp(req as NextApiRequest) || 'unknown' : 'unknown';
+  const startTime = Date.now();
+  const clientIp = getClientIP(req);
   const cacheManager = await getCacheManager();
 
+  // Validate query parameters
+  const validatedQuery = getInsightsSchema.parse(query);
+  const { type, refresh, period, startDate, endDate } = validatedQuery;
+
+  // Build cache key with all parameters
+  const cacheKeyParts = [
+    'ai:insights',
+    userId,
+    type,
+    period || 'default',
+    startDate || 'none',
+    endDate || 'none',
+  ];
+  const cacheKey = cacheKeyParts.join(':');
+  const forceRefresh = refresh === 'true';
+
   try {
-    const { type = 'all', refresh = 'false' } = query;
-
-    // Validate insight type
-    const validTypes = ['all', 'spending', 'savings', 'tax', 'goals', 'cash_flow'];
-    if (!validTypes.includes(type)) {
-      return res.status(400).json({
-        error: 'Invalid type',
-        message: `Invalid insight type. Must be one of: ${validTypes.join(', ')}`,
-      });
+    // Check user's AI usage quota
+    const userQuota = await checkUserAIQuota(userId);
+    if (!userQuota.canUse) {
+      logger.warn('AI quota exceeded', { userId, quota: userQuota, requestId });
+      return apiResponse.tooManyRequests(res, 'AI insights quota exceeded. Please try again later.');
     }
 
-    const cacheKey = `ai:insights:${userId}:${type}`;
-
-    // Force cache refresh if requested
-    if (refresh === 'true') {
-      // Clear existing cache for this key
-      const cache = await getCacheManager();
-      await cache.invalidateUserCache(userId);
-    }
-
-    // Use cache manager's remember function which handles both cache retrieval and generation
-    const insights = await cacheManager.remember(
+    // Use cache manager with performance tracking
+    const cacheResult = await cacheManager.remember(
       cacheKey,
-      CacheTTL.DAY, // 24 hours cache for AI insights
+      forceRefresh ? 0 : CacheTTL.DAY, // 24 hours cache, 0 for force refresh
       async () => {
-        // This function is only called if cache miss or refresh requested
-        const data = await generateInsights(userId, type);
+        insightMetrics.cacheMisses++;
+        const genStart = Date.now();
 
-        // Log insights generation
-        await prisma.auditLog
-          .create({
-            data: {
-              event: 'AI_INSIGHTS_GENERATED',
-              userId,
-              ipAddress: clientIp,
-              userAgent: req?.headers?.['user-agent'] || '',
-              success: true,
-              metadata: {
-                insightType: type,
-                refresh: refresh === 'true',
-                timestamp: new Date().toISOString(),
-              },
-            },
-          })
-          .catch((err) => logger.error('Audit log error:', err));
+        // Generate insights with AI service integration
+        const insights = await generateInsights(userId, type, period, {
+          startDate,
+          endDate,
+          requestId,
+        });
 
-        return data;
+        const genTime = Date.now() - genStart;
+        insightMetrics.generationTime.push(genTime);
+
+        // Log generation metrics
+        logger.info('AI insights generated', {
+          userId,
+          type,
+          generationTime: genTime,
+          requestId,
+        });
+
+        // Update user quota
+        await updateUserAIQuota(userId, 'insights');
+
+        return insights;
       },
     );
 
-    // Set security headers
-    res.setHeader('Cache-Control', 'private, no-store, must-revalidate');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Cache', refresh === 'true' ? 'MISS' : 'POTENTIAL-HIT');
+    // Track cache performance
+    if (!forceRefresh && cacheResult) {
+      insightMetrics.cacheHits++;
+    }
 
-    return res.status(200).json({
-      success: true,
-      data: insights,
-      cached: refresh !== 'true',
-      generatedAt: new Date(),
-      _security: {
-        dataScope: 'user-only',
-        userId: userId,
-        generatedFor: type,
+    // Calculate response metrics
+    const processingTime = Date.now() - startTime;
+    const wasCache = !forceRefresh && processingTime < 100; // Likely from cache if < 100ms
+
+    // Return optimized response
+    return apiResponse.success(res, {
+      insights: cacheResult,
+      metadata: {
+        type,
+        period: period || 'quarter',
+        cached: wasCache,
+        processingTime,
+        generatedAt: new Date().toISOString(),
+        quotaRemaining: userQuota.remaining,
       },
     });
+
   } catch (error) {
-    logger.error('Error getting insights:', error, { userId });
-
-    // Log error
-    await prisma.auditLog
-      .create({
-        data: {
-          event: 'AI_INSIGHTS_GET_ERROR',
-          userId,
-          ipAddress: clientIp,
-          userAgent: req?.headers?.['user-agent'] || '',
-          success: false,
-          metadata: {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            insightType: query.type,
-            timestamp: new Date().toISOString(),
-          },
-        },
-      })
-      .catch((err) => logger.error('Audit log error:', err));
-
-    return res.status(500).json({
-      error: 'Failed to get insights',
-      message: 'Unable to retrieve your insights. Please try again.',
+    logger.error('Error getting insights', {
+      error,
+      userId,
+      type,
+      duration: Date.now() - startTime,
+      requestId,
     });
+
+    throw error;
   }
 }
 
@@ -344,7 +399,10 @@ async function generateInsights(userId: string, type: string, period?: string, o
       .findMany({
         where: {
           userId: userId, // Strict user filtering
-          date: { gte: startDate },
+          date: { 
+            gte: startDate,
+            lte: endDate,
+          },
           // Additional security: ensure transactions belong to user's bank accounts
           bankAccount: {
             userId: userId,

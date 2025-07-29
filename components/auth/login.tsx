@@ -142,14 +142,16 @@ const LoginPage: React.FC = () => {
           </svg>
           <div className="flex-1">
             <p className="font-medium">{error.message}</p>
-            {error.code === 'ACCOUNT_LOCKED' && error.details?.lockedUntil && (
+            {error.code === 'ACCOUNT_LOCKED' && error.details && 
+             typeof error.details === 'object' && 'lockedUntil' in error.details ? (
               <p className="text-sm mt-1">
-                Account locked until: {new Date(error.details.lockedUntil).toLocaleString()}
+                Account locked until: {new Date((error.details as any).lockedUntil).toLocaleString()}
               </p>
-            )}
-            {error.details?.remainingAttempts !== undefined && (
-              <p className="text-sm mt-1">Remaining attempts: {error.details.remainingAttempts}</p>
-            )}
+            ) : null}
+            {error.details && typeof error.details === 'object' && 
+             'remainingAttempts' in error.details ? (
+              <p className="text-sm mt-1">Remaining attempts: {(error.details as any).remainingAttempts}</p>
+            ) : null}
           </div>
         </div>
       </div>
@@ -218,7 +220,7 @@ const LoginPage: React.FC = () => {
           validateOnChange={false}
           validateOnBlur={true}
         >
-          {({ isValid }) => (
+          {() => (
             <Form className="space-y-4">
               <div>
                 <label

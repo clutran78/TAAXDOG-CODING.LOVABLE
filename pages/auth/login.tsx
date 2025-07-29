@@ -1,252 +1,423 @@
-import { useState, useEffect } from 'react';
-import { signIn } from 'next-auth/react';
+import { useState, useEffect, useCallback } from 'react';
+import { signIn, useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Head from 'next/head';
-import { loginSchema, type LoginInput } from '@/lib/auth/validation';
+import { motion, AnimatePresence } from 'framer-motion';
+import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { 
+  Eye, 
+  EyeOff, 
+  Lock, 
+  Mail, 
+  AlertCircle, 
+  CheckCircle, 
+  Loader2,
+  ShieldCheck,
+  XCircle
+} from 'lucide-react';
+import { showToast } from '@/lib/utils/helpers';
 import { logger } from '@/lib/logger';
-import {
-  FormInput,
-  FormCheckbox,
-  FormMessage,
-  useFormValidation,
-} from '@/components/ui/FormComponents';
-import { InlineLoader } from '@/components/ui/SkeletonLoaders';
+
+// Enhanced login validation schema
+const loginSchema = z.object({
+  email: z
+    .string()
+    .min(1, 'Email is required')
+    .email('Please enter a valid email address')
+    .toLowerCase(),
+  password: z
+    .string()
+    .min(1, 'Password is required')
+    .min(8, 'Password must be at least 8 characters'),
+  rememberMe: z.boolean().optional(),
+});
+
+type LoginFormData = z.infer<typeof loginSchema>;
+
+// Error type mapping for better UX
+const ERROR_MESSAGES: Record<string, { title: string; message: string; action?: string }> = {
+  CredentialsSignin: {
+    title: 'Invalid Credentials',
+    message: 'The email or password you entered is incorrect.',
+    action: 'Please check your credentials and try again.',
+  },
+  EmailNotVerified: {
+    title: 'Email Not Verified',
+    message: 'Please verify your email before signing in.',
+    action: 'Check your inbox for a verification link.',
+  },
+  AccountLocked: {
+    title: 'Account Locked',
+    message: 'Your account has been locked due to too many failed attempts.',
+    action: 'Please reset your password to regain access.',
+  },
+  SessionRequired: {
+    title: 'Session Expired',
+    message: 'Your session has expired. Please sign in again.',
+  },
+  OAuthSignin: {
+    title: 'OAuth Error',
+    message: 'Error occurred while signing in with Google.',
+    action: 'Please try again or use email/password.',
+  },
+  OAuthCallback: {
+    title: 'OAuth Callback Error',
+    message: 'Error occurred during authentication callback.',
+  },
+  default: {
+    title: 'Sign In Error',
+    message: 'An unexpected error occurred during sign in.',
+    action: 'Please try again later.',
+  },
+};
 
 export default function LoginPage() {
   const router = useRouter();
-  const [serverError, setServerError] = useState('');
-  const [showSuccess, setShowSuccess] = useState(false);
+  const { data: session, status } = useSession();
+  const [showPassword, setShowPassword] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState<string | null>(null);
 
-  // Form validation
-  const { values, errors, touched, isSubmitting, getFieldProps, handleSubmit, setFieldTouched } =
-    useFormValidation<LoginInput>(loginSchema, {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    setFocus,
+    watch,
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
       email: '',
       password: '',
-    });
+      rememberMe: false,
+    },
+  });
 
-  // Check for success message from registration
+  const rememberMe = watch('rememberMe');
+
+  // Redirect if already authenticated
   useEffect(() => {
-    if (router.query.registered === 'true') {
-      setShowSuccess(true);
-      // Clear the query param
+    if (status === 'authenticated' && session) {
+      const callbackUrl = router.query.callbackUrl as string || '/dashboard';
+      router.replace(callbackUrl);
+    }
+  }, [session, status, router]);
+
+  // Handle various query parameters
+  useEffect(() => {
+    const { registered, verified, reset, error, message } = router.query;
+
+    if (registered === 'true') {
+      setShowSuccessMessage('Registration successful! Please check your email to verify your account.');
+      router.replace('/auth/login', undefined, { shallow: true });
+    } else if (verified === 'true') {
+      setShowSuccessMessage('Email verified successfully! You can now sign in.');
+      router.replace('/auth/login', undefined, { shallow: true });
+    } else if (reset === 'true' || message === 'password-reset') {
+      setShowSuccessMessage('Password reset successfully! You can now sign in with your new password.');
+      router.replace('/auth/login', undefined, { shallow: true });
+    } else if (error) {
+      const errorInfo = ERROR_MESSAGES[error as string] || ERROR_MESSAGES.default;
+      showToast(errorInfo.message, 'danger');
       router.replace('/auth/login', undefined, { shallow: true });
     }
-  }, [router]);
 
-  const onSubmit = async (formValues: LoginInput) => {
-    setServerError('');
+    // Auto-focus email field
+    setTimeout(() => setFocus('email'), 100);
+  }, [router, setFocus]);
 
+  // Handle form submission
+  const onSubmit = useCallback(async (data: LoginFormData) => {
     try {
+      logger.info('Login attempt', { email: data.email });
+
       const result = await signIn('credentials', {
-        email: formValues.email,
-        password: formValues.password,
+        email: data.email.toLowerCase().trim(),
+        password: data.password,
         redirect: false,
+        callbackUrl: router.query.callbackUrl as string || '/dashboard',
       });
 
       if (result?.error) {
-        // Handle specific error messages
+        logger.warn('Login failed', { error: result.error, email: data.email });
+        
+        // Handle specific error types
+        const errorInfo = ERROR_MESSAGES[result.error] || ERROR_MESSAGES.default;
+        
         if (result.error === 'CredentialsSignin') {
-          setServerError('Invalid email or password. Please try again.');
-        } else if (result.error.includes('verify')) {
-          setServerError(
-            'Please verify your email before signing in. Check your inbox for a verification link.',
-          );
-        } else if (result.error.includes('locked')) {
-          setServerError(
-            'Your account has been locked due to too many failed attempts. Please reset your password.',
+          showToast('Invalid email or password. Please try again.', 'danger');
+          setFocus('password');
+        } else if (result.error === 'EmailNotVerified') {
+          showToast(errorInfo.message, 'warning');
+        } else if (result.error === 'AccountLocked') {
+          showToast(
+            <div>
+              <p className="font-semibold">{errorInfo.title}</p>
+              <p className="text-sm">{errorInfo.message}</p>
+              <Link href="/auth/forgot-password" className="text-sm underline mt-1 inline-block">
+                Reset Password
+              </Link>
+            </div>,
+            'danger'
           );
         } else {
-          setServerError(result.error);
+          showToast(errorInfo.message, 'danger');
         }
-
-        // Focus on email field after error
-        const emailField = document.getElementById('email') as HTMLInputElement;
-        emailField?.focus();
-      } else {
-        // Successful login
-        const redirectUrl = router.query.callbackUrl?.toString() || '/dashboard';
+      } else if (result?.ok) {
+        logger.info('Login successful', { email: data.email });
+        showToast('Login successful! Redirecting...', 'success');
+        
+        // Set remember me cookie if checked
+        if (data.rememberMe) {
+          document.cookie = `remember-me=true; max-age=${30 * 24 * 60 * 60}; path=/; samesite=strict`;
+        }
+        
+        // Redirect to callback URL or dashboard
+        const redirectUrl = router.query.callbackUrl as string || '/dashboard';
         router.push(redirectUrl);
       }
-    } catch (err) {
-      setServerError('An unexpected error occurred. Please try again.');
-      logger.error('Login error:', err);
+    } catch (error) {
+      logger.error('Login error:', error);
+      showToast('An unexpected error occurred. Please try again.', 'danger');
     }
-  };
+  }, [router, setFocus]);
 
-  const handleGoogleSignIn = async () => {
+  // Handle Google sign in
+  const handleGoogleSignIn = useCallback(async () => {
+    setIsGoogleLoading(true);
     try {
-      await signIn('google', {
-        callbackUrl: router.query.callbackUrl?.toString() || '/dashboard',
+      logger.info('Google sign-in attempt');
+      
+      const result = await signIn('google', {
+        callbackUrl: router.query.callbackUrl as string || '/dashboard',
+        redirect: true,
       });
-    } catch (err) {
-      setServerError('Failed to sign in with Google. Please try again.');
+      
+      if (result?.error) {
+        logger.error('Google sign-in failed', { error: result.error });
+        showToast('Failed to sign in with Google. Please try again.', 'danger');
+      }
+    } catch (error) {
+      logger.error('Google sign-in error:', error);
+      showToast('An error occurred with Google sign-in. Please try again.', 'danger');
+    } finally {
+      setIsGoogleLoading(false);
     }
-  };
+  }, [router]);
 
-  // Handle field blur for real-time validation
-  const handleFieldBlur = (fieldName: keyof LoginInput) => {
-    setFieldTouched(fieldName, true);
-  };
+  // Loading state while checking session
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
       <Head>
-        <title>Login - TaxReturnPro</title>
-        <meta
-          name="description"
-          content="Login to your TaxReturnPro account"
-        />
+        <title>Sign In - TAAXDOG</title>
+        <meta name="description" content="Sign in to your TAAXDOG account to manage your tax returns" />
       </Head>
 
-      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-        <div className="sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="flex justify-center">
-            <div className="w-20 h-20 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white text-3xl font-bold">TRP</span>
-            </div>
-          </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sign in to your account
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Or{' '}
-            <Link
-              href="/auth/register"
-              className="font-medium text-blue-600 hover:text-blue-500"
-            >
-              create a new account
-            </Link>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-md"
+      >
+        {/* Logo and Header */}
+        <div className="text-center mb-8">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", stiffness: 200, damping: 20 }}
+            className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4"
+          >
+            <Lock className="w-8 h-8 text-white" />
+          </motion.div>
+          <h1 className="text-3xl font-bold text-gray-900">Welcome Back</h1>
+          <p className="mt-2 text-gray-600">
+            Sign in to manage your tax returns
           </p>
         </div>
 
-        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-            <form
-              className="space-y-6"
-              onSubmit={handleSubmit(onSubmit)}
-              noValidate
-              aria-label="Login form"
+        {/* Success Messages */}
+        <AnimatePresence>
+          {showSuccessMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mb-4"
             >
-              {/* Success message */}
-              {showSuccess && (
-                <FormMessage
-                  type="success"
-                  message="Registration successful! Please sign in with your credentials."
-                  onClose={() => setShowSuccess(false)}
-                />
-              )}
-
-              {/* Server error message */}
-              {serverError && (
-                <FormMessage
-                  type="error"
-                  message={serverError}
-                  onClose={() => setServerError('')}
-                />
-              )}
-
-              {/* Email field */}
-              <FormInput
-                {...getFieldProps('email')}
-                id="email"
-                type="email"
-                label="Email address"
-                placeholder="you@example.com"
-                autoComplete="email"
-                required
-                onBlur={(e) => {
-                  getFieldProps('email').onBlur(e);
-                  handleFieldBlur('email');
-                }}
-                hint={!touched.email ? 'Enter the email you used to register' : undefined}
-              />
-
-              {/* Password field */}
-              <FormInput
-                {...getFieldProps('password')}
-                id="password"
-                type="password"
-                label="Password"
-                placeholder="Enter your password"
-                autoComplete="current-password"
-                required
-                showPasswordToggle
-                onBlur={(e) => {
-                  getFieldProps('password').onBlur(e);
-                  handleFieldBlur('password');
-                }}
-              />
-
-              {/* Remember me and forgot password */}
-              <div className="flex items-center justify-between">
-                <FormCheckbox
-                  id="remember-me"
-                  name="remember-me"
-                  label="Remember me for 30 days"
-                />
-
-                <div className="text-sm">
-                  <Link
-                    href="/auth/forgot-password"
-                    className="inline-block p-1 -m-1 font-medium text-blue-600 hover:text-blue-500 focus:outline-none focus:underline rounded touch-manipulation"
-                    tabIndex={0}
-                  >
-                    Forgot your password?
-                  </Link>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start">
+                <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 mr-3 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm text-green-800">{showSuccessMessage}</p>
                 </div>
-              </div>
-
-              {/* Submit button */}
-              <div>
                 <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full flex justify-center py-3 px-4 min-h-[44px] border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-manipulation"
-                  aria-label={isSubmitting ? 'Signing in...' : 'Sign in'}
+                  onClick={() => setShowSuccessMessage(null)}
+                  className="ml-3 text-green-600 hover:text-green-800"
                 >
-                  {isSubmitting ? (
-                    <>
-                      <InlineLoader
-                        size="sm"
-                        className="mr-2"
-                      />
-                      Signing in...
-                    </>
+                  <XCircle className="w-5 h-5" />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Login Form */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white rounded-xl shadow-xl p-8"
+        >
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            {/* Email Field */}
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                Email Address
+              </label>
+              <div className="mt-1 relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Mail className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  {...register('email')}
+                  type="email"
+                  autoComplete="email"
+                  className={`appearance-none block w-full pl-10 pr-3 py-2 border rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all sm:text-sm ${
+                    errors.email ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                  placeholder="you@example.com"
+                />
+              </div>
+              {errors.email && (
+                <motion.p
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-2 text-sm text-red-600"
+                >
+                  {errors.email.message}
+                </motion.p>
+              )}
+            </div>
+
+            {/* Password Field */}
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <div className="mt-1 relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  {...register('password')}
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  className={`appearance-none block w-full pl-10 pr-10 py-2 border rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all sm:text-sm ${
+                    errors.password ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter your password"
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                   ) : (
-                    'Sign in'
+                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                   )}
                 </button>
               </div>
-            </form>
-
-            {/* Social login divider */}
-            <div className="mt-6">
-              <div className="relative">
-                <div
-                  className="absolute inset-0 flex items-center"
-                  aria-hidden="true"
+              {errors.password && (
+                <motion.p
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-2 text-sm text-red-600"
                 >
-                  <div className="w-full border-t border-gray-300" />
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-gray-500">Or continue with</span>
-                </div>
+                  {errors.password.message}
+                </motion.p>
+              )}
+            </div>
+
+            {/* Remember Me & Forgot Password */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <input
+                  {...register('rememberMe')}
+                  type="checkbox"
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded transition-all"
+                />
+                <label htmlFor="rememberMe" className="ml-2 block text-sm text-gray-700">
+                  Remember me
+                </label>
               </div>
 
-              {/* Google sign in */}
-              <div className="mt-6">
-                <button
-                  onClick={handleGoogleSignIn}
-                  type="button"
-                  className="w-full inline-flex justify-center py-3 px-4 min-h-[44px] border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors touch-manipulation"
-                  aria-label="Sign in with Google"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
+              <Link
+                href="/auth/forgot-password"
+                className="text-sm text-blue-600 hover:text-blue-500 font-medium transition-colors"
+              >
+                Forgot password?
+              </Link>
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                'Sign In'
+              )}
+            </button>
+          </form>
+
+          {/* Divider */}
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">Or continue with</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Google Sign In */}
+          <div className="mt-6">
+            <button
+              onClick={handleGoogleSignIn}
+              disabled={isGoogleLoading}
+              type="button"
+              className="w-full inline-flex justify-center py-3 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              {isGoogleLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Connecting...
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                     <path
                       fill="#4285F4"
                       d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -264,55 +435,42 @@ export default function LoginPage() {
                       d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                     />
                   </svg>
-                  <span className="ml-2">Google</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Footer links */}
-            <div className="mt-6 text-center text-xs text-gray-600">
-              <p>By signing in, you agree to our</p>
-              <p className="mt-1">
-                <Link
-                  href="/terms"
-                  className="inline-block p-1 -m-1 text-blue-600 hover:text-blue-500 focus:outline-none focus:underline rounded touch-manipulation"
-                  tabIndex={0}
-                >
-                  Terms of Service
-                </Link>{' '}
-                and{' '}
-                <Link
-                  href="/privacy"
-                  className="inline-block p-1 -m-1 text-blue-600 hover:text-blue-500 focus:outline-none focus:underline rounded touch-manipulation"
-                  tabIndex={0}
-                >
-                  Privacy Policy
-                </Link>
-              </p>
-              <p className="mt-2">ABN: 41 123 456 789</p>
-            </div>
-
-            {/* Security notice */}
-            <div className="mt-4 text-center">
-              <p className="text-xs text-gray-500 flex items-center justify-center">
-                <svg
-                  className="w-4 h-4 mr-1"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                  aria-hidden="true"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                Secured with SSL encryption
-              </p>
-            </div>
+                  Sign in with Google
+                </>
+              )}
+            </button>
           </div>
+
+          {/* Sign Up Link */}
+          <p className="mt-6 text-center text-sm text-gray-600">
+            Don't have an account?{' '}
+            <Link
+              href="/auth/register"
+              className="font-medium text-blue-600 hover:text-blue-500 transition-colors"
+            >
+              Sign up
+            </Link>
+          </p>
+        </motion.div>
+
+        {/* Security & Compliance */}
+        <div className="mt-6 text-center space-y-2">
+          <div className="flex items-center justify-center text-xs text-gray-500">
+            <ShieldCheck className="w-4 h-4 mr-1" />
+            <span>256-bit SSL Encryption</span>
+          </div>
+          <p className="text-xs text-gray-500">
+            By signing in, you agree to our{' '}
+            <Link href="/terms" className="text-blue-600 hover:underline">
+              Terms
+            </Link>{' '}
+            and{' '}
+            <Link href="/privacy" className="text-blue-600 hover:underline">
+              Privacy Policy
+            </Link>
+          </p>
         </div>
-      </div>
-    </>
+      </motion.div>
+    </div>
   );
 }

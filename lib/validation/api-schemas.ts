@@ -30,8 +30,16 @@ export const authSchemas = {
     body: z.object({
       email: commonSchemas.email,
       password: commonSchemas.password,
-      name: z.string().min(2).max(100).trim(),
-    }),
+      name: z.string()
+        .min(2, 'Name must be at least 2 characters')
+        .max(100, 'Name must be less than 100 characters')
+        .trim()
+        .regex(/^[a-zA-Z\s'-]+$/, 'Name can only contain letters, spaces, hyphens and apostrophes'),
+      // Optional fields for future use
+      phone: z.string().optional(),
+      abn: z.string().optional(),
+      acceptTerms: z.boolean().optional(),
+    }).strict(), // Reject extra fields
     response: z.object({
       success: z.boolean(),
       data: z.object({
@@ -41,6 +49,7 @@ export const authSchemas = {
           name: z.string(),
           role: z.literal('USER'),
         }),
+        message: z.string().optional(),
       }),
     }),
   },

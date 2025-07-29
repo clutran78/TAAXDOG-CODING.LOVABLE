@@ -144,7 +144,7 @@ export function decryptObject<T extends Record<string, any>>(
         decrypted[field] = decrypt(decrypted[field] as string) as any;
       } catch (error) {
         // If decryption fails, leave the field as-is
-        logger.error(`Failed to decrypt field ${String(field);}`);
+        logger.error(`Failed to decrypt field ${String(field)}`);
       }
     }
   }

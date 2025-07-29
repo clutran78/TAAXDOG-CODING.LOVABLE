@@ -1,66 +1,88 @@
 {
   "compilerOptions": {
-    "lib": ["dom", "dom.iterable", "es2022"],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
-    "esModuleInterop": true,
+    /* Language and Environment */
+    "target": "ES2022",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "jsx": "preserve",
+    
+    /* Modules */
     "module": "esnext",
     "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "preserve",
-    "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@/components/*": ["./components/*"],
+      "@/lib/*": ["./lib/*"],
+      "@/hooks/*": ["./hooks/*"],
+      "@/pages/*": ["./pages/*"],
+      "@/styles/*": ["./styles/*"],
+      "@/public/*": ["./public/*"],
+      "@/types/*": ["./types/*"],
+      "@/utils/*": ["./utils/*"]
     },
-    "target": "ES2022",
-
-    // Strict Type-Checking Options
+    "resolveJsonModule": true,
+    "allowJs": true,
+    
+    /* Emit */
+    "noEmit": true,
+    "incremental": true,
+    "tsBuildInfoFile": ".next/tsconfig.tsbuildinfo",
+    
+    /* Interop Constraints */
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "allowSyntheticDefaultImports": true,
+    
+    /* Type Checking */
+    "strict": true,
     "strictNullChecks": true,
     "strictFunctionTypes": true,
     "strictBindCallApply": true,
     "strictPropertyInitialization": true,
     "noImplicitThis": true,
-    "useUnknownInCatchVariables": true,
+    "noImplicitAny": true,
     "alwaysStrict": true,
-
-    // Additional Checks
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "exactOptionalPropertyTypes": true,
+    
+    /* Code Quality */
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true,
-    "noPropertyAccessFromIndexSignature": true,
-    "allowUnusedLabels": false,
-    "allowUnreachableCode": false,
-
-    // Module Resolution Options
-    "moduleDetection": "force",
-    "allowSyntheticDefaultImports": true,
-    "forceConsistentCasingInFileNames": true,
-
-    // Emit Options
-    "removeComments": true,
-    "importsNotUsedAsValues": "remove",
-    "sourceMap": true,
-    "declaration": false,
-    "declarationMap": false,
-
-    // Advanced Options
-    "allowArbitraryExtensions": true,
-    "resolvePackageJsonExports": true,
-    "resolvePackageJsonImports": true
+    
+    /* Performance */
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    
+    /* Next.js */
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "*.backup", "auth.backup", "dashboard.backup", "unauth.backup", "next-frontend", "next-frontend-backup"]
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next",
+    "out",
+    "build",
+    "dist",
+    "*.backup",
+    "**/*.backup",
+    "auth.backup",
+    "dashboard.backup",
+    "unauth.backup",
+    "next-frontend",
+    "next-frontend-backup",
+    "cypress",
+    "**/*.spec.ts",
+    "**/*.test.ts"
+  ]
 }

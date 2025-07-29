@@ -1,0 +1,66 @@
+# Docker Compose Override for Development
+# This file is automatically loaded by docker-compose in development
+# It overrides settings from docker-compose.yml
+
+version: '3.8'
+
+services:
+  # Next.js development overrides
+  web:
+    build:
+      target: development
+    environment:
+      - NODE_ENV=development
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+      # Development database URL (using host machine's postgres)
+      - DATABASE_URL=postgresql://taaxdog:password@postgres:5432/taaxdog_dev?schema=public
+      # Enable debug logging
+      - DEBUG=true
+      - LOG_LEVEL=debug
+      # Disable telemetry in development
+      - NEXT_TELEMETRY_DISABLED=1
+      # Enable React strict mode
+      - NEXT_PUBLIC_STRICT_MODE=true
+      # Development email (use Mailhog)
+      - SMTP_HOST=mailhog
+      - SMTP_PORT=1025
+      - EMAIL_FROM=dev@localhost
+    volumes:
+      # Mount source code for hot reloading
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+      - /app/.next/cache
+    command: npm run dev
+    stdin_open: true
+    tty: true
+
+  # PostgreSQL development overrides
+  postgres:
+    environment:
+      - POSTGRES_DB=taaxdog_dev
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5432:5432"
+    command: >
+      postgres
+      -c log_statement=all
+      -c log_duration=on
+      -c shared_buffers=128MB
+      -c max_connections=100
+
+  # Redis development overrides
+  redis:
+    command: redis-server --loglevel debug
+
+  # Disable Nginx in development (Next.js handles routing)
+  nginx:
+    profiles: ["production"]
+
+  # Disable monitoring in development by default
+  prometheus:
+    profiles: ["monitoring"]
+
+  grafana:
+    profiles: ["monitoring"]

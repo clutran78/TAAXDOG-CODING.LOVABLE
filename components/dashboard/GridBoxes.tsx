@@ -14,10 +14,8 @@ import Cookies from 'js-cookie';
 import { getData } from '@/lib/services/api/apiController';
 import StatCard from './StatsCard';
 import BankAccountsCard from './BankAccountsCard';
-import {
-  fetchBankTransactions,
-  fetchSubscriptions,
-} from '@/lib/services/firebase/firebase-service';
+import { fetchBankTransactions } from '@/lib/services/transaction-service';
+import { fetchBillingHistory } from '@/lib/services/subscription-service';
 import { lazyLoadModal } from '@/lib/utils/lazyLoad';
 
 // Lazy load modals - they're not needed on initial page load
@@ -151,18 +149,23 @@ const GridBoxes = () => {
   // Optimized load subscriptions with memoized calculation
   const loadSubscriptions = useCallback(async () => {
     try {
-      const subscriptions = await fetchSubscriptions();
+      const billingHistory = await fetchBillingHistory();
 
       // Use reduce for single pass calculation
-      const totalMonthlyCost = subscriptions.reduce((total, subscription) => {
-        const amount = parseFloat(subscription.amount || '0') || 0;
-        return total + calculateMonthlyCost(amount, subscription.frequency);
+      const totalMonthlyCost = billingHistory.reduce((total, invoice) => {
+        const amount = invoice.amount / 100; // Convert from cents to dollars
+        return total + amount;
       }, 0);
+
+      // Count unique active subscriptions
+      const activeSubscriptions = billingHistory.filter(
+        invoice => invoice.status === 'paid'
+      ).length;
 
       setTransactions((prev) => ({
         ...prev,
         subscriptions: formatCurrency(totalMonthlyCost),
-        activeSubscriptions: subscriptions.length,
+        activeSubscriptions: activeSubscriptions,
       }));
 
       // These should ideally be moved to a separate effect or called once

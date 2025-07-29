@@ -1,41 +1,87 @@
  version: '3.8'
 
 services:
-  # TAAXDOG Next.js Application
+  # TAAXDOG Next.js 15 Application
   web:
     build:
       context: .
       dockerfile: Dockerfile
-      target: production
+      target: ${BUILD_TARGET:-production}
+      args:
+        - NODE_VERSION=20.18.0
+        - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
     ports:
-      - "3000:3000"
+      - "${PORT:-3000}:3000"
     environment:
-      - NODE_ENV=production
-      - NEXTAUTH_URL=${NEXTAUTH_URL}
+      # Node.js and Next.js
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      
+      # NextAuth
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-      - DATABASE_URL=${DATABASE_URL}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      
+      # Database - Fixed PostgreSQL connection
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-taaxdog}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-taaxdog_db}?schema=public&connect_timeout=300
+      - DATABASE_DIRECT_URL=postgresql://${POSTGRES_USER:-taaxdog}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-taaxdog_db}?schema=public
+      
+      # Redis
       - REDIS_URL=redis://redis:6379/0
+      
+      # Stripe
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
       - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
+      
+      # Email
       - SENDGRID_API_KEY=${SENDGRID_API_KEY}
-      - EMAIL_FROM=${EMAIL_FROM}
+      - EMAIL_FROM=${EMAIL_FROM:-noreply@taxreturnpro.com.au}
+      - EMAIL_REPLY_TO=${EMAIL_REPLY_TO:-support@taxreturnpro.com.au}
+      
+      # AI Services
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      
+      # Banking
       - BASIQ_API_KEY=${BASIQ_API_KEY}
+      - BASIQ_API_URL=${BASIQ_API_URL:-https://au-api.basiq.io}
+      
+      # Security
+      - FIELD_ENCRYPTION_KEY=${FIELD_ENCRYPTION_KEY}
+      - JWT_SECRET=${JWT_SECRET:-${NEXTAUTH_SECRET}}
+      
+      # Monitoring
+      - SENTRY_DSN=${SENTRY_DSN}
+      - NEXT_PUBLIC_SENTRY_DSN=${SENTRY_DSN}
+      - ENABLE_MONITORING=${ENABLE_MONITORING:-true}
+      
+      # Development
+      - NEXT_TELEMETRY_DISABLED=1
+      - ANALYZE_BUNDLE=${ANALYZE_BUNDLE:-false}
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - ./logs:/app/logs
       - ./uploads:/app/uploads
+      - ./.next/cache:/app/.next/cache
+      # Development volumes (only in dev mode)
+      - ${DEV_MODE:+.:/app}
+      - ${DEV_MODE:+/app/node_modules}
+      - ${DEV_MODE:+/app/.next}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 40s
     networks:
       - taaxdog-network
 
@@ -105,39 +151,110 @@ services:
     networks:
       - taaxdog-network
 
-  # PostgreSQL for production database
+  # PostgreSQL 16 for database
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     environment:
-      - POSTGRES_DB=taaxdog_production
+      - POSTGRES_DB=${POSTGRES_DB:-taaxdog_db}
       - POSTGRES_USER=${POSTGRES_USER:-taaxdog}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=en_US.utf8 --lc-ctype=en_US.utf8
+      - POSTGRES_HOST_AUTH_METHOD=scram-sha-256
+      - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./prisma/migrations:/docker-entrypoint-initdb.d
+      - ./prisma/seed.ts:/docker-entrypoint-initdb.d/seed.ts:ro
+      - ./scripts/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-taaxdog}"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD-SHELL", "pg_isready -d ${POSTGRES_DB:-taaxdog_db} -U ${POSTGRES_USER:-taaxdog}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - taaxdog-network
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c max_connections=200
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=4MB
+      -c min_wal_size=1GB
+      -c max_wal_size=4GB
+      -c max_worker_processes=4
+      -c max_parallel_workers_per_gather=2
+      -c max_parallel_workers=4
+      -c max_parallel_maintenance_workers=2
+
+  # Development-only services (use with --profile development)
+  # Example: docker-compose --profile development up
+  
+  # Mailhog for email testing in development
+  mailhog:
+    image: mailhog/mailhog:latest
+    profiles: ["development"]
+    ports:
+      - "1025:1025" # SMTP server
+      - "8025:8025" # Web UI
+    networks:
+      - taaxdog-network
+    environment:
+      - MH_STORAGE=memory
+      - MH_SMTP_BIND_ADDR=0.0.0.0:1025
+      - MH_API_BIND_ADDR=0.0.0.0:8025
+      - MH_UI_BIND_ADDR=0.0.0.0:8025
+
+  # Adminer for database management in development
+  adminer:
+    image: adminer:latest
+    profiles: ["development"]
+    ports:
+      - "8080:8080"
+    environment:
+      - ADMINER_DEFAULT_SERVER=postgres
+      - ADMINER_DESIGN=pepa-linha-dark
+    depends_on:
+      - postgres
     networks:
       - taaxdog-network
 
-  # Remove Celery services as they are Python/Flask specific
-  # Background jobs in Next.js can be handled by:
-  # - API routes with cron jobs
-  # - Serverless functions
-  # - Node.js job queues like Bull or Agenda
+  # Bull Board for job queue monitoring (if using Bull)
+  # bull-board:
+  #   image: deadly0/bull-board:latest
+  #   profiles: ["development"]
+  #   ports:
+  #     - "3002:3000"
+  #   environment:
+  #     - REDIS_HOST=redis
+  #     - REDIS_PORT=6379
+  #   depends_on:
+  #     - redis
+  #   networks:
+  #     - taaxdog-network
 
 volumes:
   redis-data:
+    driver: local
   postgres-data:
+    driver: local
   prometheus-data:
+    driver: local
   grafana-data:
+    driver: local
 
 networks:
   taaxdog-network:
-    driver: bridge 
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.25.0.0/16 

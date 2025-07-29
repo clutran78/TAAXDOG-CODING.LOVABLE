@@ -5,7 +5,7 @@ import {
   authOptions,
   validatePassword,
   hashPassword,
-  logAuthEvent as logAuth,
+  logAuthEvent,
 } from '../../../lib/auth';
 import prisma from '../../../lib/prisma';
 import bcrypt from 'bcryptjs';
@@ -59,7 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     if (!user || !user.password) {
-      await logAuth({
+      await logAuthEvent({
         event: 'PASSWORD_CHANGE',
         userId: session.user.id,
         success: false,
@@ -78,7 +78,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         data: { failedLoginAttempts: { increment: 1 } },
       });
 
-      await logAuth({
+      await logAuthEvent({
         event: 'PASSWORD_CHANGE',
         userId: session.user.id,
         success: false,
@@ -110,7 +110,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     // Log successful password change
-    await logAuth({
+    await logAuthEvent({
       event: 'PASSWORD_CHANGE',
       userId: user.id,
       success: true,
@@ -130,7 +130,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   } catch (error) {
     logger.error('Password change error:', error);
-    await logAuth({
+    await logAuthEvent({
       event: 'PASSWORD_CHANGE',
       userId: session.user.id,
       success: false,

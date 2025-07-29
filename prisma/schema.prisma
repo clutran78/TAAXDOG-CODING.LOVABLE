@@ -26,8 +26,22 @@ model User {
   
   // Australian compliance fields
   abn             String?         // Australian Business Number
+  businessName    String?         // Business name
   tfn             String?         // Tax File Number /// @encrypted
+  taxFileNumber   String?         // Alias for TFN /// @encrypted
   taxResidency    TaxResidency    @default(RESIDENT)
+  
+  // Address fields
+  address         String?
+  city            String?
+  state           String?
+  postcode        String?
+  
+  // User preferences (stored as JSON)
+  preferences     Json?
+  
+  // Password management
+  passwordChangedAt DateTime?
   
   // Security fields
   failedLoginAttempts Int         @default(0)

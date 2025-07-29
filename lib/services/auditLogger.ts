@@ -330,3 +330,55 @@ export async function cleanupOldAuditLogs(): Promise<number> {
 
   return 0;
 }
+
+// Authentication-specific audit logging
+export interface AuthEventData {
+  action: string;
+  userId?: string;
+  email?: string;
+  details?: Record<string, any>;
+  ipAddress?: string;
+}
+
+export async function logAuthEvent(data: AuthEventData): Promise<void> {
+  try {
+    // Map auth actions to audit log events
+    const eventMapping: Record<string, string> = {
+      'LOGIN': 'LOGIN',
+      'LOGIN_SUCCESS': 'LOGIN_SUCCESS',
+      'LOGIN_FAILED': 'LOGIN_FAILED',
+      'LOGIN_ERROR': 'LOGIN_FAILED',
+      'LOGOUT': 'LOGOUT',
+      'REGISTER': 'REGISTER',
+      'OAUTH_LOGIN_SUCCESS': 'LOGIN_SUCCESS',
+      'OAUTH_SIGNUP': 'REGISTER',
+      'SIGNIN_ERROR': 'LOGIN_FAILED',
+      'ACCOUNT_LOCKED': 'LOGIN_FAILED',
+      'PASSWORD_RESET_REQUESTED': 'PASSWORD_RESET',
+      'PASSWORD_RESET_FAILED': 'PASSWORD_RESET',
+      'PASSWORD_RESET_SUCCESS': 'PASSWORD_RESET',
+      'ACCOUNT_LINKED': 'LOGIN_SUCCESS',
+      'UNAUTHORIZED_ACCESS': 'LOGIN_FAILED',
+      'FORBIDDEN_ACCESS': 'LOGIN_FAILED',
+    };
+    
+    const event = eventMapping[data.action] || 'LOGIN';
+    
+    await prisma.auditLog.create({
+      data: {
+        event: event as any, // Cast to AuthEvent enum
+        userId: data.userId || null,
+        ipAddress: data.ipAddress || 'unknown',
+        userAgent: data.details?.userAgent || 'unknown',
+        success: !data.action.includes('FAILED') && !data.action.includes('ERROR'),
+        metadata: {
+          action: data.action,
+          email: data.email,
+          ...data.details,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error('Failed to create auth audit log:', error);
+  }
+}

@@ -14,7 +14,7 @@ export const showToast = (
   type: 'success' | 'danger' | 'warning' | 'info' = 'info',
 ) => {
   // This would integrate with your toast notification system
-  logger.info(`[${type.toUpperCase();}] ${message}`);
+  logger.info(`[${type.toUpperCase()}] ${message}`);
 
   // Create a toast notification element
   if (typeof window !== 'undefined') {
