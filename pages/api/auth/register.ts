@@ -123,13 +123,18 @@ async function registerHandler(req: NextApiRequest, res: NextApiResponse) {
       await tx.taxReturn.create({
         data: {
           userId: user.id,
-          year: financialYear,
-          status: 'NOT_STARTED',
-          // Initialize with empty values for data isolation
-          income: 0,
-          deductions: 0,
-          taxWithheld: 0,
-          estimatedRefund: 0,
+          year: financialYear.toString(), // Convert to string as per schema
+          status: 'DRAFT', // Use DRAFT as the default status
+          data: {
+            // Initialize with empty tax return data structure
+            income: 0,
+            deductions: 0,
+            taxWithheld: 0,
+            estimatedRefund: 0,
+            personalDetails: {},
+            incomeDetails: {},
+            deductionDetails: {},
+          },
         },
       });
 
