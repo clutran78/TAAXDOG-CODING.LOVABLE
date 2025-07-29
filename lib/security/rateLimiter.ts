@@ -113,7 +113,7 @@ export function createRateLimiter(options: RateLimitOptions) {
   ): Promise<boolean> => {
     try {
       // Skip rate limiting during static generation or when res is not available
-      if (typeof window === 'undefined' && (!req?.headers || !res?.setHeader)) {
+      if (!req || !res || typeof res.setHeader !== 'function') {
         if (next) {
           await next();
         }
@@ -200,15 +200,17 @@ export function createRateLimiter(options: RateLimitOptions) {
   };
 }
 
-// Middleware wrapper for easier use
-export function withRateLimit(handler: any, options: RateLimitOptions) {
-  const rateLimiter = createRateLimiter(options);
+// Middleware wrapper for easier use - returns a middleware function
+export function withRateLimit(options: RateLimitOptions) {
+  return function(handler: any) {
+    const rateLimiter = createRateLimiter(options);
 
-  return async (req: NextApiRequest, res: NextApiResponse) => {
-    const allowed = await rateLimiter(req, res);
-    if (allowed) {
-      return handler(req, res);
-    }
+    return async (req: NextApiRequest, res: NextApiResponse) => {
+      const allowed = await rateLimiter(req, res);
+      if (allowed) {
+        return handler(req, res);
+      }
+    };
   };
 }
 
@@ -263,26 +265,20 @@ export const rateLimiters = {
 
 // Helper to apply rate limiting to session-based endpoints
 export function withSessionRateLimit(config: Partial<RateLimitOptions> = {}) {
-  // Return a middleware function that takes a handler
-  return (handler: any) => {
-    return withRateLimit(handler, {
-      ...RATE_LIMIT_CONFIGS.api.standard,
-      keyGenerator: keyGenerators.user,
-      ...config,
-    });
-  };
+  return withRateLimit({
+    ...RATE_LIMIT_CONFIGS.api.standard,
+    keyGenerator: keyGenerators.user,
+    ...config,
+  });
 }
 
 // Helper to apply rate limiting to public endpoints
 export function withPublicRateLimit(config: Partial<RateLimitOptions> = {}) {
-  // Return a middleware function that takes a handler
-  return (handler: any) => {
-    return withRateLimit(handler, {
-      ...RATE_LIMIT_CONFIGS.public.health,
-      keyGenerator: keyGenerators.ip,
-      ...config,
-    });
-  };
+  return withRateLimit({
+    ...RATE_LIMIT_CONFIGS.public.health,
+    keyGenerator: keyGenerators.ip,
+    ...config,
+  });
 }
 
 // Sliding window rate limiter for more accurate limiting
