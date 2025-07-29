@@ -359,13 +359,13 @@ export class ApiResponseHelper {
   static created<T>(
     res: NextApiResponse<ApiSuccessResponse<T>>,
     data: T,
+    message?: string,
     options?: {
-      message?: string;
       location?: string;
       requestId?: string;
     }
   ): void {
-    const { message = 'Resource created successfully', location, requestId } = options || {};
+    const { location, requestId } = options || {};
     
     if (location) {
       res.setHeader('Location', location);
@@ -469,8 +469,17 @@ export class ApiResponseHelper {
     this.error(res, apiError, { requestId });
   }
 
+  static badRequest(res: NextApiResponse<ApiErrorResponse>, message?: string, requestId?: string): void {
+    const apiError = new ApiError(
+      ApiErrorCode.BAD_REQUEST,
+      message || ERROR_MESSAGES[ApiErrorCode.BAD_REQUEST]
+    );
+    this.error(res, apiError, { requestId });
+  }
+
   static tooManyRequests(
     res: NextApiResponse<ApiErrorResponse>,
+    message?: string,
     retryAfter?: number,
     requestId?: string
   ): void {
@@ -480,7 +489,7 @@ export class ApiResponseHelper {
     
     const apiError = new ApiError(
       ApiErrorCode.TOO_MANY_REQUESTS,
-      ERROR_MESSAGES[ApiErrorCode.TOO_MANY_REQUESTS],
+      message || ERROR_MESSAGES[ApiErrorCode.TOO_MANY_REQUESTS],
       429,
       { retryAfter }
     );

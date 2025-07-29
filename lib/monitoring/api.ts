@@ -169,24 +169,40 @@ function shouldPersistMetrics(metrics: EndpointMetrics): boolean {
  * Persist metrics to database asynchronously
  */
 async function persistMetricsAsync(metrics: EndpointMetrics): Promise<void> {
-  const avgDuration = metrics.totalDuration / metrics.totalRequests;
-  const errorRate = metrics.failedRequests / metrics.totalRequests;
+  try {
+    // Skip persisting if apiMetric model doesn't exist yet
+    // This prevents errors during migration phase
+    if (!prisma.apiMetric) {
+      logger.debug('apiMetric model not available, skipping persistence');
+      return;
+    }
 
-  await prisma.apiMetric.create({
-    data: {
+    const avgDuration = metrics.totalDuration / metrics.totalRequests;
+    const errorRate = metrics.failedRequests / metrics.totalRequests;
+
+    await prisma.apiMetric.create({
+      data: {
+        endpoint: metrics.endpoint,
+        method: metrics.method,
+        totalRequests: metrics.totalRequests,
+        successfulRequests: metrics.successfulRequests,
+        failedRequests: metrics.failedRequests,
+        averageDuration: avgDuration,
+        minDuration: metrics.minDuration === Infinity ? 0 : metrics.minDuration,
+        maxDuration: metrics.maxDuration,
+        errorRate,
+        statusCodeDistribution: metrics.statusCodes,
+        recordedAt: new Date(),
+      },
+    });
+  } catch (error) {
+    // Don't let database errors crash the API
+    // This could happen if the apiMetric table doesn't exist yet
+    logger.debug('Failed to persist API metrics', {
+      error: error instanceof Error ? error.message : 'Unknown error',
       endpoint: metrics.endpoint,
-      method: metrics.method,
-      totalRequests: metrics.totalRequests,
-      successfulRequests: metrics.successfulRequests,
-      failedRequests: metrics.failedRequests,
-      averageDuration: avgDuration,
-      minDuration: metrics.minDuration === Infinity ? 0 : metrics.minDuration,
-      maxDuration: metrics.maxDuration,
-      errorRate,
-      statusCodeDistribution: metrics.statusCodes,
-      recordedAt: new Date(),
-    },
-  });
+    });
+  }
 }
 
 /**

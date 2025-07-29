@@ -262,7 +262,9 @@ const registrationRateLimiter = {
     
     return apiResponse.tooManyRequests(
       res,
-      'Too many registration attempts. Please try again in 1 hour.'
+      'Too many registration attempts. Please try again in 1 hour.',
+      3600, // 1 hour in seconds
+      (req as any).requestId
     );
   },
 };
