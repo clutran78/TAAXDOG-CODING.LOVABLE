@@ -14,7 +14,7 @@ import { logger } from '@/lib/logger';
 import { getClientIP } from '../../../lib/auth/auth-utils';
 import { AuthEvent } from '@prisma/client';
 import { apiResponse } from '../../../lib/api/response';
-import { InputSanitizer } from '../../../lib/validation/input-validator';
+import { Sanitizers } from '../../../lib/validation/input-validator';
 import { sendVerificationEmail } from '../../../lib/email';
 
 // Constants
@@ -43,7 +43,7 @@ async function registerHandler(req: NextApiRequest, res: NextApiResponse) {
     // Extract and sanitize inputs (already validated by middleware)
     const email = req.body.email.toLowerCase().trim();
     const password = req.body.password;
-    const name = InputSanitizer.sanitizeName(req.body.name);
+    const name = Sanitizers.sanitizeName(req.body.name);
 
     // Additional input validation
     if (!email || !password || !name) {
@@ -229,10 +229,13 @@ async function registerHandler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     // Generic error response
-    return apiResponse.internalError(
+    return apiResponse.error(
       res,
-      error,
-      'Registration failed. Please try again later.'
+      error instanceof Error ? error : new Error('Registration failed'),
+      {
+        statusCode: 500,
+        requestId,
+      }
     );
   }
 }

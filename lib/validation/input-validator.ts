@@ -194,6 +194,15 @@ export const Sanitizers = {
   sanitizeWhitespace: (input: string): string => {
     return input.trim().replace(/\s+/g, ' ');
   },
+
+  // Sanitize name
+  sanitizeName: (input: string): string => {
+    return input
+      .trim()
+      .replace(/[^a-zA-Z\s'-]/g, '') // Allow letters, spaces, apostrophes, and hyphens
+      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+      .substring(0, 100); // Limit length
+  },
 };
 
 // Zod schemas for common validations
