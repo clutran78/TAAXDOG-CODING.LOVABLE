@@ -13,9 +13,13 @@ import { getClientIP } from '../../../lib/auth/auth-utils';
 import { AuthEvent } from '@prisma/client';
 import { withRateLimit, RATE_LIMIT_CONFIGS } from '../../../lib/security/rateLimiter';
 import { addSecurityHeaders } from '../../../lib/security/sanitizer';
-import { apiResponse } from '@/lib/api/response';
+import { apiResponse, ApiError, ApiErrorCode } from '@/lib/api/response';
 import { commonSchemas } from '../../../lib/middleware/validation';
 import { EmailService } from '../../../lib/email';
+
+interface ExtendedNextApiRequest extends NextApiRequest {
+  requestId?: string;
+}
 
 // Constants
 const BCRYPT_ROUNDS = 12;
@@ -37,11 +41,11 @@ const resetPasswordSchema = {
   }),
 };
 
-async function resetPasswordHandler(req: NextApiRequest, res: NextApiResponse) {
+async function resetPasswordHandler(req: ExtendedNextApiRequest, res: NextApiResponse): Promise<void> {
   // Add security headers
   addSecurityHeaders(res);
 
-  const requestId = (req as any).requestId;
+  const requestId = req.requestId;
   const clientIp = getClientIP(req);
   const userAgent = req.headers['user-agent'] || '';
   const startTime = Date.now();
@@ -50,7 +54,7 @@ async function resetPasswordHandler(req: NextApiRequest, res: NextApiResponse) {
     requestId,
     clientIp,
     userAgent,
-    tokenPrefix: req.body?.token?.substring(0, 8),
+    tokenPrefix: req.body?.token ? String(req.body.token).substring(0, 8) : undefined,
   });
 
   try {
@@ -89,20 +93,22 @@ async function resetPasswordHandler(req: NextApiRequest, res: NextApiResponse) {
           select: { id: true },
         });
 
-        // Log failed attempt
-        await tx.auditLog.create({
-          data: {
-            event: AuthEvent.PASSWORD_RESET,
-            userId: expiredUser?.id || 'unknown',
-            ipAddress: clientIp,
-            userAgent,
-            success: false,
-            metadata: { 
-              reason: expiredUser ? 'Token expired' : 'Invalid token',
-              requestId,
+        // Log failed attempt only if we have a user ID
+        if (expiredUser?.id) {
+          await tx.auditLog.create({
+            data: {
+              event: AuthEvent.PASSWORD_RESET,
+              userId: expiredUser.id,
+              ipAddress: clientIp,
+              userAgent,
+              success: false,
+              metadata: { 
+                reason: 'Token expired',
+                requestId,
+              },
             },
-          },
-        });
+          });
+        }
 
         logger.warn('Password reset attempted with invalid/expired token', {
           clientIp,
@@ -293,10 +299,15 @@ async function resetPasswordHandler(req: NextApiRequest, res: NextApiResponse) {
       return apiResponse.badRequest(res, 'Invalid reset request');
     }
 
-    return apiResponse.internalError(
+    return apiResponse.error(
       res,
-      error,
-      'An error occurred while resetting your password. Please try again.'
+      new ApiError(
+        ApiErrorCode.INTERNAL_ERROR,
+        'An error occurred while resetting your password. Please try again.',
+        500,
+        error
+      ),
+      { requestId }
     );
   }
 }
@@ -306,7 +317,7 @@ const resetPasswordRateLimiter = {
   ...RATE_LIMIT_CONFIGS.auth.passwordReset,
   keyGenerator: (req: NextApiRequest) => {
     const ip = getClientIP(req) || 'unknown';
-    const token = req.body?.token || 'unknown';
+    const token = String(req.body?.token || 'unknown');
     // Rate limit by IP and token prefix
     return [
       `reset-password:ip:${ip}`,
@@ -318,13 +329,13 @@ const resetPasswordRateLimiter = {
     { windowMs: 60 * 60 * 1000, max: 10 }, // 10 attempts per hour
   ],
   message: 'Too many password reset attempts. Please try again later.',
-  handler: async (req: NextApiRequest, res: NextApiResponse) => {
+  handler: async (req: ExtendedNextApiRequest, res: NextApiResponse): Promise<void> => {
     const ip = getClientIP(req);
     
     logger.warn('Password reset rate limit exceeded', {
       ip,
       userAgent: req.headers['user-agent'],
-      requestId: (req as any).requestId,
+      requestId: req.requestId,
     });
     
     return apiResponse.tooManyRequests(
