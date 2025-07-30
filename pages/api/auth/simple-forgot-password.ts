@@ -1,9 +1,25 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import prisma from '../../../lib/prisma';
-import { createPasswordResetToken } from '../../../lib/auth';
+import crypto from 'crypto';
 import { sendPasswordResetEmail } from '../../../lib/services/email/email';
 import { logger } from '@/lib/logger';
 import { apiResponse } from '@/lib/api/response';
+
+// Constants matching the reset-password endpoint
+const RESET_TOKEN_LENGTH = 32;
+const RESET_TOKEN_EXPIRY_HOURS = 1;
+const RESET_TOKEN_HASH_ALGORITHM = 'sha256';
+
+// Generate secure reset token
+function generateResetToken(): { token: string; hashedToken: string } {
+  const token = crypto.randomBytes(RESET_TOKEN_LENGTH).toString('hex');
+  const hashedToken = crypto
+    .createHash(RESET_TOKEN_HASH_ALGORITHM)
+    .update(token)
+    .digest('hex');
+  
+  return { token, hashedToken };
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -29,11 +45,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         email: true,
         name: true,
         emailVerified: true,
+        passwordResetExpires: true,
       },
     });
 
     if (!user) {
       // Don't reveal if user exists
+      return apiResponse.success(res, { message: successMessage });
+    }
+
+    // Check if there's an active reset token
+    if (user.passwordResetExpires && user.passwordResetExpires > new Date()) {
+      logger.info('Active reset token exists, skipping generation', {
+        email: user.email,
+        expiresAt: user.passwordResetExpires,
+      });
       return apiResponse.success(res, { message: successMessage });
     }
 
@@ -43,12 +69,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     //   return apiResponse.success(res, { message: successMessage });
     // }
 
-    // Generate reset token
-    const resetToken = await createPasswordResetToken(user.email);
+    // Generate reset token using SHA256 to match reset-password endpoint
+    const { token, hashedToken } = generateResetToken();
+    const resetExpires = new Date();
+    resetExpires.setHours(resetExpires.getHours() + RESET_TOKEN_EXPIRY_HOURS);
 
-    // Try to send email
+    // Update user with hashed token
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetToken: hashedToken,
+        passwordResetExpires: resetExpires,
+      },
+    });
+
+    logger.info(`✅ Password reset token generated for: ${user.email}`);
+
+    // Try to send email (use the unhashed token)
     try {
-      await sendPasswordResetEmail(user.email, user.name, resetToken);
+      await sendPasswordResetEmail(user.email, user.name, token);
       logger.info('[ForgotPassword] ✅ Reset email sent successfully to:', user.email);
     } catch (emailError: any) {
       console.error('[ForgotPassword] ❌ Failed to send email:', {
@@ -78,8 +117,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       debug:
         process.env.NODE_ENV === 'development'
           ? {
-              resetToken,
-              resetUrl: `${baseUrl}/auth/reset-password?token=${resetToken}`,
+              resetToken: token,
+              resetUrl: `${baseUrl}/auth/reset-password?token=${token}`,
             }
           : undefined,
     });

@@ -71,7 +71,10 @@ async function resetPasswordHandler(req: ExtendedNextApiRequest, res: NextApiRes
     logger.debug('Token hashing', {
       requestId,
       originalTokenPrefix: token.substring(0, 8),
+      originalTokenLength: token.length,
       hashedTokenPrefix: hashedToken.substring(0, 8),
+      hashedTokenLength: hashedToken.length,
+      hashAlgorithm: RESET_TOKEN_HASH_ALGORITHM,
     });
 
     // Use transaction for atomic operations
@@ -98,8 +101,31 @@ async function resetPasswordHandler(req: ExtendedNextApiRequest, res: NextApiRes
         // Check if token exists but is expired
         const expiredUser = await tx.user.findFirst({
           where: { passwordResetToken: hashedToken },
-          select: { id: true },
+          select: { id: true, passwordResetExpires: true },
         });
+
+        // Also check if there's any user with a reset token (for debugging)
+        const anyUserWithToken = await tx.user.findFirst({
+          where: { 
+            passwordResetToken: { not: null },
+            passwordResetExpires: { gt: new Date() }
+          },
+          select: { 
+            id: true, 
+            passwordResetToken: true,
+            passwordResetExpires: true 
+          },
+        });
+
+        if (anyUserWithToken) {
+          logger.debug('Debug: Found user with active token', {
+            requestId,
+            storedTokenPrefix: anyUserWithToken.passwordResetToken?.substring(0, 8),
+            expectedTokenPrefix: hashedToken.substring(0, 8),
+            tokenMatch: anyUserWithToken.passwordResetToken === hashedToken,
+            expiresAt: anyUserWithToken.passwordResetExpires,
+          });
+        }
 
         // Log failed attempt only if we have a user ID
         if (expiredUser?.id) {

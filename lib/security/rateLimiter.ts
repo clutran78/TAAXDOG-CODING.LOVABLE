@@ -142,17 +142,21 @@ export function createRateLimiter(options: RateLimitOptions) {
 
       // Add rate limit headers (only if response object is available)
       if (res && typeof res.setHeader === 'function') {
-        if (standardHeaders) {
-          res.setHeader('RateLimit-Limit', max.toString());
-          res.setHeader('RateLimit-Remaining', remaining.toString());
-          res.setHeader('RateLimit-Reset', reset.toISOString());
-          res.setHeader('RateLimit-Policy', `${max};w=${window / 1000}`);
-        }
+        try {
+          if (standardHeaders) {
+            res.setHeader('RateLimit-Limit', max.toString());
+            res.setHeader('RateLimit-Remaining', remaining.toString());
+            res.setHeader('RateLimit-Reset', reset.toISOString());
+            res.setHeader('RateLimit-Policy', `${max};w=${window / 1000}`);
+          }
 
-        if (legacyHeaders) {
-          res.setHeader('X-RateLimit-Limit', max.toString());
-          res.setHeader('X-RateLimit-Remaining', remaining.toString());
-          res.setHeader('X-RateLimit-Reset', Math.floor(limitData.resetTime / 1000).toString());
+          if (legacyHeaders) {
+            res.setHeader('X-RateLimit-Limit', max.toString());
+            res.setHeader('X-RateLimit-Remaining', remaining.toString());
+            res.setHeader('X-RateLimit-Reset', Math.floor(limitData.resetTime / 1000).toString());
+          }
+        } catch (headerError) {
+          // Silently ignore header setting errors
         }
       }
 
@@ -162,19 +166,23 @@ export function createRateLimiter(options: RateLimitOptions) {
         
         // Only set headers and respond if res is available
         if (res && typeof res.setHeader === 'function' && typeof res.status === 'function') {
-          res.setHeader('Retry-After', retryAfter.toString());
+          try {
+            res.setHeader('Retry-After', retryAfter.toString());
 
-          // Don't count this request if configured
-          if (!skipFailedRequests) {
-            limitData.count++;
+            // Don't count this request if configured
+            if (!skipFailedRequests) {
+              limitData.count++;
+            }
+
+            res.status(429).json({
+              error: 'Too Many Requests',
+              message,
+              retryAfter,
+              resetAt: reset.toISOString(),
+            });
+          } catch (responseError) {
+            logger.error('Rate limiter response error:', responseError);
           }
-
-          res.status(429).json({
-            error: 'Too Many Requests',
-            message,
-            retryAfter,
-            resetAt: reset.toISOString(),
-          });
         }
 
         return false;
@@ -308,12 +316,16 @@ export function createSlidingWindowRateLimiter(options: RateLimitOptions) {
 
       // Only set headers and respond if res is available
       if (res && typeof res.setHeader === 'function' && typeof res.status === 'function') {
-        res.setHeader('Retry-After', retryAfter.toString());
-        res.status(429).json({
-          error: 'Too Many Requests',
-          message: options.message || 'Rate limit exceeded',
-          retryAfter,
-        });
+        try {
+          res.setHeader('Retry-After', retryAfter.toString());
+          res.status(429).json({
+            error: 'Too Many Requests',
+            message: options.message || 'Rate limit exceeded',
+            retryAfter,
+          });
+        } catch (responseError) {
+          logger.error('Sliding window rate limiter response error:', responseError);
+        }
       }
 
       return false;
