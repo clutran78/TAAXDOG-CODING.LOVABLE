@@ -6,6 +6,47 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **IMPORTANT**: This file should NEVER contain actual credentials, API keys, passwords, or any sensitive information. All sensitive values must be stored in environment variables and referenced using placeholders like `[STORED IN ENVIRONMENT VARIABLES]` in this documentation.
 
+## 🔒 CRITICAL: Authentication System Protection
+
+### DO NOT MODIFY WITHOUT THOROUGH REVIEW:
+The authentication system has been carefully implemented and tested. These components MUST NOT be changed without understanding the full impact:
+
+1. **Password Hashing**: MUST use bcrypt with 12 rounds
+   - File: All registration and password change endpoints
+   - Pattern: `bcrypt.hash(password, 12)`
+   
+2. **Password Reset Tokens**: MUST use SHA256 hashing (NOT bcrypt!)
+   - Files: `/pages/api/auth/forgot-password.ts`, `/pages/api/auth/simple-forgot-password.ts`, `/pages/api/auth/reset-password.ts`
+   - Pattern: `crypto.createHash('sha256').update(token).digest('hex')`
+   
+3. **Token Storage**: MUST use user table fields
+   - Fields: `user.passwordResetToken`, `user.passwordResetExpires`
+   - NOT a separate passwordResetToken table
+   
+4. **Account Locking**: After 4 failed attempts = 15 minute lock
+   - File: `/lib/auth.ts`
+   - Constants: `MAX_FAILED_ATTEMPTS = 4`, `ACCOUNT_LOCK_DURATION_MINUTES = 15`
+   
+5. **Rate Limiting**: All auth endpoints must have rate limiting
+   - File: `/lib/security/rateLimiter.ts`
+   - MUST have try-catch blocks for response methods
+
+### Common Authentication Mistakes to Avoid:
+- ❌ Do NOT change hashing algorithms
+- ❌ Do NOT use bcrypt for reset tokens (breaks the system)
+- ❌ Do NOT move token storage to different tables
+- ❌ Do NOT remove or bypass rate limiting
+- ❌ Do NOT change bcrypt rounds from 12
+- ❌ Do NOT modify account locking thresholds
+
+### Authentication Flow Summary:
+1. **Registration**: Email → Validate → Hash with bcrypt(12) → Store
+2. **Login**: Email/Pass → Rate limit → Check lock → Verify with bcrypt → Session
+3. **Forgot Password**: Email → Generate token → Hash with SHA256 → Store in user table
+4. **Reset Password**: Token → Hash with SHA256 → Find user → Update password with bcrypt(12)
+
+For detailed documentation, see `/docs/AUTHENTICATION_SYSTEM.md`
+
 # TAAXDOG PROJECT CONFIGURATION
 
 ## Project Identity

@@ -22,8 +22,9 @@ interface ExtendedNextApiRequest extends NextApiRequest {
 }
 
 // Constants
-const BCRYPT_ROUNDS = 12;
-const RESET_TOKEN_HASH_ALGORITHM = 'sha256';
+// 🔒 CRITICAL: DO NOT CHANGE - Must match token generation in forgot-password endpoints
+const BCRYPT_ROUNDS = 12; // For new password hashing
+const RESET_TOKEN_HASH_ALGORITHM = 'sha256'; // MUST be SHA256 to match token generation!
 
 // Validation schema for reset password
 const resetPasswordSchema = {
@@ -63,6 +64,7 @@ async function resetPasswordHandler(req: ExtendedNextApiRequest, res: NextApiRes
     const { token, password } = req.body;
 
     // Hash the provided token to compare with stored hash
+    // 🔒 CRITICAL: MUST use SHA256 to match forgot-password token generation
     const hashedToken = crypto
       .createHash(RESET_TOKEN_HASH_ALGORITHM)
       .update(token)

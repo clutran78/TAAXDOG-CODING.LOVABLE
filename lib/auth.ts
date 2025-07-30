@@ -15,9 +15,10 @@ import { logAuthEvent } from './services/auditLogger';
 import { getDatabaseConnectionOptions } from './utils/database-url';
 
 // Constants for security and timing
-const BCRYPT_ROUNDS = 12;
-const MAX_FAILED_ATTEMPTS = 4;
-const ACCOUNT_LOCK_DURATION_MINUTES = 15;
+// 🔒 CRITICAL: DO NOT CHANGE - Core authentication security settings
+const BCRYPT_ROUNDS = 12; // Password hashing rounds - DO NOT reduce
+const MAX_FAILED_ATTEMPTS = 4; // Account locks after this many failed attempts
+const ACCOUNT_LOCK_DURATION_MINUTES = 15; // How long account stays locked
 const MINUTES_TO_MS = 60 * 1000;
 const ACCOUNT_LOCK_DURATION_MS = ACCOUNT_LOCK_DURATION_MINUTES * MINUTES_TO_MS;
 const SESSION_MAX_AGE_DAYS = 30;
@@ -163,6 +164,7 @@ export const authOptions: NextAuthOptions = {
             }
 
             // Timing-safe password comparison
+            // 🔒 CRITICAL: MUST use bcrypt.compare() - provides timing attack protection
             const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
 
             if (!isPasswordValid) {

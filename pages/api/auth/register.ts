@@ -18,7 +18,8 @@ import { Sanitizers } from '../../../lib/validation/input-validator';
 import { sendVerificationEmail } from '../../../lib/email';
 
 // Constants
-const BCRYPT_ROUNDS = 12;
+// 🔒 CRITICAL: DO NOT CHANGE - Password security depends on these values
+const BCRYPT_ROUNDS = 12; // DO NOT reduce - required for security
 const EMAIL_VERIFICATION_TOKEN_LENGTH = 32;
 const EMAIL_VERIFICATION_EXPIRY_HOURS = 24;
 
@@ -84,6 +85,7 @@ async function registerHandler(req: NextApiRequest, res: NextApiResponse) {
       }
 
       // Generate secure password hash
+      // 🔒 CRITICAL: MUST use bcrypt with BCRYPT_ROUNDS (12) - DO NOT use any other hashing method
       const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
       // Generate email verification token

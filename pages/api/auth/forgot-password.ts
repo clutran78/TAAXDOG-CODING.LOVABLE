@@ -16,14 +16,17 @@ import { apiResponse, ApiError, ApiErrorCode } from '@/lib/api/response';
 import { EmailService } from '../../../lib/email';
 
 // Constants
+// 🔒 CRITICAL: DO NOT CHANGE - Token generation must match reset-password.ts
 const RESET_TOKEN_LENGTH = 32;
 const RESET_TOKEN_EXPIRY_HOURS = 1;
-const RESET_TOKEN_HASH_ALGORITHM = 'sha256';
+const RESET_TOKEN_HASH_ALGORITHM = 'sha256'; // MUST use SHA256, NOT bcrypt!
 const MAX_ACTIVE_RESET_TOKENS = 1; // Only allow one active reset token per user
 
 // Generate secure reset token
+// 🔒 CRITICAL: This MUST match the hashing in reset-password.ts
 function generateResetToken(): { token: string; hashedToken: string } {
   const token = crypto.randomBytes(RESET_TOKEN_LENGTH).toString('hex');
+  // 🔒 CRITICAL: MUST use SHA256 - reset-password.ts expects SHA256 hashed tokens
   const hashedToken = crypto
     .createHash(RESET_TOKEN_HASH_ALGORITHM)
     .update(token)

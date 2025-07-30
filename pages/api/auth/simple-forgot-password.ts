@@ -6,13 +6,16 @@ import { logger } from '@/lib/logger';
 import { apiResponse } from '@/lib/api/response';
 
 // Constants matching the reset-password endpoint
+// 🔒 CRITICAL: DO NOT CHANGE - Must match reset-password.ts exactly
 const RESET_TOKEN_LENGTH = 32;
 const RESET_TOKEN_EXPIRY_HOURS = 1;
-const RESET_TOKEN_HASH_ALGORITHM = 'sha256';
+const RESET_TOKEN_HASH_ALGORITHM = 'sha256'; // MUST be SHA256, NOT bcrypt!
 
 // Generate secure reset token
+// 🔒 CRITICAL: This MUST match the hashing in reset-password.ts
 function generateResetToken(): { token: string; hashedToken: string } {
   const token = crypto.randomBytes(RESET_TOKEN_LENGTH).toString('hex');
+  // 🔒 CRITICAL: MUST use SHA256 - reset-password.ts expects SHA256 hashed tokens
   const hashedToken = crypto
     .createHash(RESET_TOKEN_HASH_ALGORITHM)
     .update(token)
