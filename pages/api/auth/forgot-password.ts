@@ -12,7 +12,7 @@ import { getClientIP } from '../../../lib/auth/auth-utils';
 import { AuthEvent } from '@prisma/client';
 import { withRateLimit, RATE_LIMIT_CONFIGS } from '../../../lib/security/rateLimiter';
 import { addSecurityHeaders } from '../../../lib/security/sanitizer';
-import { apiResponse } from '@/lib/api/response';
+import { apiResponse, ApiError, ApiErrorCode } from '@/lib/api/response';
 import { EmailService } from '../../../lib/email';
 
 // Constants
@@ -359,10 +359,10 @@ async function forgotPasswordHandler(req: NextApiRequest, res: NextApiResponse) 
     });
 
     // Generic error response
-    return apiResponse.internalError(
+    return apiResponse.error(
       res,
-      error,
-      'An unexpected error occurred. Please try again later.'
+      error instanceof Error ? error : new Error(String(error)),
+      { requestId }
     );
   }
 }
@@ -372,13 +372,9 @@ const passwordResetRateLimiter = {
   ...RATE_LIMIT_CONFIGS.auth.passwordReset,
   keyGenerator: (req: NextApiRequest) => {
     const ip = getClientIP(req) || 'unknown';
-    const email = req.body?.email?.toLowerCase() || 'unknown';
-    // Rate limit by both IP and email to prevent abuse
-    return [
-      `password-reset:ip:${ip}`,
-      `password-reset:email:${email}`,
-      `password-reset:global`, // Global rate limit to prevent system abuse
-    ];
+    // Don't access req.body here as it might not be parsed yet
+    // Just use IP-based rate limiting
+    return `password-reset:ip:${ip}`;
   },
   limits: [
     { windowMs: 15 * 60 * 1000, max: 3 }, // 3 requests per 15 minutes per IP/email

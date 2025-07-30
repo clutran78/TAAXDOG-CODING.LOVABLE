@@ -37,7 +37,8 @@ const resetPasswordSchema = {
   }),
   response: z.object({
     success: z.boolean(),
-    message: z.string(),
+    message: z.string().optional(),
+    data: z.any().optional(),
   }),
 };
 
@@ -55,6 +56,7 @@ async function resetPasswordHandler(req: ExtendedNextApiRequest, res: NextApiRes
     clientIp,
     userAgent,
     tokenPrefix: req.body?.token ? String(req.body.token).substring(0, 8) : undefined,
+    tokenLength: req.body?.token ? String(req.body.token).length : 0,
   });
 
   try {
@@ -65,6 +67,12 @@ async function resetPasswordHandler(req: ExtendedNextApiRequest, res: NextApiRes
       .createHash(RESET_TOKEN_HASH_ALGORITHM)
       .update(token)
       .digest('hex');
+
+    logger.debug('Token hashing', {
+      requestId,
+      originalTokenPrefix: token.substring(0, 8),
+      hashedTokenPrefix: hashedToken.substring(0, 8),
+    });
 
     // Use transaction for atomic operations
     const result = await prisma.$transaction(async (tx) => {
@@ -282,7 +290,7 @@ async function resetPasswordHandler(req: ExtendedNextApiRequest, res: NextApiRes
       });
     }
 
-    return apiResponse.success(res, {
+    return apiResponse.success(res, null, {
       message: 'Password has been reset successfully. You can now login with your new password.',
     });
 
@@ -317,12 +325,9 @@ const resetPasswordRateLimiter = {
   ...RATE_LIMIT_CONFIGS.auth.passwordReset,
   keyGenerator: (req: NextApiRequest) => {
     const ip = getClientIP(req) || 'unknown';
-    const token = String(req.body?.token || 'unknown');
-    // Rate limit by IP and token prefix
-    return [
-      `reset-password:ip:${ip}`,
-      `reset-password:token:${token.substring(0, 8)}`, // Use first 8 chars of token
-    ];
+    // Don't access req.body here as it might not be parsed yet
+    // Just use IP-based rate limiting for password reset
+    return `reset-password:ip:${ip}`;
   },
   limits: [
     { windowMs: 5 * 60 * 1000, max: 5 }, // 5 attempts per 5 minutes

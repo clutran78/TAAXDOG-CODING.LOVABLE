@@ -530,6 +530,21 @@ export class ApiResponseHelper {
     this.error(res, apiError, { requestId });
   }
 
+  static internalError(
+    res: NextApiResponse<ApiErrorResponse>,
+    error: unknown,
+    message?: string,
+    requestId?: string
+  ): void {
+    const apiError = new ApiError(
+      ApiErrorCode.INTERNAL_ERROR,
+      message || ERROR_MESSAGES[ApiErrorCode.INTERNAL_ERROR],
+      500,
+      error
+    );
+    this.error(res, apiError, { requestId });
+  }
+
   /**
    * Handle any error type
    */
