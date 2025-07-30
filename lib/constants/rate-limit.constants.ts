@@ -28,23 +28,23 @@ export const TIME_INTERVALS = {
 /** Authentication endpoint rate limits */
 export const AUTH_RATE_LIMITS = {
   LOGIN: {
-    interval: TIME_INTERVALS.ONE_MINUTE,
-    maxRequests: 5,
+    interval: TIME_INTERVALS.FIVE_MINUTES, // Changed from 1 minute to 5 minutes
+    maxRequests: 10, // Increased from 5 to 10 attempts per 5 minutes
     blockDuration: TIME_INTERVALS.THIRTY_MINUTES,
   },
   REGISTER: {
     interval: TIME_INTERVALS.ONE_HOUR,
-    maxRequests: 3,
+    maxRequests: 5, // Increased from 3 to 5
     blockDuration: TIME_INTERVALS.ONE_HOUR,
   },
   PASSWORD_RESET: {
     interval: TIME_INTERVALS.ONE_HOUR,
-    maxRequests: 3,
+    maxRequests: 5, // Increased from 3 to 5
     blockDuration: TIME_INTERVALS.SIX_HOURS,
   },
   EMAIL_VERIFICATION: {
-    interval: TIME_INTERVALS.ONE_MINUTE,
-    maxRequests: 3,
+    interval: TIME_INTERVALS.FIVE_MINUTES, // Changed from 1 minute to 5 minutes
+    maxRequests: 5, // Increased from 3 to 5
     blockDuration: TIME_INTERVALS.TEN_MINUTES,
   },
 } as const;

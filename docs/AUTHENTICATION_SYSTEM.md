@@ -122,8 +122,8 @@ const user = await prisma.user.findFirst({
 All authentication endpoints use rate limiting:
 - Login: 5 attempts per 15 minutes
 - Registration: 3 per hour
-- Password Reset: 5 per hour
-- Reset Password: 5 per 5 minutes
+- Forgot Password: 3 per hour
+- Reset Password: 5 per hour
 
 ### Input Sanitization
 - Email: Lowercase, trimmed, validated format

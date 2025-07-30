@@ -84,7 +84,7 @@ npm test -- __tests__/auth/
 ```
 
 ### Test 4: Rate Limiting
-**Scenario**: More than 5 registration attempts from same IP in 1 hour
+**Scenario**: More than 3 registration attempts from same IP in 1 hour
 **Expected Response**: Status 429
 ```json
 {

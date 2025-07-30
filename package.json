@@ -43,6 +43,7 @@
     "auth:test:oauth": "ts-node --project tsconfig.node.json scripts/test-oauth-flow.ts",
     "auth:test:2fa": "ts-node --project tsconfig.node.json scripts/test-2fa.ts",
     "auth:test:all": "npm run auth:test && npm run auth:test:password-reset && npm run auth:test:session",
+    "auth:clear-rate-limits": "ts-node --project tsconfig.node.json scripts/clear-rate-limits.ts",
     "// Database Management Scripts": "",
     "db:setup": "prisma db push && prisma db seed",
     "db:reset": "prisma db push --force-reset && prisma db seed",

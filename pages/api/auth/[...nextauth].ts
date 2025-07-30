@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import NextAuth from 'next-auth';
+import nextAuth from 'next-auth';
 import { authOptions } from '../../../lib/auth';
 import { logger } from '@/lib/logger';
 import { getDatabaseUrl, validateProductionDatabaseUrl, logDatabaseConnectionInfo } from '@/lib/utils/database-url';
@@ -7,10 +7,18 @@ import prisma from '@/lib/prisma';
 
 export { authOptions };
 
+// HTTP Status codes
+const HTTP_OK = 200;
+const HTTP_TOO_MANY_REQUESTS = 429;
+const HTTP_INTERNAL_SERVER_ERROR = 500;
+
 // Rate limiting for auth endpoints
 const authAttempts = new Map<string, { count: number; resetAt: number }>();
-const MAX_AUTH_ATTEMPTS = 10;
-const AUTH_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const MAX_AUTH_ATTEMPTS = 50; // Increased from 10 to allow for session checks
+const MINUTES_IN_WINDOW = 15;
+const SECONDS_IN_MINUTE = 60;
+const MS_IN_SECOND = 1000;
+const AUTH_WINDOW_MS = MINUTES_IN_WINDOW * SECONDS_IN_MINUTE * MS_IN_SECOND; // 15 minutes
 
 function getRateLimitKey(req: NextApiRequest): string {
   const forwarded = req.headers['x-forwarded-for'] as string;
@@ -19,6 +27,14 @@ function getRateLimitKey(req: NextApiRequest): string {
 }
 
 function checkRateLimit(req: NextApiRequest): boolean {
+  // Get the auth action from the URL
+  const action = req.query.nextauth?.[0] as string;
+  
+  // Don't rate limit session checks - they happen frequently and are read-only
+  if (action === 'session') {
+    return true;
+  }
+  
   const key = getRateLimitKey(req);
   const now = Date.now();
   const attempt = authAttempts.get(key);
@@ -32,7 +48,8 @@ function checkRateLimit(req: NextApiRequest): boolean {
     logger.warn('Auth rate limit exceeded', { 
       key, 
       count: attempt.count,
-      resetAt: new Date(attempt.resetAt).toISOString() 
+      resetAt: new Date(attempt.resetAt).toISOString(),
+      action 
     });
     return false;
   }
@@ -49,9 +66,9 @@ setInterval(() => {
       authAttempts.delete(key);
     }
   }
-}, 60 * 1000); // Clean up every minute
+}, SECONDS_IN_MINUTE * MS_IN_SECOND); // Clean up every minute
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse): Promise<void> {
   try {
     // Security headers
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -61,7 +78,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     
     // Rate limiting
     if (!checkRateLimit(req)) {
-      return res.status(429).json({
+      return res.status(HTTP_TOO_MANY_REQUESTS).json({
         error: 'Too many requests',
         message: 'Please try again later.',
       });
@@ -111,14 +128,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       
       // In production, return generic error
       if (process.env.NODE_ENV === 'production') {
-        return res.status(500).json({
+        return res.status(HTTP_INTERNAL_SERVER_ERROR).json({
           error: 'Server configuration error',
           message: 'Authentication service is not properly configured. Please contact support.',
         });
       }
       
       // In development, return detailed errors
-      return res.status(500).json({
+      return res.status(HTTP_INTERNAL_SERVER_ERROR).json({
         error: 'Configuration error',
         message: 'Authentication service configuration errors',
         details: envErrors,
@@ -126,7 +143,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Log auth request (without sensitive data)
-    const { password, ...safeBody } = req.body || {};
+    const { password: _password, ...safeBody } = req.body || {};
     logger.debug('Auth request', {
       method: req.method,
       action: req.query.nextauth?.[0],
@@ -137,10 +154,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     // Pass the request to NextAuth with error handling
-    const result = await NextAuth(req, res, authOptions);
+    const result = await nextAuth(req, res, authOptions);
     
     // Log successful auth responses
-    if (res.statusCode === 200) {
+    if (res.statusCode === HTTP_OK) {
       logger.info('Auth request successful', {
         action: req.query.nextauth?.[0],
         provider: req.query.nextauth?.[1],
@@ -157,7 +174,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     
     // Return generic error in production
     if (process.env.NODE_ENV === 'production') {
-      return res.status(500).json({
+      return res.status(HTTP_INTERNAL_SERVER_ERROR).json({
         error: 'Internal server error',
         message: 'An unexpected error occurred. Please try again later.',
       });
