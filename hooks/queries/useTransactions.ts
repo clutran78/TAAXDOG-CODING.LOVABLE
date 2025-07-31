@@ -28,6 +28,11 @@ interface TransactionFilters {
   sortOrder?: 'asc' | 'desc';
 }
 
+interface PaginatedTransactionFilters extends TransactionFilters {
+  page?: number;
+  limit?: number;
+}
+
 interface TransactionResponse {
   transactions: Transaction[];
   pagination: {
@@ -50,8 +55,9 @@ interface TransactionResponse {
 export const transactionKeys = {
   all: ['transactions'] as const,
   lists: () => [...transactionKeys.all, 'list'] as const,
-  list: (filters?: TransactionFilters) => [...transactionKeys.lists(), filters] as const,
-  infinite: (filters?: TransactionFilters) => [...transactionKeys.all, 'infinite', filters] as const,
+  list: (filters?: PaginatedTransactionFilters) => [...transactionKeys.lists(), filters] as const,
+  infinite: (filters?: TransactionFilters) =>
+    [...transactionKeys.all, 'infinite', filters] as const,
   detail: (id: string) => [...transactionKeys.all, 'detail', id] as const,
   summary: (period: string) => [...transactionKeys.all, 'summary', period] as const,
 };
@@ -60,10 +66,10 @@ export const transactionKeys = {
  * Fetch transactions from API
  */
 async function fetchTransactions(
-  filters?: TransactionFilters & { page?: number; limit?: number }
+  filters?: TransactionFilters & { page?: number; limit?: number },
 ): Promise<TransactionResponse> {
   const params = new URLSearchParams();
-  
+
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
@@ -71,13 +77,13 @@ async function fetchTransactions(
       }
     });
   }
-  
+
   const response = await fetch(`/api/transactions?${params.toString()}`);
-  
+
   if (!response.ok) {
     throw new Error('Failed to fetch transactions');
   }
-  
+
   const data = await response.json();
   return data.data;
 }
@@ -85,11 +91,7 @@ async function fetchTransactions(
 /**
  * Hook to fetch paginated transactions
  */
-export function useTransactions(
-  filters?: TransactionFilters,
-  page = 1,
-  limit = 20
-) {
+export function useTransactions(filters?: TransactionFilters, page = 1, limit = 20) {
   return useQuery({
     queryKey: transactionKeys.list({ ...filters, page, limit }),
     queryFn: () => fetchTransactions({ ...filters, page, limit }),
@@ -100,14 +102,11 @@ export function useTransactions(
 /**
  * Hook to fetch infinite scroll transactions
  */
-export function useInfiniteTransactions(
-  filters?: TransactionFilters,
-  limit = 20
-) {
+export function useInfiniteTransactions(filters?: TransactionFilters, limit = 20) {
   return useInfiniteQuery({
     queryKey: transactionKeys.infinite(filters),
-    queryFn: ({ pageParam = 1 }) => 
-      fetchTransactions({ ...filters, page: pageParam, limit }),
+    queryFn: ({ pageParam }) => fetchTransactions({ ...filters, page: pageParam as number, limit }),
+    initialPageParam: 1,
     getNextPageParam: (lastPage, pages) => {
       if (lastPage.pagination.hasMore) {
         return pages.length + 1;
@@ -123,37 +122,28 @@ export function useInfiniteTransactions(
  */
 export function useUpdateTransaction() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      id, 
-      data 
-    }: { 
-      id: string; 
-      data: Partial<Transaction> 
-    }) => {
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Transaction> }) => {
       const response = await fetch(`/api/transactions/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to update transaction');
       }
-      
+
       return response.json();
     },
     onSuccess: (data, variables) => {
       // Update specific transaction in cache
-      queryClient.setQueryData(
-        transactionKeys.detail(variables.id), 
-        data.data
-      );
-      
+      queryClient.setQueryData(transactionKeys.detail(variables.id), data.data);
+
       // Invalidate lists to refetch
-      queryClient.invalidateQueries({ 
-        queryKey: transactionKeys.lists() 
+      queryClient.invalidateQueries({
+        queryKey: transactionKeys.lists(),
       });
     },
   });
@@ -164,14 +154,14 @@ export function useUpdateTransaction() {
  */
 export function useBulkCategorizeTransactions() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      transactionIds, 
-      category, 
-      taxCategory 
-    }: { 
-      transactionIds: string[]; 
+    mutationFn: async ({
+      transactionIds,
+      category,
+      taxCategory,
+    }: {
+      transactionIds: string[];
       category?: string;
       taxCategory?: string;
     }) => {
@@ -180,17 +170,17 @@ export function useBulkCategorizeTransactions() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transactionIds, category, taxCategory }),
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to categorize transactions');
       }
-      
+
       return response.json();
     },
     onSuccess: () => {
       // Invalidate all transaction queries to refetch
-      queryClient.invalidateQueries({ 
-        queryKey: transactionKeys.all 
+      queryClient.invalidateQueries({
+        queryKey: transactionKeys.all,
       });
     },
   });
@@ -201,7 +191,7 @@ export function useBulkCategorizeTransactions() {
  */
 export function usePrefetchTransactions() {
   const queryClient = useQueryClient();
-  
+
   return (filters?: TransactionFilters) => {
     queryClient.prefetchQuery({
       queryKey: transactionKeys.list(filters),

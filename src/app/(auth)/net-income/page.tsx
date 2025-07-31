@@ -1,80 +1,94 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
-import { ChartBarIcon, TrendingUpIcon, TrendingDownIcon } from '@heroicons/react/24/outline'
-import { formatCurrency, formatPercentageChange, calculatePercentageChange } from '@/lib/utils'
-import { apiService } from '@/services/api-service'
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
-import { ErrorDisplay } from '@/components/ui/ErrorDisplay'
+import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import {
+  ChartBarIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
+} from '@heroicons/react/24/outline';
+import { formatCurrency, formatPercentageChange, calculatePercentageChange } from '@/lib/utils';
+import { apiService } from '@/services/api-service';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { ErrorDisplay } from '@/components/ui/ErrorDisplay';
 
 interface IncomeData {
-  currentMonth: number
-  previousMonth: number
-  yearToDate: number
+  currentMonth: number;
+  previousMonth: number;
+  yearToDate: number;
   transactions: Array<{
-    id: string
-    date: string
-    description: string
-    amount: number
-    category: string
-    source: string
-  }>
+    id: string;
+    date: string;
+    description: string;
+    amount: number;
+    category: string;
+    source: string;
+  }>;
 }
 
 export default function NetIncomePage() {
-  const { data: session } = useSession()
-  const [incomeData, setIncomeData] = useState<IncomeData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [selectedPeriod, setSelectedPeriod] = useState('current-month')
+  const { data: session } = useSession();
+  const [incomeData, setIncomeData] = useState<IncomeData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedPeriod, setSelectedPeriod] = useState('current-month');
 
   useEffect(() => {
     if (session?.user?.id) {
-      loadIncomeData()
+      loadIncomeData();
     }
-  }, [session?.user?.id, selectedPeriod])
+  }, [session?.user?.id, selectedPeriod]);
 
   const loadIncomeData = async () => {
-    if (!session?.user?.id) return
+    if (!session?.user?.id) return;
 
     try {
-      setLoading(true)
-      const response = await apiService.getNetIncome(session.user.id, selectedPeriod)
-      
+      setLoading(true);
+      const response = await apiService.getNetIncome(session.user.id, selectedPeriod);
+
       if (response.success) {
-        setIncomeData(response.data)
-        setError(null)
+        setIncomeData(response.data);
+        setError(null);
       } else {
-        setError(response.error || 'Failed to load income data')
+        setError(response.error || 'Failed to load income data');
       }
     } catch (err) {
-      setError('Failed to load income data')
+      setError('Failed to load income data');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner size="lg" />
       </div>
-    )
+    );
   }
 
   if (error) {
-    return <ErrorDisplay message={error} onRetry={loadIncomeData} />
+    return (
+      <ErrorDisplay
+        message={error}
+        onRetry={loadIncomeData}
+      />
+    );
   }
 
   if (!incomeData) {
-    return <ErrorDisplay message="No income data available" onRetry={loadIncomeData} />
+    return (
+      <ErrorDisplay
+        message="No income data available"
+        onRetry={loadIncomeData}
+      />
+    );
   }
 
   const monthlyChange = calculatePercentageChange(
     incomeData.currentMonth,
-    incomeData.previousMonth
-  )
+    incomeData.previousMonth,
+  );
 
   return (
     <div className="space-y-6">
@@ -116,17 +130,20 @@ export default function NetIncomePage() {
           <div className="flex items-center">
             <div className="flex-shrink-0">
               {monthlyChange >= 0 ? (
-                <TrendingUpIcon className="h-8 w-8 text-green-600" />
+                <ArrowTrendingUpIcon className="h-8 w-8 text-green-600" />
               ) : (
-                <TrendingDownIcon className="h-8 w-8 text-red-600" />
+                <ArrowTrendingDownIcon className="h-8 w-8 text-red-600" />
               )}
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Monthly Change</p>
-              <p className={`text-2xl font-bold ${
-                monthlyChange >= 0 ? 'text-green-600' : 'text-red-600'
-              }`}>
-                {monthlyChange >= 0 ? '+' : ''}{formatPercentageChange(monthlyChange)}%
+              <p
+                className={`text-2xl font-bold ${
+                  monthlyChange >= 0 ? 'text-green-600' : 'text-red-600'
+                }`}
+              >
+                {monthlyChange >= 0 ? '+' : ''}
+                {formatPercentageChange(monthlyChange)}%
               </p>
             </div>
           </div>
@@ -175,7 +192,10 @@ export default function NetIncomePage() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {incomeData.transactions.map((transaction) => (
-                <tr key={transaction.id} className="hover:bg-gray-50">
+                <tr
+                  key={transaction.id}
+                  className="hover:bg-gray-50"
+                >
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {new Date(transaction.date).toLocaleDateString('en-AU')}
                   </td>
@@ -198,5 +218,5 @@ export default function NetIncomePage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

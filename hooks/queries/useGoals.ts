@@ -1,5 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchGoals, createGoal, updateGoal, deleteGoal } from '@/lib/services/goals/client-goal-service';
+import {
+  fetchGoals,
+  createGoal,
+  updateGoal,
+  deleteGoal,
+} from '@/lib/services/goals/client-goal-service';
 import { showToast } from '@/lib/utils/helpers';
 import { Goal } from '@/lib/types/goal';
 
@@ -7,7 +12,7 @@ import { Goal } from '@/lib/types/goal';
 export const goalKeys = {
   all: ['goals'] as const,
   lists: () => [...goalKeys.all, 'list'] as const,
-  list: (filters?: { status?: string; category?: string }) => 
+  list: (filters?: { status?: string; category?: string }) =>
     [...goalKeys.lists(), filters] as const,
   detail: (id: string) => [...goalKeys.all, 'detail', id] as const,
 };
@@ -18,7 +23,18 @@ export const goalKeys = {
 export function useGoals(filters?: { status?: string; category?: string }) {
   return useQuery({
     queryKey: goalKeys.list(filters),
-    queryFn: () => fetchGoals(filters),
+    queryFn: async () => {
+      const goals = await fetchGoals();
+      // Apply client-side filtering if filters are provided
+      if (filters) {
+        return goals.filter((goal) => {
+          if (filters.status && goal.status !== filters.status) return false;
+          if (filters.category && goal.category !== filters.category) return false;
+          return true;
+        });
+      }
+      return goals;
+    },
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
@@ -29,7 +45,7 @@ export function useGoals(filters?: { status?: string; category?: string }) {
 export function useGoal(id: string) {
   return useQuery({
     queryKey: goalKeys.detail(id),
-    queryFn: () => fetchGoals().then(goals => goals.find(g => g.id === id)),
+    queryFn: () => fetchGoals().then((goals) => goals.find((g) => g.id === id)),
     enabled: !!id,
   });
 }
@@ -39,7 +55,7 @@ export function useGoal(id: string) {
  */
 export function useCreateGoal() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: createGoal,
     onSuccess: (data) => {
@@ -48,10 +64,7 @@ export function useCreateGoal() {
       showToast('Goal created successfully!', 'success');
     },
     onError: (error) => {
-      showToast(
-        error instanceof Error ? error.message : 'Failed to create goal',
-        'danger'
-      );
+      showToast(error instanceof Error ? error.message : 'Failed to create goal', 'danger');
     },
   });
 }
@@ -61,24 +74,20 @@ export function useCreateGoal() {
  */
 export function useUpdateGoal() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Goal> }) => 
-      updateGoal(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Partial<Goal> }) => updateGoal(id, data),
     onSuccess: (data, variables) => {
       // Update the specific goal in cache
       queryClient.setQueryData(goalKeys.detail(variables.id), data);
-      
+
       // Invalidate goals list to refetch
       queryClient.invalidateQueries({ queryKey: goalKeys.lists() });
-      
+
       showToast('Goal updated successfully!', 'success');
     },
     onError: (error) => {
-      showToast(
-        error instanceof Error ? error.message : 'Failed to update goal',
-        'danger'
-      );
+      showToast(error instanceof Error ? error.message : 'Failed to update goal', 'danger');
     },
   });
 }
@@ -88,23 +97,20 @@ export function useUpdateGoal() {
  */
 export function useDeleteGoal() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: deleteGoal,
     onSuccess: (_, goalId) => {
       // Remove from cache
       queryClient.removeQueries({ queryKey: goalKeys.detail(goalId) });
-      
+
       // Invalidate goals list
       queryClient.invalidateQueries({ queryKey: goalKeys.lists() });
-      
+
       showToast('Goal deleted successfully!', 'success');
     },
     onError: (error) => {
-      showToast(
-        error instanceof Error ? error.message : 'Failed to delete goal',
-        'danger'
-      );
+      showToast(error instanceof Error ? error.message : 'Failed to delete goal', 'danger');
     },
   });
 }
@@ -114,7 +120,7 @@ export function useDeleteGoal() {
  */
 export function usePrefetchGoals() {
   const queryClient = useQueryClient();
-  
+
   return () => {
     queryClient.prefetchQuery({
       queryKey: goalKeys.list(),

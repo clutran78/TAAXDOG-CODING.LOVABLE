@@ -3,11 +3,11 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     await import('./lib/polyfills/server-polyfills.js');
     // Server-side Sentry configuration
-    const { ProfilingIntegration } = await import('@sentry/profiling-node');
+    const ProfilingIntegration = (await import('@sentry/profiling-node')).ProfilingIntegration;
     const Sentry = await import('@sentry/nextjs');
-    
+
     const SENTRY_DSN = process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN;
-    
+
     if (SENTRY_DSN) {
       Sentry.init({
         dsn: SENTRY_DSN,
@@ -17,10 +17,10 @@ export async function register() {
         tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
         // Profile sample rate (1% of traces in production)
         profilesSampleRate: process.env.NODE_ENV === 'production' ? 0.01 : 1.0,
-        
+
         // Track slow DB queries
         slowQueryThreshold: 1000, // 1 second
-        
+
         // Capture performance metrics
         _experiments: {
           metricsAggregator: true,
@@ -139,9 +139,9 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === 'edge') {
     // Edge runtime Sentry configuration
     const Sentry = await import('@sentry/nextjs');
-    
+
     const SENTRY_DSN = process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN;
-    
+
     if (SENTRY_DSN) {
       Sentry.init({
         dsn: SENTRY_DSN,

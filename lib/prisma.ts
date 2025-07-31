@@ -26,7 +26,7 @@ const globalForPrisma = globalThis as unknown as {
 // Create Prisma Client with basic configuration
 const createPrismaClient = (): PrismaClient => {
   const isDevelopment = process.env.NODE_ENV !== 'production';
-  
+
   return new PrismaClient({
     log: isDevelopment ? ['query', 'info', 'warn', 'error'] : ['error'],
     datasources: {
@@ -45,4 +45,5 @@ if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma;
 }
 
+export { prisma };
 export default prisma;

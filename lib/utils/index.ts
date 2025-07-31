@@ -16,3 +16,11 @@ export function formatDate(date: Date | string): string {
     dateStyle: 'medium',
   }).format(new Date(date));
 }
+
+// Re-export calculation utilities
+export {
+  calculatePercentageChange,
+  formatPercentageChange,
+  validateTFN,
+  validateABN,
+} from './calculations';

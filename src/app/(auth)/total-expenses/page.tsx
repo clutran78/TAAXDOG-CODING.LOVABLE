@@ -1,85 +1,99 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
-import { CreditCardIcon, TrendingUpIcon, TrendingDownIcon } from '@heroicons/react/24/outline'
-import { formatCurrency, formatPercentageChange, calculatePercentageChange } from '@/lib/utils'
-import { apiService } from '@/services/api-service'
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
-import { ErrorDisplay } from '@/components/ui/ErrorDisplay'
+import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import {
+  CreditCardIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
+} from '@heroicons/react/24/outline';
+import { formatCurrency, formatPercentageChange, calculatePercentageChange } from '@/lib/utils';
+import { apiService } from '@/services/api-service';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { ErrorDisplay } from '@/components/ui/ErrorDisplay';
 
 interface ExpenseData {
-  currentMonth: number
-  previousMonth: number
-  yearToDate: number
+  currentMonth: number;
+  previousMonth: number;
+  yearToDate: number;
   categories: Array<{
-    name: string
-    amount: number
-    percentage: number
-  }>
+    name: string;
+    amount: number;
+    percentage: number;
+  }>;
   transactions: Array<{
-    id: string
-    date: string
-    description: string
-    amount: number
-    category: string
-    merchant: string
-  }>
+    id: string;
+    date: string;
+    description: string;
+    amount: number;
+    category: string;
+    merchant: string;
+  }>;
 }
 
 export default function TotalExpensesPage() {
-  const { data: session } = useSession()
-  const [expenseData, setExpenseData] = useState<ExpenseData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [selectedPeriod, setSelectedPeriod] = useState('current-month')
+  const { data: session } = useSession();
+  const [expenseData, setExpenseData] = useState<ExpenseData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedPeriod, setSelectedPeriod] = useState('current-month');
 
   useEffect(() => {
     if (session?.user?.id) {
-      loadExpenseData()
+      loadExpenseData();
     }
-  }, [session?.user?.id, selectedPeriod])
+  }, [session?.user?.id, selectedPeriod]);
 
   const loadExpenseData = async () => {
-    if (!session?.user?.id) return
+    if (!session?.user?.id) return;
 
     try {
-      setLoading(true)
-      const response = await apiService.getTotalExpenses(session.user.id, selectedPeriod)
-      
+      setLoading(true);
+      const response = await apiService.getTotalExpenses(session.user.id, selectedPeriod);
+
       if (response.success) {
-        setExpenseData(response.data)
-        setError(null)
+        setExpenseData(response.data);
+        setError(null);
       } else {
-        setError(response.error || 'Failed to load expense data')
+        setError(response.error || 'Failed to load expense data');
       }
     } catch (err) {
-      setError('Failed to load expense data')
+      setError('Failed to load expense data');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner size="lg" />
       </div>
-    )
+    );
   }
 
   if (error) {
-    return <ErrorDisplay message={error} onRetry={loadExpenseData} />
+    return (
+      <ErrorDisplay
+        message={error}
+        onRetry={loadExpenseData}
+      />
+    );
   }
 
   if (!expenseData) {
-    return <ErrorDisplay message="No expense data available" onRetry={loadExpenseData} />
+    return (
+      <ErrorDisplay
+        message="No expense data available"
+        onRetry={loadExpenseData}
+      />
+    );
   }
 
   const monthlyChange = calculatePercentageChange(
     expenseData.currentMonth,
-    expenseData.previousMonth
-  )
+    expenseData.previousMonth,
+  );
 
   return (
     <div className="space-y-6">
@@ -121,17 +135,20 @@ export default function TotalExpensesPage() {
           <div className="flex items-center">
             <div className="flex-shrink-0">
               {monthlyChange >= 0 ? (
-                <TrendingUpIcon className="h-8 w-8 text-red-600" />
+                <ArrowTrendingUpIcon className="h-8 w-8 text-red-600" />
               ) : (
-                <TrendingDownIcon className="h-8 w-8 text-green-600" />
+                <ArrowTrendingDownIcon className="h-8 w-8 text-green-600" />
               )}
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Monthly Change</p>
-              <p className={`text-2xl font-bold ${
-                monthlyChange >= 0 ? 'text-red-600' : 'text-green-600'
-              }`}>
-                {monthlyChange >= 0 ? '+' : ''}{formatPercentageChange(monthlyChange)}%
+              <p
+                className={`text-2xl font-bold ${
+                  monthlyChange >= 0 ? 'text-red-600' : 'text-green-600'
+                }`}
+              >
+                {monthlyChange >= 0 ? '+' : ''}
+                {formatPercentageChange(monthlyChange)}%
               </p>
             </div>
           </div>
@@ -157,7 +174,10 @@ export default function TotalExpensesPage() {
         <h3 className="text-lg font-medium text-gray-900 mb-4">Expense Categories</h3>
         <div className="space-y-4">
           {expenseData.categories.map((category, index) => (
-            <div key={index} className="flex items-center justify-between">
+            <div
+              key={index}
+              className="flex items-center justify-between"
+            >
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-medium text-gray-900">{category.name}</span>
@@ -208,7 +228,10 @@ export default function TotalExpensesPage() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {expenseData.transactions.map((transaction) => (
-                <tr key={transaction.id} className="hover:bg-gray-50">
+                <tr
+                  key={transaction.id}
+                  className="hover:bg-gray-50"
+                >
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {new Date(transaction.date).toLocaleDateString('en-AU')}
                   </td>
@@ -231,5 +254,5 @@ export default function TotalExpensesPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

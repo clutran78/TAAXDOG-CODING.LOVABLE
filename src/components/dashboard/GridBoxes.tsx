@@ -1,103 +1,267 @@
-'use client'
+'use client';
+import React, { useEffect, useState } from 'react';
+import {
+  formatCurrency,
+  loadIncomeDetails,
+  setupFinancialFeatureHandlers,
+  updateBankConnectionsDisplay,
+} from '@/services/helperFunction';
+import AlertMessage from '@/shared/alerts';
+import NetIncomeModal from '@/shared/modals/NetIncomeModal';
+import NetBalanceDetails from '@/shared/modals/NetBalanceDetailsModal';
+import SubscriptionsModal from '@/shared/modals/ManageSubscriptionsModal';
+import GoalsDashboardCard from '../Goal/GoalDashboardCard';
+import GoalsModal from '../Goal/DashboardGoalModal';
+import Cookies from 'js-cookie';
+import { getData } from '@/services/api/apiController';
+import StatCard from './stats-card';
+import BankAccountsCard from './bank-accounts-card';
+import { fetchBankTransactions, fetchSubscriptions } from '@/services/firebase-service';
 
-import { useState } from 'react'
-import { StatCard } from './StatCard'
-import { GoalsDashboardCard } from './GoalsDashboardCard'
-import { BankAccountsCard } from './BankAccountsCard'
-import { formatCurrency } from '@/lib/utils'
+const GridBoxes = () => {
+  const [showNetIncomeModal, setShowNetIncomeModal] = useState(false);
+  const [showFullGoalsModal, setShowFullGoalsModal] = useState(false);
 
-interface GridBoxesProps {
-  financialSummary: {
-    totalBalance: number
-    totalIncome: number
-    totalExpenses: number
-    netIncome: number
-    transactionCount: number
-    currency: string
-  }
-  goals: Array<{
-    id: string
-    name: string
-    targetAmount: number
-    currentAmount: number
-    progressPercentage: number
-    daysRemaining: number
-    isOnTrack: boolean
-  }>
-  insights: {
-    averageMonthlySpending: number
-    goalsOnTrack: number
-    totalActiveGoals: number
-    savingsRate: number
-  }
-  onRefresh: () => void
-}
+  const [connections, setConnections] = useState([]);
+  const [connectionLoading, setConnectionLoading] = useState(false);
+  const [connectionError, setConnectionError] = useState<any>(null);
+  const [transactions, setTransactions] = useState({
+    income: '$0.00',
+    expenses: '$0.00',
+    netBalance: '$0.00',
+    subscriptions: '$0.00',
+    activeSubscriptions: 0,
+  });
 
-export function GridBoxes({ financialSummary, goals, insights, onRefresh }: GridBoxesProps) {
-  const [refreshing, setRefreshing] = useState(false)
+  const [alert, setAlert] = useState<{ message: string; type: string } | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleRefresh = async () => {
-    setRefreshing(true)
-    await onRefresh()
-    setRefreshing(false)
-  }
+  const [showNetBalanceDetailsModal, setShowNetBalanceDetailsModal] = useState(false);
+
+  useEffect(() => {
+    if (showNetIncomeModal) {
+      loadIncomeDetails();
+    }
+  }, [showNetIncomeModal]);
+
+  useEffect(() => {
+    fetchConnections();
+    loadSubscriptions();
+    getBankTransactions();
+  }, []);
+
+  const fetchConnections = async () => {
+    const token = Cookies.get('auth-token');
+    if (!token) {
+      setConnectionError('Not authenticated');
+      return;
+    }
+
+    setConnectionLoading(true);
+    setConnectionError(null);
+
+    try {
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      };
+
+      const res = await getData('/api/banking/accounts', config);
+
+      if (res.success) {
+        setConnections(res.accounts?.data || []);
+      } else {
+        setConnectionError(res.error || 'Failed to load connections');
+      }
+    } catch (err: any) {
+      setConnectionError(err?.error || 'Something went wrong');
+    } finally {
+      setConnectionLoading(false);
+    }
+  };
+
+  const loadSubscriptions = async () => {
+    try {
+      const subscriptions = await fetchSubscriptions();
+      let totalMonthlyCost = 0;
+
+      subscriptions.forEach((subscription) => {
+        let amount = parseFloat(subscription.amount || 0);
+        if (isNaN(amount)) amount = 0;
+
+        switch (subscription.frequency) {
+          case 'yearly':
+            amount = amount / 12;
+            break;
+          case 'quarterly':
+            amount = amount / 3;
+            break;
+          case 'weekly':
+            amount = amount * 4.33;
+            break;
+        }
+
+        totalMonthlyCost += amount;
+      });
+
+      setTransactions((prev) => ({
+        ...prev,
+        subscriptions: formatCurrency(totalMonthlyCost),
+        activeSubscriptions: subscriptions.length,
+      }));
+
+      setupFinancialFeatureHandlers();
+      updateBankConnectionsDisplay();
+      // updateSubscriptionDisplays(subscriptions);
+    } catch (error) {
+      console.error('Failed to load subscriptions:', error);
+    }
+  };
+
+  const handleShowNetIncomeModal = () => setShowNetIncomeModal(true);
+
+  const handleCloseNetIncomeModal = () => setShowNetIncomeModal(false);
+
+  const handleShowNetBalanceDetails = () => setShowNetBalanceDetailsModal(true);
+
+  const handleCloseNetBalanceDetails = () => setShowNetBalanceDetailsModal(false);
+
+  const getBankTransactions = async () => {
+    try {
+      setLoading(true);
+      const transactions = await fetchBankTransactions();
+      if (transactions.length === 0) {
+        return;
+      }
+
+      const income = transactions.reduce((sum, tx) => {
+        const amount = parseFloat(tx.amount || '0');
+        return sum + (amount > 0 ? amount : 0);
+      }, 0);
+
+      const expenses = transactions.reduce((sum, tx) => {
+        const amount = parseFloat(tx.amount || '0');
+        return sum + (amount < 0 ? Math.abs(amount) : 0);
+      }, 0);
+
+      const netBalance = income - expenses;
+
+      setTransactions((prev) => ({
+        ...prev,
+        income: formatCurrency(income),
+        expenses: formatCurrency(expenses),
+        netBalance: formatCurrency(netBalance),
+      }));
+    } catch (error) {
+      console.error('Failed to load bank transactions:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Financial Overview Cards */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Net Income"
-          value={formatCurrency(financialSummary.totalIncome)}
-          subtitle="+12.3% from last month"
-          icon="💰"
-          colorClass="text-green-600"
-          trend={{ value: 12.3, isPositive: true }}
-          loading={refreshing}
+    <>
+      {alert && (
+        <AlertMessage
+          message={alert.message}
+          type={alert.type as any}
         />
-        
-        <StatCard
-          title="Total Expenses"
-          value={formatCurrency(financialSummary.totalExpenses)}
-          subtitle="-8.1% from last month"
-          icon="💸"
-          colorClass="text-red-600"
-          trend={{ value: -8.1, isPositive: false }}
-          loading={refreshing}
-        />
-        
-        <StatCard
-          title="Net Balance"
-          value={formatCurrency(financialSummary.totalBalance)}
-          subtitle="+15.2% from last month"
-          icon="⚖️"
-          colorClass="text-blue-600"
-          trend={{ value: 15.2, isPositive: true }}
-          loading={refreshing}
-        />
-        
-        <StatCard
-          title="Subscriptions"
-          value={formatCurrency(insights.averageMonthlySpending)}
-          subtitle="0 active subscriptions"
-          icon="🔄"
-          colorClass="text-purple-600"
-          loading={refreshing}
-        />
-      </div>
+      )}
 
-      {/* Goals and Bank Accounts */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <GoalsDashboardCard
-          goals={goals}
-          insights={insights}
-          loading={refreshing}
-        />
-        
-        <BankAccountsCard
-          loading={refreshing}
-        />
+      {showFullGoalsModal && <GoalsModal onClose={() => setShowFullGoalsModal(false)} />}
+
+      <StatCard
+        id="net-income-card"
+        dataCard="net-income"
+        title="Net Income"
+        iconClass="fas fa-arrow-circle-up income-icon"
+        value={transactions.income ? `${transactions.income}` : '$0.00'}
+        valueId="net-income-value"
+        change="+12.3% from last month"
+        changeType="positive"
+        arrowIcon={<i className="fas fa-arrow-up"></i>}
+        onClick={handleShowNetIncomeModal}
+        loading={loading}
+      />
+
+      <StatCard
+        id="total-expenses-card"
+        dataCard="total-expenses"
+        title="Total Expenses"
+        iconClass="fas fa-arrow-circle-down expense-icon"
+        value={transactions.expenses ? `${transactions.expenses}` : '$0.00'}
+        valueId="total-expenses-value"
+        change="-8.1% from last month"
+        changeType="negative"
+        arrowIcon={<i className="fas fa-arrow-down"></i>}
+        loading={loading}
+      />
+
+      <StatCard
+        id="net-balance-card"
+        dataCard="net-balance"
+        title="Net Balance"
+        iconClass="fas fa-balance-scale balance-icon"
+        value={transactions.netBalance ? `${transactions.netBalance}` : '$0.00'}
+        valueId="net-balance-value"
+        change="+15.2% from last month"
+        changeType="positive"
+        arrowIcon={<i className="fas fa-arrow-up"></i>}
+        onClick={handleShowNetBalanceDetails}
+        loading={loading}
+      />
+
+      <StatCard
+        id="subscriptions-card"
+        dataCard="subscriptions"
+        title="Subscriptions"
+        iconClass="fas fa-repeat subscription-icon"
+        value={transactions.subscriptions ? transactions.subscriptions : '$0.00'}
+        valueId=""
+        change={
+          <>
+            <span id="subscription-count">{transactions.activeSubscriptions || 0}</span> active
+            subscriptions
+          </>
+        }
+        changeType="neutral"
+        loading={loading}
+      />
+
+      {/* NetIncomeModal component */}
+      <NetIncomeModal
+        show={showNetIncomeModal}
+        handleClose={handleCloseNetIncomeModal}
+      />
+
+      <NetBalanceDetails
+        show={showNetBalanceDetailsModal}
+        handleClose={handleCloseNetBalanceDetails}
+      />
+
+      <SubscriptionsModal />
+
+      {/* <!-- Second Row - Goals, Notifications, and Bank Accounts --> */}
+      <div className="row mt-3 p-0 m-0">
+        {/* <!-- Left Side - Goals --> */}
+
+        <div className="col-md-12 col-lg-6">
+          {/* <!-- Goals Card --> */}
+          <GoalsDashboardCard onOpenModal={() => setShowFullGoalsModal(true)} />
+        </div>
+
+        {/* <!-- Right Side - Bank Accounts and Notifications --> */}
+        <div className="col-md-12 col-lg-6 mt-4 mt-lg-0">
+          <BankAccountsCard
+            connections={connections}
+            connectionLoading={connectionLoading}
+            connectionError={connectionError}
+          />
+        </div>
       </div>
-    </div>
-  )
-}
+    </>
+  );
+};
+
+export default GridBoxes;

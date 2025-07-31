@@ -11,15 +11,9 @@ if (SENTRY_DSN && typeof window !== 'undefined') {
     tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
     // Profile sample rate (1% of traces in production)
     profilesSampleRate: process.env.NODE_ENV === 'production' ? 0.01 : 1.0,
-    
+
     // Performance monitoring options
-    enableLongAnimationFrameInstrumentation: true,
-    enableInp: true, // Interaction to Next Paint
-    
-    // Track specific performance metrics
-    _experiments: {
-      metricsAggregator: true,
-    },
+    // These options have been moved to integrations in newer versions
 
     // Session Replay
     replaysSessionSampleRate: 0.1,

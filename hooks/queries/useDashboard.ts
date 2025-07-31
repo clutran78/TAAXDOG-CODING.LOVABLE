@@ -1,4 +1,4 @@
-import { useQuery, useQueries } from '@tanstack/react-query';
+import { useQuery, useQueries, useQueryClient } from '@tanstack/react-query';
 import { logger } from '@/lib/logger';
 
 interface DashboardData {
@@ -59,11 +59,11 @@ export const dashboardKeys = {
  */
 async function fetchDashboardData(period = 'month'): Promise<DashboardData> {
   const response = await fetch(`/api/optimized/user-dashboard?period=${period}`);
-  
+
   if (!response.ok) {
     throw new Error('Failed to fetch dashboard data');
   }
-  
+
   const data = await response.json();
   return data.data;
 }
@@ -143,9 +143,9 @@ export function useDashboardQueries(period = 'month') {
   });
 
   // Combine results
-  const isLoading = queries.some(q => q.isLoading);
-  const isError = queries.some(q => q.isError);
-  const error = queries.find(q => q.error)?.error;
+  const isLoading = queries.some((q) => q.isLoading);
+  const isError = queries.some((q) => q.isError);
+  const error = queries.find((q) => q.error)?.error;
 
   return {
     data: {
@@ -158,7 +158,7 @@ export function useDashboardQueries(period = 'month') {
     isLoading,
     isError,
     error,
-    refetch: () => queries.forEach(q => q.refetch()),
+    refetch: () => queries.forEach((q) => q.refetch()),
   };
 }
 
@@ -168,7 +168,7 @@ export function useDashboardQueries(period = 'month') {
  */
 export function usePrefetchDashboard() {
   const queryClient = useQueryClient();
-  
+
   return (period = 'month') => {
     queryClient.prefetchQuery({
       queryKey: dashboardKeys.combined(period),
@@ -183,10 +183,10 @@ export function usePrefetchDashboard() {
  */
 export function useRefreshDashboard() {
   const queryClient = useQueryClient();
-  
+
   return async () => {
     logger.info('Refreshing dashboard data');
-    await queryClient.invalidateQueries({ 
+    await queryClient.invalidateQueries({
       queryKey: dashboardKeys.all,
       refetchType: 'active',
     });
