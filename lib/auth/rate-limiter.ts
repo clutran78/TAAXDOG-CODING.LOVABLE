@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
+// @ts-ignore
 import { LRUCache } from 'lru-cache';
 import { apiResponse, ApiError, ApiErrorCode } from '@/lib/api/response';
 import { logger } from '@/lib/logger';
@@ -128,7 +129,8 @@ function getClientIdentifier(req: NextApiRequest): string {
   }
 
   // Add session ID if available
-  const sessionId = req.cookies?.['next-auth.session-token'] || req.cookies?.['__Secure-next-auth.session-token'];
+  const sessionId =
+    req.cookies?.['next-auth.session-token'] || req.cookies?.['__Secure-next-auth.session-token'];
   if (sessionId) {
     return `session:${sessionId.substring(0, 16)}:${ip}`;
   }
@@ -140,31 +142,30 @@ function getClientIdentifier(req: NextApiRequest): string {
 function slidingWindowRateLimiter(
   key: string,
   options: RateLimitOptions,
-  cache: LRUCache<string, number[]>
+  cache: LRUCache<string, number[]>,
 ): { allowed: boolean; remaining: number; resetTime: number } {
   const now = Date.now();
   const windowStart = now - options.interval;
-  
+
   // Get request timestamps
   let timestamps = cache.get(key) || [];
-  
+
   // Remove expired timestamps
-  timestamps = timestamps.filter(ts => ts > windowStart);
-  
+  timestamps = timestamps.filter((ts: number) => ts > windowStart);
+
   // Check if limit exceeded
   const count = timestamps.length;
   const allowed = count < options.maxRequests;
-  
+
   if (allowed) {
     timestamps.push(now);
     cache.set(key, timestamps);
   }
-  
+
   // Calculate reset time (when oldest request expires)
-  const resetTime = timestamps.length > 0 
-    ? timestamps[0] + options.interval 
-    : now + options.interval;
-  
+  const resetTime =
+    timestamps.length > 0 ? timestamps[0] + options.interval : now + options.interval;
+
   return {
     allowed,
     remaining: Math.max(0, options.maxRequests - timestamps.length),
@@ -176,44 +177,44 @@ function slidingWindowRateLimiter(
 function tokenBucketRateLimiter(
   key: string,
   options: RateLimitOptions,
-  cache: LRUCache<string, TokenBucketEntry>
+  cache: LRUCache<string, TokenBucketEntry>,
 ): { allowed: boolean; remaining: number; resetTime: number } {
   const now = Date.now();
   const bucketSize = options.burst || options.maxRequests;
   const refillRate = options.maxRequests / options.interval;
-  
-  let entry = cache.get(key) as TokenBucketEntry || {
+
+  let entry = (cache.get(key) as TokenBucketEntry) || {
     count: 0,
     tokens: bucketSize,
     lastRefill: now,
     resetTime: now + options.interval,
   };
-  
+
   // Refill tokens based on time elapsed
   const timeSinceLastRefill = now - entry.lastRefill;
   const tokensToAdd = Math.floor(timeSinceLastRefill * refillRate);
-  
+
   if (tokensToAdd > 0) {
     entry.tokens = Math.min(bucketSize, entry.tokens + tokensToAdd);
     entry.lastRefill = now;
   }
-  
+
   // Check if request can be allowed
   const weight = options.weight || 1;
   const allowed = entry.tokens >= weight;
-  
+
   if (allowed) {
     entry.tokens -= weight;
     entry.count++;
   }
-  
+
   // Calculate when bucket will be full again
   const tokensNeeded = bucketSize - entry.tokens;
-  const resetTime = now + (tokensNeeded / refillRate);
-  
+  const resetTime = now + tokensNeeded / refillRate;
+
   entry.resetTime = resetTime;
   cache.set(key, entry);
-  
+
   return {
     allowed,
     remaining: Math.floor(entry.tokens),
@@ -225,42 +226,42 @@ function tokenBucketRateLimiter(
 function leakyBucketRateLimiter(
   key: string,
   options: RateLimitOptions,
-  cache: LRUCache<string, LeakyBucketEntry>
+  cache: LRUCache<string, LeakyBucketEntry>,
 ): { allowed: boolean; remaining: number; resetTime: number } {
   const now = Date.now();
   const capacity = options.maxRequests;
   const leakRate = options.maxRequests / options.interval; // requests per ms
-  
-  let entry = cache.get(key) as LeakyBucketEntry || {
+
+  let entry = (cache.get(key) as LeakyBucketEntry) || {
     count: 0,
     water: 0,
     lastLeak: now,
     resetTime: now + options.interval,
   };
-  
+
   // Calculate water leaked since last check
   const timeSinceLastLeak = now - entry.lastLeak;
   const leaked = timeSinceLastLeak * leakRate;
-  
+
   // Update water level
   entry.water = Math.max(0, entry.water - leaked);
   entry.lastLeak = now;
-  
+
   // Check if request can be added
   const weight = options.weight || 1;
   const allowed = entry.water + weight <= capacity;
-  
+
   if (allowed) {
     entry.water += weight;
     entry.count++;
   }
-  
+
   // Calculate when bucket will be empty
-  const resetTime = entry.water > 0 ? now + (entry.water / leakRate) : now;
-  
+  const resetTime = entry.water > 0 ? now + entry.water / leakRate : now;
+
   entry.resetTime = resetTime;
   cache.set(key, entry);
-  
+
   return {
     allowed,
     remaining: Math.max(0, Math.floor(capacity - entry.water)),
@@ -270,9 +271,9 @@ function leakyBucketRateLimiter(
 
 // Enhanced rate limiter middleware factory
 export function createRateLimiter(
-  endpoint: string, 
+  endpoint: string,
   options: RateLimitOptions,
-  algorithm: RateLimitAlgorithm = RateLimitAlgorithm.FIXED_WINDOW
+  algorithm: RateLimitAlgorithm = RateLimitAlgorithm.FIXED_WINDOW,
 ) {
   const cache = getCache(endpoint);
   const slidingCache = getSlidingWindowCache(endpoint);
@@ -285,15 +286,15 @@ export function createRateLimiter(
     try {
       // Generate rate limit key
       const key = options.keyGenerator ? options.keyGenerator(req) : getClientIdentifier(req);
-      
+
       // Check if client is blocked
       const entry = cache.get(key);
       if (entry?.blockedUntil && Date.now() < entry.blockedUntil) {
         const retryAfter = Math.ceil((entry.blockedUntil - Date.now()) / 1000);
-        
+
         res.setHeader(RATE_LIMIT_HEADERS.RETRY_AFTER, retryAfter.toString());
-        
-        apiResponse.tooManyRequests(res, retryAfter);
+
+        apiResponse.tooManyRequests(res, retryAfter.toString());
         return false;
       }
 
@@ -304,20 +305,28 @@ export function createRateLimiter(
         case RateLimitAlgorithm.SLIDING_WINDOW:
           result = slidingWindowRateLimiter(key, options, slidingCache);
           break;
-          
+
         case RateLimitAlgorithm.TOKEN_BUCKET:
-          result = tokenBucketRateLimiter(key, options, cache as LRUCache<string, TokenBucketEntry>);
+          result = tokenBucketRateLimiter(
+            key,
+            options,
+            cache as LRUCache<string, TokenBucketEntry>,
+          );
           break;
-          
+
         case RateLimitAlgorithm.LEAKY_BUCKET:
-          result = leakyBucketRateLimiter(key, options, cache as LRUCache<string, LeakyBucketEntry>);
+          result = leakyBucketRateLimiter(
+            key,
+            options,
+            cache as LRUCache<string, LeakyBucketEntry>,
+          );
           break;
-          
+
         case RateLimitAlgorithm.FIXED_WINDOW:
         default:
           const now = Date.now();
-          const currentEntry = cache.get(key) || { 
-            count: 0, 
+          const currentEntry = cache.get(key) || {
+            count: 0,
             resetTime: now + options.interval,
             firstRequestTime: now,
             violations: 0,
@@ -342,7 +351,7 @@ export function createRateLimiter(
           } else {
             // Track violations
             currentEntry.violations = (currentEntry.violations || 0) + 1;
-            
+
             // Block if too many violations
             if (currentEntry.violations >= 3 && options.blockDuration) {
               currentEntry.blockedUntil = now + options.blockDuration;
@@ -352,7 +361,7 @@ export function createRateLimiter(
                 blockedUntil: new Date(currentEntry.blockedUntil),
               });
             }
-            
+
             cache.set(key, currentEntry);
           }
           break;
@@ -385,22 +394,21 @@ export function createRateLimiter(
         });
 
         // Enhanced error response with more details
-        const errorMessage = entry?.violations && entry.violations >= 3
-          ? 'Too many rate limit violations. Access temporarily blocked.'
-          : `Rate limit exceeded. Please retry after ${retryAfter} seconds.`;
+        const errorMessage =
+          entry?.violations && entry.violations >= 3
+            ? 'Too many rate limit violations. Access temporarily blocked.'
+            : `Rate limit exceeded. Please retry after ${retryAfter} seconds.`;
 
-        apiResponse.error(res, new ApiError(
-          ApiErrorCode.TOO_MANY_REQUESTS,
-          errorMessage,
-          429,
-          {
+        apiResponse.error(
+          res,
+          new ApiError(ApiErrorCode.TOO_MANY_REQUESTS, errorMessage, 429, {
             retryAfter,
             limit: options.maxRequests,
             remaining: result.remaining,
             reset: new Date(result.resetTime).toISOString(),
             violations: entry?.violations,
-          }
-        ));
+          }),
+        );
         return false;
       }
 
@@ -417,15 +425,15 @@ export function createRateLimiter(
         algorithm,
         key: options.keyGenerator ? 'custom' : 'default',
       });
-      
+
       // Track error in stats
       rateLimitStats.track(endpoint, true); // Allow on error (fail open)
-      
+
       // Fail open - allow request if rate limiter fails
       if (next) {
         await next();
       }
-      
+
       return true;
     }
   };
@@ -433,27 +441,27 @@ export function createRateLimiter(
 
 // Pre-configured rate limiters with different algorithms
 export const authRateLimiter = createRateLimiter(
-  RATE_LIMIT_ENDPOINTS.AUTH, 
+  RATE_LIMIT_ENDPOINTS.AUTH,
   rateLimitConfigs.auth,
-  RateLimitAlgorithm.SLIDING_WINDOW
+  RateLimitAlgorithm.SLIDING_WINDOW,
 );
 
 export const passwordResetRateLimiter = createRateLimiter(
   RATE_LIMIT_ENDPOINTS.PASSWORD_RESET,
   rateLimitConfigs.passwordReset,
-  RateLimitAlgorithm.FIXED_WINDOW
+  RateLimitAlgorithm.FIXED_WINDOW,
 );
 
 export const emailVerificationRateLimiter = createRateLimiter(
   RATE_LIMIT_ENDPOINTS.EMAIL_VERIFICATION,
   rateLimitConfigs.emailVerification,
-  RateLimitAlgorithm.FIXED_WINDOW
+  RateLimitAlgorithm.FIXED_WINDOW,
 );
 
 export const apiRateLimiter = createRateLimiter(
-  RATE_LIMIT_ENDPOINTS.API, 
+  RATE_LIMIT_ENDPOINTS.API,
   rateLimitConfigs.api,
-  RateLimitAlgorithm.TOKEN_BUCKET
+  RateLimitAlgorithm.TOKEN_BUCKET,
 );
 
 // Public API rate limiter - now properly exported
@@ -461,16 +469,16 @@ export const publicApiRateLimiter = createRateLimiter(
   RATE_LIMIT_ENDPOINTS.PUBLIC_API,
   {
     ...rateLimitConfigs.publicApi,
-    blockDuration: TIME_INTERVALS.HOUR, // Block for 1 hour after violations
+    blockDuration: TIME_INTERVALS.ONE_HOUR, // Block for 1 hour after violations
   },
-  RateLimitAlgorithm.SLIDING_WINDOW
+  RateLimitAlgorithm.SLIDING_WINDOW,
 );
 
 // General rate limiter for other endpoints
 export const generalRateLimiter = createRateLimiter(
   RATE_LIMIT_ENDPOINTS.GENERAL,
   rateLimitConfigs.api,
-  RateLimitAlgorithm.TOKEN_BUCKET
+  RateLimitAlgorithm.TOKEN_BUCKET,
 );
 
 // Rate limit decorator for API routes
@@ -553,24 +561,24 @@ export class AdvancedRateLimiter {
 
   constructor(
     private defaultOptions: RateLimitOptions,
-    private defaultAlgorithm: RateLimitAlgorithm = RateLimitAlgorithm.TOKEN_BUCKET
+    private defaultAlgorithm: RateLimitAlgorithm = RateLimitAlgorithm.TOKEN_BUCKET,
   ) {}
 
   // Create or get a rate limiter for a specific key
   getRateLimiter(key: string, options?: Partial<RateLimitOptions>, algorithm?: RateLimitAlgorithm) {
     const limiterKey = `${key}-${algorithm || this.defaultAlgorithm}`;
-    
+
     if (!this.limiters.has(limiterKey)) {
       this.limiters.set(
         limiterKey,
         createRateLimiter(
           key,
           { ...this.defaultOptions, ...options },
-          algorithm || this.defaultAlgorithm
-        )
+          algorithm || this.defaultAlgorithm,
+        ),
       );
     }
-    
+
     return this.limiters.get(limiterKey)!;
   }
 
@@ -582,34 +590,34 @@ export class AdvancedRateLimiter {
       key: string;
       options?: Partial<RateLimitOptions>;
       algorithm?: RateLimitAlgorithm;
-    }>
+    }>,
   ): Promise<boolean> {
     for (const strategy of strategies) {
       const limiter = this.getRateLimiter(strategy.key, strategy.options, strategy.algorithm);
       const allowed = await limiter(req, res);
-      
+
       if (!allowed) {
         return false;
       }
     }
-    
+
     return true;
   }
 
   // Clear all rate limit data for a specific identifier
   clearLimits(identifier: string) {
-    caches.forEach(cache => {
-      const keys = Array.from(cache.keys());
-      keys.forEach(key => {
+    caches.forEach((cache) => {
+      const keys = Array.from(cache.keys()) as string[];
+      keys.forEach((key) => {
         if (key.includes(identifier)) {
           cache.delete(key);
         }
       });
     });
-    
-    slidingWindowCaches.forEach(cache => {
-      const keys = Array.from(cache.keys());
-      keys.forEach(key => {
+
+    slidingWindowCaches.forEach((cache) => {
+      const keys = Array.from(cache.keys()) as string[];
+      keys.forEach((key) => {
         if (key.includes(identifier)) {
           cache.delete(key);
         }
@@ -622,16 +630,16 @@ export class AdvancedRateLimiter {
 export class DistributedRateLimiter {
   constructor(
     private store: DistributedRateLimitStore,
-    private defaultOptions: RateLimitOptions = rateLimitConfigs.api
+    private defaultOptions: RateLimitOptions = rateLimitConfigs.api,
   ) {}
 
   async checkLimit(
     key: string,
-    options: RateLimitOptions = this.defaultOptions
+    options: RateLimitOptions = this.defaultOptions,
   ): Promise<{ allowed: boolean; remaining: number; resetTime: number }> {
     const now = Date.now();
     const entry = await this.store.get(key);
-    
+
     if (!entry || now > entry.resetTime) {
       // Reset or new entry
       const newEntry: RateLimitEntry = {
@@ -639,16 +647,16 @@ export class DistributedRateLimiter {
         resetTime: now + options.interval,
         firstRequestTime: now,
       };
-      
+
       await this.store.set(key, newEntry, Math.ceil(options.interval / 1000));
-      
+
       return {
         allowed: true,
         remaining: options.maxRequests - 1,
         resetTime: newEntry.resetTime,
       };
     }
-    
+
     // Check if blocked
     if (entry.blockedUntil && now < entry.blockedUntil) {
       return {
@@ -657,30 +665,30 @@ export class DistributedRateLimiter {
         resetTime: entry.blockedUntil,
       };
     }
-    
+
     // Check if limit exceeded
     if (entry.count >= options.maxRequests) {
       // Track violations
       entry.violations = (entry.violations || 0) + 1;
-      
+
       // Block if too many violations
       if (entry.violations >= 3 && options.blockDuration) {
         entry.blockedUntil = now + options.blockDuration;
       }
-      
+
       await this.store.set(key, entry, Math.ceil(options.interval / 1000));
-      
+
       return {
         allowed: false,
         remaining: 0,
         resetTime: entry.resetTime,
       };
     }
-    
+
     // Increment count
     entry.count++;
     await this.store.set(key, entry, Math.ceil(options.interval / 1000));
-    
+
     return {
       allowed: true,
       remaining: options.maxRequests - entry.count,
@@ -739,7 +747,7 @@ export class RateLimitError extends Error {
     public code: string,
     message: string,
     public retryAfter?: number,
-    public metadata?: Record<string, unknown>
+    public metadata?: Record<string, unknown>,
   ) {
     super(message);
     this.name = 'RateLimitError';
@@ -748,12 +756,15 @@ export class RateLimitError extends Error {
 
 // Rate limit statistics tracker
 export class RateLimitStats {
-  private stats = new Map<string, {
-    allowed: number;
-    blocked: number;
-    violations: number;
-    lastReset: number;
-  }>();
+  private stats = new Map<
+    string,
+    {
+      allowed: number;
+      blocked: number;
+      violations: number;
+      lastReset: number;
+    }
+  >();
 
   track(endpoint: string, allowed: boolean, violation = false): void {
     const now = Date.now();
@@ -780,7 +791,7 @@ export class RateLimitStats {
     if (endpoint) {
       return this.stats.get(endpoint) || {};
     }
-    
+
     const allStats: Record<string, unknown> = {};
     this.stats.forEach((value, key) => {
       allStats[key] = value;
@@ -811,52 +822,56 @@ export const rateLimiter = {
   RateLimitError,
   algorithms: RateLimitAlgorithm,
   stats: rateLimitStats,
-  
+
   // Utility functions
   clearAllCaches: () => {
     caches.clear();
     slidingWindowCaches.clear();
   },
-  
+
   getCacheStats: () => {
     const stats: Record<string, { size: number; maxSize: number }> = {};
-    
+
     caches.forEach((cache, key) => {
       stats[key] = {
         size: cache.size,
         maxSize: cache.max,
       };
     });
-    
+
     slidingWindowCaches.forEach((cache, key) => {
       stats[`sliding_${key}`] = {
         size: cache.size,
         maxSize: cache.max,
       };
     });
-    
+
     return stats;
   },
-  
+
   // Test if rate limit would be allowed without consuming
-  test: async (endpoint: string, identifier: string, options?: RateLimitOptions): Promise<boolean> => {
+  test: async (
+    endpoint: string,
+    identifier: string,
+    options?: RateLimitOptions,
+  ): Promise<boolean> => {
     const cache = getCache(endpoint);
     const key = identifier;
     const entry = cache.get(key);
-    
+
     if (!entry) return true;
-    
+
     const now = Date.now();
     const opts = options || rateLimitConfigs.api;
-    
+
     if (entry.blockedUntil && now < entry.blockedUntil) {
       return false;
     }
-    
+
     if (now > entry.resetTime) {
       return true;
     }
-    
+
     return entry.count < opts.maxRequests;
   },
 };

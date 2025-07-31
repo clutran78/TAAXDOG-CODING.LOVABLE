@@ -72,7 +72,7 @@ export function GoalsDashboardCard({ goals, insights, loading }: GoalsDashboardC
           <p className="text-gray-500 mb-4">No goals yet</p>
           <Link
             href="/goals"
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
           >
             <PlusIcon className="h-4 w-4 mr-2" />
             Create your first goal
@@ -116,7 +116,7 @@ export function GoalsDashboardCard({ goals, insights, loading }: GoalsDashboardC
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
                       className={`h-2 rounded-full transition-all duration-300 ${
-                        goal.isOnTrack ? 'bg-primary-600' : 'bg-yellow-500'
+                        goal.isOnTrack ? 'bg-blue-600' : 'bg-yellow-500'
                       }`}
                       style={{ 
                         width: `${Math.min(goal.progressPercentage, 100)}%` 

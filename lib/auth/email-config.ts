@@ -15,7 +15,7 @@ export function shouldRequireEmailVerification(): boolean {
     process.env.EMAIL_PROVIDER === 'smtp' && process.env.SMTP_USER && process.env.SMTP_PASS;
 
   // Only require email verification if we have a working email provider
-  return hasValidSendGrid || hasValidSMTP;
+  return Boolean(hasValidSendGrid || hasValidSMTP);
 }
 
 export function getEmailProviderStatus(): {

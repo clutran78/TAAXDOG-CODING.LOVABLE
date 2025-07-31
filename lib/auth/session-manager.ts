@@ -1,11 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/pages/api/auth/[...nextauth]';
+import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import crypto from 'crypto';
 import { logger } from '@/lib/logger';
 import { getClientIP } from './auth-utils';
-import { AuthEvent, UserRole } from '@prisma/client';
+import { AuthEvent, Role } from '@prisma/client';
 import type { Session } from 'next-auth';
 import { addDays, addHours, addMinutes, differenceInMinutes } from 'date-fns';
 
@@ -103,22 +103,22 @@ export class SessionManager {
       type?: SessionType;
       rememberMe?: boolean;
       metadata?: Record<string, any>;
-    } = {}
+    } = {},
   ): Promise<SessionData> {
     const sessionId = crypto.randomUUID();
     const sessionToken = this.generateSessionToken();
     const ipAddress = getClientIP(req) || 'unknown';
     const userAgent = req.headers['user-agent'] || 'unknown';
-    
+
     // Check concurrent sessions
     await this.enforceSessionLimits(userId);
-    
+
     // Calculate expiry times
     const now = new Date();
     const expiresAt = options.rememberMe
       ? addDays(now, 30) // 30 days for "remember me"
       : addHours(now, 8); // 8 hours default
-    
+
     const sessionData: SessionData = {
       id: sessionId,
       userId,
@@ -133,13 +133,13 @@ export class SessionManager {
       expiresAt,
       metadata: options.metadata,
     };
-    
+
     // Generate refresh token if needed
     if (options.type === SessionType.API || options.rememberMe) {
       sessionData.refreshToken = this.generateRefreshToken();
       sessionData.refreshExpiresAt = addDays(now, 30);
     }
-    
+
     // Store session in database
     await prisma.session.create({
       data: {
@@ -157,26 +157,26 @@ export class SessionManager {
         }),
       },
     });
-    
+
     // Store in memory cache
     this.activeSessions.set(sessionId, sessionData);
-    
+
     // Set up session timer
     this.setupSessionTimer(sessionId);
-    
+
     // Log session creation
     await this.logSessionActivity(sessionId, SessionActivity.LOGIN, ipAddress, {
       type: sessionData.type,
       rememberMe: options.rememberMe,
     });
-    
+
     logger.info('Session created', {
       sessionId,
       userId,
       type: sessionData.type,
       ipAddress,
     });
-    
+
     return sessionData;
   }
 
@@ -184,18 +184,18 @@ export class SessionManager {
   public async getSession(sessionId: string): Promise<SessionData | null> {
     // Check memory cache first
     let session = this.activeSessions.get(sessionId);
-    
+
     if (!session) {
       // Load from database
       const dbSession = await prisma.session.findUnique({
         where: { id: sessionId },
         include: { user: true },
       });
-      
+
       if (!dbSession) {
         return null;
       }
-      
+
       // Parse session data
       const data = JSON.parse(dbSession.data || '{}');
       session = {
@@ -214,37 +214,34 @@ export class SessionManager {
         refreshExpiresAt: data.refreshExpiresAt ? new Date(data.refreshExpiresAt) : undefined,
         metadata: data.metadata,
       };
-      
+
       // Cache it
       this.activeSessions.set(sessionId, session);
     }
-    
+
     // Check if expired
     if (session.expiresAt < new Date()) {
       await this.terminateSession(sessionId, SessionActivity.TIMEOUT);
       return null;
     }
-    
+
     // Check idle timeout
     const idleTime = Date.now() - session.lastActivityAt.getTime();
     if (idleTime > SESSION_IDLE_TIMEOUT) {
       session.status = SessionStatus.IDLE;
     }
-    
+
     return session;
   }
 
   // Update session activity
-  public async updateSessionActivity(
-    sessionId: string,
-    req: NextApiRequest
-  ): Promise<void> {
+  public async updateSessionActivity(sessionId: string, req: NextApiRequest): Promise<void> {
     const session = await this.getSession(sessionId);
     if (!session) return;
-    
+
     const now = new Date();
     const ipAddress = getClientIP(req) || 'unknown';
-    
+
     // Check for IP change (potential session hijacking)
     if (session.ipAddress !== ipAddress) {
       logger.warn('Session IP address changed', {
@@ -252,7 +249,7 @@ export class SessionManager {
         originalIP: session.ipAddress,
         newIP: ipAddress,
       });
-      
+
       // Log suspicious activity
       await this.logSuspiciousActivity(session.userId, 'IP_CHANGE', {
         sessionId,
@@ -260,29 +257,31 @@ export class SessionManager {
         newIP: ipAddress,
       });
     }
-    
+
     // Update session
     session.lastActivityAt = now;
     session.status = SessionStatus.ACTIVE;
-    
+
     // Update in database
     await prisma.session.update({
       where: { id: sessionId },
       data: {
         data: JSON.stringify({
-          ...JSON.parse((await prisma.session.findUnique({ where: { id: sessionId } }))?.data || '{}'),
+          ...JSON.parse(
+            (await prisma.session.findUnique({ where: { id: sessionId } }))?.data || '{}',
+          ),
           lastActivityAt: now,
           status: SessionStatus.ACTIVE,
         }),
       },
     });
-    
+
     // Update cache
     this.activeSessions.set(sessionId, session);
-    
+
     // Reset timer
     this.setupSessionTimer(sessionId);
-    
+
     // Log activity
     await this.logSessionActivity(sessionId, SessionActivity.ACTIVITY, ipAddress);
   }
@@ -291,26 +290,26 @@ export class SessionManager {
   public async refreshSession(
     sessionId: string,
     refreshToken: string,
-    req: NextApiRequest
+    req: NextApiRequest,
   ): Promise<SessionData | null> {
     const session = await this.getSession(sessionId);
     if (!session || !session.refreshToken) {
       return null;
     }
-    
+
     // Validate refresh token
     if (session.refreshToken !== refreshToken) {
       logger.warn('Invalid refresh token attempt', { sessionId });
       await this.logSuspiciousActivity(session.userId, 'INVALID_REFRESH_TOKEN', { sessionId });
       return null;
     }
-    
+
     // Check refresh token expiry
     if (session.refreshExpiresAt && session.refreshExpiresAt < new Date()) {
       await this.terminateSession(sessionId, SessionActivity.TIMEOUT);
       return null;
     }
-    
+
     // Generate new tokens
     const now = new Date();
     session.sessionToken = this.generateSessionToken();
@@ -319,7 +318,7 @@ export class SessionManager {
     session.refreshExpiresAt = addDays(now, 30);
     session.lastActivityAt = now;
     session.status = SessionStatus.ACTIVE;
-    
+
     // Update database
     await prisma.session.update({
       where: { id: sessionId },
@@ -327,7 +326,9 @@ export class SessionManager {
         sessionToken: session.sessionToken,
         expires: session.expiresAt,
         data: JSON.stringify({
-          ...JSON.parse((await prisma.session.findUnique({ where: { id: sessionId } }))?.data || '{}'),
+          ...JSON.parse(
+            (await prisma.session.findUnique({ where: { id: sessionId } }))?.data || '{}',
+          ),
           refreshToken: session.refreshToken,
           refreshExpiresAt: session.refreshExpiresAt,
           lastActivityAt: now,
@@ -335,52 +336,54 @@ export class SessionManager {
         }),
       },
     });
-    
+
     // Update cache
     this.activeSessions.set(sessionId, session);
-    
+
     // Reset timer
     this.setupSessionTimer(sessionId);
-    
+
     // Log refresh
     const ipAddress = getClientIP(req) || 'unknown';
     await this.logSessionActivity(sessionId, SessionActivity.REFRESH, ipAddress);
-    
+
     logger.info('Session refreshed', { sessionId, userId: session.userId });
-    
+
     return session;
   }
 
   // Terminate session
   public async terminateSession(
     sessionId: string,
-    reason: SessionActivity = SessionActivity.LOGOUT
+    reason: SessionActivity = SessionActivity.LOGOUT,
   ): Promise<void> {
     const session = await this.getSession(sessionId);
     if (!session) return;
-    
+
     // Clear timer
     const timer = this.sessionTimers.get(sessionId);
     if (timer) {
       clearTimeout(timer);
       this.sessionTimers.delete(sessionId);
     }
-    
+
     // Remove from cache
     this.activeSessions.delete(sessionId);
-    
+
     // Delete from database
-    await prisma.session.delete({
-      where: { id: sessionId },
-    }).catch(() => {
-      // Session might already be deleted
-    });
-    
+    await prisma.session
+      .delete({
+        where: { id: sessionId },
+      })
+      .catch(() => {
+        // Session might already be deleted
+      });
+
     // Log termination
     await this.logSessionActivity(sessionId, reason, session.ipAddress, {
       duration: Date.now() - session.createdAt.getTime(),
     });
-    
+
     logger.info('Session terminated', {
       sessionId,
       userId: session.userId,
@@ -389,20 +392,17 @@ export class SessionManager {
   }
 
   // Terminate all user sessions
-  public async terminateAllUserSessions(
-    userId: string,
-    exceptSessionId?: string
-  ): Promise<void> {
+  public async terminateAllUserSessions(userId: string, exceptSessionId?: string): Promise<void> {
     const sessions = await prisma.session.findMany({
       where: { userId },
     });
-    
+
     for (const session of sessions) {
       if (session.id !== exceptSessionId) {
         await this.terminateSession(session.id, SessionActivity.SECURITY_LOCKOUT);
       }
     }
-    
+
     logger.info('All user sessions terminated', { userId, exceptSessionId });
   }
 
@@ -412,8 +412,8 @@ export class SessionManager {
       where: { userId },
       orderBy: { createdAt: 'desc' },
     });
-    
-    return sessions.map(session => {
+
+    return sessions.map((session) => {
       const data = JSON.parse(session.data || '{}');
       return {
         id: session.id,
@@ -447,7 +447,7 @@ export class SessionManager {
   // Validate session
   public async validateSession(
     sessionToken: string,
-    req: NextApiRequest
+    req: NextApiRequest,
   ): Promise<{ valid: boolean; session?: SessionData; error?: string }> {
     try {
       // Find session by token
@@ -455,22 +455,22 @@ export class SessionManager {
         where: { sessionToken },
         include: { user: true },
       });
-      
+
       if (!dbSession) {
         return { valid: false, error: 'Session not found' };
       }
-      
+
       const session = await this.getSession(dbSession.id);
       if (!session) {
         return { valid: false, error: 'Session expired' };
       }
-      
+
       // Check user status
       if (dbSession.user.lockedUntil && dbSession.user.lockedUntil > new Date()) {
         await this.terminateSession(session.id, SessionActivity.SECURITY_LOCKOUT);
         return { valid: false, error: 'Account locked' };
       }
-      
+
       // Validate IP if strict mode
       const currentIP = getClientIP(req) || 'unknown';
       if (session.metadata?.strictIPValidation && session.ipAddress !== currentIP) {
@@ -481,10 +481,10 @@ export class SessionManager {
         });
         return { valid: false, error: 'IP validation failed' };
       }
-      
+
       // Update activity
       await this.updateSessionActivity(session.id, req);
-      
+
       return { valid: true, session };
     } catch (error) {
       logger.error('Session validation error', { error });
@@ -505,7 +505,7 @@ export class SessionManager {
     // Simple user agent parsing (consider using a library for production)
     const browserMatch = userAgent.match(/(Chrome|Firefox|Safari|Edge|Opera)\/[\d.]+/);
     const osMatch = userAgent.match(/(Windows|Mac|Linux|Android|iOS)/);
-    
+
     return {
       browser: browserMatch?.[1] || 'Unknown',
       os: osMatch?.[1] || 'Unknown',
@@ -515,12 +515,12 @@ export class SessionManager {
 
   private async enforceSessionLimits(userId: string): Promise<void> {
     const sessions = await this.getUserSessions(userId);
-    
+
     if (sessions.length >= MAX_CONCURRENT_SESSIONS) {
       // Terminate oldest session
       const oldestSession = sessions[sessions.length - 1];
       await this.terminateSession(oldestSession.id, SessionActivity.SECURITY_LOCKOUT);
-      
+
       logger.info('Session limit enforced', {
         userId,
         terminatedSessionId: oldestSession.id,
@@ -534,7 +534,7 @@ export class SessionManager {
     if (existingTimer) {
       clearTimeout(existingTimer);
     }
-    
+
     // Set new timer for idle timeout
     const timer = setTimeout(async () => {
       const session = await this.getSession(sessionId);
@@ -545,7 +545,7 @@ export class SessionManager {
         }
       }
     }, SESSION_IDLE_TIMEOUT);
-    
+
     this.sessionTimers.set(sessionId, timer);
   }
 
@@ -558,7 +558,7 @@ export class SessionManager {
           },
         },
       });
-      
+
       if (expiredSessions.count > 0) {
         logger.info('Expired sessions cleaned up', { count: expiredSessions.count });
       }
@@ -571,12 +571,12 @@ export class SessionManager {
     sessionId: string,
     activity: SessionActivity,
     ipAddress: string,
-    details?: Record<string, any>
+    details?: Record<string, any>,
   ): Promise<void> {
     try {
       const session = this.activeSessions.get(sessionId);
       if (!session) return;
-      
+
       await prisma.auditLog.create({
         data: {
           event: this.mapActivityToAuthEvent(activity),
@@ -599,7 +599,7 @@ export class SessionManager {
   private async logSuspiciousActivity(
     userId: string,
     type: string,
-    details: Record<string, any>
+    details: Record<string, any>,
   ): Promise<void> {
     try {
       await prisma.auditLog.create({
@@ -615,7 +615,7 @@ export class SessionManager {
           },
         },
       });
-      
+
       // Check if we need to lock the account
       const recentSuspiciousCount = await prisma.auditLog.count({
         where: {
@@ -626,7 +626,7 @@ export class SessionManager {
           },
         },
       });
-      
+
       if (recentSuspiciousCount >= SUSPICIOUS_ACTIVITY_THRESHOLD) {
         await prisma.user.update({
           where: { id: userId },
@@ -634,9 +634,9 @@ export class SessionManager {
             lockedUntil: addHours(new Date(), 24),
           },
         });
-        
+
         await this.terminateAllUserSessions(userId);
-        
+
         logger.warn('User account locked due to suspicious activity', {
           userId,
           suspiciousCount: recentSuspiciousCount,
@@ -672,33 +672,34 @@ export const sessionManager = SessionManager.getInstance();
 export async function withSessionValidation(
   req: NextApiRequest,
   res: NextApiResponse,
-  handler: (session: SessionData) => Promise<void>
+  handler: (session: SessionData) => Promise<void>,
 ) {
   const session = await getServerSession(req, res, authOptions);
-  
+
   if (!session) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
-  
+
   // Get detailed session data
   const sessionData = await sessionManager.getSession(session.id);
-  
+
   if (!sessionData) {
     return res.status(401).json({ error: 'Session expired' });
   }
-  
+
   // Check if refresh needed
   if (sessionManager.needsRefresh(sessionData)) {
     res.setHeader('X-Session-Refresh-Needed', 'true');
   }
-  
+
   // Check if about to expire
   if (sessionManager.isAboutToExpire(sessionData)) {
     res.setHeader('X-Session-Expiry-Warning', 'true');
-    res.setHeader('X-Session-Expires-In', Math.floor(
-      (sessionData.expiresAt.getTime() - Date.now()) / 1000
-    ).toString());
+    res.setHeader(
+      'X-Session-Expires-In',
+      Math.floor((sessionData.expiresAt.getTime() - Date.now()) / 1000).toString(),
+    );
   }
-  
+
   await handler(sessionData);
 }

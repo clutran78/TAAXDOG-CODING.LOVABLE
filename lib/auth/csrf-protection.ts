@@ -31,24 +31,21 @@ const tokenStore = new Map<string, CSRFToken>();
 // Generate CSRF token with hash
 export function generateCSRFToken(): { token: string; hashedToken: string } {
   const token = crypto.randomBytes(TOKEN_LENGTH).toString('hex');
-  const hashedToken = crypto
-    .createHash(TOKEN_HASH_ALGORITHM)
-    .update(token)
-    .digest('hex');
-  
+  const hashedToken = crypto.createHash(TOKEN_HASH_ALGORITHM).update(token).digest('hex');
+
   return { token, hashedToken };
 }
 
 // Store CSRF token with enhanced security
 export function storeCSRFToken(
-  sessionId: string, 
-  token: string, 
+  sessionId: string,
+  token: string,
   hashedToken: string,
   userId?: string,
-  ipAddress?: string
+  ipAddress?: string,
 ): void {
   const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_MS);
-  
+
   tokenStore.set(sessionId, {
     token,
     hashedToken,
@@ -64,11 +61,7 @@ export function storeCSRFToken(
 }
 
 // Validate CSRF token with timing-safe comparison
-export function validateCSRFToken(
-  sessionId: string, 
-  token: string,
-  ipAddress?: string
-): boolean {
+export function validateCSRFToken(sessionId: string, token: string, ipAddress?: string): boolean {
   const stored = tokenStore.get(sessionId);
 
   if (!stored) {
@@ -92,16 +85,10 @@ export function validateCSRFToken(
   }
 
   // Hash the provided token and compare with stored hash
-  const hashedToken = crypto
-    .createHash(TOKEN_HASH_ALGORITHM)
-    .update(token)
-    .digest('hex');
+  const hashedToken = crypto.createHash(TOKEN_HASH_ALGORITHM).update(token).digest('hex');
 
   try {
-    return crypto.timingSafeEqual(
-      Buffer.from(stored.hashedToken), 
-      Buffer.from(hashedToken)
-    );
+    return crypto.timingSafeEqual(Buffer.from(stored.hashedToken), Buffer.from(hashedToken));
   } catch {
     return false;
   }
@@ -111,23 +98,28 @@ export function validateCSRFToken(
 function cleanupExpiredTokens(): void {
   const now = new Date();
   let cleaned = 0;
-  
-  for (const [sessionId, data] of tokenStore.entries()) {
+
+  // Convert iterator to array for TypeScript compatibility
+  const entries = Array.from(tokenStore.entries());
+  for (const [sessionId, data] of entries) {
     if (data.expiresAt < now) {
       tokenStore.delete(sessionId);
       cleaned++;
     }
   }
-  
+
   if (cleaned > 0) {
     logger.debug('Cleaned up expired CSRF tokens', { count: cleaned });
   }
 }
 
 // Periodic cleanup (every hour)
-setInterval(() => {
-  cleanupExpiredTokens();
-}, 60 * 60 * 1000);
+setInterval(
+  () => {
+    cleanupExpiredTokens();
+  },
+  60 * 60 * 1000,
+);
 
 // Get CSRF token from request
 function getTokenFromRequest(req: NextApiRequest): string | null {
@@ -158,13 +150,16 @@ function getTokenFromRequest(req: NextApiRequest): string | null {
 
 // Parse cookies helper
 function parseCookies(cookieString: string): Record<string, string> {
-  return cookieString.split(';').reduce((acc, cookie) => {
-    const [key, value] = cookie.trim().split('=');
-    if (key && value) {
-      acc[key] = decodeURIComponent(value);
-    }
-    return acc;
-  }, {} as Record<string, string>);
+  return cookieString.split(';').reduce(
+    (acc, cookie) => {
+      const [key, value] = cookie.trim().split('=');
+      if (key && value) {
+        acc[key] = decodeURIComponent(value);
+      }
+      return acc;
+    },
+    {} as Record<string, string>,
+  );
 }
 
 // Get session ID from request with multiple strategies
@@ -173,7 +168,8 @@ function getSessionId(req: NextApiRequest): string | null {
     const cookies = parseCookies(req.headers.cookie || '');
 
     // Try NextAuth session token
-    const sessionToken = cookies['next-auth.session-token'] || cookies['__Secure-next-auth.session-token'];
+    const sessionToken =
+      cookies['next-auth.session-token'] || cookies['__Secure-next-auth.session-token'];
     if (sessionToken) {
       return crypto.createHash('sha256').update(sessionToken).digest('hex');
     }
@@ -183,7 +179,9 @@ function getSessionId(req: NextApiRequest): string | null {
     if (authToken) {
       try {
         const decoded = verifyJWT(authToken);
-        return decoded.sessionId || decoded.userId || decoded.sub;
+        // Cast to any to access custom properties safely
+        const payload = decoded as any;
+        return payload.sessionId || payload.userId || payload.sub;
       } catch {
         // Invalid JWT, continue to next strategy
       }
@@ -192,11 +190,8 @@ function getSessionId(req: NextApiRequest): string | null {
     // Generate session ID from IP + User-Agent (for anonymous users)
     const ip = getClientIP(req) || 'unknown';
     const userAgent = req.headers['user-agent'] || 'unknown';
-    
-    return crypto
-      .createHash('sha256')
-      .update(`${ip}:${userAgent}`)
-      .digest('hex');
+
+    return crypto.createHash('sha256').update(`${ip}:${userAgent}`).digest('hex');
   } catch (error) {
     logger.error('Error getting session ID', { error });
     return null;
@@ -205,13 +200,13 @@ function getSessionId(req: NextApiRequest): string | null {
 
 // Enhanced CSRF protection middleware
 export function withCSRFProtection(
-  handler: (req: NextApiRequest, res: NextApiResponse) => Promise<void>
+  handler: (req: NextApiRequest, res: NextApiResponse) => Promise<void>,
 ) {
   return async (req: NextApiRequest, res: NextApiResponse) => {
     const requestId = (req as any).requestId || crypto.randomUUID();
     const method = req.method?.toUpperCase() || 'GET';
     const clientIp = getClientIP(req);
-    
+
     // Add security headers
     addSecurityHeaders(res);
 
@@ -231,23 +226,23 @@ export function withCSRFProtection(
     if (SAFE_METHODS.includes(method)) {
       // Generate and set token for subsequent requests
       let csrfToken = tokenStore.get(sessionId);
-      
+
       if (!csrfToken || csrfToken.expiresAt < new Date()) {
         const { token, hashedToken } = generateCSRFToken();
         storeCSRFToken(sessionId, token, hashedToken, undefined, clientIp);
         csrfToken = tokenStore.get(sessionId)!;
       }
-      
+
       // Set token in response header and cookie
       res.setHeader(TOKEN_HEADER, csrfToken.token);
       setCSRFCookie(res, csrfToken.token);
-      
+
       return handler(req, res);
     }
 
     // For state-changing requests, validate CSRF token
     const token = getTokenFromRequest(req);
-    
+
     if (!token) {
       logger.warn('CSRF token missing', {
         method,
@@ -256,7 +251,7 @@ export function withCSRFProtection(
         userAgent: req.headers['user-agent'],
         requestId,
       });
-      
+
       return apiResponse.forbidden(res, 'CSRF token missing');
     }
 
@@ -269,7 +264,7 @@ export function withCSRFProtection(
         requestId,
         sessionId,
       });
-      
+
       return apiResponse.forbidden(res, 'Invalid CSRF token');
     }
 
@@ -284,7 +279,7 @@ export function withCSRFProtection(
     // Regenerate token after successful validation (rotating tokens)
     const { token: newToken, hashedToken: newHashedToken } = generateCSRFToken();
     storeCSRFToken(sessionId, newToken, newHashedToken, undefined, clientIp);
-    
+
     // Set new token in response
     res.setHeader(TOKEN_HEADER, newToken);
     setCSRFCookie(res, newToken);
@@ -296,7 +291,7 @@ export function withCSRFProtection(
 // Set CSRF token cookie
 export function setCSRFCookie(res: NextApiResponse, token: string): void {
   const isProduction = process.env.NODE_ENV === 'production';
-  
+
   const cookieOptions = [
     `${TOKEN_COOKIE_NAME}=${token}`,
     'Path=/',
@@ -304,8 +299,10 @@ export function setCSRFCookie(res: NextApiResponse, token: string): void {
     `SameSite=${SAME_SITE_STRICT}`,
     `Max-Age=${TOKEN_EXPIRY_MS / 1000}`,
     isProduction ? 'Secure' : '',
-  ].filter(Boolean).join('; ');
-  
+  ]
+    .filter(Boolean)
+    .join('; ');
+
   res.setHeader('Set-Cookie', cookieOptions);
 }
 
@@ -313,7 +310,7 @@ export function setCSRFCookie(res: NextApiResponse, token: string): void {
 export async function getCSRFToken(req: NextApiRequest): Promise<string | null> {
   const sessionId = getSessionId(req);
   if (!sessionId) return null;
-  
+
   const storedToken = tokenStore.get(sessionId);
 
   if (!storedToken || storedToken.expiresAt < new Date()) {
@@ -370,7 +367,7 @@ export function useCSRFToken(): {
 
   return {
     token,
-    getHeaders: () => {
+    getHeaders: (): Record<string, string> => {
       if (!token) return {};
       return { [TOKEN_HEADER]: token };
     },
@@ -388,7 +385,7 @@ export function injectCSRFToken(html: string, token: string): string {
   // Inject into meta tag
   const metaTag = `<meta name="csrf-token" content="${token}">`;
   html = html.replace('</head>', `${metaTag}</head>`);
-  
+
   // Inject into forms
   const formRegex = /<form([^>]*)>/gi;
   html = html.replace(formRegex, (match, attributes) => {
@@ -396,11 +393,11 @@ export function injectCSRFToken(html: string, token: string): string {
     if (attributes.includes('_csrf')) {
       return match;
     }
-    
+
     const hiddenInput = `<input type="hidden" name="${TOKEN_FORM_FIELD}" value="${token}">`;
     return `<form${attributes}>${hiddenInput}`;
   });
-  
+
   return html;
 }
 
@@ -409,43 +406,41 @@ export function verifyOrigin(req: NextApiRequest): boolean {
   const origin = req.headers.origin;
   const referer = req.headers.referer;
   const host = req.headers.host;
-  
+
   if (!origin && !referer) {
     // No origin or referer, could be a direct API call
     return false;
   }
-  
+
   const allowedOrigins = [
     process.env.NEXTAUTH_URL,
     `https://${host}`,
     `http://${host}`, // For development
   ].filter(Boolean);
-  
+
   const requestOrigin = origin || referer;
-  
-  return allowedOrigins.some(allowed => 
-    requestOrigin?.startsWith(allowed as string)
-  );
+
+  return allowedOrigins.some((allowed) => requestOrigin?.startsWith(allowed as string));
 }
 
 // Double submit cookie pattern implementation
 export function withDoubleSubmitCookie(
-  handler: (req: NextApiRequest, res: NextApiResponse) => Promise<void>
+  handler: (req: NextApiRequest, res: NextApiResponse) => Promise<void>,
 ) {
   return async (req: NextApiRequest, res: NextApiResponse) => {
     const method = req.method?.toUpperCase() || 'GET';
-    
+
     if (SAFE_METHODS.includes(method)) {
       return handler(req, res);
     }
-    
+
     // Get token from cookie
     const cookies = parseCookies(req.headers.cookie || '');
     const cookieToken = cookies[TOKEN_COOKIE_NAME];
-    
+
     // Get token from request
     const requestToken = getTokenFromRequest(req);
-    
+
     if (!cookieToken || !requestToken || cookieToken !== requestToken) {
       logger.warn('Double submit cookie validation failed', {
         hasCookieToken: !!cookieToken,
@@ -454,46 +449,42 @@ export function withDoubleSubmitCookie(
         url: req.url,
         method,
       });
-      
+
       return apiResponse.forbidden(res, 'CSRF validation failed');
     }
-    
+
     return handler(req, res);
   };
 }
 
 // Express-style middleware wrapper
-export function csrfProtection(
-  req: NextApiRequest,
-  res: NextApiResponse,
-  next: () => void
-) {
+export function csrfProtection(req: NextApiRequest, res: NextApiResponse, next: () => void) {
   const method = req.method?.toUpperCase() || 'GET';
   const sessionId = getSessionId(req);
-  
+
   if (!sessionId) {
     return apiResponse.unauthorized(res, 'No valid session');
   }
-  
+
   // Skip CSRF check for safe methods
   if (SAFE_METHODS.includes(method)) {
     let csrfToken = tokenStore.get(sessionId);
-    
+
     if (!csrfToken || csrfToken.expiresAt < new Date()) {
       const { token, hashedToken } = generateCSRFToken();
       storeCSRFToken(sessionId, token, hashedToken);
       csrfToken = tokenStore.get(sessionId)!;
     }
-    
+
     res.setHeader(TOKEN_HEADER, csrfToken.token);
     setCSRFCookie(res, csrfToken.token);
-    
+
     return next();
   }
 
   // Validate token for state-changing requests
   const token = getTokenFromRequest(req);
-  
+
   if (!token || !validateCSRFToken(sessionId, token)) {
     return apiResponse.forbidden(res, 'CSRF validation failed');
   }
@@ -501,10 +492,10 @@ export function csrfProtection(
   // Regenerate token
   const { token: newToken, hashedToken: newHashedToken } = generateCSRFToken();
   storeCSRFToken(sessionId, newToken, newHashedToken);
-  
+
   res.setHeader(TOKEN_HEADER, newToken);
   setCSRFCookie(res, newToken);
-  
+
   next();
 }
 
@@ -531,7 +522,7 @@ export function createCSRFMiddleware(options: CSRFOptions = {}) {
     return async (req: NextApiRequest, res: NextApiResponse) => {
       // Check if path is excluded
       const path = req.url?.split('?')[0];
-      if (path && excludePaths.some(excluded => path.startsWith(excluded))) {
+      if (path && excludePaths.some((excluded) => path.startsWith(excluded))) {
         return handler(req, res);
       }
 

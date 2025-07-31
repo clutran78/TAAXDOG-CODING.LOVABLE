@@ -32,14 +32,10 @@ export function withAuth(
       const session = await getServerSession(req, res, authOptions);
 
       if (!session || !session.user) {
-        await logAuthEvent({
-          event: 'SUSPICIOUS_ACTIVITY',
+        await logAuthEvent('unknown', 'SUSPICIOUS_ACTIVITY' as any, {
+          reason: 'Unauthorized access attempt',
+          path: req.url,
           success: false,
-          metadata: {
-            reason: 'Unauthorized access attempt',
-            path: req.url,
-          },
-          req,
         });
         return res.status(401).json({ message: 'Authentication required' });
       }
@@ -62,15 +58,10 @@ export function withAuth(
 
       // Check if account is locked
       if (user.lockedUntil && user.lockedUntil > new Date()) {
-        await logAuthEvent({
-          event: 'ACCOUNT_LOCKED',
-          userId: user.id,
+        await logAuthEvent(user.id, 'ACCOUNT_LOCKED' as any, {
+          reason: 'Account locked',
+          lockedUntil: user.lockedUntil,
           success: false,
-          metadata: {
-            reason: 'Account locked',
-            lockedUntil: user.lockedUntil,
-          },
-          req,
         });
         return res.status(403).json({
           message: 'Account is locked. Please try again later.',
@@ -88,16 +79,11 @@ export function withAuth(
 
       // Check role permissions
       if (options?.allowedRoles && !options.allowedRoles.includes(user.role)) {
-        await logAuthEvent({
-          event: 'SUSPICIOUS_ACTIVITY',
-          userId: user.id,
+        await logAuthEvent(user.id, 'SUSPICIOUS_ACTIVITY' as any, {
+          reason: 'Insufficient permissions',
+          requiredRoles: options.allowedRoles,
+          userRole: user.role,
           success: false,
-          metadata: {
-            reason: 'Insufficient permissions',
-            requiredRoles: options.allowedRoles,
-            userRole: user.role,
-          },
-          req,
         });
         return res.status(403).json({
           message: 'Insufficient permissions',
@@ -155,15 +141,10 @@ export function withRateLimit(
       // Log rate limit violation
       const session = await getServerSession(req, res, authOptions);
       if (session?.user?.id) {
-        await logAuthEvent({
-          event: 'SUSPICIOUS_ACTIVITY',
-          userId: session.user.id,
+        await logAuthEvent(session.user.id, 'SUSPICIOUS_ACTIVITY' as any, {
+          reason: 'Rate limit exceeded',
+          endpoint: req.url,
           success: false,
-          metadata: {
-            reason: 'Rate limit exceeded',
-            endpoint: req.url,
-          },
-          req,
         });
       }
 
@@ -178,7 +159,9 @@ export function withRateLimit(
     // Clean up old entries periodically
     if (Math.random() < 0.01) {
       const cutoff = now - windowMs * 2;
-      for (const [k, v] of rateLimitStore.entries()) {
+      // Convert iterator to array for TypeScript compatibility
+      const entries = Array.from(rateLimitStore.entries());
+      for (const [k, v] of entries) {
         if (v.resetTime < cutoff) {
           rateLimitStore.delete(k);
         }
@@ -224,14 +207,10 @@ export function withAPIKey(handler: NextApiHandler, serviceName: string) {
     const isValidKey = await validateAPIKey(apiKey, serviceName);
 
     if (!isValidKey) {
-      await logAuthEvent({
-        event: 'SUSPICIOUS_ACTIVITY',
+      await logAuthEvent('unknown', 'SUSPICIOUS_ACTIVITY' as any, {
+        reason: 'Invalid API key',
+        service: serviceName,
         success: false,
-        metadata: {
-          reason: 'Invalid API key',
-          service: serviceName,
-        },
-        req,
       });
       return res.status(401).json({ message: 'Invalid API key' });
     }
@@ -273,15 +252,10 @@ export function withCSRF(handler: NextApiHandler) {
       const isValid = csrfToken === Buffer.from(expectedToken).toString('base64');
 
       if (!isValid) {
-        await logAuthEvent({
-          event: 'SUSPICIOUS_ACTIVITY',
-          userId: session.user.id,
+        await logAuthEvent(session.user.id, 'SUSPICIOUS_ACTIVITY' as any, {
+          reason: 'Invalid CSRF token',
+          endpoint: req.url,
           success: false,
-          metadata: {
-            reason: 'Invalid CSRF token',
-            endpoint: req.url,
-          },
-          req,
         });
         return res.status(403).json({ message: 'Invalid CSRF token' });
       }
@@ -293,10 +267,11 @@ export function withCSRF(handler: NextApiHandler) {
 
 // Subscription check middleware
 export function requireSubscription(planTypes?: ('SMART' | 'PRO')[]) {
-  return function (handler: NextApiHandler) {
-    return withAuth(async (req: AuthenticatedRequest, res: NextApiResponse) => {
+  return function (handler: (req: AuthenticatedRequest, res: NextApiResponse) => Promise<any>) {
+    return withAuth(async (req: NextApiRequest, res: NextApiResponse) => {
+      const authReq = req as AuthenticatedRequest;
       const subscription = await prisma.subscription.findUnique({
-        where: { userId: req.user.id },
+        where: { userId: authReq.user.id },
         select: {
           status: true,
           plan: true,
@@ -328,7 +303,7 @@ export function requireSubscription(planTypes?: ('SMART' | 'PRO')[]) {
         });
       }
 
-      return handler(req, res);
+      return handler(authReq, res);
     });
   };
 }

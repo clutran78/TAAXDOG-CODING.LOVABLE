@@ -1,10 +1,10 @@
-import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
+import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 interface ErrorDisplayProps {
-  title: string
-  message: string
-  onRetry?: () => void
-  className?: string
+  title: string;
+  message: string;
+  onRetry?: () => void;
+  className?: string;
 }
 
 export function ErrorDisplay({ title, message, onRetry, className = '' }: ErrorDisplayProps) {
@@ -16,11 +16,11 @@ export function ErrorDisplay({ title, message, onRetry, className = '' }: ErrorD
       {onRetry && (
         <button
           onClick={onRetry}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700"
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
         >
           Try Again
         </button>
       )}
     </div>
-  )
+  );
 }

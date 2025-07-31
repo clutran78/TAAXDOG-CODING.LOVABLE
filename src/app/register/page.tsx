@@ -1,10 +1,10 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
-import toast from 'react-hot-toast'
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import toast from 'react-hot-toast';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -12,44 +12,44 @@ export default function RegisterPage() {
     email: '',
     password: '',
     confirmPassword: '',
-  })
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const router = useRouter()
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
-    })
-  }
+    });
+  };
 
   const validateForm = () => {
     if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) {
-      toast.error('Please fill in all fields')
-      return false
+      toast.error('Please fill in all fields');
+      return false;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match')
-      return false
+      toast.error('Passwords do not match');
+      return false;
     }
 
     if (formData.password.length < 8) {
-      toast.error('Password must be at least 8 characters long')
-      return false
+      toast.error('Password must be at least 8 characters long');
+      return false;
     }
 
-    return true
-  }
+    return true;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!validateForm()) return
+    e.preventDefault();
 
-    setLoading(true)
+    if (!validateForm()) return;
+
+    setLoading(true);
 
     try {
       const response = await fetch('/api/auth/register', {
@@ -62,34 +62,34 @@ export default function RegisterPage() {
           email: formData.email,
           password: formData.password,
         }),
-      })
+      });
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (response.ok) {
-        toast.success('Account created successfully!')
-        router.push('/login')
+        toast.success('Account created successfully!');
+        router.push('/login');
       } else {
-        toast.error(data.error || 'Failed to create account')
+        toast.error(data.error || 'Failed to create account');
       }
     } catch (error) {
-      toast.error('An error occurred during registration')
+      toast.error('An error occurred during registration');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const getPasswordStrength = (password: string) => {
-    if (password.length === 0) return { strength: 0, text: '' }
-    if (password.length < 6) return { strength: 1, text: 'Weak' }
-    if (password.length < 8) return { strength: 2, text: 'Fair' }
+    if (password.length === 0) return { strength: 0, text: '' };
+    if (password.length < 6) return { strength: 1, text: 'Weak' };
+    if (password.length < 8) return { strength: 2, text: 'Fair' };
     if (password.length >= 8 && /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
-      return { strength: 4, text: 'Strong' }
+      return { strength: 4, text: 'Strong' };
     }
-    return { strength: 3, text: 'Good' }
-  }
+    return { strength: 3, text: 'Good' };
+  };
 
-  const passwordStrength = getPasswordStrength(formData.password)
+  const passwordStrength = getPasswordStrength(formData.password);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -102,10 +102,16 @@ export default function RegisterPage() {
             Join thousands of Australians managing their taxes efficiently
           </p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        <form
+          className="mt-8 space-y-6"
+          onSubmit={handleSubmit}
+        >
           <div className="space-y-4">
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="name"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Full Name
               </label>
               <input
@@ -121,7 +127,10 @@ export default function RegisterPage() {
               />
             </div>
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Email Address
               </label>
               <input
@@ -137,7 +146,10 @@ export default function RegisterPage() {
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Password
               </label>
               <div className="mt-1 relative">
@@ -173,12 +185,12 @@ export default function RegisterPage() {
                           passwordStrength.strength === 1
                             ? 'bg-red-500 w-1/4'
                             : passwordStrength.strength === 2
-                            ? 'bg-yellow-500 w-2/4'
-                            : passwordStrength.strength === 3
-                            ? 'bg-blue-500 w-3/4'
-                            : passwordStrength.strength === 4
-                            ? 'bg-green-500 w-full'
-                            : 'w-0'
+                              ? 'bg-yellow-500 w-2/4'
+                              : passwordStrength.strength === 3
+                                ? 'bg-blue-500 w-3/4'
+                                : passwordStrength.strength === 4
+                                  ? 'bg-green-500 w-full'
+                                  : 'w-0'
                         }`}
                       />
                     </div>
@@ -188,7 +200,10 @@ export default function RegisterPage() {
               )}
             </div>
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="confirmPassword"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Confirm Password
               </label>
               <div className="mt-1 relative">
@@ -225,7 +240,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Creating Account...' : 'Create Account'}
             </button>
@@ -249,5 +264,5 @@ export default function RegisterPage() {
         </form>
       </div>
     </div>
-  )
+  );
 }
