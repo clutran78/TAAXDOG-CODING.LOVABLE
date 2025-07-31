@@ -375,8 +375,14 @@ export class SessionManager {
       .delete({
         where: { id: sessionId },
       })
-      .catch(() => {
-        // Session might already be deleted
+      .catch((error) => {
+        // Log the error for troubleshooting
+        logger.error('Failed to delete session from database', {
+          sessionId,
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+        // Session might already be deleted or other database issues
       });
 
     // Log termination

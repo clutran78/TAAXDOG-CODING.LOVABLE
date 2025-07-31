@@ -1,13 +1,18 @@
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 interface ErrorDisplayProps {
-  title: string;
+  title?: string;
   message: string;
   onRetry?: () => void;
   className?: string;
 }
 
-export function ErrorDisplay({ title, message, onRetry, className = '' }: ErrorDisplayProps) {
+export function ErrorDisplay({
+  title = 'Error',
+  message,
+  onRetry,
+  className = '',
+}: ErrorDisplayProps) {
   return (
     <div className={`text-center py-8 ${className}`}>
       <ExclamationTriangleIcon className="h-12 w-12 text-red-400 mx-auto mb-4" />
