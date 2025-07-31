@@ -97,7 +97,7 @@ export function generateJWT(payload: JWTPayload): string {
     expiresIn: JWT_EXPIRES_IN,
     issuer: JWT_CONFIG.ISSUER,
     audience: JWT_CONFIG.AUDIENCE,
-  });
+  } as jwt.SignOptions);
 }
 
 /**
@@ -493,7 +493,7 @@ export async function logAuthEvent(
         ...metadata,
       },
       success: !eventType.includes('FAILED') && !eventType.includes('LOCKED'),
-      errorMessage: metadata.reason || metadata.errorCode || null,
+      errorMessage: metadata.reason || metadata.errorCode || undefined,
     };
 
     // Prepare context

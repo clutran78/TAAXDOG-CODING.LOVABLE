@@ -152,11 +152,19 @@ export class AIService {
         );
 
         // If not retryable, throw immediately
-        if ('retryable' in error && !error.retryable) {
+        if (
+          error &&
+          typeof error === 'object' &&
+          'retryable' in error &&
+          !(error as any).retryable
+        ) {
           throw error;
         }
 
-        logger.warn(`Provider ${providerName} failed:`, error.message);
+        logger.warn(
+          `Provider ${providerName} failed:`,
+          error instanceof Error ? error.message : String(error),
+        );
       }
     }
 

@@ -3,7 +3,7 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     await import('./lib/polyfills/server-polyfills.js');
     // Server-side Sentry configuration
-    const ProfilingIntegration = (await import('@sentry/profiling-node')).ProfilingIntegration;
+    const { nodeProfilingIntegration } = await import('@sentry/profiling-node');
     const Sentry = await import('@sentry/nextjs');
 
     const SENTRY_DSN = process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN;
@@ -18,32 +18,13 @@ export async function register() {
         // Profile sample rate (1% of traces in production)
         profilesSampleRate: process.env.NODE_ENV === 'production' ? 0.01 : 1.0,
 
-        // Track slow DB queries
-        slowQueryThreshold: 1000, // 1 second
-
-        // Capture performance metrics
-        _experiments: {
-          metricsAggregator: true,
-        },
-
         // Release tracking
         release: process.env.SENTRY_RELEASE || process.env.NEXT_PUBLIC_SENTRY_RELEASE,
 
-        // Server-specific options
-        autoSessionTracking: true,
-
         // Integrations
         integrations: [
-          // Capture unhandled promise rejections
-          new Sentry.Integrations.OnUnhandledRejection({
-            mode: 'warn',
-          }),
-          // Database query performance
-          new Sentry.Integrations.Prisma({ client: true }),
-          // HTTP request performance
-          new Sentry.Integrations.Http({ tracing: true }),
           // Profiling integration
-          new Sentry.ProfilingIntegration(),
+          nodeProfilingIntegration(),
         ],
 
         // Filtering
@@ -152,12 +133,6 @@ export async function register() {
 
         // Release tracking
         release: process.env.SENTRY_RELEASE || process.env.NEXT_PUBLIC_SENTRY_RELEASE,
-
-        // Edge-specific configuration
-        transportOptions: {
-          // Reduce payload size for edge runtime
-          maxValueLength: 250,
-        },
 
         // Filtering
         beforeSend(event) {

@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { onIdTokenChanged } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { useSession } from 'next-auth/react';
 import { logout } from './signOut';
 import { Geist, Geist_Mono } from 'next/font/google';
 
@@ -21,15 +20,14 @@ interface GlobalWrapperProps {
 }
 
 const GlobalWrapper: React.FC<GlobalWrapperProps> = ({ children }) => {
-  useEffect(() => {
-    const unsubscribe = onIdTokenChanged(auth, async (user) => {
-      if (!user) {
-        await logout();
-      }
-    });
+  const { data: session, status } = useSession();
 
-    return () => unsubscribe();
-  }, []);
+  useEffect(() => {
+    // If the session is loaded and there's no user, logout
+    if (status === 'authenticated' && !session?.user) {
+      logout();
+    }
+  }, [status, session]);
 
   return (
     <div className={`${geistSans.variable} ${geistMono.variable} antialiased`}>{children}</div>

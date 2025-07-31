@@ -3,7 +3,7 @@
  * This replaces the Firebase service after migration to PostgreSQL
  */
 
-import { getData, postData, putData, deleteData } from '@/lib/services/api/apiController';
+import { getData, postData, putData, deleteData } from '@/services/api/apiController';
 
 // Bank Transactions
 export async function fetchBankTransactions() {
@@ -112,6 +112,19 @@ export async function deleteGoal(goalId: string) {
     return true;
   } catch (error) {
     console.error('Error deleting goal:', error);
+    throw error;
+  }
+}
+
+// Update Goal Progress
+export async function updateGoalProgress(goalId: string, newAmount: number) {
+  try {
+    const response = await putData(`/api/goals/${goalId}/progress`, {
+      currentAmount: newAmount,
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error updating goal progress:', error);
     throw error;
   }
 }

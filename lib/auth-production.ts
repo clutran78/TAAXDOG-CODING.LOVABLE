@@ -5,6 +5,7 @@ import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import prisma from './prisma';
 import bcrypt from 'bcryptjs';
 import { logger } from '@/lib/logger';
+import { Role } from '@prisma/client';
 
 // Production-ready auth configuration with better error handling
 export const authOptions: NextAuthOptions = {
@@ -72,7 +73,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.sub!;
-        session.user.role = token.role as string;
+        session.user.role = token.role as Role;
       }
       return session;
     },
@@ -98,6 +99,14 @@ export const authOptions: NextAuthOptions = {
   debug: process.env.NODE_ENV === 'development',
   // Production-specific settings
   cookies: {
-    secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+    sessionToken: {
+      name: 'next-auth.session-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      },
+    },
   },
 };

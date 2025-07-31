@@ -5,7 +5,7 @@ import {
   loadIncomeDetails,
   setupFinancialFeatureHandlers,
   updateBankConnectionsDisplay,
-} from '@/services/helperFunction';
+} from '@/services/helperFunction.js';
 import AlertMessage from '@/shared/alerts';
 import NetIncomeModal from '@/shared/modals/NetIncomeModal';
 import NetBalanceDetails from '@/shared/modals/NetBalanceDetailsModal';

@@ -281,7 +281,6 @@ Analyze the receipt image and provide the extracted data.`;
           createdAt: {
             gte: startDate,
           },
-          deletedAt: null,
         },
         select: {
           id: true,

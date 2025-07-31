@@ -442,7 +442,7 @@ async function storeInsights(userId: string, insights: FinancialInsightData[]): 
         title: insight.title,
         description: insight.description,
         content: insight.content,
-        recommendations: insight.recommendations,
+        recommendations: insight.recommendations as any,
         priority: insight.priority,
         confidenceScore: insight.confidence,
         provider: 'multi-ai',

@@ -1,7 +1,7 @@
 'use client';
 import { Goal } from '@/lib/types/goal';
 import { updateGoalProgress } from '@/services/firebase-service';
-import { showToast } from '@/services/helperFunction';
+import { showToast } from '@/services/helperFunction.js';
 import React, { useEffect, useState } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
 

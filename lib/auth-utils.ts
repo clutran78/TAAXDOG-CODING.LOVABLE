@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
-const JWT_SECRET = process.env.NEXTAUTH_SECRET || 'your-secret-key';
+const JWT_SECRET: string = process.env.NEXTAUTH_SECRET || 'your-secret-key';
 const SALT_ROUNDS = 10;
 
 export async function hashPassword(password: string): Promise<string> {
@@ -14,7 +14,7 @@ export async function verifyPassword(password: string, hashedPassword: string): 
 }
 
 export function generateToken(payload: any, expiresIn: string = '24h'): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn } as jwt.SignOptions);
 }
 
 export function verifyToken(token: string): any {

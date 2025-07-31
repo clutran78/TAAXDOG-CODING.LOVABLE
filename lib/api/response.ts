@@ -68,27 +68,27 @@ export enum ApiErrorCode {
   GONE = 'GONE',
   UNPROCESSABLE_ENTITY = 'UNPROCESSABLE_ENTITY',
   TOO_MANY_REQUESTS = 'TOO_MANY_REQUESTS',
-  
+
   // Server errors (5xx)
   INTERNAL_ERROR = 'INTERNAL_ERROR',
   NOT_IMPLEMENTED = 'NOT_IMPLEMENTED',
   BAD_GATEWAY = 'BAD_GATEWAY',
   SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
   GATEWAY_TIMEOUT = 'GATEWAY_TIMEOUT',
-  
+
   // Business logic errors
   VALIDATION_ERROR = 'VALIDATION_ERROR',
   BUSINESS_RULE_VIOLATION = 'BUSINESS_RULE_VIOLATION',
   DUPLICATE_RESOURCE = 'DUPLICATE_RESOURCE',
   RESOURCE_EXHAUSTED = 'RESOURCE_EXHAUSTED',
   PRECONDITION_FAILED = 'PRECONDITION_FAILED',
-  
+
   // Auth specific
   TOKEN_EXPIRED = 'TOKEN_EXPIRED',
   TOKEN_INVALID = 'TOKEN_INVALID',
   SESSION_EXPIRED = 'SESSION_EXPIRED',
   INSUFFICIENT_PERMISSIONS = 'INSUFFICIENT_PERMISSIONS',
-  
+
   // External service errors
   EXTERNAL_SERVICE_ERROR = 'EXTERNAL_SERVICE_ERROR',
   PAYMENT_FAILED = 'PAYMENT_FAILED',
@@ -164,7 +164,7 @@ export class ApiError extends Error {
     public message: string,
     public statusCode?: number,
     public details?: unknown,
-    public field?: string
+    public field?: string,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -201,10 +201,10 @@ export class ApiResponseHelper {
       statusCode?: number;
       metadata?: Record<string, unknown>;
       requestId?: string;
-    }
+    },
   ): void {
     const { message, statusCode = 200, metadata, requestId } = options || {};
-    
+
     res.status(statusCode).json({
       success: true,
       data,
@@ -226,16 +226,16 @@ export class ApiResponseHelper {
       details?: unknown;
       field?: string;
       requestId?: string;
-    }
+    },
   ): void {
     const { statusCode, details, field, requestId } = options || {};
-    
+
     let errorResponse: ApiErrorResponse['error'];
     let status: number;
 
     if (error instanceof ApiError) {
       errorResponse = error.toJSON();
-      status = error.statusCode;
+      status = error.statusCode || 500;
     } else if (error instanceof Error) {
       errorResponse = {
         code: ApiErrorCode.INTERNAL_ERROR,
@@ -287,12 +287,12 @@ export class ApiResponseHelper {
       message?: string;
       metadata?: Record<string, unknown>;
       requestId?: string;
-    }
+    },
   ): void {
     const { page, limit, total } = pagination;
     const { message, metadata, requestId } = options || {};
     const pages = Math.ceil(total / limit);
-    
+
     res.status(200).json({
       success: true,
       data,
@@ -331,11 +331,12 @@ export class ApiResponseHelper {
       message?: string;
       metadata?: Record<string, unknown>;
       requestId?: string;
-    }
+    },
   ): void {
     const { message, metadata, requestId } = options || {};
-    
-    res.status(207).json({ // 207 Multi-Status
+
+    res.status(207).json({
+      // 207 Multi-Status
       success: true,
       data: results,
       message,
@@ -363,14 +364,14 @@ export class ApiResponseHelper {
     options?: {
       location?: string;
       requestId?: string;
-    }
+    },
   ): void {
     const { location, requestId } = options || {};
-    
+
     if (location) {
       res.setHeader('Location', location);
     }
-    
+
     this.success(res, data, { message, statusCode: 201, requestId });
   }
 
@@ -385,17 +386,22 @@ export class ApiResponseHelper {
       location?: string;
       retryAfter?: number;
       requestId?: string;
-    }
+    },
   ): void {
-    const { message = 'Request accepted for processing', location, retryAfter, requestId } = options || {};
-    
+    const {
+      message = 'Request accepted for processing',
+      location,
+      retryAfter,
+      requestId,
+    } = options || {};
+
     if (location) {
       res.setHeader('Location', location);
     }
     if (retryAfter) {
       res.setHeader('Retry-After', retryAfter.toString());
     }
-    
+
     this.success(res, data, { message, statusCode: 202, requestId });
   }
 
@@ -408,14 +414,14 @@ export class ApiResponseHelper {
     options?: {
       message?: string;
       requestId?: string;
-    }
+    },
   ): void {
     const { message = 'Validation failed', requestId } = options || {};
-    
+
     let details: unknown;
-    
+
     if (errors instanceof ZodError) {
-      details = errors.errors.map(err => ({
+      details = errors.errors.map((err) => ({
         field: err.path.join('.'),
         message: err.message,
         code: err.code,
@@ -423,56 +429,71 @@ export class ApiResponseHelper {
     } else {
       details = errors;
     }
-    
-    const apiError = new ApiError(
-      ApiErrorCode.VALIDATION_ERROR,
-      message,
-      422,
-      details
-    );
-    
+
+    const apiError = new ApiError(ApiErrorCode.VALIDATION_ERROR, message, 422, details);
+
     this.error(res, apiError, { requestId });
   }
 
   /**
    * Common error responses
    */
-  static unauthorized(res: NextApiResponse<ApiErrorResponse>, message?: string, requestId?: string): void {
+  static unauthorized(
+    res: NextApiResponse<ApiErrorResponse>,
+    message?: string,
+    requestId?: string,
+  ): void {
     const apiError = new ApiError(
       ApiErrorCode.UNAUTHORIZED,
-      message || ERROR_MESSAGES[ApiErrorCode.UNAUTHORIZED]
+      message || ERROR_MESSAGES[ApiErrorCode.UNAUTHORIZED],
     );
     this.error(res, apiError, { requestId });
   }
 
-  static forbidden(res: NextApiResponse<ApiErrorResponse>, message?: string, requestId?: string): void {
+  static forbidden(
+    res: NextApiResponse<ApiErrorResponse>,
+    message?: string,
+    requestId?: string,
+  ): void {
     const apiError = new ApiError(
       ApiErrorCode.FORBIDDEN,
-      message || ERROR_MESSAGES[ApiErrorCode.FORBIDDEN]
+      message || ERROR_MESSAGES[ApiErrorCode.FORBIDDEN],
     );
     this.error(res, apiError, { requestId });
   }
 
-  static notFound(res: NextApiResponse<ApiErrorResponse>, resource?: string, requestId?: string): void {
+  static notFound(
+    res: NextApiResponse<ApiErrorResponse>,
+    resource?: string,
+    requestId?: string,
+  ): void {
     const apiError = new ApiError(
       ApiErrorCode.NOT_FOUND,
-      resource ? `${resource} not found` : ERROR_MESSAGES[ApiErrorCode.NOT_FOUND]
+      resource ? `${resource} not found` : ERROR_MESSAGES[ApiErrorCode.NOT_FOUND],
     );
     this.error(res, apiError, { requestId });
   }
 
-  static conflict(res: NextApiResponse<ApiErrorResponse>, message?: string, requestId?: string): void {
+  static conflict(
+    res: NextApiResponse<ApiErrorResponse>,
+    message?: string,
+    requestId?: string,
+  ): void {
     const apiError = new ApiError(
       ApiErrorCode.CONFLICT,
-      message || ERROR_MESSAGES[ApiErrorCode.CONFLICT]
+      message || ERROR_MESSAGES[ApiErrorCode.CONFLICT],
     );
     this.error(res, apiError, { requestId });
   }
 
-  static badRequest(res: NextApiResponse<ApiErrorResponse>, message?: string, requestId?: string): void {
+  static badRequest(
+    res: NextApiResponse<ApiErrorResponse>,
+    message?: string,
+    requestId?: string,
+  ): void {
     const apiError = new ApiError(
       ApiErrorCode.BAD_REQUEST,
-      message || ERROR_MESSAGES[ApiErrorCode.BAD_REQUEST]
+      message || ERROR_MESSAGES[ApiErrorCode.BAD_REQUEST],
     );
     this.error(res, apiError, { requestId });
   }
@@ -481,17 +502,17 @@ export class ApiResponseHelper {
     res: NextApiResponse<ApiErrorResponse>,
     message?: string,
     retryAfter?: number,
-    requestId?: string
+    requestId?: string,
   ): void {
     if (retryAfter) {
       res.setHeader('Retry-After', retryAfter.toString());
     }
-    
+
     const apiError = new ApiError(
       ApiErrorCode.TOO_MANY_REQUESTS,
       message || ERROR_MESSAGES[ApiErrorCode.TOO_MANY_REQUESTS],
       429,
-      { retryAfter }
+      { retryAfter },
     );
     this.error(res, apiError, { requestId });
   }
@@ -499,15 +520,15 @@ export class ApiResponseHelper {
   static methodNotAllowed(
     res: NextApiResponse<ApiErrorResponse>,
     allowedMethods: string[],
-    requestId?: string
+    requestId?: string,
   ): void {
     res.setHeader('Allow', allowedMethods.join(', '));
-    
+
     const apiError = new ApiError(
       ApiErrorCode.METHOD_NOT_ALLOWED,
       ERROR_MESSAGES[ApiErrorCode.METHOD_NOT_ALLOWED],
       405,
-      { allowedMethods }
+      { allowedMethods },
     );
     this.error(res, apiError, { requestId });
   }
@@ -515,17 +536,17 @@ export class ApiResponseHelper {
   static serviceUnavailable(
     res: NextApiResponse<ApiErrorResponse>,
     retryAfter?: number,
-    requestId?: string
+    requestId?: string,
   ): void {
     if (retryAfter) {
       res.setHeader('Retry-After', retryAfter.toString());
     }
-    
+
     const apiError = new ApiError(
       ApiErrorCode.SERVICE_UNAVAILABLE,
       ERROR_MESSAGES[ApiErrorCode.SERVICE_UNAVAILABLE],
       503,
-      { retryAfter }
+      { retryAfter },
     );
     this.error(res, apiError, { requestId });
   }
@@ -534,13 +555,13 @@ export class ApiResponseHelper {
     res: NextApiResponse<ApiErrorResponse>,
     error: unknown,
     message?: string,
-    requestId?: string
+    requestId?: string,
   ): void {
     const apiError = new ApiError(
       ApiErrorCode.INTERNAL_ERROR,
       message || ERROR_MESSAGES[ApiErrorCode.INTERNAL_ERROR],
       500,
-      error
+      error,
     );
     this.error(res, apiError, { requestId });
   }
@@ -551,7 +572,7 @@ export class ApiResponseHelper {
   static handleError(
     res: NextApiResponse<ApiErrorResponse>,
     error: unknown,
-    requestId?: string
+    requestId?: string,
   ): void {
     if (error instanceof ApiError) {
       this.error(res, error, { requestId });
@@ -560,7 +581,7 @@ export class ApiResponseHelper {
     } else if (error instanceof Error) {
       // Map common error messages to appropriate responses
       const message = error.message.toLowerCase();
-      
+
       if (message.includes('unauthorized') || message.includes('authentication')) {
         this.unauthorized(res, error.message, requestId);
       } else if (message.includes('forbidden') || message.includes('permission')) {
@@ -585,14 +606,12 @@ export const apiResponse = ApiResponseHelper;
 
 // Type guards
 export function isApiSuccessResponse<T>(
-  response: ApiResponse<T>
+  response: ApiResponse<T>,
 ): response is ApiSuccessResponse<T> {
   return response.success === true;
 }
 
-export function isApiErrorResponse<T>(
-  response: ApiResponse<T>
-): response is ApiErrorResponse {
+export function isApiErrorResponse<T>(response: ApiResponse<T>): response is ApiErrorResponse {
   return response.success === false;
 }
 
@@ -601,14 +620,14 @@ export function createApiError(
   code: ApiErrorCode,
   message?: string,
   details?: unknown,
-  field?: string
+  field?: string,
 ): ApiError {
   return new ApiError(
     code,
     message || ERROR_MESSAGES[code],
     ERROR_STATUS_CODES[code],
     details,
-    field
+    field,
   );
 }
 
@@ -618,18 +637,18 @@ export class ApiResponseFormatter {
     if (typeof error === 'string') {
       return error;
     }
-    
+
     if (error && typeof error === 'object') {
       if ('error' in error && typeof (error as any).error === 'object') {
         const apiError = (error as ApiErrorResponse).error;
         return apiError.message || 'An error occurred';
       }
-      
+
       if ('message' in error) {
         return (error as Error).message;
       }
     }
-    
+
     return 'An unexpected error occurred';
   }
 

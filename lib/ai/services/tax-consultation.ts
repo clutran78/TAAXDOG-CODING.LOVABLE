@@ -332,7 +332,7 @@ Ensure all strategies are:
 
     return {
       answer: content,
-      references: [...new Set(references)], // Remove duplicates
+      references: Array.from(new Set(references)), // Remove duplicates
     };
   }
 

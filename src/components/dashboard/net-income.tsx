@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { loadIncomeDetails } from '@/services/helperFunction';
+import { loadIncomeDetails } from '@/services/helperFunction.js';
 import NetIncomeModal from '@/shared/modals/NetIncomeModal';
 
 const NetComponent = () => {

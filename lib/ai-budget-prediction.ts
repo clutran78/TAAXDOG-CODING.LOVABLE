@@ -289,7 +289,7 @@ export async function createBudget(
         monthlyBudget: data.monthlyBudget,
         targetSavings: data.targetSavings || data.monthlyBudget * 0.1,
         monthlyIncome: data.monthlyIncome,
-        predictions,
+        predictions: predictions as any,
         categoryLimits: data.categoryLimits || {},
         confidenceScore: predictions.confidence,
         aiProvider: 'anthropic',

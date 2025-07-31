@@ -1,9 +1,8 @@
 'use client';
-import { auth, db } from '@/lib/firebase';
 import { Goal } from '@/lib/types/goal';
-import { showToast } from '@/services/helperFunction';
-import { onAuthStateChanged } from 'firebase/auth';
-import { addDoc, collection, doc, updateDoc } from 'firebase/firestore';
+import { showToast } from '@/services/helperFunction.js';
+import { createGoal, updateGoal } from '@/services/firebase-service';
+import { useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import { Modal, Button } from 'react-bootstrap';
 
@@ -57,6 +56,8 @@ const AddGoalModal = ({ show, onClose, onAdd, goalToEdit, editGoalId }: Props) =
     }
   }, [goalToEdit]);
 
+  const { data: session } = useSession();
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setValidated(true);
@@ -69,35 +70,36 @@ const AddGoalModal = ({ show, onClose, onAdd, goalToEdit, editGoalId }: Props) =
     setLoading(true);
 
     try {
-      onAuthStateChanged(auth, async (user) => {
-        if (!user) {
-          showToast('User not authenticated', 'danger');
-          return;
-        }
+      if (!session?.user) {
+        showToast('User not authenticated', 'danger');
+        setLoading(false);
+        return;
+      }
 
-        const goal = {
-          ...goalToEdit,
-          name,
-          description,
-          category,
-          currentAmount: parseFloat(currentAmount || '0'),
-          targetAmount: parseFloat(targetAmount || '0'),
-          dueDate,
-          userId: user.uid,
-          updatedAt: new Date().toISOString(),
-          createdAt: goalToEdit?.createdAt || new Date().toISOString(),
-        };
-        if (editGoalId) {
-          await updateDoc(doc(db, 'goals', editGoalId), goal);
-          showToast('Goal updated successfully', 'success');
-        } else {
-          await addDoc(collection(db, 'goals'), goal);
-          showToast('Goal added successfully', 'success');
-        }
-        onAdd();
-        onClose();
-        resetForm();
-      });
+      const goal = {
+        ...goalToEdit,
+        name,
+        description,
+        category,
+        currentAmount: parseFloat(currentAmount || '0'),
+        targetAmount: parseFloat(targetAmount || '0'),
+        dueDate,
+        userId: session.user.id,
+        updatedAt: new Date().toISOString(),
+        createdAt: goalToEdit?.createdAt || new Date().toISOString(),
+      };
+
+      if (editGoalId) {
+        await updateGoal(editGoalId, goal);
+        showToast('Goal updated successfully', 'success');
+      } else {
+        await createGoal(goal);
+        showToast('Goal added successfully', 'success');
+      }
+
+      onAdd();
+      onClose();
+      resetForm();
     } catch (err) {
       console.error(err);
       showToast('Error adding goal', 'danger');
