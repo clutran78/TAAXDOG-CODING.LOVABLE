@@ -50,9 +50,9 @@ For detailed documentation, see `/docs/AUTHENTICATION_SYSTEM.md`
 # TAAXDOG PROJECT CONFIGURATION
 
 ## Project Identity
-- Project Name: Taaxdog-coding
+- Project Name: Taaxdog (TaxReturnPro)
 - Domain: taxreturnpro.com.au
-- Framework: Next.js 15.3.4 with TypeScript and React 19
+- Framework: Next.js 14.0.4 with TypeScript and React 18.2
 - Database: PostgreSQL with Prisma ORM (migrated from Firebase)
 - Deployment: DigitalOcean App Platform (Sydney region)
 - Containerization: Docker with multi-stage optimized builds
@@ -64,59 +64,42 @@ For detailed documentation, see `/docs/AUTHENTICATION_SYSTEM.md`
 npm run dev                # Start development server (http://localhost:3000)
 npm run build              # Build for production with Prisma generation
 npm run start              # Start production server
-npm run lint               # Run ESLint
-npm run lint:fix           # Fix ESLint issues automatically
-npm run type-check         # Run TypeScript type checking
-npm run quality:check      # Run all code quality checks
-npm run fix:all            # Fix naming, console statements, lint, and format
+npm run lint               # Run ESLint with Next.js configuration
+npm run type-check         # Run TypeScript type checking (tsc --noEmit)
 ```
 
 ### Database Commands
 ```bash
-npm run migrate            # Run database migrations
-npm run test-db            # Test database connection
-npx prisma generate        # Generate Prisma client
-npx prisma db push         # Push schema changes to database
-npx prisma studio          # Open Prisma Studio GUI
-npm run db:import          # Import data using optimized orchestrator
+npm run db:generate        # Generate Prisma client
+npm run db:push            # Push schema changes to database (without migrations)
+npm run db:migrate         # Run database migrations in development
+npm run db:seed            # Seed database with initial data
+npm run db:studio          # Open Prisma Studio GUI
+npm run db:reset           # Reset database (drops all data)
+npm run setup              # Run automated database setup script
 ```
 
 ### Testing Commands
 ```bash
 npm test                   # Run all Jest tests
-npm test -- --coverage     # Run tests with coverage report (80%+ target)
-npm test -- --watch        # Run tests in watch mode
+npm run test:watch         # Run tests in watch mode
+npm run test:coverage      # Run tests with coverage report (70% threshold)
+npm run test:ci            # Run tests in CI mode with coverage
 npm test [filename]        # Run specific test file
-npm run test:integration   # Run integration tests only
-npm run test:api           # Test API endpoints
-npm run test:db-performance # Test database performance
-npm run test:security      # Run security tests
 ```
 
-### Deployment & Monitoring
+### Deployment
 ```bash
-npm run deploy:validate    # Run deployment checklist
-npm run compliance:all     # Run all compliance checks
-npm run backup:full        # Full database backup
-npm run analyze-bundle     # Analyze bundle size with webpack
-npm run monitoring:setup   # Setup performance monitoring
-```
-
-### Environment Management
-```bash
-npm run env:dev            # Switch to development environment
-npm run env:staging        # Switch to staging environment  
-npm run env:prod           # Switch to production environment
-npm run env:status         # Check current environment
-npm run env:validate       # Environment validation
+npm run deploy             # Run deployment script (scripts/deploy.sh)
+npm run postinstall        # Auto-runs after npm install (generates Prisma client)
 ```
 
 ## High-Level Architecture
 
-### 1. Authentication Architecture (NextAuth.js)
-- **Location**: `pages/api/auth/[...nextauth].ts`, `lib/auth/`
+### 1. Authentication Architecture (NextAuth.js v4.24.5)
+- **Location**: `src/app/api/auth/[...nextauth]/route.ts`, `lib/auth.ts`
 - **Strategy**: JWT sessions (not database sessions)
-- **Providers**: Credentials (email/password) + Google OAuth
+- **Providers**: Credentials (email/password) + Google OAuth (ready but not configured)
 - **Key Patterns**:
   - Role-based access (USER, ADMIN, ACCOUNTANT, SUPPORT)
   - Middleware composition in `lib/auth/middleware.ts`
@@ -124,9 +107,10 @@ npm run env:validate       # Environment validation
   - Email verification requirements
   - Enhanced password reset flow with SendGrid integration
   - Session validation uses `getServerSession` with authOptions
+  - App Router compatible with route handlers
 
 ### 2. AI Service Integration
-- **Location**: `lib/ai/`, `pages/api/ai/`
+- **Location**: `lib/ai/`, `src/app/api/ai/`
 - **Architecture**: Multi-provider with fallback (Anthropic → OpenRouter → Gemini)
 - **Key Patterns**:
   - Operation-based model selection (TAX_ANALYSIS, RECEIPT_SCANNING, etc.)
@@ -135,9 +119,10 @@ npm run env:validate       # Environment validation
   - Australian tax context in system prompts
   - Token usage tracking and cost calculation
   - Automatic retry with provider fallback on failure
+  - OpenAI API integration for receipt processing
 
 ### 3. Banking Integration (BASIQ)
-- **Location**: `lib/basiq/`, `pages/api/banking/`
+- **Location**: `lib/basiq/`, `src/app/api/banking/`
 - **Flow**: Consent → Connection → Account Sync → Transaction Sync
 - **Key Patterns**:
   - OAuth token management with auto-refresh
@@ -149,7 +134,7 @@ npm run env:validate       # Environment validation
 
 ### 4. Database Access Patterns
 - **Location**: `lib/db/`, `prisma/`
-- **Architecture**: Prisma ORM with PostgreSQL (migrated from Firebase)
+- **Architecture**: Prisma ORM v5.7.1 with PostgreSQL
 - **Key Patterns**:
   - Singleton pattern for Prisma client in `lib/prisma.ts`
   - Connection pooling optimization
@@ -157,6 +142,7 @@ npm run env:validate       # Environment validation
   - Row-Level Security (RLS) implementation
   - Field-level encryption for sensitive data (AES-256-GCM)
   - 6 critical performance indexes added for optimization
+  - Seed script uses ts-node with custom tsconfig
 
 ### 5. Security Middleware Stack
 - **Location**: `lib/middleware/`
@@ -175,8 +161,44 @@ npm run env:validate       # Environment validation
 - **Error codes**: Consistent across all endpoints
 - **Pagination**: `{ items: [], total: number, page: number, pageSize: number }`
 
+#### Error Handling Pattern (App Router)
+```typescript
+// App Router API route handler pattern
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+
+export async function GET(request: NextRequest) {
+  try {
+    // Authentication check
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Business logic
+    const result = await someOperation();
+    
+    // Return success
+    return NextResponse.json({ success: true, data: result });
+  } catch (error) {
+    console.error('API Error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// For POST/PUT/DELETE methods
+export async function POST(request: NextRequest) {
+  const body = await request.json();
+  // Similar pattern...
+}
+```
+
 ### 7. Subscription/Payment Flow (Stripe)
-- **Location**: `lib/stripe/`, `pages/api/stripe/`
+- **Location**: `lib/stripe/`, `src/app/api/stripe/`
 - **Plans**:
   - TAAX Smart: 3-day trial → $4.99/mo (2 months) → $9.99/mo
   - TAAX Pro: 7-day trial → $10.99/mo (2 months) → $18.99/mo
@@ -195,20 +217,65 @@ npm run env:validate       # Environment validation
 - Tax invoice generation meeting ATO standards
 - ABN validation and handling
 - Australian tax year handling (July 1 - June 30)
+- State/territory support for all Australian regions
 
 ## Critical Architectural Decisions
 
-1. **Hybrid Architecture**: Next.js for frontend/lightweight APIs, Flask for heavy processing
+1. **Unified Architecture**: Next.js App Router for both frontend and API (migrated from hybrid Flask/Next.js)
 2. **Multi-Provider Strategy**: Fallback providers for AI and banking services
 3. **Event-Driven Updates**: Webhooks for real-time state synchronization
 4. **Security-First**: Multiple authentication/authorization layers
 5. **Cost Optimization**: AI response caching, token tracking
 6. **Australian-First Design**: All features comply with Australian regulations
 
+## Next.js Configuration Details
+- **App Router**: Using experimental App Router (not Pages Router)
+- **Runtime**: Node.js 18+ required
+- **Image Optimization**: Disabled in development
+- **TypeScript**: Strict mode enabled with custom paths
+- **Bundle Optimization**: Custom webpack config with polyfills for DigitalOcean
+- **Middleware**: Edge runtime for auth and security checks
+- **Cookie Security**: Overrides cookie package to v0.7.2 for security
+
+## UI Component Stack
+- **Base UI**: Tailwind CSS v3.4.0 with Tailwind Forms plugin
+- **Component Libraries**: 
+  - Headless UI v1.7.17 for accessible components
+  - Heroicons v2.0.18 for icons
+  - Lucide React v0.294.0 for additional icons
+- **Utility Classes**: clsx v2.0.0 + tailwind-merge v2.2.0
+- **Notifications**: React Hot Toast v2.4.1
+- **Cookie Management**: js-cookie v3.0.5
+
 ## Common Development Tasks
 
+### Project Structure (App Router)
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── (auth)/            # Authenticated routes group
+│   │   ├── dashboard/     # Dashboard page
+│   │   ├── banking/       # Banking features
+│   │   ├── goals/         # Financial goals
+│   │   └── ...           
+│   ├── api/               # API route handlers
+│   │   ├── auth/         # Authentication endpoints
+│   │   ├── banking/      # Banking API
+│   │   └── ...
+│   ├── layout.tsx        # Root layout
+│   └── page.tsx          # Home page
+├── components/           # Reusable components
+│   ├── ui/              # Base UI components
+│   └── forms/           # Form components
+└── lib/                 # Utilities and services
+    ├── auth.ts          # Auth utilities
+    ├── ai/              # AI service integration
+    ├── basiq/           # Banking integration
+    └── db/              # Database utilities
+```
+
 ### Adding a New API Endpoint
-1. Create route in `pages/api/`
+1. Create route handler in `src/app/api/[endpoint]/route.ts`
 2. Apply appropriate middleware wrapper:
    - `withAuth()` for authenticated endpoints
    - `withRateLimit()` for rate-limited endpoints
@@ -226,6 +293,24 @@ npm run env:validate       # Environment validation
 4. Handle provider fallback gracefully
 5. Track token usage for cost monitoring
 
+#### AI Provider Hierarchy & Failover
+```typescript
+// Provider selection logic in lib/ai/service.ts
+1. Anthropic (Claude) - Primary for tax/financial analysis
+2. OpenRouter - Fallback with Claude 3.5 Sonnet
+3. Gemini - Receipt OCR and document processing
+
+// Operation types determine model selection
+AIOperationType.TAX_ANALYSIS → Claude 4 Sonnet
+AIOperationType.RECEIPT_SCANNING → Gemini Pro Vision
+AIOperationType.GENERAL_QUERY → Claude 3.5 Sonnet (cost-optimized)
+```
+
+#### AI Response Caching
+- Responses cached for 24 hours in `aiResponseCache` table
+- Cache key: SHA256 hash of (operation + prompt + userId)
+- Automatic cache invalidation on user data changes
+
 ### Database Schema Changes
 1. Update `prisma/schema.prisma`
 2. Run `npx prisma generate`
@@ -234,6 +319,33 @@ npm run env:validate       # Environment validation
 5. Update any affected TypeScript types
 6. Consider performance indexes for new fields
 7. Update relevant API schemas and tests
+
+#### Prisma Client Patterns
+```typescript
+// ALWAYS use the singleton from lib/prisma.ts
+import { prisma } from '@/lib/prisma';
+
+// NEVER import from @prisma/client directly
+// ❌ import { PrismaClient } from '@prisma/client';
+
+// Transaction pattern for multiple operations
+const result = await prisma.$transaction(async (tx) => {
+  const user = await tx.user.update({...});
+  const audit = await tx.auditLog.create({...});
+  return { user, audit };
+});
+
+// Always include userId in queries for RLS
+const items = await prisma.transaction.findMany({
+  where: { userId: session.user.id }
+});
+```
+
+#### Database Performance Considerations
+- Use `select` to limit fields returned
+- Implement pagination for large datasets (default: 50 items)
+- Use indexes for frequently queried fields
+- Monitor slow queries in `logs/slow-queries.log`
 
 ### Implementing Australian Tax Features
 1. Use Australian tax year (July 1 - June 30) from `date-fns-tz`
@@ -252,15 +364,28 @@ npm run env:validate       # Environment validation
 ## Environment Variables
 
 Critical variables that must be set:
-- DATABASE_URL
-- NEXTAUTH_URL
-- NEXTAUTH_SECRET
-- ANTHROPIC_API_KEY
-- STRIPE_SECRET_KEY
-- BASIQ_API_KEY
-- FIELD_ENCRYPTION_KEY
+- DATABASE_URL - PostgreSQL connection string
+- NEXTAUTH_URL - Application URL
+- NEXTAUTH_SECRET - NextAuth secret (min 32 chars)
+- ANTHROPIC_API_KEY - For AI features
+- STRIPE_SECRET_KEY - Payment processing
+- BASIQ_API_KEY - Banking integration
+- FIELD_ENCRYPTION_KEY - Data encryption
+- OPENAI_API_KEY - AI receipt processing
+- EMAIL_SERVER_* - Email configuration
+
+Additional configuration:
+- BCRYPT_ROUNDS=12 - Password hashing rounds
+- RATE_LIMIT_MAX=100 - Rate limit requests
+- RATE_LIMIT_WINDOW=900000 - 15 minutes
+- UPLOAD_MAX_SIZE=10485760 - 10MB file limit
 
 See `.env.example` for complete list with descriptions.
+
+## Demo Account
+After running database seed (`npm run db:seed`), use these credentials:
+- **Email**: demo@taxreturnpro.com.au
+- **Password**: demo123
 
 ## Deployment Process
 
@@ -291,12 +416,25 @@ See `.env.example` for complete list with descriptions.
 - Database query optimization with materialized views
 
 ### Testing Infrastructure
-- Jest with TypeScript support
-- React Testing Library for component tests
-- Test files: `.test.ts` or `.test.tsx`
-- Mock files in `__mocks__/` directory
-- Integration tests in `__tests__/integration/`
-- Coverage threshold: 70% for all metrics
+- **Framework**: Jest 29.7 with TypeScript support
+- **Component Testing**: React Testing Library with custom test utilities
+- **Test Structure**:
+  - Unit tests: Colocated with source files (`*.test.ts`, `*.test.tsx`)
+  - Integration tests: `__tests__/integration/`
+  - E2E tests: Playwright setup available
+  - Mock files: `__mocks__/` directory
+- **Coverage Requirements**: 70% threshold for all metrics (statements, branches, functions, lines)
+- **Test Setup**: 
+  - Global mocks in `jest.setup.js` (NextAuth, router, fetch)
+  - Custom matchers and utilities
+  - Module path aliases matching tsconfig
+- **Running Tests**:
+  ```bash
+  npm test                    # Run all tests
+  npm run test:watch         # Watch mode
+  npm run test:coverage      # Coverage report
+  npm test ComponentName     # Test specific file/pattern
+  ```
 
 ## Quick Troubleshooting
 
@@ -312,3 +450,86 @@ See `.env.example` for complete list with descriptions.
 - Review database queries: `npm run test:db-performance`
 - Monitor with Sentry dashboard
 - Check for memory leaks in long-running operations
+
+## Running Single Tests
+```bash
+# Run a specific test file
+npm test path/to/test.spec.ts
+
+# Run tests in watch mode for a specific file
+npm test -- --watch path/to/test.spec.ts
+
+# Run integration tests only
+npm run test:integration
+
+# Run E2E tests with Playwright
+npx playwright test path/to/test.spec.ts
+```
+
+## Flask Backend Integration
+While the project structure includes a `backend/` directory with Flask services, the primary application has been migrated to use Next.js API routes for all functionality. The Flask backend components exist for reference but are not actively used in production:
+
+- **Location**: `backend/` directory (legacy code)
+- **Original Purpose**: Heavy processing tasks (receipt processing, ML analytics)
+- **Current Status**: Functionality migrated to Next.js API routes
+- **Key Services Migrated**:
+  - Receipt processing → `src/app/api/receipts/`
+  - AI/ML analytics → `lib/ai/` and `src/app/api/ai/`
+  - Automated reports → Next.js API routes with cron jobs
+- **Database**: All services use the same PostgreSQL database
+
+## Deployment-Specific Patterns
+
+### Production Build Process
+```bash
+# Standard production build
+npm run build
+
+# DigitalOcean deployment build (includes polyfills)
+npm run build:do
+```
+
+### Environment-Specific Considerations
+- **Development**: Uses local PostgreSQL or DigitalOcean dev database
+- **Production**: DigitalOcean Managed PostgreSQL with SSL required
+- **Docker**: Multi-stage build with optimized layers (`Dockerfile.optimized`)
+- **Deployment Config**: Use `app.yaml`, NOT `digitalocean-app-spec.yaml`
+
+### Pre-deployment Checklist
+1. Run `npm run deploy:validate` - Comprehensive validation
+2. Ensure all tests pass: `npm test -- --coverage`
+3. Check TypeScript: `npm run type-check`
+4. Verify environment variables are set in DigitalOcean
+5. Database migrations applied: `npm run db:migrate`
+
+## API Endpoints Reference
+
+### Authentication (`/api/auth/`)
+- `POST /api/auth/signin` - User login
+- `POST /api/auth/signup` - User registration
+- `POST /api/auth/signout` - User logout
+- `POST /api/auth/forgot-password` - Request password reset
+- `POST /api/auth/reset-password` - Reset password with token
+
+### Financial Data (`/api/`)
+- `GET /api/dashboard` - Dashboard overview
+- `GET /api/banking/accounts` - List bank accounts
+- `GET /api/goals` - Get financial goals
+- `GET /api/financial/net-income` - Income summary
+- `GET /api/financial/total-expenses` - Expense summary
+
+### User Management (`/api/`)
+- `GET /api/tax/profile` - Get tax profile
+- `PUT /api/tax/profile` - Update tax profile
+- `GET /api/user/settings` - Get user settings
+- `PUT /api/user/settings` - Update user settings
+
+### Banking Integration (`/api/banking/`)
+- `POST /api/banking/connect` - Connect bank account
+- `GET /api/banking/transactions` - Get transactions
+- `POST /api/banking/sync` - Sync bank data
+
+### AI Features (`/api/ai/`)
+- `POST /api/ai/analyze-receipt` - Analyze receipt
+- `POST /api/ai/tax-advice` - Get tax advice
+- `POST /api/ai/categorize` - Auto-categorize transactions

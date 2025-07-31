@@ -1,17 +1,85 @@
-// Jest setup file
-require('@testing-library/jest-dom');
-const { TextEncoder, TextDecoder } = require('util');
-const fetch = require('node-fetch');
+import '@testing-library/jest-dom'
 
-// Polyfills for Node.js environment
-global.TextEncoder = TextEncoder;
-global.TextDecoder = TextDecoder;
-global.fetch = fetch;
+// Mock Next.js router
+jest.mock('next/router', () => ({
+  useRouter() {
+    return {
+      route: '/',
+      pathname: '/',
+      query: {},
+      asPath: '/',
+      push: jest.fn(),
+      pop: jest.fn(),
+      reload: jest.fn(),
+      back: jest.fn(),
+      prefetch: jest.fn().mockResolvedValue(undefined),
+      beforePopState: jest.fn(),
+      events: {
+        on: jest.fn(),
+        off: jest.fn(),
+        emit: jest.fn(),
+      },
+      isFallback: false,
+    }
+  },
+}))
+
+// Mock Next.js navigation
+jest.mock('next/navigation', () => ({
+  useRouter() {
+    return {
+      push: jest.fn(),
+      replace: jest.fn(),
+      prefetch: jest.fn(),
+      back: jest.fn(),
+      forward: jest.fn(),
+      refresh: jest.fn(),
+    }
+  },
+  usePathname() {
+    return '/'
+  },
+  useSearchParams() {
+    return new URLSearchParams()
+  },
+}))
+
+// Mock NextAuth
+jest.mock('next-auth/react', () => ({
+  useSession() {
+    return {
+      data: {
+        user: {
+          id: 'test-user-id',
+          email: 'test@example.com',
+          name: 'Test User',
+        },
+      },
+      status: 'authenticated',
+    }
+  },
+  signIn: jest.fn(),
+  signOut: jest.fn(),
+  SessionProvider: ({ children }) => children,
+}))
+
+// Mock react-hot-toast
+jest.mock('react-hot-toast', () => ({
+  toast: {
+    success: jest.fn(),
+    error: jest.fn(),
+    loading: jest.fn(),
+  },
+  Toaster: () => null,
+}))
+
+// Mock fetch globally
+global.fetch = jest.fn()
 
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: jest.fn().mockImplementation((query) => ({
+  value: jest.fn().mockImplementation(query => ({
     matches: false,
     media: query,
     onchange: null,
@@ -21,40 +89,34 @@ Object.defineProperty(window, 'matchMedia', {
     removeEventListener: jest.fn(),
     dispatchEvent: jest.fn(),
   })),
-});
+})
 
 // Mock IntersectionObserver
-global.IntersectionObserver = class IntersectionObserver {
-  constructor() {}
-  disconnect() {}
-  observe() {}
-  unobserve() {}
-};
+global.IntersectionObserver = jest.fn().mockImplementation(() => ({
+  observe: jest.fn(),
+  unobserve: jest.fn(),
+  disconnect: jest.fn(),
+}))
 
-// Mock ResizeObserver
-global.ResizeObserver = class ResizeObserver {
-  constructor() {}
-  disconnect() {}
-  observe() {}
-  unobserve() {}
-};
+// Setup test environment
+beforeEach(() => {
+  // Reset all mocks before each test
+  jest.clearAllMocks()
+  
+  // Reset fetch mock
+  fetch.mockClear()
+})
 
-// Suppress console errors in tests
-const originalError = console.error;
-beforeAll(() => {
-  console.error = (...args) => {
-    if (typeof args[0] === 'string' && args[0].includes('Warning: ReactDOM.render')) {
-      return;
-    }
-    originalError.call(console, ...args);
-  };
-});
-
-afterAll(() => {
-  console.error = originalError;
-});
-
-// Clean up after each test
-afterEach(() => {
-  jest.clearAllMocks();
-});
+// Global test utilities
+global.testUtils = {
+  mockApiResponse: (data, status = 200) => {
+    fetch.mockResolvedValueOnce({
+      ok: status >= 200 && status < 300,
+      status,
+      json: async () => data,
+    })
+  },
+  mockApiError: (error, status = 500) => {
+    fetch.mockRejectedValueOnce(new Error(error))
+  },
+}

@@ -1,458 +1,213 @@
-# TAAXDOG - Enterprise Financial Management & Tax Compliance Platform
+# TaxReturnPro - Australian Tax Management Platform
 
-A comprehensive SaaS financial management platform with Australian tax
-compliance, AI-powered insights, and automated banking integration. Built with
-Next.js, PostgreSQL, and enterprise-grade security features.
+A comprehensive financial management and tax preparation platform built specifically for Australian users, featuring bank integration, AI-powered insights, and ATO compliance.
 
-<!-- Last major update: 2025-01-17 -->
-<!-- Deployment trigger: 2025-07-27 23:08 -->
+## 🚀 Features
 
-🌐 **Website**: [taxreturnpro.com.au](https://taaxdog-landing-page.vercel.app)  
-📊 **Repository**:
-[github.com/TaaxDog/TAAXDOG-CODING](https://github.com/TaaxDog/TAAXDOG-CODING)
+### Core Functionality
+- **Dashboard**: Real-time financial overview with key metrics
+- **Bank Integration**: Connect multiple Australian bank accounts via BASIQ API
+- **Transaction Management**: Automatic categorization and tracking
+- **Goal Setting**: Set and track financial objectives
+- **Tax Profile**: Manage ABN, TFN, and business information
+- **Receipt Processing**: AI-powered receipt scanning and categorization
 
----
+### Australian Compliance
+- **ATO Integration**: Compliant with Australian tax regulations
+- **ABN/TFN Validation**: Built-in validation for Australian tax numbers
+- **GST Management**: Track GST registration and calculations
+- **Financial Year Support**: Australian financial year (July-June)
+- **State-specific Features**: Support for all Australian states and territories
 
-## 🚀 **Current Status: Production Ready & Continuously Enhanced**
+### Security & Privacy
+- **NextAuth Authentication**: Secure user authentication
+- **Data Encryption**: Sensitive data protection
+- **Audit Logging**: Comprehensive activity tracking
+- **Rate Limiting**: API protection and abuse prevention
 
-**Version**: 0.1.0  
-**Framework**: Next.js 15.3.4 with TypeScript and React 19  
-**Database**: PostgreSQL with Prisma ORM (migrated from Firebase)  
-**Deployment**: Production-ready with enterprise security  
-**Performance**: Optimized with React Query, lazy loading, and comprehensive
-monitoring  
-**Testing**: 80%+ coverage with Jest and React Testing Library
+## 🛠️ Technology Stack
 
----
+### Frontend
+- **Next.js 14**: React framework with App Router
+- **TypeScript**: Type-safe development
+- **Tailwind CSS**: Utility-first styling
+- **Headless UI**: Accessible UI components
+- **React Hot Toast**: User notifications
 
-## 🏗️ **Architecture & Technologies**
+### Backend
+- **Next.js API Routes**: Serverless API endpoints
+- **Prisma ORM**: Database management
+- **PostgreSQL**: Primary database
+- **NextAuth**: Authentication system
+- **bcryptjs**: Password hashing
 
-### **Frontend (Next.js 15.3.4)**
+### External Services
+- **BASIQ API**: Australian bank data aggregation
+- **OpenAI API**: AI-powered insights and processing
+- **DigitalOcean**: Cloud hosting and database
 
-- **Framework**: Next.js with TypeScript and React 19
-- **UI Library**: Tailwind CSS v4 with responsive design
-- **Components**: Modular React components with lazy loading
-- **Authentication**: NextAuth.js with JWT sessions
-- **State Management**: React Context and custom hooks
-- **Data Fetching**: React Query with optimized caching
-- **Performance**: Code splitting, dynamic imports, Web Vitals tracking
+## 📋 Prerequisites
 
-### **Backend & APIs**
+- Node.js 18+ and npm
+- PostgreSQL database
+- BASIQ API credentials
+- OpenAI API key (optional, for AI features)
 
-- **Primary**: Next.js API Routes (TypeScript)
-- **Secondary**: Python Flask application (legacy components)
-- **Database ORM**: Prisma with PostgreSQL
-- **API Architecture**: RESTful with comprehensive error handling
+## 🚀 Quick Start
 
-### **Database (PostgreSQL)**
-
-- **Primary DB**: DigitalOcean Managed PostgreSQL (Sydney)
-- **Migration**: Successfully migrated from Firebase to PostgreSQL
-- **Security**: Row-Level Security (RLS) + Field encryption
-- **Performance**: Optimized indexes and connection pooling
-- **Compliance**: 7-year audit logging for Australian regulations
-
-### **AI & Machine Learning**
-
-- **Primary AI**: Anthropic Claude 4 Sonnet (tax consultation, insights)
-- **Secondary**: Claude 3.5 Sonnet via OpenRouter (cost-optimized)
-- **OCR**: Google Gemini Pro (receipt processing, document analysis)
-- **Smart Routing**: Multi-provider system with automatic failover
-
-### **External Integrations**
-
-- **Banking**: Basiq API (Australian financial institutions)
-- **Payments**: Stripe (with Australian GST compliance)
-- **Email**: SendGrid (transactional emails, notifications)
-- **Monitoring**: Sentry for error tracking and performance monitoring
-- **Testing**: Jest with React Testing Library (80%+ coverage)
-
----
-
-## ✅ **Implemented Features**
-
-### **🔐 Authentication & Security**
-
-- ✅ **NextAuth.js Integration** - Email/password + Google OAuth
-- ✅ **Role-Based Access Control** - USER, ADMIN, ACCOUNTANT, SUPPORT
-- ✅ **Enterprise Security** - Rate limiting, CSRF protection, audit logging
-- ✅ **Australian Compliance** - ABN, TFN, tax residency support
-- ✅ **Field-Level Encryption** - AES-256-GCM for sensitive data
-- ✅ **Password Security** - bcrypt hashing, account lockout, strength
-  validation
-
-### **🏦 Banking & Transactions**
-
-- ✅ **Basiq Integration** - Connect major Australian banks
-- ✅ **Real-time Sync** - Automatic transaction synchronization
-- ✅ **Multi-bank Support** - Manage multiple bank accounts
-- ✅ **Transaction Categorization** - AI-powered expense categorization
-- ✅ **Receipt Matching** - Automatic receipt-transaction matching
-- ✅ **BSB Validation** - Australian banking standard compliance
-
-### **🤖 AI-Powered Financial Insights**
-
-- ✅ **Receipt OCR** - Gemini Pro Vision for document processing
-- ✅ **Tax Categorization** - ATO-compliant D1-D15, P8 classification
-- ✅ **Financial Analysis** - Claude-powered spending pattern analysis
-- ✅ **Budget Recommendations** - Personalized financial advice
-- ✅ **Risk Assessment** - AI-driven financial health scoring
-- ✅ **Smart Insights** - Predictive analytics and trend detection
-
-### **💰 Goals & Automated Savings**
-
-- ✅ **Smart Goals** - SMART financial goal management
-- ✅ **Automated Transfers** - Intelligent recurring transfers
-- ✅ **Progress Tracking** - Real-time goal progress monitoring
-- ✅ **Income Detection** - AI-powered income pattern recognition
-- ✅ **Surplus Calculation** - Automatic available funds analysis
-- ✅ **Goal Optimization** - Priority-based transfer recommendations
-
-### **📊 Financial Management**
-
-- ✅ **Dashboard Analytics** - Comprehensive financial overview
-- ✅ **Expense Tracking** - Real-time expense monitoring
-- ✅ **Budget Management** - Dynamic budget creation and tracking
-- ✅ **Subscription Detection** - Automatic recurring payment identification
-- ✅ **Net Worth Tracking** - Complete financial position analysis
-- ✅ **Reporting** - Comprehensive financial reports
-
-### **🇦🇺 Australian Tax Compliance**
-
-- ✅ **GST Management** - 10% GST calculation and tracking
-- ✅ **ABN Validation** - Real-time Australian Business Number verification
-- ✅ **Tax Categories** - ATO-compliant expense categorization
-- ✅ **BAS Preparation** - Business Activity Statement data
-- ✅ **Tax Year Support** - July 1 - June 30 tax year handling
-- ✅ **Compliance Monitoring** - AML/CTF, Privacy Act, APRA compliance
-
-### **💳 Subscription Management**
-
-- ✅ **Stripe Integration** - Australian GST-compliant billing
-- ✅ **TAAX Smart Plan** - $4.99/mo early access, $9.99/mo regular
-- ✅ **TAAX Pro Plan** - $10.99/mo early access, $18.99/mo regular
-- ✅ **Free Trials** - 3-day (Smart) and 7-day (Pro) trials
-- ✅ **Customer Portal** - Self-service subscription management
-
-### **📱 User Experience**
-
-- ✅ **Responsive Design** - Mobile-first, works on all devices
-- ✅ **Dark/Light Mode** - Modern theme switching
-- ✅ **Real-time Updates** - Live data synchronization
-- ✅ **Notifications** - Smart alerts and goal progress updates
-- ✅ **Accessibility** - WCAG 2.1 compliant interface
-
-### **🔧 Developer & Admin Features**
-
-- ✅ **Performance Monitoring** - Real-time metrics and analytics
-- ✅ **Health Checks** - System status monitoring
-- ✅ **Admin Dashboard** - Complete system management
-- ✅ **API Documentation** - Comprehensive endpoint documentation
-- ✅ **Error Tracking** - Comprehensive error logging and analysis
-
----
-
-## 🏃‍♂️ **Quick Start**
-
-### **Prerequisites**
-
-- Node.js 18+ and npm 8+
-- PostgreSQL 14+ (local or DigitalOcean)
-- Git
-
-### **Installation**
-
-1. **Clone the repository:**
-
-   ```bash
-   git clone https://github.com/TaaxDog/TAAXDOG-CODING.git
-   cd TAAXDOG-CODING
-   ```
-
-2. **Install dependencies:**
-
-   ```bash
-   npm install
-   ```
-
-3. **Environment setup:**
-
-   ```bash
-   cp .env.example .env.local
-   # Edit .env.local with your configuration
-   ```
-
-4. **Database setup:**
-
-   ```bash
-   npx prisma generate
-   npx prisma migrate dev
-   ```
-
-5. **Start development server:**
-
-   ```bash
-   npm run dev
-   ```
-
-6. **Visit application:**
-   ```
-   http://localhost:3000
-   ```
-
----
-
-## 🔧 **Configuration**
-
-### **Required Environment Variables**
-
+### 1. Clone and Install
 ```bash
-# Database
-DATABASE_URL="postgresql://user:password@host:port/database"
+git clone https://github.com/TaaxDog/TAAXDOG-CODING.git
+cd TAAXDOG-CODING
+npm install
+```
 
-# NextAuth
+### 2. Environment Setup
+Copy `.env.example` to `.env.local` and update with your credentials:
+```bash
+cp .env.example .env.local
+```
+
+Key environment variables:
+```env
+DATABASE_URL="postgresql://username:password@localhost:5432/taaxdog_db"
 NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="your-nextauth-secret"
-
-# AI Providers
-ANTHROPIC_API_KEY="sk-ant-api03-..."
-OPENROUTER_API_KEY="sk-or-v1-..."
-GEMINI_API_KEY="AIzaSy..."
-
-# Banking (Basiq)
-BASIQ_API_KEY="your-basiq-key"
-BASIQ_SERVER_URL="https://au-api.basiq.io"
-
-# Payments (Stripe)
-STRIPE_PUBLISHABLE_KEY="pk_live_..."
-STRIPE_SECRET_KEY="sk_live_..."
-STRIPE_WEBHOOK_SECRET="whsec_..."
-
-# Email (SendGrid)
-SENDGRID_API_KEY="SG...."
-FROM_EMAIL="noreply@taxreturnpro.com.au"
-
-# Security
-FIELD_ENCRYPTION_KEY="your-32-byte-hex-key"
+NEXTAUTH_SECRET="your-secret-key"
+BASIQ_API_KEY="your-basiq-api-key"
+OPENAI_API_KEY="your-openai-api-key"
 ```
 
-### **Optional Configuration**
-
+### 3. Database Setup
+Run the automated database setup:
 ```bash
-# Google OAuth (optional)
-GOOGLE_CLIENT_ID="your-google-client-id"
-GOOGLE_CLIENT_SECRET="your-google-client-secret"
-
-# Compliance (production)
-COMPLIANCE_TEST_MODE="true"
-AUSTRAC_API_KEY="your-austrac-key"
-ABN_LOOKUP_GUID="your-abn-guid"
+npm run setup
 ```
 
----
-
-## 📖 **Available Scripts**
-
-### **Development**
-
+Or manually:
 ```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run start        # Start production server
-npm run lint         # Run ESLint
-npm run lint:fix     # Fix ESLint errors automatically
-npm run format       # Format code with Prettier
-npm run type-check   # Run TypeScript type checking
-npm test             # Run Jest tests
-npm test -- --coverage  # Run tests with coverage report
+npm run db:generate    # Generate Prisma client
+npm run db:push        # Push schema to database
+npm run db:seed        # Seed demo data
 ```
 
-### **Database**
-
+### 4. Start Development
 ```bash
-npm run migrate      # Run database migrations
-npm run test-db      # Test database connection
+npm run dev
 ```
 
-### **Testing & Validation**
+Visit http://localhost:3000
 
-```bash
-npm run verify:quick    # Quick system verification
-npm run verify:full     # Comprehensive system check
-npm run quality:check   # Run all code quality checks
-npm run fix:all         # Fix naming, console statements, lint, and format
-```
-
-### **Compliance & Monitoring**
-
-```bash
-npm run compliance:all     # Run all compliance checks
-npm run monitoring:setup   # Setup performance monitoring
-npm run analyze-bundle     # Analyze webpack bundle size
-npm run optimization:report # Generate optimization report
-```
-
----
-
-## 🏛️ **Project Structure**
+## 📂 Project Structure
 
 ```
 TAAXDOG-CODING/
-├── pages/                    # Next.js pages and API routes
-│   ├── api/                 # API endpoints
-│   │   ├── auth/           # Authentication
-│   │   ├── banking/        # Banking integration
-│   │   ├── ai/             # AI services
-│   │   ├── stripe/         # Payment processing
-│   │   └── admin/          # Admin endpoints
-│   ├── auth/               # Authentication pages
-│   └── dashboard/          # Main application pages
-├── components/              # React components
-│   ├── auth/              # Authentication components
-│   ├── dashboard/         # Dashboard components
-│   ├── Goal/              # Goals management
-│   ├── insights/          # Financial insights
-│   └── ui/                # Reusable UI components
-├── lib/                    # Core utilities and services
-│   ├── auth/              # Authentication utilities
-│   ├── ai/                # AI service integrations
-│   ├── basiq/             # Banking API integration
-│   ├── stripe/            # Payment processing
-│   ├── db/                # Database utilities
-│   └── monitoring/        # Performance monitoring
-├── prisma/                 # Database schema and migrations
-├── backend/                # Python Flask services (legacy)
-├── scripts/                # Utility and deployment scripts
-├── docs/                   # Documentation
-└── tests/                  # Test suites
+├── src/
+│   ├── app/                 # Next.js App Router pages
+│   │   ├── (auth)/          # Authenticated pages
+│   │   ├── api/             # API routes
+│   │   └── layout.tsx       # Root layout
+│   ├── components/          # Reusable components
+│   │   ├── ui/              # UI components
+│   │   └── forms/           # Form components
+│   └── styles/              # Global styles
+├── lib/                     # Utility functions and services
+│   ├── auth.ts              # Authentication utilities
+│   ├── basiq/               # BASIQ integration
+│   ├── ai/                  # AI service integration
+│   └── utils.ts             # Helper functions
+├── prisma/
+│   ├── schema.prisma        # Database schema
+│   └── seed.ts              # Database seeding
+├── scripts/                 # Utility scripts
+│   ├── setup-database.sh    # Database setup
+│   └── deploy.sh            # Deployment script
+└── tests/                   # Test files
 ```
 
----
+## 🧪 Testing
 
-## 🔒 **Security & Compliance**
+Run tests:
+```bash
+npm test                 # Run all tests
+npm run test:watch       # Watch mode
+npm run test:coverage    # Coverage report
+```
 
-### **Enterprise Security Features**
+Example test files are provided in:
+- `src/components/__tests__/` - Component tests
+- `src/app/api/__tests__/` - API tests
 
-- **Row-Level Security (RLS)** - Database-level access control
-- **Field-Level Encryption** - AES-256-GCM for sensitive data
-- **JWT Authentication** - Secure session management
-- **Rate Limiting** - Protection against abuse
-- **CSRF Protection** - Cross-site request forgery protection
-- **Input Validation** - Comprehensive data sanitization
+## 📊 Demo Account
 
-### **Australian Compliance**
+After seeding, use these credentials:
+- **Email**: demo@taxreturnpro.com.au
+- **Password**: demo123
 
-- **AML/CTF Compliance** - Anti-Money Laundering monitoring
-- **Privacy Act 1988** - Australian privacy law compliance
-- **APRA Requirements** - Banking regulation compliance
-- **Tax Compliance** - ATO-compliant financial reporting
-- **Data Residency** - Australian data center hosting
+## 🌐 API Endpoints
 
----
+### Authentication
+- `POST /api/auth/signin` - User login
+- `POST /api/auth/signup` - User registration
+- `POST /api/auth/signout` - User logout
 
-## 📊 **Production Deployment**
+### Financial Data
+- `GET /api/dashboard` - Dashboard overview
+- `GET /api/banking/accounts` - List bank accounts
+- `GET /api/goals` - Get financial goals
+- `GET /api/financial/net-income` - Income summary
+- `GET /api/financial/total-expenses` - Expense summary
 
-### **Deployment Platforms**
+### User Management
+- `GET /api/tax/profile` - Get tax profile
+- `PUT /api/tax/profile` - Update tax profile
+- `GET /api/user/settings` - Get user settings
+- `PUT /api/user/settings` - Update user settings
 
-- **Database**: DigitalOcean Managed PostgreSQL (Sydney)
-- **Application**: Vercel (recommended) or DigitalOcean App Platform
-- **Domain**: taxreturnpro.com.au
-- **CDN**: Automatic via deployment platform
+## 🚀 Deployment
 
-### **Production Checklist**
+### DigitalOcean App Platform
+```bash
+npm run deploy
+```
 
-- ✅ Environment variables configured
-- ✅ Database migrations applied
-- ✅ SSL certificates configured
-- ✅ Monitoring and alerting setup
-- ✅ Backup and recovery procedures
-- ✅ Performance optimization applied
+### Manual Production Build
+```bash
+npm run build
+npm start
+```
 
----
+## 🔒 Security Considerations
 
-## 🤝 **Contributing**
+- All sensitive data is encrypted
+- API endpoints require authentication
+- Rate limiting on all endpoints
+- CSRF protection enabled
+- SQL injection prevention via Prisma
+- XSS protection with React
 
-### **Development Guidelines**
+## 🤝 Contributing
 
-- Follow TypeScript best practices
-- Keep components under 200 lines
-- Use clear, descriptive naming
-- Add comprehensive comments
-- Write tests for new features
-- Ensure Australian compliance
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-### **Code Style**
+## 📄 License
 
-- ESLint + Prettier configuration
-- TypeScript strict mode
-- Consistent file organization
-- Clear separation of concerns
+This project is licensed under the MIT License - see the LICENSE file for details.
 
----
+## 🙏 Acknowledgments
 
-## 📄 **License**
+- Built with Next.js and Tailwind CSS
+- Banking integration powered by BASIQ
+- AI features powered by OpenAI
+- Hosted on DigitalOcean
 
-This project is proprietary software owned by TaaxDog. All rights reserved.
+## 📞 Support
 
----
-
-## 🆘 **Support & Documentation**
-
-- **Documentation**: See `/docs` directory
-- **API Reference**: Available at `/api-docs` (development)
-- **Admin Training**: `/docs/ADMIN_COMPLIANCE_TRAINING.md`
-- **Security Guide**: `/docs/SECURITY.md`
-- **Deployment Guide**: `/docs/DEPLOYMENT_GUIDE.md`
-
----
-
-## 📈 **Project Statistics**
-
-- **Architecture**: Next.js 15.3.4 + PostgreSQL + AI Integration
-- **Security Score**: 85%+ (Production Ready)
-- **Database Tables**: 25+ with full relationships
-- **API Endpoints**: 50+ RESTful endpoints
-- **Test Coverage**: 80%+ with Jest and React Testing Library
-- **Performance**: <100ms average query time, optimized bundle size
-- **Compliance**: Full Australian financial regulations
+For support, email support@taxreturnpro.com.au or create an issue in the repository.
 
 ---
 
-**Built with ❤️ for Australian financial compliance and user experience.**
-
----
-
-## 🚀 **Recent Major Improvements (January 2025)**
-
-### **Infrastructure & Performance**
-
-- ✅ **Database Migration**: Successfully migrated from Firebase to PostgreSQL
-- ✅ **Docker Optimization**: Reduced image size from 1.5GB to 200MB
-- ✅ **Performance Indexes**: Added 6 critical database indexes for query
-  optimization
-- ✅ **Container Architecture**: Multi-stage Docker builds with dev/prod
-  configurations
-
-### **Code Quality & Testing**
-
-- ✅ **Testing Framework**: Comprehensive Jest setup with 80%+ coverage
-- ✅ **TypeScript Safety**: Eliminated all `any` types for complete type safety
-- ✅ **API Standardization**: Consistent response format across all endpoints
-- ✅ **Code Automation**: Scripts for fixing naming conventions and console
-  statements
-
-### **Developer Experience**
-
-- ✅ **Documentation Updates**: Comprehensive developer guides and API
-  documentation
-- ✅ **Development Tools**: Enhanced linting, formatting, and quality checks
-- ✅ **Performance Monitoring**: Sentry integration with Web Vitals tracking
-- ✅ **Bundle Analysis**: Advanced webpack optimization and analysis tools
-
-### **Security & Compliance**
-
-- ✅ **Vulnerability Fixes**: Resolved all critical security vulnerabilities
-- ✅ **Authentication Improvements**: Enhanced password reset and email
-  verification
-- ✅ **Audit Logging**: Comprehensive audit trails for compliance
-- ✅ **Encryption**: AES-256-GCM field-level encryption for sensitive data
+Made with ❤️ for Australian taxpayers
