@@ -169,7 +169,7 @@ export async function auditMiddleware(operation: string, sensitive: boolean = fa
     // Capture original end function
     const originalEnd = res.end;
 
-    res.end = function (...args: any[]) {
+    res.end = function (...args: any[]): any {
       const duration = Date.now() - startTime;
 
       // Log audit entry asynchronously
@@ -190,8 +190,8 @@ export async function auditMiddleware(operation: string, sensitive: boolean = fa
       }
 
       // Call original end function
-      return originalEnd.apply(res, args);
-    };
+      return (originalEnd as any).apply(res, args);
+    } as any;
 
     next();
   };

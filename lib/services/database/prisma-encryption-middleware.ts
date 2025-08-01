@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { encrypt, decrypt, encryptObject, decryptObject } from './encryption';
+import { encrypt, decrypt, encryptObject, decryptObject } from '../../encryption';
 import { logger } from '@/lib/logger';
 
 /**

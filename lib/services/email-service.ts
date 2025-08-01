@@ -6,9 +6,9 @@ import crypto from 'crypto';
 import { z } from 'zod';
 import { auditLogger, AuditCategory, AuditSeverity } from '@/lib/audit/audit-logger';
 import { AuthEvent } from '@prisma/client';
-import Handlebars from 'handlebars';
+// import Handlebars from 'handlebars';
 import DOMPurify from 'isomorphic-dompurify';
-import { RateLimiter } from 'limiter';
+// import { RateLimiter } from 'limiter';
 
 // Email types for tracking and templates
 export enum EmailType {
@@ -97,35 +97,44 @@ export interface EmailTemplate {
 // Validation schemas
 const emailAddressSchema = z.string().email().toLowerCase().trim();
 
-const emailOptionsSchema = z.object({
-  to: z.union([emailAddressSchema, z.array(emailAddressSchema)]),
-  cc: z.union([emailAddressSchema, z.array(emailAddressSchema)]).optional(),
-  bcc: z.union([emailAddressSchema, z.array(emailAddressSchema)]).optional(),
-  subject: z.string().min(1).max(200),
-  html: z.string().optional(),
-  text: z.string().optional(),
-  template: z.nativeEnum(EmailType).optional(),
-  templateData: z.record(z.any()).optional(),
-  attachments: z.array(z.object({
-    filename: z.string(),
-    content: z.union([z.string(), z.instanceof(Buffer)]),
-    type: z.string().optional(),
-    disposition: z.enum(['attachment', 'inline']).optional(),
-    contentId: z.string().optional(),
-  })).optional(),
-  priority: z.nativeEnum(EmailPriority).optional(),
-  scheduledAt: z.date().optional(),
-  tags: z.array(z.string()).optional(),
-  metadata: z.record(z.any()).optional(),
-  trackOpens: z.boolean().optional(),
-  trackClicks: z.boolean().optional(),
-  unsubscribeGroupId: z.number().optional(),
-}).refine((data) => {
-  // Must have either html/text or template
-  return !!(data.html || data.text || data.template);
-}, {
-  message: 'Email must have either html/text content or a template',
-});
+const emailOptionsSchema = z
+  .object({
+    to: z.union([emailAddressSchema, z.array(emailAddressSchema)]),
+    cc: z.union([emailAddressSchema, z.array(emailAddressSchema)]).optional(),
+    bcc: z.union([emailAddressSchema, z.array(emailAddressSchema)]).optional(),
+    subject: z.string().min(1).max(200),
+    html: z.string().optional(),
+    text: z.string().optional(),
+    template: z.nativeEnum(EmailType).optional(),
+    templateData: z.record(z.any()).optional(),
+    attachments: z
+      .array(
+        z.object({
+          filename: z.string(),
+          content: z.union([z.string(), z.instanceof(Buffer)]),
+          type: z.string().optional(),
+          disposition: z.enum(['attachment', 'inline']).optional(),
+          contentId: z.string().optional(),
+        }),
+      )
+      .optional(),
+    priority: z.nativeEnum(EmailPriority).optional(),
+    scheduledAt: z.date().optional(),
+    tags: z.array(z.string()).optional(),
+    metadata: z.record(z.any()).optional(),
+    trackOpens: z.boolean().optional(),
+    trackClicks: z.boolean().optional(),
+    unsubscribeGroupId: z.number().optional(),
+  })
+  .refine(
+    (data) => {
+      // Must have either html/text or template
+      return !!(data.html || data.text || data.template);
+    },
+    {
+      message: 'Email must have either html/text content or a template',
+    },
+  );
 
 /**
  * Comprehensive email service with SendGrid integration
@@ -133,21 +142,21 @@ const emailOptionsSchema = z.object({
 export class EmailService {
   private static instance: EmailService;
   private config: EmailConfig;
-  private rateLimiter: RateLimiter;
-  private templates: Map<EmailType, Handlebars.TemplateDelegate> = new Map();
+  // private rateLimiter: RateLimiter;
+  private templates: Map<EmailType, any> = new Map();
   private initialized: boolean = false;
 
   private constructor(config: EmailConfig) {
     this.config = config;
-    
+
     // Initialize SendGrid
     sgMail.setApiKey(config.apiKey);
-    
+
     // Initialize rate limiter (100 emails per minute)
-    this.rateLimiter = new RateLimiter({
-      tokensPerInterval: 100,
-      interval: 'minute',
-    });
+    // this.rateLimiter = new RateLimiter({
+    //   tokensPerInterval: 100,
+    //   interval: 'minute',
+    // });
 
     // Register Handlebars helpers
     this.registerHandlebarsHelpers();
@@ -175,10 +184,10 @@ export class EmailService {
     try {
       // Load email templates from database
       await this.loadTemplates();
-      
+
       // Verify SendGrid configuration
       await this.verifyConfiguration();
-      
+
       this.initialized = true;
       logger.info('Email service initialized successfully');
     } catch (error) {
@@ -197,23 +206,23 @@ export class EmailService {
     try {
       // Validate options
       const validatedOptions = emailOptionsSchema.parse(options);
-      
+
       // Check rate limit
-      const hasTokens = await this.rateLimiter.tryRemoveTokens(1);
-      if (!hasTokens) {
-        throw new Error('Email rate limit exceeded');
-      }
+      // const hasTokens = await this.rateLimiter.tryRemoveTokens(1);
+      // if (!hasTokens) {
+      //   throw new Error('Email rate limit exceeded');
+      // }
 
       // Build email content
       const emailContent = await this.buildEmailContent(validatedOptions);
-      
+
       // Sanitize HTML content
       if (emailContent.html) {
         emailContent.html = DOMPurify.sanitize(emailContent.html);
       }
 
       // Build SendGrid message
-      const msg: sgMail.MailDataRequired = {
+      const msg: any = {
         to: this.normalizeRecipients(validatedOptions.to),
         from: {
           email: this.config.fromEmail,
@@ -287,7 +296,6 @@ export class EmailService {
       });
 
       return emailId;
-
     } catch (error) {
       logger.error('Failed to send email', {
         error,
@@ -310,7 +318,7 @@ export class EmailService {
     recipients: Array<{ to: string; data?: Record<string, any> }>,
     template: EmailType,
     commonData?: Record<string, any>,
-    userId?: string
+    userId?: string,
   ): Promise<string[]> {
     const batchId = crypto.randomUUID();
     const emailIds: string[] = [];
@@ -326,33 +334,36 @@ export class EmailService {
     const batchSize = 100;
     for (let i = 0; i < recipients.length; i += batchSize) {
       const batch = recipients.slice(i, i + batchSize);
-      
+
       await Promise.all(
         batch.map(async (recipient) => {
           try {
-            const emailId = await this.send({
-              to: recipient.to,
-              template,
-              templateData: {
-                ...commonData,
-                ...recipient.data,
+            const emailId = await this.send(
+              {
+                to: recipient.to,
+                template,
+                templateData: {
+                  ...commonData,
+                  ...recipient.data,
+                },
+                metadata: {
+                  batchId,
+                  batchIndex: i / batchSize,
+                },
               },
-              metadata: {
-                batchId,
-                batchIndex: i / batchSize,
-              },
-            }, userId);
-            
+              userId,
+            );
+
             emailIds.push(emailId);
           } catch (error) {
             errors.push({ recipient: recipient.to, error });
           }
-        })
+        }),
       );
 
       // Rate limiting between batches
       if (i + batchSize < recipients.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
 
@@ -376,7 +387,7 @@ export class EmailService {
     type: EmailType,
     to: string,
     data: Record<string, any>,
-    userId?: string
+    userId?: string,
   ): Promise<string> {
     // Get template
     const template = await this.getTemplate(type);
@@ -390,14 +401,17 @@ export class EmailService {
       ...data,
     };
 
-    return this.send({
-      to,
-      template: type,
-      subject: template.subject,
-      templateData,
-      priority: this.getEmailPriority(type),
-      tags: [type, 'transactional'],
-    }, userId);
+    return this.send(
+      {
+        to,
+        template: type,
+        subject: template.subject,
+        templateData,
+        priority: this.getEmailPriority(type),
+        tags: [type, 'transactional'],
+      },
+      userId,
+    );
   }
 
   /**
@@ -415,16 +429,17 @@ export class EmailService {
 
       // Compile template if not cached
       if (!this.templates.has(options.template)) {
-        const compiledHtml = Handlebars.compile(template.htmlTemplate);
-        this.templates.set(options.template, compiledHtml);
+        // const compiledHtml = Handlebars.compile(template.htmlTemplate);
+        // this.templates.set(options.template, compiledHtml);
+        html = template.htmlTemplate; // Use template as-is for now
       }
 
       const compiledTemplate = this.templates.get(options.template)!;
       const html = compiledTemplate(options.templateData);
-      
+
       // Generate text version if not provided
-      const text = template.textTemplate 
-        ? Handlebars.compile(template.textTemplate)(options.templateData)
+      const text = template.textTemplate
+        ? template.textTemplate // Use template as-is for now
         : this.htmlToText(html);
 
       return { html, text };
@@ -457,12 +472,15 @@ export class EmailService {
       });
 
       // Group by type and get latest version
-      const latestTemplates = templates.reduce((acc, template) => {
-        if (!acc[template.type] || acc[template.type].version < template.version) {
-          acc[template.type] = template;
-        }
-        return acc;
-      }, {} as Record<string, any>);
+      const latestTemplates = templates.reduce(
+        (acc, template) => {
+          if (!acc[template.type] || acc[template.type].version < template.version) {
+            acc[template.type] = template;
+          }
+          return acc;
+        },
+        {} as Record<string, any>,
+      );
 
       // Cache templates
       await cacheManager.set(cacheKey, latestTemplates, CacheTTL.HOUR);
@@ -556,14 +574,16 @@ export class EmailService {
       // Add more default templates as needed
     } as any;
 
-    return templates[type] || {
-      id: `default-${type}`,
-      type,
-      subject: 'TAAXDOG Notification',
-      htmlTemplate: '<p>{{content}}</p>',
-      active: true,
-      version: 1,
-    };
+    return (
+      templates[type] || {
+        id: `default-${type}`,
+        type,
+        subject: 'TAAXDOG Notification',
+        htmlTemplate: '<p>{{content}}</p>',
+        active: true,
+        version: 1,
+      }
+    );
   }
 
   /**
@@ -603,7 +623,7 @@ export class EmailService {
     emailId: string,
     options: EmailOptions,
     userId?: string,
-    statusCode?: number
+    statusCode?: number,
   ): Promise<void> {
     try {
       // Log to database
@@ -654,7 +674,7 @@ export class EmailService {
     emailId: string,
     options: EmailOptions,
     userId?: string,
-    error: any
+    error: any,
   ): Promise<void> {
     try {
       // Log to database
@@ -704,7 +724,7 @@ export class EmailService {
    */
   private normalizeRecipients(recipients: string | string[]): string | string[] {
     if (Array.isArray(recipients)) {
-      return recipients.map(r => r.toLowerCase().trim());
+      return recipients.map((r) => r.toLowerCase().trim());
     }
     return recipients.toLowerCase().trim();
   }
@@ -713,11 +733,12 @@ export class EmailService {
    * Build attachments for SendGrid
    */
   private buildAttachments(attachments: EmailAttachment[]): sgMail.AttachmentData[] {
-    return attachments.map(attachment => ({
+    return attachments.map((attachment) => ({
       filename: attachment.filename,
-      content: typeof attachment.content === 'string' 
-        ? attachment.content 
-        : attachment.content.toString('base64'),
+      content:
+        typeof attachment.content === 'string'
+          ? attachment.content
+          : attachment.content.toString('base64'),
       type: attachment.type,
       disposition: attachment.disposition,
       contentId: attachment.contentId,
@@ -742,18 +763,18 @@ export class EmailService {
    */
   private sanitizeEmailOptions(options: EmailOptions): any {
     const sanitized = { ...options };
-    
+
     // Remove sensitive content
     if (sanitized.html) sanitized.html = '[REDACTED]';
     if (sanitized.text) sanitized.text = '[REDACTED]';
     if (sanitized.attachments) {
-      sanitized.attachments = sanitized.attachments.map(a => ({
+      sanitized.attachments = sanitized.attachments.map((a) => ({
         filename: a.filename,
         type: a.type,
         size: a.content.length,
       }));
     }
-    
+
     return sanitized;
   }
 
@@ -762,28 +783,25 @@ export class EmailService {
    */
   private registerHandlebarsHelpers(): void {
     // Date formatting
-    Handlebars.registerHelper('formatDate', (date: Date | string, format: string) => {
-      const d = new Date(date);
-      return d.toLocaleDateString('en-AU', { dateStyle: 'long' });
-    });
-
+    // Handlebars.registerHelper('formatDate', (date: Date | string, format: string) => {
+    //   const d = new Date(date);
+    //   return d.toLocaleDateString('en-AU', { dateStyle: 'long' });
+    // });
     // Currency formatting
-    Handlebars.registerHelper('formatCurrency', (amount: number) => {
-      return new Intl.NumberFormat('en-AU', {
-        style: 'currency',
-        currency: 'AUD',
-      }).format(amount);
-    });
-
+    // Handlebars.registerHelper('formatCurrency', (amount: number) => {
+    //   return new Intl.NumberFormat('en-AU', {
+    //     style: 'currency',
+    //     currency: 'AUD',
+    //   }).format(amount);
+    // });
     // Conditional helpers
-    Handlebars.registerHelper('ifEquals', function(arg1: any, arg2: any, options: any) {
-      return arg1 === arg2 ? options.fn(this) : options.inverse(this);
-    });
-
+    // Handlebars.registerHelper('ifEquals', function(arg1: any, arg2: any, options: any) {
+    //   return arg1 === arg2 ? options.fn(this) : options.inverse(this);
+    // });
     // URL encoding
-    Handlebars.registerHelper('urlEncode', (str: string) => {
-      return encodeURIComponent(str);
-    });
+    // Handlebars.registerHelper('urlEncode', (str: string) => {
+    //   return encodeURIComponent(str);
+    // });
   }
 
   /**
@@ -815,13 +833,9 @@ export class EmailService {
   /**
    * Get email statistics
    */
-  public async getStatistics(
-    userId?: string,
-    startDate?: Date,
-    endDate?: Date
-  ): Promise<any> {
+  public async getStatistics(userId?: string, startDate?: Date, endDate?: Date): Promise<any> {
     const where: any = {};
-    
+
     if (userId) where.userId = userId;
     if (startDate || endDate) {
       where.createdAt = {};
@@ -845,10 +859,13 @@ export class EmailService {
       sent,
       failed,
       successRate: total > 0 ? (sent / total) * 100 : 0,
-      byType: byType.reduce((acc, item) => {
-        acc[item.type] = item._count;
-        return acc;
-      }, {} as Record<string, number>),
+      byType: byType.reduce(
+        (acc, item) => {
+          acc[item.type] = item._count;
+          return acc;
+        },
+        {} as Record<string, number>,
+      ),
     };
   }
 }

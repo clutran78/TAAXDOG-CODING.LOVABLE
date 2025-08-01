@@ -114,8 +114,17 @@ export function getConnectionString(
     : 'development',
   connectionType: 'direct' | 'pool' | 'admin' | 'adminPool' = 'pool',
 ): string {
-  const connectionString =
-    CONNECTION_STRINGS[environment][connectionType as keyof typeof CONNECTION_STRINGS.production];
+  // For development, only 'direct' and 'pool' are available
+  if (
+    environment === 'development' &&
+    (connectionType === 'admin' || connectionType === 'adminPool')
+  ) {
+    // Fall back to regular pool connection for development
+    connectionType = 'pool';
+  }
+
+  const envConfig = CONNECTION_STRINGS[environment];
+  const connectionString = envConfig[connectionType as keyof typeof envConfig];
 
   if (!connectionString && environment === 'production') {
     throw new Error(
