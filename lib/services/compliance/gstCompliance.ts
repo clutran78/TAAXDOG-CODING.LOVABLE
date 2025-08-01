@@ -1,6 +1,6 @@
 import prisma from '../../prisma';
-import { z } from 'zod';
-import { AUSTRALIAN_TAX_CONFIG } from '../../ai/config';
+// import { z } from 'zod';
+// import { AUSTRALIAN_TAX_CONFIG } from '../../ai/config';
 import { logger } from '@/lib/logger';
 
 // GST Treatment enum (matching Prisma schema)
@@ -144,11 +144,14 @@ export class GSTComplianceService {
     invoiceId?: string,
   ): Promise<string> {
     // Verify transaction belongs to user
-    const transaction = await prisma.transaction.findFirst({
+    const transaction = await prisma.bank_transactions.findFirst({
       where: {
         id: transactionId,
-        userId,
-        deletedAt: null,
+        bank_account: {
+          basiq_user: {
+            user_id: userId,
+          },
+        },
       },
     });
 
@@ -228,23 +231,26 @@ export class GSTComplianceService {
     }
 
     // Get all transactions for the period with user isolation
-    const transactions = await prisma.transaction.findMany({
+    const transactions = await prisma.bank_transactions.findMany({
       where: {
-        userId,
-        date: {
+        bank_account: {
+          basiq_user: {
+            user_id: userId,
+          },
+        },
+        transaction_date: {
           gte: this.getTaxPeriodStart(taxPeriod),
           lte: this.getTaxPeriodEnd(taxPeriod),
         },
-        deletedAt: null,
       },
       select: {
         id: true,
         amount: true,
-        type: true,
+        direction: true,
         category: true,
-        gstAmount: true,
-        taxCategory: true,
-        isBusinessExpense: true,
+        gst_amount: true,
+        tax_category: true,
+        is_business_expense: true,
       },
     });
 
@@ -257,14 +263,14 @@ export class GSTComplianceService {
     let capitalPurchases = 0;
 
     for (const transaction of transactions) {
-      const amount = Math.abs(transaction.amount);
-      const gstAmount = Math.abs(transaction.gstAmount || 0);
+      const amount = Math.abs(Number(transaction.amount));
+      const gstAmount = Math.abs(Number(transaction.gst_amount || 0));
       const category = transaction.category || '';
 
       // Determine GST treatment
       const gstTreatment = this.determineGSTTreatment(category);
 
-      if (transaction.type === 'INCOME') {
+      if (transaction.direction === 'credit') {
         // Income/Sales
         totalSales += amount;
         if (gstTreatment === GSTTreatment.TAXABLE_SUPPLY) {
@@ -275,10 +281,10 @@ export class GSTComplianceService {
         ) {
           exportSales += amount;
         }
-      } else if (transaction.type === 'EXPENSE') {
+      } else if (transaction.direction === 'debit') {
         // Expenses/Purchases
         totalPurchases += amount;
-        if (transaction.isBusinessExpense && gstTreatment === GSTTreatment.TAXABLE_SUPPLY) {
+        if (transaction.is_business_expense && gstTreatment === GSTTreatment.TAXABLE_SUPPLY) {
           gstOnPurchases += gstAmount;
         }
         if (
@@ -303,23 +309,18 @@ export class GSTComplianceService {
       capitalPurchases,
     };
 
-    // Save report generation audit
-    await prisma.auditLog
-      .create({
-        data: {
-          event: 'BAS_REPORT_GENERATED',
-          userId,
-          ipAddress: 'system',
-          userAgent: 'GSTComplianceService',
-          success: true,
-          metadata: {
-            taxPeriod,
-            report,
-            timestamp: new Date().toISOString(),
-          },
-        },
-      })
-      .catch((err) => logger.error('Audit log error:', err));
+    // TODO: Implement proper audit logging for GST/BAS reports
+    // For now, log to standard logger
+    logger.info('BAS report generated', {
+      userId,
+      taxPeriod,
+      reportSummary: {
+        netGST: report.netGST,
+        totalSales: report.totalSales,
+        totalPurchases: report.totalPurchases,
+      },
+      timestamp: new Date().toISOString(),
+    });
 
     return report;
   }
@@ -377,10 +378,9 @@ export class GSTComplianceService {
 
     const total = subtotal + gstAmount;
 
-    // Create invoice record with user association
+    // Create invoice record
     await prisma.invoice.create({
       data: {
-        userId,
         invoiceNumber,
         stripeInvoiceId: invoiceId,
         customerName,
@@ -451,7 +451,7 @@ export class GSTComplianceService {
 
     // Quarterly BAS periods: Mar, Jun, Sep, Dec
     const quarter = Math.ceil(month / 3);
-    const quarterEndMonth = quarter * 3;
+    // const quarterEndMonth = quarter * 3;
 
     // For monthly, return YYYY-MM
     // For quarterly, return YYYY-Q[1-4]
@@ -534,12 +534,10 @@ export class GSTComplianceService {
     const user = await prisma.user.findUnique({
       where: {
         id: userId,
-        deletedAt: null,
       },
       select: {
         abn: true,
         businessName: true,
-        gstRegistered: true,
       },
     });
 
@@ -556,26 +554,29 @@ export class GSTComplianceService {
     }
 
     // Check for missing GST details in recent business transactions
-    const recentTransactions = await prisma.transaction.findMany({
+    const recentTransactions = await prisma.bank_transactions.findMany({
       where: {
-        userId,
-        isBusinessExpense: true,
-        date: {
+        bank_account: {
+          basiq_user: {
+            user_id: userId,
+          },
+        },
+        is_business_expense: true,
+        transaction_date: {
           gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
         },
-        deletedAt: null,
       },
       select: {
         id: true,
         amount: true,
-        gstAmount: true,
+        gst_amount: true,
         category: true,
       },
     });
 
     // Count transactions missing GST information
     const missingGSTDetails = recentTransactions.filter(
-      (t) => t.gstAmount === null || t.gstAmount === 0,
+      (t) => t.gst_amount === null || Number(t.gst_amount) === 0,
     ).length;
 
     if (missingGSTDetails > 0) {
@@ -587,14 +588,16 @@ export class GSTComplianceService {
     const annualTurnover = await this.calculateAnnualTurnover(userId);
     const gstRegistrationRequired = annualTurnover >= 75000;
 
-    if (gstRegistrationRequired && !user?.gstRegistered) {
+    if (gstRegistrationRequired && !user?.abn) {
       issues.push('GST registration required - annual turnover exceeds $75,000');
       recommendations.push('Register for GST immediately to comply with ATO requirements');
     }
 
     // Check for tax invoice compliance
-    if (user?.gstRegistered) {
-      const highValueTransactions = recentTransactions.filter((t) => Math.abs(t.amount) > 82.5);
+    if (user?.abn && gstRegistrationRequired) {
+      const highValueTransactions = recentTransactions.filter(
+        (t) => Math.abs(Number(t.amount)) > 82.5,
+      );
 
       if (highValueTransactions.length > 0) {
         recommendations.push('Ensure tax invoices are obtained for all purchases over $82.50');
@@ -616,21 +619,24 @@ export class GSTComplianceService {
     const oneYearAgo = new Date();
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
-    const turnover = await prisma.transaction.aggregate({
+    const turnover = await prisma.bank_transactions.aggregate({
       where: {
-        userId,
-        type: 'INCOME',
-        isBusinessExpense: false, // Business income
-        date: {
+        bank_account: {
+          basiq_user: {
+            user_id: userId,
+          },
+        },
+        direction: 'credit',
+        is_business_expense: false, // Business income
+        transaction_date: {
           gte: oneYearAgo,
         },
-        deletedAt: null,
       },
       _sum: {
         amount: true,
       },
     });
 
-    return turnover._sum.amount || 0;
+    return Number(turnover._sum.amount || 0);
   }
 }

@@ -1,18 +1,22 @@
 /**
  * Lazy-loaded route configuration
  * All routes are loaded on-demand to improve initial bundle size
+ *
+ * NOTE: This file is currently not in use as the app uses Next.js App Router
+ * Keeping for potential future use with proper path updates
  */
 
+/*
 import { lazyLoadPage } from '@/lib/utils/lazyLoad';
 
 // Authentication Pages
-export const LazyLoginPage = lazyLoadPage(() => import('@/pages/auth/Login'));
+export const LazyLoginPage = lazyLoadPage(() => import('@/src/app/login/page'));
 
-export const LazyRegisterPage = lazyLoadPage(() => import('@/pages/auth/register'));
+export const LazyRegisterPage = lazyLoadPage(() => import('@/src/app/register/page'));
 
-export const LazyForgotPasswordPage = lazyLoadPage(() => import('@/pages/auth/forgot-password'));
+export const LazyForgotPasswordPage = lazyLoadPage(() => import('@/src/app/forgot-password/page'));
 
-export const LazyResetPasswordPage = lazyLoadPage(() => import('@/pages/auth/reset-password'));
+export const LazyResetPasswordPage = lazyLoadPage(() => import('@/src/app/reset-password/page'));
 
 // Dashboard Pages
 export const LazyDashboardPage = lazyLoadPage(() => import('@/pages/dashboard'));
@@ -101,3 +105,4 @@ export const routeConfig = {
     subscription: { component: LazySubscriptionPage, protected: true },
   },
 };
+*/

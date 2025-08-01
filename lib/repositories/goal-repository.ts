@@ -6,6 +6,7 @@
  */
 
 import { Goal, Prisma } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 import { BaseRepository } from './base-repository';
 import prisma from '../prisma';
 
@@ -62,7 +63,7 @@ export class GoalRepository extends BaseRepository<Goal, CreateGoalInput, Update
       where: {
         status: { in: ['ACTIVE', 'PAUSED'] },
       },
-      orderBy: [{ priority: 'desc' }, { deadline: 'asc' }, { createdAt: 'desc' }],
+      orderBy: [{ targetDate: 'asc' }, { createdAt: 'desc' }] as any,
     });
 
     return result.data.map((goal) => this.calculateMetrics(goal));
@@ -133,14 +134,16 @@ export class GoalRepository extends BaseRepository<Goal, CreateGoalInput, Update
       throw new Error('Amount cannot be negative');
     }
 
-    if (amount > goal.targetAmount) {
+    const amountDecimal = new Decimal(amount);
+
+    if (amountDecimal.gt(goal.targetAmount)) {
       throw new Error('Amount cannot exceed target amount');
     }
 
     // Update with automatic status change if completed
     const updates: UpdateGoalInput = {
       currentAmount: amount,
-      ...(amount >= goal.targetAmount && { status: 'COMPLETED' }),
+      ...(amountDecimal.gte(goal.targetAmount) && { status: 'COMPLETED' }),
     };
 
     const updated = await this.update(id, updates, userId);
@@ -156,8 +159,8 @@ export class GoalRepository extends BaseRepository<Goal, CreateGoalInput, Update
       throw new Error('Goal not found');
     }
 
-    const newAmount = goal.currentAmount + amount;
-    return this.updateProgress(id, newAmount, userId);
+    const newAmount = goal.currentAmount.add(amount);
+    return this.updateProgress(id, newAmount.toNumber(), userId);
   }
 
   // ========================================
@@ -211,7 +214,11 @@ export class GoalRepository extends BaseRepository<Goal, CreateGoalInput, Update
 
       // Check against current amount
       const currentAmount = data.currentAmount ?? existing.currentAmount;
-      if (currentAmount > data.targetAmount) {
+      const currentAmountDecimal =
+        typeof currentAmount === 'number' ? new Decimal(currentAmount) : currentAmount;
+      const targetAmountDecimal = new Decimal(data.targetAmount);
+
+      if (currentAmountDecimal.gt(targetAmountDecimal)) {
         throw new Error('Target amount cannot be less than current amount');
       }
     }
@@ -223,7 +230,11 @@ export class GoalRepository extends BaseRepository<Goal, CreateGoalInput, Update
       }
 
       const targetAmount = data.targetAmount ?? existing.targetAmount;
-      if (data.currentAmount > targetAmount) {
+      const currentAmountDecimal = new Decimal(data.currentAmount);
+      const targetAmountDecimal =
+        typeof targetAmount === 'number' ? new Decimal(targetAmount) : targetAmount;
+
+      if (currentAmountDecimal.gt(targetAmountDecimal)) {
         throw new Error('Current amount cannot exceed target amount');
       }
     }
@@ -284,7 +295,7 @@ export class GoalRepository extends BaseRepository<Goal, CreateGoalInput, Update
   // ========================================
 
   protected getDefaultOrderBy(): any {
-    return [{ status: 'asc' }, { priority: 'desc' }, { deadline: 'asc' }, { createdAt: 'desc' }];
+    return [{ status: 'asc' }, { targetDate: 'asc' }, { createdAt: 'desc' }];
   }
 
   protected getMaxRecordsPerUser(): number {
@@ -308,28 +319,30 @@ export class GoalRepository extends BaseRepository<Goal, CreateGoalInput, Update
   // ========================================
 
   private calculateMetrics(goal: Goal): GoalWithMetrics {
-    const progressPercentage =
-      goal.targetAmount > 0
-        ? Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100 * 100) / 100)
-        : 0;
+    const progressPercentage = goal.targetAmount.gt(0)
+      ? Math.min(
+          100,
+          Math.round(goal.currentAmount.div(goal.targetAmount).toNumber() * 100 * 100) / 100,
+        )
+      : 0;
 
-    const daysRemaining = goal.deadline
+    const daysRemaining = goal.targetDate
       ? Math.max(
           0,
-          Math.ceil((new Date(goal.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
+          Math.ceil((new Date(goal.targetDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
         )
       : null;
 
-    const isOverdue = goal.deadline
-      ? new Date(goal.deadline) < new Date() && goal.status === 'ACTIVE'
+    const isOverdue = goal.targetDate
+      ? new Date(goal.targetDate) < new Date() && goal.status === 'ACTIVE'
       : false;
 
     // Calculate monthly target if deadline exists
     let monthlyTarget: number | undefined;
-    if (goal.deadline && goal.status === 'ACTIVE') {
-      const remainingAmount = goal.targetAmount - goal.currentAmount;
+    if (goal.targetDate && goal.status === 'ACTIVE') {
+      const remainingAmount = goal.targetAmount.sub(goal.currentAmount);
       const monthsRemaining = Math.max(1, Math.ceil(daysRemaining! / 30));
-      monthlyTarget = remainingAmount / monthsRemaining;
+      monthlyTarget = remainingAmount.div(monthsRemaining).toNumber();
     }
 
     return {

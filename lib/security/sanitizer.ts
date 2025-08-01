@@ -23,7 +23,7 @@ const createSanitizer = (config: any = {}) => {
   };
 
   return (dirty: string): string => {
-    return purify.sanitize(dirty, defaultConfig);
+    return purify.sanitize(dirty, defaultConfig) as unknown as string;
   };
 };
 
@@ -134,7 +134,14 @@ export const SECURITY_HEADERS = {
 };
 
 // File upload validation
-export const fileValidation = {
+export const fileValidation: {
+  maxSizes: Record<string, number>;
+  allowedTypes: Record<string, string[]>;
+  validate: (
+    file: { name: string; type: string; size: number },
+    category: string,
+  ) => { valid: boolean; error?: string };
+} = {
   // Maximum file sizes in bytes
   maxSizes: {
     image: 5 * 1024 * 1024, // 5MB
@@ -221,7 +228,7 @@ export function sanitizeObject<T extends Record<string, any>>(
     if (sanitizerType === 'skip' || !sanitizerType) {
       sanitized[key as keyof T] = value;
     } else if (typeof value === 'string') {
-      sanitized[key as keyof T] = sanitizers[sanitizerType](value) as any;
+      sanitized[key as keyof T] = (sanitizers as any)[sanitizerType](value) as any;
     } else {
       sanitized[key as keyof T] = value;
     }

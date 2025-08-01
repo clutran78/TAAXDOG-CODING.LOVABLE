@@ -164,11 +164,11 @@ export class RequestSigner {
     const now = Date.now();
     const maxAge = this.DEFAULT_MAX_AGE * 2; // Keep nonces for twice the max age
 
-    for (const [nonce, timestamp] of this.usedNonces.entries()) {
+    this.usedNonces.forEach((timestamp, nonce) => {
       if (now - timestamp > maxAge) {
         this.usedNonces.delete(nonce);
       }
-    }
+    });
 
     logger.info('Cleaned up expired nonces', {
       remaining: this.usedNonces.size,

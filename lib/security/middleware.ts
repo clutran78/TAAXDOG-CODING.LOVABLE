@@ -65,14 +65,14 @@ class RateLimiter {
     const now = Date.now();
     const windowStart = now - SECURITY_CONFIG.RATE_LIMIT_WINDOW;
 
-    for (const [key, timestamps] of this.windows.entries()) {
+    this.windows.forEach((timestamps, key) => {
       const validTimestamps = timestamps.filter((t) => t > windowStart);
       if (validTimestamps.length === 0) {
         this.windows.delete(key);
       } else {
         this.windows.set(key, validTimestamps);
       }
-    }
+    });
   }
 }
 

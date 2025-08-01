@@ -88,7 +88,9 @@ export class EncryptionService {
     try {
       this.masterKey = Buffer.from(keyBase64, 'base64');
       if (this.masterKey.length !== KEY_LENGTH) {
-        throw new Error(`Invalid encryption key length: expected ${KEY_LENGTH}, got ${this.masterKey.length}`);
+        throw new Error(
+          `Invalid encryption key length: expected ${KEY_LENGTH}, got ${this.masterKey.length}`,
+        );
       }
     } catch (error) {
       logger.error('Failed to initialize encryption service', { error });
@@ -112,7 +114,7 @@ export class EncryptionService {
   public async encrypt(
     data: string,
     fieldType?: EncryptionFieldType,
-    metadata?: Record<string, any>
+    metadata?: Record<string, any>,
   ): Promise<EncryptionResult> {
     if (!data) {
       throw new Error('Cannot encrypt empty data');
@@ -133,12 +135,9 @@ export class EncryptionService {
 
       // Create cipher
       const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, key, iv);
-      
+
       // Encrypt data
-      const encrypted = Buffer.concat([
-        cipher.update(data, 'utf8'),
-        cipher.final(),
-      ]);
+      const encrypted = Buffer.concat([cipher.update(data, 'utf8'), cipher.final()]);
 
       // Get authentication tag
       const tag = cipher.getAuthTag();
@@ -215,13 +214,10 @@ export class EncryptionService {
 
       // Create decipher
       const decipher = crypto.createDecipheriv(parsed.algorithm || ENCRYPTION_ALGORITHM, key, iv);
-      decipher.setAuthTag(tag);
+      (decipher as any).setAuthTag(tag);
 
       // Decrypt data
-      const decrypted = Buffer.concat([
-        decipher.update(encrypted),
-        decipher.final(),
-      ]);
+      const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
 
       const result = decrypted.toString('utf8');
 
@@ -243,7 +239,7 @@ export class EncryptionService {
   public async encryptTFN(tfn: string): Promise<EncryptionResult> {
     // Remove spaces and validate
     const cleanTFN = tfn.replace(/\s/g, '');
-    
+
     if (!this.validateTFN(cleanTFN)) {
       throw new Error('Invalid TFN format or checksum');
     }
@@ -260,7 +256,7 @@ export class EncryptionService {
   public async encryptABN(abn: string): Promise<EncryptionResult> {
     // Remove spaces and validate
     const cleanABN = abn.replace(/\s/g, '');
-    
+
     if (!this.validateABN(cleanABN)) {
       throw new Error('Invalid ABN format or checksum');
     }
@@ -283,7 +279,7 @@ export class EncryptionService {
     accountNumberSchema.parse(cleanAccount);
 
     const combined = `${cleanBSB}|${cleanAccount}`;
-    
+
     return this.encrypt(combined, EncryptionFieldType.BANK_ACCOUNT, {
       validatedAt: new Date().toISOString(),
       bsbBank: this.getBankFromBSB(cleanBSB),
@@ -300,11 +296,11 @@ export class EncryptionService {
       case EncryptionFieldType.TFN:
         // Show: XXX XXX 789
         return data.length >= 3 ? `XXX XXX ${data.slice(-3)}` : 'XXX XXX XXX';
-      
+
       case EncryptionFieldType.ABN:
         // Show: XX XXX XXX 901
         return data.length >= 3 ? `XX XXX XXX ${data.slice(-3)}` : 'XX XXX XXX XXX';
-      
+
       case EncryptionFieldType.BANK_ACCOUNT:
         // Show: ***-*** ****1234
         const parts = data.split('|');
@@ -312,18 +308,20 @@ export class EncryptionService {
           return `***-*** ****${parts[1].slice(-4)}`;
         }
         return '***-*** ********';
-      
+
       case EncryptionFieldType.CREDIT_CARD:
         // Show: **** **** **** 1234
         return data.length >= 4 ? `**** **** **** ${data.slice(-4)}` : '**** **** **** ****';
-      
+
       case EncryptionFieldType.MEDICARE:
         // Show: XXXX XXXXX 1
         return data.length >= 1 ? `XXXX XXXXX ${data.slice(-1)}` : 'XXXX XXXXX X';
-      
+
       default:
         // Generic masking - show last 3 characters
-        return data.length > 3 ? '*'.repeat(data.length - 3) + data.slice(-3) : '*'.repeat(data.length);
+        return data.length > 3
+          ? '*'.repeat(data.length - 3) + data.slice(-3)
+          : '*'.repeat(data.length);
     }
   }
 
@@ -338,11 +336,11 @@ export class EncryptionService {
     // Use HMAC with field type as additional context
     const hmac = crypto.createHmac('sha256', this.masterKey);
     hmac.update(data);
-    
+
     if (fieldType) {
       hmac.update(fieldType);
     }
-    
+
     return hmac.digest('hex');
   }
 
@@ -357,18 +355,18 @@ export class EncryptionService {
           throw new Error('Invalid TFN checksum');
         }
         break;
-      
+
       case EncryptionFieldType.ABN:
         abnSchema.parse(data);
         if (!this.validateABN(data)) {
           throw new Error('Invalid ABN checksum');
         }
         break;
-      
+
       case EncryptionFieldType.BSB:
         bsbSchema.parse(data);
         break;
-      
+
       case EncryptionFieldType.BANK_ACCOUNT:
         // Expect format: BSB|AccountNumber
         const parts = data.split('|');
@@ -454,7 +452,7 @@ export class EncryptionService {
    */
   private getBankFromBSB(bsb: string): string {
     const firstTwo = bsb.substring(0, 2);
-    
+
     const bankMap: Record<string, string> = {
       '01': 'ANZ',
       '03': 'Westpac',
@@ -509,18 +507,10 @@ export class EncryptionService {
         ComplianceStandard.AUSTRALIAN_PRIVACY_ACT,
         ComplianceStandard.PCI_DSS,
       ],
-      [EncryptionFieldType.MEDICARE]: [
-        ComplianceStandard.AUSTRALIAN_PRIVACY_ACT,
-      ],
-      [EncryptionFieldType.PASSPORT]: [
-        ComplianceStandard.AUSTRALIAN_PRIVACY_ACT,
-      ],
-      [EncryptionFieldType.DRIVERS_LICENSE]: [
-        ComplianceStandard.AUSTRALIAN_PRIVACY_ACT,
-      ],
-      [EncryptionFieldType.GENERIC_SENSITIVE]: [
-        ComplianceStandard.AUSTRALIAN_PRIVACY_ACT,
-      ],
+      [EncryptionFieldType.MEDICARE]: [ComplianceStandard.AUSTRALIAN_PRIVACY_ACT],
+      [EncryptionFieldType.PASSPORT]: [ComplianceStandard.AUSTRALIAN_PRIVACY_ACT],
+      [EncryptionFieldType.DRIVERS_LICENSE]: [ComplianceStandard.AUSTRALIAN_PRIVACY_ACT],
+      [EncryptionFieldType.GENERIC_SENSITIVE]: [ComplianceStandard.AUSTRALIAN_PRIVACY_ACT],
     };
 
     return standards[fieldType] || [ComplianceStandard.AUSTRALIAN_PRIVACY_ACT];
@@ -534,8 +524,10 @@ export class EncryptionService {
     if (!keyCreatedAt) return true;
 
     const createdDate = new Date(keyCreatedAt);
-    const daysSinceCreation = Math.floor((Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
-    
+    const daysSinceCreation = Math.floor(
+      (Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
     return daysSinceCreation >= KEY_ROTATION_DAYS;
   }
 
@@ -553,11 +545,11 @@ export class EncryptionService {
   public async reencrypt(encryptedData: string, newKey: Buffer): Promise<string> {
     // Decrypt with current key
     const decrypted = await this.decrypt(encryptedData);
-    
+
     // Temporarily switch to new key
     const oldKey = this.masterKey;
     this.masterKey = newKey;
-    
+
     try {
       // Encrypt with new key
       const result = await this.encrypt(decrypted);
@@ -609,7 +601,10 @@ export function maskSensitiveData(data: string, fieldType: EncryptionFieldType):
   return encryptionService.mask(data, fieldType);
 }
 
-export async function hashSensitiveData(data: string, fieldType?: EncryptionFieldType): Promise<string> {
+export async function hashSensitiveData(
+  data: string,
+  fieldType?: EncryptionFieldType,
+): Promise<string> {
   return encryptionService.hash(data, fieldType);
 }
 
@@ -627,7 +622,8 @@ export const abnUtils = {
 };
 
 export const bankAccountUtils = {
-  encrypt: (bsb: string, accountNumber: string) => encryptionService.encryptBankAccount(bsb, accountNumber),
+  encrypt: (bsb: string, accountNumber: string) =>
+    encryptionService.encryptBankAccount(bsb, accountNumber),
   mask: (combined: string) => encryptionService.mask(combined, EncryptionFieldType.BANK_ACCOUNT),
   hash: (combined: string) => encryptionService.hash(combined, EncryptionFieldType.BANK_ACCOUNT),
 };

@@ -195,7 +195,10 @@ class ApiKeyManager {
     });
 
     if (!response.ok) {
-      logger.error(`API request to ${service} failed:`, response.status, response.statusText);
+      logger.error(`API request to ${service} failed:`, {
+        status: response.status,
+        statusText: response.statusText,
+      });
     }
 
     return response;

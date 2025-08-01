@@ -53,11 +53,11 @@ function calculateChangedFields(previousData: any, currentData: any): string[] {
   const changes: string[] = [];
   const allKeys = new Set([...Object.keys(previousData), ...Object.keys(currentData)]);
 
-  for (const key of allKeys) {
+  allKeys.forEach((key) => {
     if (JSON.stringify(previousData[key]) !== JSON.stringify(currentData[key])) {
       changes.push(key);
     }
-  }
+  });
 
   return changes;
 }
@@ -141,7 +141,7 @@ export async function createAuditLog(
       previousHash: lastAuditLog?.hashChain || null,
     };
 
-    const hashChain = await generateAuditHash(auditData, lastAuditLog?.hashChain);
+    const hashChain = await generateAuditHash(auditData, lastAuditLog?.hashChain || undefined);
 
     // Create the audit log entry
     await prisma.financialAuditLog.create({
@@ -344,26 +344,26 @@ export async function logAuthEvent(data: AuthEventData): Promise<void> {
   try {
     // Map auth actions to audit log events
     const eventMapping: Record<string, string> = {
-      'LOGIN': 'LOGIN',
-      'LOGIN_SUCCESS': 'LOGIN_SUCCESS',
-      'LOGIN_FAILED': 'LOGIN_FAILED',
-      'LOGIN_ERROR': 'LOGIN_FAILED',
-      'LOGOUT': 'LOGOUT',
-      'REGISTER': 'REGISTER',
-      'OAUTH_LOGIN_SUCCESS': 'LOGIN_SUCCESS',
-      'OAUTH_SIGNUP': 'REGISTER',
-      'SIGNIN_ERROR': 'LOGIN_FAILED',
-      'ACCOUNT_LOCKED': 'LOGIN_FAILED',
-      'PASSWORD_RESET_REQUESTED': 'PASSWORD_RESET',
-      'PASSWORD_RESET_FAILED': 'PASSWORD_RESET',
-      'PASSWORD_RESET_SUCCESS': 'PASSWORD_RESET',
-      'ACCOUNT_LINKED': 'LOGIN_SUCCESS',
-      'UNAUTHORIZED_ACCESS': 'LOGIN_FAILED',
-      'FORBIDDEN_ACCESS': 'LOGIN_FAILED',
+      LOGIN: 'LOGIN',
+      LOGIN_SUCCESS: 'LOGIN_SUCCESS',
+      LOGIN_FAILED: 'LOGIN_FAILED',
+      LOGIN_ERROR: 'LOGIN_FAILED',
+      LOGOUT: 'LOGOUT',
+      REGISTER: 'REGISTER',
+      OAUTH_LOGIN_SUCCESS: 'LOGIN_SUCCESS',
+      OAUTH_SIGNUP: 'REGISTER',
+      SIGNIN_ERROR: 'LOGIN_FAILED',
+      ACCOUNT_LOCKED: 'LOGIN_FAILED',
+      PASSWORD_RESET_REQUESTED: 'PASSWORD_RESET',
+      PASSWORD_RESET_FAILED: 'PASSWORD_RESET',
+      PASSWORD_RESET_SUCCESS: 'PASSWORD_RESET',
+      ACCOUNT_LINKED: 'LOGIN_SUCCESS',
+      UNAUTHORIZED_ACCESS: 'LOGIN_FAILED',
+      FORBIDDEN_ACCESS: 'LOGIN_FAILED',
     };
-    
+
     const event = eventMapping[data.action] || 'LOGIN';
-    
+
     await prisma.auditLog.create({
       data: {
         event: event as any, // Cast to AuthEvent enum

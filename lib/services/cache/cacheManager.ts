@@ -1,4 +1,4 @@
-import { getRedisCache, RedisCache } from './redisClient';
+import { getRedisCache, RedisClient } from './redisClient';
 
 /**
  * Cache key generation utilities
@@ -46,7 +46,7 @@ export const CacheTTL = {
  * Cache manager with invalidation strategies
  */
 export class CacheManager {
-  private cache: RedisCache | null = null;
+  private cache: RedisClient | null = null;
 
   async init(): Promise<void> {
     this.cache = await getRedisCache();
@@ -61,16 +61,20 @@ export class CacheManager {
     }
 
     // Try to get from cache
-    const cached = await this.cache.get<T>(key);
+    const cached = await this.cache.get(key);
     if (cached !== null) {
-      return cached;
+      try {
+        return JSON.parse(cached) as T;
+      } catch {
+        return cached as T;
+      }
     }
 
     // Fetch fresh data
     const fresh = await fetcher();
 
     // Store in cache
-    await this.cache.set(key, fresh, ttl);
+    await this.cache.set(key, JSON.stringify(fresh), ttl);
 
     return fresh;
   }
@@ -144,30 +148,22 @@ export class CacheManager {
     const promises: Promise<void>[] = [];
 
     if (data.profile) {
-      promises.push(this.cache.set(CacheKeys.userProfile(userId), data.profile, CacheTTL.MEDIUM));
+      promises.push(this.set(CacheKeys.userProfile(userId), data.profile, CacheTTL.MEDIUM));
     }
 
     if (data.goals) {
-      promises.push(this.cache.set(CacheKeys.userGoals(userId), data.goals, CacheTTL.MEDIUM));
+      promises.push(this.set(CacheKeys.userGoals(userId), data.goals, CacheTTL.MEDIUM));
     }
 
     if (data.recentTransactions) {
       promises.push(
-        this.cache.set(
-          CacheKeys.userTransactions(userId, 1),
-          data.recentTransactions,
-          CacheTTL.SHORT,
-        ),
+        this.set(CacheKeys.userTransactions(userId, 1), data.recentTransactions, CacheTTL.SHORT),
       );
     }
 
     if (data.financialSummary) {
       promises.push(
-        this.cache.set(
-          CacheKeys.userFinancialSummary(userId),
-          data.financialSummary,
-          CacheTTL.LONG,
-        ),
+        this.set(CacheKeys.userFinancialSummary(userId), data.financialSummary, CacheTTL.LONG),
       );
     }
 
@@ -181,7 +177,7 @@ export class CacheManager {
     if (!this.cache) return null;
 
     const sessionKey = `${CacheKeys.sessionData(sessionId)}:${key}`;
-    return this.cache.get<T>(sessionKey);
+    return this.get<T>(sessionKey);
   }
 
   async setSessionCache(
@@ -193,7 +189,7 @@ export class CacheManager {
     if (!this.cache) return;
 
     const sessionKey = `${CacheKeys.sessionData(sessionId)}:${key}`;
-    await this.cache.set(sessionKey, value, ttl);
+    await this.set(sessionKey, value, ttl);
   }
 
   /**
@@ -232,7 +228,22 @@ export class CacheManager {
    */
   async get<T = any>(key: string): Promise<T | null> {
     if (!this.cache) return null;
-    return await this.cache.get(key);
+    const value = await this.cache.get(key);
+    if (!value) return null;
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      return value as T;
+    }
+  }
+
+  /**
+   * Set a value with TTL
+   */
+  async set(key: string, value: any, ttl?: number): Promise<void> {
+    if (!this.cache) return;
+    const serialized = typeof value === 'string' ? value : JSON.stringify(value);
+    await this.cache.set(key, serialized, ttl);
   }
 
   /**
