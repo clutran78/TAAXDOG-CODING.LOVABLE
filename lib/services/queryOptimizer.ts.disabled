@@ -32,7 +32,8 @@ async function getCachedOrExecute<T>(
 
 // Clear cache for a specific user
 export function clearUserCache(userId: string) {
-  for (const key of queryCache.keys()) {
+  const keys = Array.from(queryCache.keys());
+  for (const key of keys) {
     if (key.includes(userId)) {
       queryCache.delete(key);
     }

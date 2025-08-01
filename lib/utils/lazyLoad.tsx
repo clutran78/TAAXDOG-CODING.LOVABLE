@@ -42,9 +42,8 @@ export function lazyLoadComponent<T extends React.ComponentType<any>>(
       return 'default' in module ? module : { default: module };
     },
     {
-      loading: options?.loading || ComponentLoader,
       ssr: options?.ssr ?? true,
-      ...options,
+      loading: () => <ComponentLoader />,
     },
   );
 }

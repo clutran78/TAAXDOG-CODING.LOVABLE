@@ -16,7 +16,7 @@ export function createStripeClient(): StripeConfig {
 
   // Initialize Stripe with the secret key
   const stripe = new Stripe(config.secretKey, {
-    apiVersion: '2024-12-18.acacia',
+    apiVersion: '2025-07-30.basil',
     typescript: true,
     maxNetworkRetries: 2,
     timeout: 10000, // 10 seconds

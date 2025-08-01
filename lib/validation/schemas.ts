@@ -298,20 +298,6 @@ export const subscriptionSchema = z.object({
   promoCode: z.string().optional(),
 });
 
-// Helper function to validate Australian Business Number
-function validateABN(abn: string): boolean {
-  const weights = [10, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19];
-  const abnDigits = abn.split('').map(Number);
-
-  // Subtract 1 from first digit
-  abnDigits[0] -= 1;
-
-  // Calculate weighted sum
-  const sum = abnDigits.reduce((acc, digit, index) => acc + digit * weights[index], 0);
-
-  // Check if divisible by 89
-  return sum % 89 === 0;
-}
 
 // Type exports
 export type GoalFormInput = z.infer<typeof goalFormSchema>;
@@ -345,7 +331,7 @@ export function validateField<T extends Record<string, unknown>>(
 ): { isValid: boolean; errors: string[] } {
   try {
     // Access the shape property safely with proper typing
-    const schemaShape = (schema as z.ZodObject<z.ZodRawShape>).shape;
+    const schemaShape = (schema as any).shape;
     const fieldSchema = schemaShape[field as string];
 
     if (fieldSchema && fieldSchema instanceof z.ZodType) {

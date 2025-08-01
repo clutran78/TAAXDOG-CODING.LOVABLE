@@ -174,7 +174,7 @@ export const Sanitizers = {
   sanitizePhone: (phone: string): string => {
     try {
       const parsed = parsePhoneNumber(phone, 'AU');
-      return parsed ? parsed.format('E164') : phone.replace(/\D/g, '');
+      return parsed ? parsed.formatInternational() : phone.replace(/\D/g, '');
     } catch {
       return phone.replace(/\D/g, '');
     }

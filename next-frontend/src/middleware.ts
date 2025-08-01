@@ -131,7 +131,8 @@ function detectRequestSmuggling(request: NextRequest): boolean {
   }
 
   // Check for folded headers (space/tab continuation)
-  for (const [key, value] of headers.entries()) {
+  let hasFoldedHeaders = false;
+  headers.forEach((value, key) => {
     if (
       value.includes('\r') ||
       value.includes('\n') ||
@@ -139,9 +140,10 @@ function detectRequestSmuggling(request: NextRequest): boolean {
       value.includes(' \r') ||
       value.includes(' \n')
     ) {
-      return true;
+      hasFoldedHeaders = true;
     }
-  }
+  });
+  if (hasFoldedHeaders) return true;
 
   // Check for dangerous HTTP methods
   if (SECURITY_CONFIG.DANGEROUS_METHODS.includes(request.method)) {
@@ -149,17 +151,21 @@ function detectRequestSmuggling(request: NextRequest): boolean {
   }
 
   // Check header count and sizes
-  const headerCount = Array.from(headers.entries()).length;
+  // Get header count
+  let headerCount = 0;
+  headers.forEach(() => headerCount++);
   if (headerCount > SECURITY_CONFIG.MAX_HEADER_COUNT) {
     return true;
   }
 
   // Check individual header sizes
-  for (const [key, value] of headers.entries()) {
+  let headerSizeExceeded = false;
+  headers.forEach((value, key) => {
     if ((key + value).length > SECURITY_CONFIG.MAX_HEADER_SIZE) {
-      return true;
+      headerSizeExceeded = true;
     }
-  }
+  });
+  if (headerSizeExceeded) return true;
 
   return false;
 }
@@ -209,7 +215,13 @@ export async function middleware(request: NextRequest) {
     // 1. CRITICAL: Check for HTTP request smuggling
     if (detectRequestSmuggling(request)) {
       logSecurityEvent('http_request_smuggling_detected', 'error', request, {
-        headers: Object.fromEntries(request.headers.entries()),
+        headers: (() => {
+          const headersObj: Record<string, string> = {};
+          request.headers.forEach((value, key) => {
+            headersObj[key] = value;
+          });
+          return headersObj;
+        })(),
         method: request.method,
       });
       return NextResponse.json({ error: 'Malformed request' }, { status: 400 });

@@ -51,8 +51,8 @@ export default function TotalExpensesPage() {
       setLoading(true);
       const response = await apiService.getTotalExpenses(session.user.id, selectedPeriod);
 
-      if (response.success) {
-        setExpenseData(response.data);
+      if (response.success && response.data) {
+        setExpenseData(response.data as ExpenseData);
         setError(null);
       } else {
         setError(response.error || 'Failed to load expense data');

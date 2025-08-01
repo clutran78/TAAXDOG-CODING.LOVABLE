@@ -119,7 +119,7 @@ export interface Subscription extends AuditInfo {
 }
 
 // Payment method
-export interface PaymentMethod {
+export interface StripePaymentMethod {
   id: string;
   userId: string;
 

@@ -141,7 +141,8 @@ export const transactionSchemas = {
   list: {
     query: z.object({
       ...commonSchemas.pagination.shape,
-      ...commonSchemas.dateRange.shape,
+      startDate: z.string().datetime().optional(),
+      endDate: z.string().datetime().optional(),
       category: z.string().optional(),
       taxCategory: commonSchemas.taxCategory.optional(),
       isBusinessExpense: commonSchemas.booleanString.optional(),
@@ -656,7 +657,8 @@ export const adminSchemas = {
   auditLogs: {
     query: z.object({
       ...commonSchemas.pagination.shape,
-      ...commonSchemas.dateRange.shape,
+      startDate: z.string().datetime().optional(),
+      endDate: z.string().datetime().optional(),
       userId: z.string().uuid().optional(),
       event: z.string().optional(),
     }),

@@ -198,7 +198,7 @@ export interface BatchResult {
 
 // File upload
 export interface FileUploadRequest {
-  file: Express.Multer.File | string; // File object or base64
+  file: File | string; // File object or base64
   type: 'receipt' | 'document' | 'profile_image';
   metadata?: Record<string, unknown>;
 }

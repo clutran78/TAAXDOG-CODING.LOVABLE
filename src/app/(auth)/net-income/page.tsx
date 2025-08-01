@@ -46,8 +46,8 @@ export default function NetIncomePage() {
       setLoading(true);
       const response = await apiService.getNetIncome(session.user.id, selectedPeriod);
 
-      if (response.success) {
-        setIncomeData(response.data);
+      if (response.success && response.data) {
+        setIncomeData(response.data as IncomeData);
         setError(null);
       } else {
         setError(response.error || 'Failed to load income data');

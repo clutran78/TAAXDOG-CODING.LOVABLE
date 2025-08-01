@@ -87,20 +87,11 @@ const GridBoxes = () => {
       let totalMonthlyCost = 0;
 
       subscriptions.forEach((subscription) => {
-        let amount = parseFloat(subscription.amount || 0);
+        let amount = parseFloat(String(subscription.amount || '0'));
         if (isNaN(amount)) amount = 0;
 
-        switch (subscription.frequency) {
-          case 'yearly':
-            amount = amount / 12;
-            break;
-          case 'quarterly':
-            amount = amount / 3;
-            break;
-          case 'weekly':
-            amount = amount * 4.33;
-            break;
-        }
+        // Assume all amounts are monthly for now since frequency is not available
+        // TODO: Add frequency field to subscription model
 
         totalMonthlyCost += amount;
       });
@@ -135,12 +126,12 @@ const GridBoxes = () => {
         return;
       }
 
-      const income = transactions.reduce((sum, tx) => {
+      const income = transactions.reduce((sum: number, tx: any) => {
         const amount = parseFloat(tx.amount || '0');
         return sum + (amount > 0 ? amount : 0);
       }, 0);
 
-      const expenses = transactions.reduce((sum, tx) => {
+      const expenses = transactions.reduce((sum: number, tx: any) => {
         const amount = parseFloat(tx.amount || '0');
         return sum + (amount < 0 ? Math.abs(amount) : 0);
       }, 0);

@@ -186,7 +186,7 @@ export const commonSchemas = {
   registerRequest: z.object({
     email: validators.email,
     password: validators.password,
-    name: validators.safeString.min(1).max(100),
+    name: z.string().min(1).max(100).transform((val) => sanitizeString(val)),
     phoneNumber: validators.phoneNumber.optional(),
     abn: validators.abn.optional(),
   }),
@@ -207,16 +207,16 @@ export const commonSchemas = {
   // Transaction creation
   transactionRequest: z.object({
     amount: validators.amount,
-    description: validators.safeString.max(500),
-    category: validators.safeString.max(50),
+    description: z.string().max(500).transform((val) => sanitizeString(val)),
+    category: z.string().max(50).transform((val) => sanitizeString(val)),
     date: validators.date,
     isDeductible: validators.boolean.optional(),
   }),
 
   // Goal creation
   goalRequest: z.object({
-    title: validators.safeString.min(1).max(100),
-    description: validators.safeString.max(500).optional(),
+    title: z.string().min(1).max(100).transform((val) => sanitizeString(val)),
+    description: z.string().max(500).transform((val) => sanitizeString(val)).optional(),
     targetAmount: validators.amount,
     targetDate: validators.date,
   }),

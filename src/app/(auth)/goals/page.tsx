@@ -42,8 +42,8 @@ export default function GoalsPage() {
       setLoading(true)
       const response = await apiService.getGoals(session.user.id)
       
-      if (response.success) {
-        setGoals(response.data || [])
+      if (response.success && response.data) {
+        setGoals(Array.isArray(response.data) ? response.data : [])
         setError(null)
       } else {
         setError(response.error || 'Failed to load goals')

@@ -1,7 +1,7 @@
 "use client";
-import ExpenseCategoriesModal from "@/shared/modals/ExpenseCategoriesModal";
-import ManageSubscriptionsModal from "@/shared/modals/ManageSubscriptionsModal";
-import NetBalanceDetails from "@/shared/modals/NetBalanceDetails";
+import ExpenseCategoriesModal from "@/shared/modals/ExtenseCategoryModal";
+import ManageSubscriptionsModal from "@/shared/modals/ManageSubscriptionsModalWrapper";
+import NetBalanceDetails from "@/shared/modals/NetBalanceDetailsModal";
 import NetIncomeModal from "@/shared/modals/NetIncomeModal";
 import React, { useState } from "react";
 

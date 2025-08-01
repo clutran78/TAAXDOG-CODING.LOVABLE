@@ -42,8 +42,8 @@ export default function BankAccountsPage() {
       setLoading(true)
       const response = await apiService.getBankAccounts(session.user.id)
       
-      if (response.success) {
-        setAccounts(response.data || [])
+      if (response.success && response.data) {
+        setAccounts(Array.isArray(response.data) ? response.data : [])
         setError(null)
       } else {
         setError(response.error || 'Failed to load bank accounts')

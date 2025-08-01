@@ -160,8 +160,8 @@ export function getDatabaseUrl(options: DatabaseUrlOptions = {}): string {
 
   // Find the first defined URL and trim it
   const rawUrl = possibleUrls
-    .filter(url => url !== undefined && url !== '')
-    .map(url => url!.trim())
+    .filter(url => url !== undefined && url !== '' && url !== false)
+    .map(url => (url as string).trim())
     .find(url => url.length > 0);
 
   // Development fallback

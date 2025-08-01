@@ -1,7 +1,7 @@
-import prisma from '../lib/prisma';
-import { Transaction, Goal, BankAccount, User } from '@prisma/client';
-import { AIService } from '../lib/ai/ai-service';
-import { AIOperationType } from '../lib/ai/config';
+import { prisma } from '@/lib/prisma';
+import { bank_transactions as Transaction, Goal, bank_accounts as BankAccount, User } from '@prisma/client';
+import { AIService } from '@/lib/ai/ai-service';
+import { AIOperationType } from '@/lib/ai/config';
 import { logger } from '@/lib/logger';
 
 // Types
@@ -178,7 +178,7 @@ class InsightsService {
       startDate.setDate(startDate.getDate() - period);
 
       // Fetch user transactions
-      const transactions = await prisma.transaction.findMany({
+      const transactions = await prisma.bank_transactions.findMany({
         where: {
           userId,
           date: { gte: startDate },
@@ -639,7 +639,7 @@ Use Australian financial context and terminology.`;
           30,
         );
 
-        const transactions = await prisma.transaction.findMany({
+        const transactions = await prisma.bank_transactions.findMany({
           where: {
             userId,
             date: {
@@ -821,7 +821,7 @@ Use Australian financial context and terminology.`;
       // Get user's financial data
       const [user, transactions, existingGoals, bankAccounts] = await Promise.all([
         prisma.user.findUnique({ where: { id: userId } }),
-        prisma.transaction.findMany({
+        prisma.bank_transactions.findMany({
           where: {
             userId,
             date: { gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) }, // Last 90 days
@@ -830,7 +830,7 @@ Use Australian financial context and terminology.`;
         prisma.goal.findMany({
           where: { userId, status: 'ACTIVE' },
         }),
-        prisma.bankAccount.findMany({
+        prisma.bank_accounts.findMany({
           where: { userId, deletedAt: null },
         }),
       ]);
@@ -1005,7 +1005,7 @@ Use Australian financial context and terminology.`;
 
         // Get all relevant data
         const [transactions, goals, bankAccounts, analysis, taxDeductions] = await Promise.all([
-          prisma.transaction.findMany({
+          prisma.bank_transactions.findMany({
             where: {
               userId,
               date: { gte: startDate, lte: endDate },
@@ -1015,7 +1015,7 @@ Use Australian financial context and terminology.`;
           prisma.goal.findMany({
             where: { userId, status: 'ACTIVE' },
           }),
-          prisma.bankAccount.findMany({
+          prisma.bank_accounts.findMany({
             where: { userId, deletedAt: null },
           }),
           this.analyzeTransactions(userId),
@@ -1153,7 +1153,7 @@ Format: [{"title": "...", "description": "...", "actionSteps": ["...", "...", ".
       this.analyzeTransactions(userId),
       prisma.goal.findMany({ where: { userId, status: 'ACTIVE' } }),
       this.getTaxDeductions(userId),
-      prisma.bankAccount.findMany({ where: { userId, deletedAt: null } }),
+      prisma.bank_accounts.findMany({ where: { userId, deletedAt: null } }),
     ]);
 
     const insights: Insight[] = [];
@@ -1304,7 +1304,7 @@ Format: [{"title": "...", "description": "...", "actionSteps": ["...", "...", ".
     }
 
     // Generate AI-powered insights based on all the data
-    const transactions = await prisma.transaction.findMany({
+    const transactions = await prisma.bank_transactions.findMany({
       where: {
         userId,
         date: { gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) }, // Last 90 days

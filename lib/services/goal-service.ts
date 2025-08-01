@@ -99,8 +99,10 @@ export const updateGoalProgress = async (goalId: string, newAmount: number): Pro
 export const createGoal = async (goal: Partial<Goal>): Promise<Goal> => {
   try {
     // Validate required fields
-    if (!goal.title || !goal.targetAmount || !goal.targetDate) {
-      throw new Error('Missing required fields: title, targetAmount, and targetDate');
+    if (!('name' in goal) || !goal.name || 
+        !('targetAmount' in goal) || !goal.targetAmount || 
+        !('dueDate' in goal) || !goal.dueDate) {
+      throw new Error('Missing required fields: name, targetAmount, and dueDate');
     }
 
     const response = await fetch('/api/goals', {
@@ -111,8 +113,8 @@ export const createGoal = async (goal: Partial<Goal>): Promise<Goal> => {
       credentials: 'include',
       body: JSON.stringify({
         ...goal,
-        currentAmount: goal.currentAmount || 0,
-        type: goal.type || 'SAVINGS',
+        currentAmount: ('currentAmount' in goal ? goal.currentAmount : 0) || 0,
+        type: ('type' in goal ? goal.type : 'SAVINGS') || 'SAVINGS',
         status: 'ACTIVE',
       }),
     });
@@ -231,7 +233,7 @@ export const calculateGoalStats = (goals: Goal[]) => {
   });
   
   const overdue = activeGoals.filter(goal => {
-    return new Date(goal.targetDate) < new Date() && goal.currentAmount < goal.targetAmount;
+    return new Date(goal.dueDate) < new Date() && goal.currentAmount < goal.targetAmount;
   });
   
   return {
