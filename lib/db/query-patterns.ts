@@ -131,8 +131,10 @@ export function buildUserScopedWhere<T extends { userId?: string }>(
 ): any {
   const where: any = {
     userId,
-    ...(baseWhere || {}),
-    ...(options?.additionalFilters || {}),
+    ...(baseWhere && typeof baseWhere === 'object' ? baseWhere : {}),
+    ...(options?.additionalFilters && typeof options.additionalFilters === 'object'
+      ? options.additionalFilters
+      : {}),
   };
 
   // Exclude soft-deleted records by default
@@ -367,18 +369,13 @@ export async function createSecure<T>(
 
   // Create audit log if requested
   if (options?.auditLog) {
-    await prisma.auditLog
-      .create({
-        data: {
-          event: 'RECORD_CREATED',
-          userId,
-          resourceType: model.name,
-          resourceId: record.id,
-          metadata: { data },
-          success: true,
-        },
-      })
-      .catch((err) => logger.error('Audit log creation failed', err));
+    // TODO: Implement proper audit logging for generic record operations
+    // Note: AuditLog is for authentication events only
+    logger.info('Record created', {
+      userId,
+      resourceType: model.name,
+      resourceId: record.id,
+    });
   }
 
   return record;
@@ -411,18 +408,14 @@ export async function updateSecure<T>(
 
   // Create audit log if requested
   if (options?.auditLog) {
-    await prisma.auditLog
-      .create({
-        data: {
-          event: 'RECORD_UPDATED',
-          userId,
-          resourceType: model.name,
-          resourceId: id,
-          metadata: { changes: data },
-          success: true,
-        },
-      })
-      .catch((err) => logger.error('Audit log creation failed', err));
+    // TODO: Implement proper audit logging for generic record operations
+    // Note: AuditLog is for authentication events only
+    logger.info('Record updated', {
+      userId,
+      resourceType: model.name,
+      resourceId: id,
+      changes: data,
+    });
   }
 
   return record;
@@ -456,17 +449,13 @@ export async function softDeleteSecure<T>(
 
   // Create audit log if requested
   if (options?.auditLog) {
-    await prisma.auditLog
-      .create({
-        data: {
-          event: 'RECORD_DELETED',
-          userId,
-          resourceType: model.name,
-          resourceId: id,
-          success: true,
-        },
-      })
-      .catch((err) => logger.error('Audit log creation failed', err));
+    // TODO: Implement proper audit logging for generic record operations
+    // Note: AuditLog is for authentication events only
+    logger.info('Record deleted', {
+      userId,
+      resourceType: model.name,
+      resourceId: id,
+    });
   }
 
   return record;

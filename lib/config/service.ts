@@ -69,7 +69,7 @@ export class ConfigurationService {
     try {
       const stripe = await import('stripe');
       const stripeClient = new stripe.default(getConfig().stripe.secretKey, {
-        apiVersion: '2024-12-18.acacia',
+        apiVersion: '2025-07-30.basil',
       });
 
       // Test with a simple API call

@@ -9,7 +9,6 @@ import {
   BasiqInstitution,
   BasiqConsent,
   BasiqJob,
-  BasiqError,
   CreateUserParams,
   CreateConnectionParams,
   CreateConsentParams,
@@ -731,9 +730,9 @@ class BasiqAPIClient {
     transactions: number;
     errors: string[];
   }> {
-    const errors: string[] = [];
-    let accountsSynced = 0;
-    let transactionsSynced = 0;
+    // const errors: string[] = [];
+    // let accountsSynced = 0;
+    // let transactionsSynced = 0;
 
     try {
       // Get user from database
@@ -814,19 +813,20 @@ class BasiqAPIClient {
   /**
    * Check if connection needs refresh
    */
-  private shouldRefreshConnection(connection: BasiqConnection): boolean {
-    if (!connection.lastUsed) return true;
+  // private shouldRefreshConnection(connection: BasiqConnection): boolean {
+  //   if (!connection.lastUsed) return true;
 
-    const lastUsedDate = new Date(connection.lastUsed);
-    const hoursSinceLastUse = (Date.now() - lastUsedDate.getTime()) / (1000 * 60 * 60);
+  //   const lastUsedDate = new Date(connection.lastUsed);
+  //   const hoursSinceLastUse = (Date.now() - lastUsedDate.getTime()) / (1000 * 60 * 60);
 
-    // Refresh if not used in last 12 hours
-    return hoursSinceLastUse > 12;
-  }
+  //   // Refresh if not used in last 12 hours
+  //   return hoursSinceLastUse > 12;
+  // }
 
   /**
    * Sync BASIQ account with local database
    */
+  /*
   private async syncBankAccount(
     account: BasiqAccount,
     userId: string,
@@ -861,6 +861,7 @@ class BasiqAPIClient {
       },
     });
   }
+  */
 
   /**
    * Get connection status for monitoring

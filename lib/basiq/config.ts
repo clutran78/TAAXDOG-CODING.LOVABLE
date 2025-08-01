@@ -110,3 +110,84 @@ export const BASIQ_CONFIG = {
   // Account number validation (Australian standard)
   ACCOUNT_NUMBER_REGEX: /^[0-9]{5,9}$/,
 };
+
+// BASIQ API Endpoints (for backward compatibility)
+export const BASIQ_ENDPOINTS = BASIQ_CONFIG.ENDPOINTS;
+
+// Transaction Categories
+export const TRANSACTION_CATEGORIES = {
+  // Income categories
+  SALARY: 'salary',
+  INVESTMENT_INCOME: 'investment_income',
+  GOVERNMENT_BENEFITS: 'government_benefits',
+  RENTAL_INCOME: 'rental_income',
+  BUSINESS_INCOME: 'business_income',
+  OTHER_INCOME: 'other_income',
+
+  // Expense categories
+  RENT_MORTGAGE: 'rent_mortgage',
+  UTILITIES: 'utilities',
+  GROCERIES: 'groceries',
+  TRANSPORT: 'transport',
+  FUEL: 'fuel',
+  INSURANCE: 'insurance',
+  MEDICAL: 'medical',
+  EDUCATION: 'education',
+  ENTERTAINMENT: 'entertainment',
+  SHOPPING: 'shopping',
+  RESTAURANTS: 'restaurants',
+  BUSINESS_EXPENSE: 'business_expense',
+  OFFICE_SUPPLIES: 'office_supplies',
+  TRAVEL_BUSINESS: 'travel_business',
+  PROFESSIONAL_SERVICES: 'professional_services',
+  SUBSCRIPTIONS: 'subscriptions',
+  BANK_FEES: 'bank_fees',
+  OTHER: 'other',
+};
+
+// Tax Categories (aligned with ATO categories)
+export const TAX_CATEGORIES = {
+  // Income categories
+  SALARY_WAGES: 'salary_wages',
+  DIVIDENDS: 'dividends',
+  INTEREST: 'interest',
+  RENTAL_INCOME: 'rental_income',
+  BUSINESS_INCOME: 'business_income',
+
+  // Deductible expense categories
+  WORK_RELATED_EXPENSES: 'work_related_expenses',
+  GIFTS_DONATIONS: 'gifts_donations',
+  HOME_OFFICE: 'home_office',
+  SELF_EDUCATION: 'self_education',
+  VEHICLE_EXPENSES: 'vehicle_expenses',
+  TRAVEL_EXPENSES: 'travel_expenses',
+  PROFESSIONAL_DEVELOPMENT: 'professional_development',
+  EQUIPMENT_DEPRECIATION: 'equipment_depreciation',
+  REPAIRS_MAINTENANCE: 'repairs_maintenance',
+  INSURANCE_DEDUCTIBLE: 'insurance_deductible',
+};
+
+// Utility functions for BASIQ API
+export function getBasiqConfiguration() {
+  return {
+    baseUrl: BASIQ_CONFIG.BASE_URL,
+    apiKey: BASIQ_CONFIG.API_KEY,
+    webhookUrl: BASIQ_CONFIG.WEBHOOK_URL,
+    endpoints: BASIQ_CONFIG.ENDPOINTS,
+    retry: BASIQ_CONFIG.RETRY,
+    rateLimits: BASIQ_CONFIG.RATE_LIMITS,
+  };
+}
+
+export function buildBasiqUrl(endpoint: string, params?: Record<string, string>): string {
+  let url = `${BASIQ_CONFIG.BASE_URL}${endpoint}`;
+
+  // Replace URL parameters
+  if (params) {
+    for (const [key, value] of Object.entries(params)) {
+      url = url.replace(`{${key}}`, value);
+    }
+  }
+
+  return url;
+}

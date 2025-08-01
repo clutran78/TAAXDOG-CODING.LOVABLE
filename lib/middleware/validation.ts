@@ -2,7 +2,15 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { z, ZodError, ZodSchema } from 'zod';
 import { logger } from '../utils/logger';
 import { ApiError } from '../errors';
-import DOMPurify from 'isomorphic-dompurify';
+// Simple HTML sanitization function
+function sanitizeHtml(input: string): string {
+  return input
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;');
+}
 import { startMonitoring, completeMonitoring } from '../monitoring/api';
 
 export interface ValidationOptions {
@@ -13,6 +21,8 @@ export interface ValidationOptions {
   sanitize?: boolean;
   enableMonitoring?: boolean; // Default true
 }
+
+export type ValidationChain = (req: NextApiRequest, res: NextApiResponse) => Promise<void> | void;
 
 /**
  * Generate unique request ID
@@ -26,7 +36,8 @@ function generateRequestId(): string {
  */
 export function sanitizeInput(input: any): any {
   if (typeof input === 'string') {
-    return DOMPurify.sanitize(input, { ALLOWED_TAGS: [] }).trim();
+    // Remove all HTML tags and trim
+    return sanitizeHtml(input.replace(/<[^>]*>/g, '')).trim();
   }
 
   if (Array.isArray(input)) {
@@ -240,7 +251,6 @@ export function withValidation(options: ValidationOptions = {}) {
         if (error instanceof ApiError) {
           return res.status(error.statusCode).json({
             error: error.message,
-            code: error.code,
             requestId,
           });
         }

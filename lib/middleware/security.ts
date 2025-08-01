@@ -1,14 +1,14 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { withRateLimit } from './rateLimiter';
 import { withSecurityHeaders } from './securityHeaders';
-import { withValidation, ValidationChain } from './validation';
+import { withValidation } from './validation';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/pages/api/auth/[...nextauth]';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 export interface SecurityConfig {
   rateLimit?: 'auth' | 'goals' | 'receipts' | 'general';
   requireAuth?: boolean;
-  validations?: ValidationChain[];
+  validations?: any[];
   allowedMethods?: string[];
   csrf?: boolean;
 }
@@ -54,11 +54,13 @@ export function withSecurity(
         }
       }
 
-      // Apply validation
-      await withValidation(async (req, res) => {
-        // Apply rate limiting
-        await withRateLimit(handler, rateLimit)(req, res);
-      }, validations)(req, res);
+      // Apply validation chains
+      for (const validation of validations) {
+        await validation(req, res);
+      }
+
+      // Apply rate limiting
+      await withRateLimit(handler, rateLimit)(req, res);
     })(req, res);
   };
 }
@@ -70,10 +72,10 @@ export const secureAuthEndpoint = (
 
 export const secureApiEndpoint = (
   handler: (req: NextApiRequest, res: NextApiResponse) => Promise<void>,
-  validations?: ValidationChain[],
+  validations?: any[],
 ) => withSecurity(handler, { validations });
 
 export const securePublicEndpoint = (
   handler: (req: NextApiRequest, res: NextApiResponse) => Promise<void>,
-  validations?: ValidationChain[],
+  validations?: any[],
 ) => withSecurity(handler, { requireAuth: false, validations });

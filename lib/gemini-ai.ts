@@ -151,7 +151,7 @@ export async function processReceipt(receiptId: string, imagePath: string) {
         totalAmount: extractedData.totalAmount,
         gstAmount: extractedData.gstAmount,
         date: new Date(extractedData.date),
-        items: extractedData.items,
+        items: extractedData.items as any,
         abn: extractedData.abn,
         taxInvoiceNumber: extractedData.invoiceNumber,
         aiProcessed: true,

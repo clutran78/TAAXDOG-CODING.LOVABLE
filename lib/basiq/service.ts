@@ -1,6 +1,12 @@
 import prisma from '../prisma';
 import { logger } from '@/lib/logger';
-import { BASIQ_CONFIG } from './config';
+import {
+  BASIQ_CONFIG,
+  BASIQ_ENDPOINTS,
+  TRANSACTION_CATEGORIES,
+  TAX_CATEGORIES,
+  buildBasiqUrl,
+} from './config';
 
 export class BasiqService {
   private accessToken: string | null = null;
@@ -41,13 +47,14 @@ export class BasiqService {
 
   // Make authenticated request to BASIQ
   private async makeRequest(options: {
-    url: string;
+    endpoint: string;
     method?: string;
     params?: any;
     body?: any;
+    query?: any;
+    headers?: any;
   }): Promise<any> {
     const token = await this.authenticate();
-    const config = getBasiqConfiguration();
 
     const url = buildBasiqUrl(options.endpoint, options.params);
     const urlWithQuery = options.query
@@ -55,7 +62,7 @@ export class BasiqService {
       : url;
 
     const response = await fetch(urlWithQuery, {
-      method: options.method,
+      method: options.method || 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -65,20 +72,24 @@ export class BasiqService {
       body: options.body ? JSON.stringify(options.body) : undefined,
     });
 
+    // Get response text for logging
+    const responseText = await response.text();
+
     // Log API call
     await this.logApiCall({
       endpoint: options.endpoint,
-      method: options.method,
+      method: options.method || 'GET',
       requestBody: options.body,
       responseStatus: response.status,
-      responseBody: await response.text(),
+      responseBody: responseText,
     });
 
     if (!response.ok) {
       throw new Error(`BASIQ API error: ${response.statusText}`);
     }
 
-    return response.json();
+    // Parse response text as JSON
+    return JSON.parse(responseText);
   }
 
   // Create BASIQ user

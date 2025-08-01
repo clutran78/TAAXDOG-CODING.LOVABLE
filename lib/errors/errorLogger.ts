@@ -69,7 +69,7 @@ class ErrorLogger {
 
     // Log to console in development
     if (process.env.NODE_ENV === 'development') {
-      logger.error(`[${type.toUpperCase()}] ${severity}:`, errorObject, context);
+      logger.error(`[${type.toUpperCase()}] ${severity}:`, { errorObject, context });
     }
 
     // Send to Sentry if available - disabled for now

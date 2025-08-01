@@ -32,7 +32,7 @@ export function withCacheInvalidation(config: CacheInvalidationConfig) {
         await handler(req, res);
 
         // If successful mutation (2xx status code) and user is authenticated
-        if (statusCode >= 200 && statusCode < 300 && req.userId && responseData?.success) {
+        if (res.statusCode >= 200 && res.statusCode < 300 && req.userId && responseData?.success) {
           try {
             // Perform cache invalidation
             if (config.invalidationType === 'custom' && config.customPatterns) {

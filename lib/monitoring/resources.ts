@@ -47,7 +47,7 @@ export class ResourceMonitor {
   private static instance: ResourceMonitor;
   private metrics: ResourceMetrics[] = [];
   private maxMetricsHistory = 100;
-  private monitoringInterval: NodeJS.Timer | null = null;
+  private monitoringInterval: NodeJS.Timeout | null = null;
 
   private thresholds: ResourceThresholds = {
     memory: { warning: 80, critical: 90 },

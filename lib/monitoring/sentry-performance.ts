@@ -45,14 +45,14 @@ export class SentryPerformanceMonitor {
     try {
       const activeSpan = Sentry.getActiveSpan();
       if (activeSpan) {
-        activeSpan.setMeasurement(metric.name, metric.value, metric.unit);
+        activeSpan.setAttribute(metric.name, metric.value);
         if (metric.tags) {
           Object.entries(metric.tags).forEach(([key, value]) => {
             activeSpan.setAttribute(key, value);
           });
         }
       }
-      
+
       // In Sentry v8, metrics are set on spans directly
       // The setMeasurement call above is the correct way to track metrics
     } catch (error) {
@@ -105,7 +105,7 @@ export class SentryPerformanceMonitor {
         },
       });
     }
-    
+
     // Track cache hit rate as a span attribute
     const activeSpan = Sentry.getActiveSpan();
     if (activeSpan) {
@@ -174,7 +174,7 @@ export class SentryPerformanceMonitor {
   static async measureAsync<T>(
     name: string,
     fn: () => Promise<T>,
-    tags?: Record<string, string>
+    tags?: Record<string, string>,
   ): Promise<T> {
     return Sentry.startSpan(
       {
@@ -187,7 +187,7 @@ export class SentryPerformanceMonitor {
         try {
           const result = await fn();
           const duration = performance.now() - startTime;
-          
+
           this.trackMetric({
             name: `function.${name}`,
             value: duration,
@@ -198,7 +198,7 @@ export class SentryPerformanceMonitor {
           return result;
         } catch (error) {
           const duration = performance.now() - startTime;
-          
+
           this.trackMetric({
             name: `function.${name}`,
             value: duration,
@@ -209,7 +209,7 @@ export class SentryPerformanceMonitor {
           span.setStatus({ code: 2, message: 'Internal Error' });
           throw error;
         }
-      }
+      },
     );
   }
 
@@ -229,16 +229,12 @@ export class SentryPerformanceMonitor {
         },
         async (span) => {
           const startTime = performance.now();
-          
+
           const originalEnd = res.end;
-          res.end = function(...args: any[]) {
+          res.end = function (...args: any[]) {
             const duration = performance.now() - startTime;
-            
-            SentryPerformanceMonitor.trackApiResponseTime(
-              req.url,
-              duration,
-              res.statusCode
-            );
+
+            SentryPerformanceMonitor.trackApiResponseTime(req.url, duration, res.statusCode);
 
             span.setAttribute('http.status_code', res.statusCode);
             span.setStatus({
@@ -255,7 +251,7 @@ export class SentryPerformanceMonitor {
             span.setStatus({ code: 2, message: 'Internal Error' });
             throw error;
           }
-        }
+        },
       );
     };
   }

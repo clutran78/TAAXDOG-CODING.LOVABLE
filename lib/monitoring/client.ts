@@ -47,7 +47,7 @@ class ClientMonitor {
   private _errorBatchTimer: NodeJS.Timeout | null = null;
   private readonly _errorBatchInterval = ERROR_BATCH_INTERVAL_MS;
   private readonly _maxBatchSize = MAX_BATCH_SIZE;
-  
+
   // Metrics debouncing
   private _metricsDebounceTimer: NodeJS.Timeout | null = null;
   private readonly _metricsDebounceDelay = METRICS_DEBOUNCE_DELAY_MS;
@@ -62,12 +62,12 @@ class ClientMonitor {
   private constructor() {
     if (typeof window !== 'undefined') {
       this.initializePerformanceObserver();
-      this.initializeErrorTracking();
-      this.measurePageLoadMetrics();
+      this._initializeErrorTracking();
+      this._measurePageLoadMetrics();
 
       // Clean up on page unload
       window.addEventListener('beforeunload', () => {
-        void this.flushErrorBatch();
+        void this._flushErrorBatch();
       });
     }
   }
@@ -165,7 +165,7 @@ class ClientMonitor {
     if (this._isAuthenticating || endpoint.includes('/auth/')) {
       return;
     }
-    
+
     this._metrics.apiResponseTimes.push({
       endpoint,
       duration,
@@ -180,17 +180,17 @@ class ClientMonitor {
     // Use debounced sending instead of sending every 10 calls
     this._debouncedSendMetrics();
   }
-  
+
   private _debouncedSendMetrics(): void {
     // Clear existing timer
     if (this._metricsDebounceTimer) {
       clearTimeout(this._metricsDebounceTimer);
     }
-    
+
     // Set new timer
     this._metricsDebounceTimer = setTimeout(() => {
       void this._sendMetricsToServer();
-    }, this._METRICS_DEBOUNCE_DELAY);
+    }, this._metricsDebounceDelay);
   }
 
   // Intercept fetch to track API calls
@@ -200,7 +200,7 @@ class ClientMonitor {
     window.fetch = async (...args) => {
       const start = performance.now();
       const url = args[0] instanceof Request ? args[0].url : args[0].toString();
-      
+
       // Detect authentication flow
       if (url.includes('/api/auth/') || url.includes('/auth/')) {
         this._isAuthenticating = true;
@@ -315,7 +315,7 @@ class ClientMonitor {
     this._errorBatch.push(error);
 
     // Send immediately if batch is full
-    if (this._errorBatch.length >= this._MAX_BATCH_SIZE) {
+    if (this._errorBatch.length >= this._maxBatchSize) {
       void this._flushErrorBatch();
       return;
     }
@@ -324,7 +324,7 @@ class ClientMonitor {
     if (!this._errorBatchTimer) {
       this._errorBatchTimer = setTimeout(() => {
         void this._flushErrorBatch();
-      }, this._ERROR_BATCH_INTERVAL);
+      }, this._errorBatchInterval);
     }
   }
 
@@ -332,13 +332,13 @@ class ClientMonitor {
     const now = Date.now();
 
     // Reset window if needed
-    if (now - this._rateLimitWindowStart > this._RATE_LIMIT_WINDOW) {
+    if (now - this._rateLimitWindowStart > this._rateLimitWindow) {
       this._rateLimitWindowStart = now;
       this._errorsSentInWindow = 0;
     }
 
     // Check if under limit
-    return this._errorsSentInWindow < this._MAX_ERRORS_PER_WINDOW;
+    return this._errorsSentInWindow < this._maxErrorsPerWindow;
   }
 
   private async _flushErrorBatch(): Promise<void> {

@@ -1,18 +1,8 @@
 import { PrismaClient } from '@prisma/client';
-import winston from 'winston';
+import { logger } from '@/lib/logger';
 
-// Configure logger for database monitoring
-const dbLogger = winston.createLogger({
-  level: 'info',
-  format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
-  transports: [
-    new winston.transports.File({ filename: 'logs/db-queries.log' }),
-    new winston.transports.File({
-      filename: 'logs/slow-queries.log',
-      level: 'warn',
-    }),
-  ],
-});
+// Use the centralized logger for database monitoring
+const dbLogger = logger;
 
 interface QueryMetrics {
   query: string;
@@ -176,11 +166,11 @@ export function createPrismaWithMonitoring() {
           apply: async (fn, thisArg, args) => {
             const start = Date.now();
             try {
-              const result = await fn.apply(thisArg, args);
+              const result = await fn.apply(thisArg, args as any);
               const duration = Date.now() - start;
               monitor.logQuery(args[0], duration);
               return result;
-            } catch (error) {
+            } catch (error: any) {
               const duration = Date.now() - start;
               monitor.logQuery(args[0], duration, undefined, error.message);
               throw error;
@@ -188,7 +178,7 @@ export function createPrismaWithMonitoring() {
           },
         });
       }
-      return target[prop];
+      return (target as any)[prop];
     },
   });
 }

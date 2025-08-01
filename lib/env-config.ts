@@ -44,7 +44,7 @@ class EnvironmentConfig {
 
     // Validate and set database URLs
     const isDevelopment = process.env.NODE_ENV !== 'production';
-    const databaseUrl = this.getDatabaseUrl(isDevelopment);
+    const databaseUrl = this.resolveDatabaseUrl(isDevelopment);
 
     if (!databaseUrl) {
       throw new Error(`Database URL not configured for ${process.env.NODE_ENV} environment`);
@@ -68,7 +68,7 @@ class EnvironmentConfig {
     return envConfig;
   }
 
-  private getDatabaseUrl(isDevelopment: boolean): string {
+  private resolveDatabaseUrl(isDevelopment: boolean): string {
     if (isDevelopment) {
       return (
         process.env.DATABASE_URL_DEVELOPMENT ||
@@ -166,4 +166,4 @@ class EnvironmentConfig {
 }
 
 export const envConfig = EnvironmentConfig.getInstance();
-export { DatabaseEnvironment };
+export type { DatabaseEnvironment };

@@ -375,15 +375,18 @@ class PerformanceMonitor {
   trackPageLoad(route: string) {
     if (typeof window === 'undefined') return;
 
-    const navigationEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
-    
+    const navigationEntry = performance.getEntriesByType(
+      'navigation',
+    )[0] as PerformanceNavigationTiming;
+
     if (navigationEntry) {
       const metrics: PageLoadMetric = {
         route,
         duration: navigationEntry.loadEventEnd - navigationEntry.fetchStart,
         timestamp: Date.now(),
         metrics: {
-          domContentLoaded: navigationEntry.domContentLoadedEventEnd - navigationEntry.domContentLoadedEventStart,
+          domContentLoaded:
+            navigationEntry.domContentLoadedEventEnd - navigationEntry.domContentLoadedEventStart,
           loadComplete: navigationEntry.loadEventEnd - navigationEntry.loadEventStart,
           firstContentfulPaint: this.data.FCP,
           largestContentfulPaint: this.data.LCP,
@@ -392,7 +395,7 @@ class PerformanceMonitor {
       };
 
       this.data.pageLoadMetrics.push(metrics);
-      
+
       // Keep only last 50 page loads
       if (this.data.pageLoadMetrics.length > 50) {
         this.data.pageLoadMetrics = this.data.pageLoadMetrics.slice(-50);
@@ -419,14 +422,19 @@ class PerformanceMonitor {
       };
 
       this.data.apiMetrics.push(metric);
-      
+
       // Keep only last 100 API calls
       if (this.data.apiMetrics.length > 100) {
         this.data.apiMetrics = this.data.apiMetrics.slice(-100);
       }
 
-      this.logPerformance('API', `${method} ${endpoint}`, duration, statusCode >= 400 ? 'error' : 'info');
-      
+      this.logPerformance(
+        'API',
+        `${method} ${endpoint}`,
+        duration,
+        statusCode >= 400 ? 'error' : 'info',
+      );
+
       if (this.data.apiMetrics.length >= this.reportingThreshold) {
         this.maybeReport('api');
       }
@@ -436,7 +444,7 @@ class PerformanceMonitor {
   // Track database query performance
   trackDatabaseQuery(operation: string, model?: string) {
     const startTime = performance.now();
-    
+
     return (rowCount?: number, error?: string) => {
       const duration = performance.now() - startTime;
       const metric: DatabaseMetric = {
@@ -449,7 +457,7 @@ class PerformanceMonitor {
       };
 
       this.data.databaseMetrics.push(metric);
-      
+
       // Keep only last 100 database queries
       if (this.data.databaseMetrics.length > 100) {
         this.data.databaseMetrics = this.data.databaseMetrics.slice(-100);
@@ -457,7 +465,7 @@ class PerformanceMonitor {
 
       const queryName = model ? `${operation}:${model}` : operation;
       this.logPerformance('Database', queryName, duration, error ? 'error' : 'info');
-      
+
       if (this.data.databaseMetrics.length >= this.reportingThreshold) {
         this.maybeReport('database');
       }
@@ -465,25 +473,32 @@ class PerformanceMonitor {
   }
 
   // Log performance with thresholds
-  private logPerformance(category: string, name: string, duration: number, level: 'info' | 'error' = 'info') {
-    const thresholdKey = category.toLowerCase().replace(' ', '') as keyof typeof PERFORMANCE_THRESHOLDS;
+  private logPerformance(
+    category: string,
+    name: string,
+    duration: number,
+    level: 'info' | 'error' = 'info',
+  ) {
+    const thresholdKey = category
+      .toLowerCase()
+      .replace(' ', '') as keyof typeof PERFORMANCE_THRESHOLDS;
     const threshold = PERFORMANCE_THRESHOLDS[thresholdKey];
-    
+
     let logLevel = level;
     if (threshold && level !== 'error') {
       if (duration > threshold.poor) logLevel = 'error';
-      else if (duration > threshold.warning) logLevel = 'warn';
+      else if (duration > threshold.warning) logLevel = 'info';
     }
 
     const rating = threshold
       ? duration <= threshold.good
         ? 'good'
         : duration <= threshold.warning
-        ? 'needs-improvement'
-        : 'poor'
+          ? 'needs-improvement'
+          : 'poor'
       : 'unknown';
 
-    logger.log(logLevel, `${category} Performance: ${name}`, {
+    logger[logLevel](`${category} Performance: ${name}`, {
       duration: Math.round(duration),
       rating,
       category,
@@ -603,7 +618,7 @@ class PerformanceMonitor {
         totalSize: this.data.resourceTimings.reduce((sum, r) => sum + r.transferSize, 0),
         totalDuration: this.data.resourceTimings.reduce((sum, r) => sum + r.duration, 0),
         count: this.data.resourceTimings.length,
-        largestResources: this.data.resourceTimings.slice(0, 5).map(r => ({
+        largestResources: this.data.resourceTimings.slice(0, 5).map((r) => ({
           name: this.sanitizeResourceName(r.name),
           size: r.transferSize,
           duration: r.duration,
@@ -621,7 +636,7 @@ class PerformanceMonitor {
       return { count: 0, average: 0, min: 0, max: 0, p50: 0, p95: 0, p99: 0 };
     }
 
-    const durations = metrics.map(m => m[durationField]).sort((a, b) => a - b);
+    const durations = metrics.map((m) => m[durationField]).sort((a, b) => a - b);
     const sum = durations.reduce((a, b) => a + b, 0);
 
     return {
@@ -638,15 +653,15 @@ class PerformanceMonitor {
   // Calculate API summary with status code breakdown
   private calculateApiSummary() {
     const summary = this.calculateMetricsSummary(this.data.apiMetrics, 'duration');
-    
+
     // Add status code breakdown
     const statusCodes: Record<string, number> = {};
     const endpointPerformance: Record<string, { count: number; totalDuration: number }> = {};
-    
-    this.data.apiMetrics.forEach(metric => {
+
+    this.data.apiMetrics.forEach((metric) => {
       const statusGroup = `${Math.floor(metric.statusCode / 100)}xx`;
       statusCodes[statusGroup] = (statusCodes[statusGroup] || 0) + 1;
-      
+
       if (!endpointPerformance[metric.endpoint]) {
         endpointPerformance[metric.endpoint] = { count: 0, totalDuration: 0 };
       }
@@ -668,18 +683,20 @@ class PerformanceMonitor {
       ...summary,
       statusCodes,
       slowestEndpoints,
-      errorRate: this.data.apiMetrics.filter(m => m.statusCode >= 400).length / this.data.apiMetrics.length,
+      errorRate:
+        this.data.apiMetrics.filter((m) => m.statusCode >= 400).length /
+        this.data.apiMetrics.length,
     };
   }
 
   // Calculate database summary with operation breakdown
   private calculateDatabaseSummary() {
     const summary = this.calculateMetricsSummary(this.data.databaseMetrics, 'duration');
-    
+
     // Add operation breakdown
     const operations: Record<string, { count: number; totalDuration: number }> = {};
-    
-    this.data.databaseMetrics.forEach(metric => {
+
+    this.data.databaseMetrics.forEach((metric) => {
       const key = metric.model ? `${metric.operation}:${metric.model}` : metric.operation;
       if (!operations[key]) {
         operations[key] = { count: 0, totalDuration: 0 };
@@ -701,7 +718,8 @@ class PerformanceMonitor {
     return {
       ...summary,
       slowestOperations,
-      errorRate: this.data.databaseMetrics.filter(m => m.error).length / this.data.databaseMetrics.length,
+      errorRate:
+        this.data.databaseMetrics.filter((m) => m.error).length / this.data.databaseMetrics.length,
     };
   }
 
@@ -737,9 +755,9 @@ export function usePerformanceMonitor() {
 
   return {
     trackPageLoad: (route: string) => monitor.trackPageLoad(route),
-    trackApiCall: (endpoint: string, method: string, startTime: number) => 
+    trackApiCall: (endpoint: string, method: string, startTime: number) =>
       monitor.trackApiCall(endpoint, method, startTime),
-    trackDatabaseQuery: (operation: string, model?: string) => 
+    trackDatabaseQuery: (operation: string, model?: string) =>
       monitor.trackDatabaseQuery(operation, model),
     startMeasure: (name: string) => monitor.startMeasure(name),
     endMeasure: (name: string) => monitor.endMeasure(name),
@@ -758,7 +776,7 @@ export function withPerformanceTracking(handler: Function) {
 
     // Override res.json to track response
     const originalJson = res.json;
-    res.json = function(data: any) {
+    res.json = function (data: any) {
       const endTracking = performanceMonitor.trackApiCall(endpoint, method, startTime);
       const size = JSON.stringify(data).length;
       endTracking(res.statusCode, size);
@@ -767,7 +785,7 @@ export function withPerformanceTracking(handler: Function) {
 
     // Override res.status for error tracking
     const originalStatus = res.status;
-    res.status = function(code: number) {
+    res.status = function (code: number) {
       if (code >= 400) {
         const endTracking = performanceMonitor.trackApiCall(endpoint, method, startTime);
         endTracking(code, 0, `HTTP ${code}`);
@@ -807,7 +825,7 @@ export function createPrismaPerformanceMiddleware() {
 export async function measureAsync<T>(
   name: string,
   operation: () => Promise<T>,
-  category: 'api' | 'database' | 'custom' = 'custom'
+  category: 'api' | 'database' | 'custom' = 'custom',
 ): Promise<T> {
   performanceMonitor.startMeasure(name);
   try {

@@ -1,19 +1,9 @@
 import os from 'os';
 import { performance } from 'perf_hooks';
-import winston from 'winston';
+import { logger } from '@/lib/logger';
 
-// Configure logger for application monitoring
-const appLogger = winston.createLogger({
-  level: 'info',
-  format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
-  transports: [
-    new winston.transports.File({ filename: 'logs/app-metrics.log' }),
-    new winston.transports.File({
-      filename: 'logs/app-performance.log',
-      level: 'warn',
-    }),
-  ],
-});
+// Use the centralized logger for application monitoring
+const appLogger = logger;
 
 interface SystemMetrics {
   memoryUsage: {

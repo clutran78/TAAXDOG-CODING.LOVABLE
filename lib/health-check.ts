@@ -192,7 +192,8 @@ class HealthCheckService {
     const startTime = Date.now();
     try {
       const redis = createRedisClient();
-      if (!redis.isConnected()) {
+      const connected = await redis.ping();
+      if (!connected) {
         return {
           status: 'fail',
           error: 'Redis not connected',
@@ -242,8 +243,8 @@ class HealthCheckService {
       }
 
       const basiqClient = new BasiqClient();
-      // Perform a simple API check - get user consent URL which doesn't require user-specific data
-      const testResponse = await basiqClient.getConsentUrl('health-check-test');
+      // Perform a basic health check
+      const testResponse = await basiqClient.healthCheck();
 
       const responseTime = Date.now() - startTime;
 
@@ -315,7 +316,7 @@ class HealthCheckService {
       }
 
       const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-        apiVersion: '2024-12-18.acacia',
+        apiVersion: '2025-07-30.basil',
       });
 
       // List products with limit 1 - minimal API call
@@ -436,4 +437,4 @@ class HealthCheckService {
 }
 
 export const healthCheck = HealthCheckService.getInstance();
-export { HealthCheckResult, DatabaseMetrics, ExternalServiceCheck };
+export type { HealthCheckResult, DatabaseMetrics, ExternalServiceCheck };

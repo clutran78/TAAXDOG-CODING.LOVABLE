@@ -6,11 +6,33 @@ import { getCacheManager, CacheTTL } from '@/lib/services/cache/cacheManager';
 import { emailService, EmailType } from '@/lib/services/email-service';
 import { format, differenceInDays, addDays } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
-import { Goal, Budget, User, NotificationChannel, NotificationPriority, NotificationType } from '@prisma/client';
+import { Goal, Budget, User } from '@prisma/client';
 import Queue from 'bull';
 import Redis from 'ioredis';
 
 // Notification types
+export enum NotificationPriority {
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+  URGENT = 'URGENT',
+}
+
+export enum NotificationChannel {
+  EMAIL = 'EMAIL',
+  SMS = 'SMS',
+  PUSH = 'PUSH',
+  IN_APP = 'IN_APP',
+  SLACK = 'SLACK',
+}
+
+export enum NotificationType {
+  INFO = 'INFO',
+  WARNING = 'WARNING',
+  ERROR = 'ERROR',
+  SUCCESS = 'SUCCESS',
+}
+
 export enum NotificationCategory {
   FINANCIAL = 'FINANCIAL',
   GOAL = 'GOAL',
@@ -32,30 +54,30 @@ export enum NotificationEvent {
   GOAL_ACHIEVED = 'GOAL_ACHIEVED',
   GOAL_AT_RISK = 'GOAL_AT_RISK',
   GOAL_MILESTONE = 'GOAL_MILESTONE',
-  
+
   // Budget events
   BUDGET_CREATED = 'BUDGET_CREATED',
   BUDGET_WARNING = 'BUDGET_WARNING',
   BUDGET_EXCEEDED = 'BUDGET_EXCEEDED',
   BUDGET_PERIOD_END = 'BUDGET_PERIOD_END',
-  
+
   // Transaction events
   LARGE_TRANSACTION = 'LARGE_TRANSACTION',
   UNUSUAL_ACTIVITY = 'UNUSUAL_ACTIVITY',
   RECURRING_DETECTED = 'RECURRING_DETECTED',
-  
+
   // Tax events
   TAX_DEADLINE = 'TAX_DEADLINE',
   TAX_DOCUMENT_READY = 'TAX_DOCUMENT_READY',
   TAX_REFUND_STATUS = 'TAX_REFUND_STATUS',
   QUARTERLY_BAS = 'QUARTERLY_BAS',
-  
+
   // Account events
   LOGIN_NEW_DEVICE = 'LOGIN_NEW_DEVICE',
   PASSWORD_CHANGED = 'PASSWORD_CHANGED',
   SUBSCRIPTION_RENEWAL = 'SUBSCRIPTION_RENEWAL',
   SUBSCRIPTION_EXPIRED = 'SUBSCRIPTION_EXPIRED',
-  
+
   // System events
   SYSTEM_MAINTENANCE = 'SYSTEM_MAINTENANCE',
   NEW_FEATURE = 'NEW_FEATURE',
@@ -116,7 +138,9 @@ const DEFAULT_PREFERENCES: NotificationPreferences = {
   email: {
     enabled: true,
     frequency: 'immediate',
-    categories: Object.values(NotificationCategory).filter(c => c !== NotificationCategory.MARKETING),
+    categories: Object.values(NotificationCategory).filter(
+      (c) => c !== NotificationCategory.MARKETING,
+    ),
   },
   push: {
     enabled: true,
@@ -235,7 +259,7 @@ export class NotificationService {
       if (notification.deduplicationKey) {
         const isDuplicate = await this.checkDuplication(
           notification.userId,
-          notification.deduplicationKey
+          notification.deduplicationKey,
         );
         if (isDuplicate) {
           logger.debug('Duplicate notification skipped', {
@@ -247,23 +271,22 @@ export class NotificationService {
       }
 
       // Determine channels based on preferences and priority
-      const channels = this.determineChannels(
-        notification,
-        preferences || DEFAULT_PREFERENCES
-      );
+      const channels = this.determineChannels(notification, preferences || DEFAULT_PREFERENCES);
 
       // Queue notification
-      await notificationQueue.add('send-notification', {
-        id: notificationId,
-        ...notification,
-        channels,
-        createdAt: new Date(),
-      }, {
-        delay: notification.scheduledFor
-          ? notification.scheduledFor.getTime() - Date.now()
-          : 0,
-        priority: this.getPriorityValue(notification.priority),
-      });
+      await notificationQueue.add(
+        'send-notification',
+        {
+          id: notificationId,
+          ...notification,
+          channels,
+          createdAt: new Date(),
+        },
+        {
+          delay: notification.scheduledFor ? notification.scheduledFor.getTime() - Date.now() : 0,
+          priority: this.getPriorityValue(notification.priority),
+        },
+      );
 
       logger.info('Notification queued', {
         notificationId,
@@ -273,7 +296,6 @@ export class NotificationService {
       });
 
       return notificationId;
-
     } catch (error) {
       logger.error('Failed to send notification', {
         error,
@@ -289,43 +311,46 @@ export class NotificationService {
    * Send goal progress notification
    */
   public async sendGoalProgressUpdate(goal: Goal & { contributions?: any[] }): Promise<void> {
-    const progress = goal.targetAmount > 0
-      ? Math.round((goal.currentAmount / goal.targetAmount) * 100)
+    const progress = goal.targetAmount.gt(0)
+      ? Math.round(goal.currentAmount.div(goal.targetAmount).toNumber() * 100)
       : 0;
 
     let event: NotificationEvent;
     let title: string;
     let message: string;
-    let priority: NotificationPriority = 'MEDIUM';
+    let priority: NotificationPriority = NotificationPriority.MEDIUM;
 
     // Determine notification type based on progress
     if (progress >= 100) {
       event = NotificationEvent.GOAL_ACHIEVED;
       title = '🎉 Goal Achieved!';
-      message = `Congratulations! You've reached your goal "${goal.name}" with $${goal.currentAmount.toLocaleString()}.`;
-      priority = 'HIGH';
+      message = `Congratulations! You've reached your goal "${goal.title}" with $${goal.currentAmount.toLocaleString()}.`;
+      priority = NotificationPriority.HIGH;
     } else if (progress >= 75 && progress < 100) {
       event = NotificationEvent.GOAL_MILESTONE;
       title = '🎯 Goal Milestone';
-      message = `Great progress! You're ${progress}% of the way to your "${goal.name}" goal.`;
-    } else if (goal.deadline) {
-      const daysRemaining = differenceInDays(new Date(goal.deadline), new Date());
-      const requiredDailyAmount = (goal.targetAmount - goal.currentAmount) / Math.max(daysRemaining, 1);
-      
+      message = `Great progress! You're ${progress}% of the way to your "${goal.title}" goal.`;
+    } else if (goal.targetDate) {
+      const daysRemaining = differenceInDays(new Date(goal.targetDate), new Date());
+      const requiredDailyAmount = goal.targetAmount
+        .sub(goal.currentAmount)
+        .div(Math.max(daysRemaining, 1))
+        .toNumber();
+
       if (daysRemaining < 30 && requiredDailyAmount > 100) {
         event = NotificationEvent.GOAL_AT_RISK;
         title = '⚠️ Goal at Risk';
-        message = `Your goal "${goal.name}" may be at risk. You need to save $${requiredDailyAmount.toFixed(2)} daily to meet your deadline.`;
-        priority = 'HIGH';
+        message = `Your goal "${goal.title}" may be at risk. You need to save $${requiredDailyAmount.toFixed(2)} daily to meet your deadline.`;
+        priority = NotificationPriority.HIGH;
       } else {
         event = NotificationEvent.GOAL_PROGRESS;
         title = '📊 Goal Progress Update';
-        message = `You're ${progress}% of the way to your "${goal.name}" goal. Keep it up!`;
+        message = `You're ${progress}% of the way to your "${goal.title}" goal. Keep it up!`;
       }
     } else {
       event = NotificationEvent.GOAL_PROGRESS;
       title = '📊 Goal Progress Update';
-      message = `You've saved $${goal.currentAmount.toLocaleString()} towards your "${goal.name}" goal (${progress}% complete).`;
+      message = `You've saved $${goal.currentAmount.toLocaleString()} towards your "${goal.title}" goal (${progress}% complete).`;
     }
 
     await this.send({
@@ -337,11 +362,11 @@ export class NotificationService {
       message,
       data: {
         goalId: goal.id,
-        goalName: goal.name,
+        goalName: goal.title,
         progress,
         currentAmount: goal.currentAmount,
         targetAmount: goal.targetAmount,
-        deadline: goal.deadline,
+        deadline: goal.targetDate,
       },
       actionUrl: `/goals/${goal.id}`,
       actionText: 'View Goal',
@@ -354,27 +379,28 @@ export class NotificationService {
   public async sendBudgetAlert(
     budget: Budget & { categories?: any[] },
     spent: number,
-    userId: string
+    userId: string,
   ): Promise<void> {
-    const percentage = budget.totalAmount > 0
-      ? Math.round((spent / budget.totalAmount) * 100)
-      : 0;
+    const percentage =
+      budget.monthlyBudget && budget.monthlyBudget.gt(0)
+        ? Math.round((spent / budget.monthlyBudget.toNumber()) * 100)
+        : 0;
 
     let event: NotificationEvent;
     let title: string;
     let message: string;
-    let priority: NotificationPriority = 'MEDIUM';
+    let priority: NotificationPriority = NotificationPriority.MEDIUM;
 
     if (percentage >= 100) {
       event = NotificationEvent.BUDGET_EXCEEDED;
       title = '🚨 Budget Exceeded';
-      message = `You've exceeded your "${budget.name}" budget by $${(spent - budget.totalAmount).toFixed(2)}.`;
-      priority = 'HIGH';
+      message = `You've exceeded your "${budget.name}" budget by $${(spent - budget.monthlyBudget.toNumber()).toFixed(2)}.`;
+      priority = NotificationPriority.HIGH;
     } else if (percentage >= 90) {
       event = NotificationEvent.BUDGET_WARNING;
       title = '⚠️ Budget Warning';
-      message = `You've used ${percentage}% of your "${budget.name}" budget. Only $${(budget.totalAmount - spent).toFixed(2)} remaining.`;
-      priority = 'HIGH';
+      message = `You've used ${percentage}% of your "${budget.name}" budget. Only $${(budget.monthlyBudget.toNumber() - spent).toFixed(2)} remaining.`;
+      priority = NotificationPriority.HIGH;
     } else if (percentage >= 75) {
       event = NotificationEvent.BUDGET_WARNING;
       title = '📊 Budget Update';
@@ -395,8 +421,8 @@ export class NotificationService {
         budgetName: budget.name,
         percentage,
         spent,
-        totalAmount: budget.totalAmount,
-        remaining: Math.max(0, budget.totalAmount - spent),
+        totalAmount: budget.monthlyBudget.toNumber(),
+        remaining: Math.max(0, budget.monthlyBudget.toNumber() - spent),
       },
       actionUrl: `/budgets/${budget.id}`,
       actionText: 'View Budget',
@@ -407,21 +433,25 @@ export class NotificationService {
   /**
    * Send tax deadline reminder
    */
-  public async sendTaxDeadlineReminder(userId: string, deadline: Date, type: string): Promise<void> {
+  public async sendTaxDeadlineReminder(
+    userId: string,
+    deadline: Date,
+    type: string,
+  ): Promise<void> {
     const daysUntilDeadline = differenceInDays(deadline, new Date());
-    
+
     if (daysUntilDeadline > 30) return; // Don't send too early
 
     let title: string;
     let message: string;
-    let priority: NotificationPriority = 'MEDIUM';
+    let priority: NotificationPriority = NotificationPriority.MEDIUM;
 
     if (daysUntilDeadline <= 7) {
-      priority = 'HIGH';
+      priority = NotificationPriority.HIGH;
       title = '🚨 Urgent: Tax Deadline Approaching';
       message = `Your ${type} is due in ${daysUntilDeadline} days (${format(deadline, 'dd MMM yyyy')}). Submit now to avoid penalties.`;
     } else if (daysUntilDeadline <= 14) {
-      priority = 'HIGH';
+      priority = NotificationPriority.HIGH;
       title = '⚠️ Tax Deadline Reminder';
       message = `Your ${type} is due in ${daysUntilDeadline} days. Start preparing your documents now.`;
     } else {
@@ -458,19 +488,21 @@ export class NotificationService {
 
       const [transactions, goals, budgets, user] = await Promise.all([
         // Get week's transactions
-        prisma.transaction.findMany({
+        prisma.bank_transactions.findMany({
           where: {
-            userId,
-            date: { gte: weekStart },
-            deletedAt: null,
+            bank_account: {
+              basiq_user_id: userId,
+            },
+            transaction_date: { gte: weekStart },
           },
+          orderBy: { transaction_date: 'desc' },
+          take: 50,
         }),
         // Get active goals
         prisma.goal.findMany({
           where: {
             userId,
             status: 'ACTIVE',
-            deletedAt: null,
           },
         }),
         // Get active budgets
@@ -478,7 +510,6 @@ export class NotificationService {
           where: {
             userId,
             status: 'ACTIVE',
-            deletedAt: null,
           },
         }),
         // Get user
@@ -491,17 +522,19 @@ export class NotificationService {
 
       // Calculate summary data
       const income = transactions
-        .filter(t => t.type === 'CREDIT')
-        .reduce((sum, t) => sum + t.amount, 0);
-      
+        .filter((t) => t.direction === 'credit')
+        .reduce((sum, t) => sum + t.amount.toNumber(), 0);
+
       const expenses = transactions
-        .filter(t => t.type === 'DEBIT')
-        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+        .filter((t) => t.direction === 'debit')
+        .reduce((sum, t) => sum + Math.abs(t.amount.toNumber()), 0);
 
       const netSavings = income - expenses;
-      const goalProgress = goals.map(g => ({
-        name: g.name,
-        progress: g.targetAmount > 0 ? Math.round((g.currentAmount / g.targetAmount) * 100) : 0,
+      const goalProgress = goals.map((g) => ({
+        name: g.title,
+        progress: g.targetAmount.gt(0)
+          ? Math.round(g.currentAmount.div(g.targetAmount).toNumber() * 100)
+          : 0,
       }));
 
       // Send email summary
@@ -520,7 +553,7 @@ export class NotificationService {
           activeGoals: goals.length,
           activeBudgets: budgets.length,
         },
-        userId
+        userId,
       );
 
       logger.info('Weekly summary sent', {
@@ -529,7 +562,6 @@ export class NotificationService {
         expenses,
         netSavings,
       });
-
     } catch (error) {
       logger.error('Failed to send weekly summary', {
         error,
@@ -546,44 +578,38 @@ export class NotificationService {
 
     try {
       // Create notification record
-      const notification = await prisma.notification.create({
-        data: {
-          id,
-          userId,
-          type: data.event as any,
-          priority: data.priority || 'MEDIUM',
-          title: data.title,
-          message: data.message,
-          data: data.data as any,
-          actionUrl: data.actionUrl,
-          category: data.category,
-          channels: channels as any,
-          expiresAt: data.expiresAt,
-        },
+      // TODO: Implement notification model when added to schema
+      logger.info('Notification would be created', {
+        id,
+        userId,
+        type: data.event,
+        priority: data.priority || NotificationPriority.MEDIUM,
+        title: data.title,
+        message: data.message,
+        data: data.data,
+        actionUrl: data.actionUrl,
+        category: data.category,
+        channels: channels,
+        expiresAt: data.expiresAt,
       });
 
       // Send to each channel
       const results = await Promise.allSettled(
-        channels.map(channel => this.sendToChannel(channel, data, notification.id))
+        channels.map((channel) => this.sendToChannel(channel, data, id)),
       );
 
       // Update delivery status
-      const deliveredChannels = channels.filter((_, index) => 
-        results[index].status === 'fulfilled'
+      const deliveredChannels = channels.filter(
+        (_, index) => results[index].status === 'fulfilled',
       );
 
-      await prisma.notification.update({
-        where: { id },
-        data: {
-          deliveredAt: deliveredChannels.length > 0 ? new Date() : null,
-          deliveryStatus: deliveredChannels.length === channels.length ? 'DELIVERED' : 'PARTIAL',
-          metadata: {
-            deliveredChannels,
-            failedChannels: channels.filter((_, index) => 
-              results[index].status === 'rejected'
-            ),
-          } as any,
-        },
+      // TODO: Implement notification status update when notification model is added
+      logger.info('Notification delivery status', {
+        id,
+        deliveredChannels: deliveredChannels.length,
+        totalChannels: channels.length,
+        deliveryStatus: deliveredChannels.length === channels.length ? 'DELIVERED' : 'PARTIAL',
+        failedChannels: channels.filter((_, index) => results[index].status === 'rejected'),
       });
 
       logger.info('Notification processed', {
@@ -592,7 +618,6 @@ export class NotificationService {
         channels,
         delivered: deliveredChannels,
       });
-
     } catch (error) {
       logger.error('Failed to process notification', {
         error,
@@ -609,26 +634,26 @@ export class NotificationService {
   private async sendToChannel(
     channel: NotificationChannel,
     data: NotificationData,
-    notificationId: string
+    notificationId: string,
   ): Promise<void> {
     switch (channel) {
       case 'EMAIL':
         await this.sendEmailNotification(data);
         break;
-      
+
       case 'PUSH':
         await this.sendPushNotification(data);
         break;
-      
+
       case 'SMS':
         await this.sendSMSNotification(data);
         break;
-      
+
       case 'IN_APP':
         // In-app notifications are created in the database
         // Client polls or uses WebSocket for real-time updates
         break;
-      
+
       default:
         logger.warn('Unknown notification channel', { channel });
     }
@@ -677,7 +702,7 @@ export class NotificationService {
         actionText: data.actionText,
         ...data.data,
       },
-      data.userId
+      data.userId,
     );
   }
 
@@ -717,20 +742,37 @@ export class NotificationService {
     }
 
     // Get from database
-    const preferences = await prisma.notificationPreference.findUnique({
-      where: { userId },
-    });
+    // TODO: Implement when notificationPreference model is added
+    // const preferences = await prisma.notificationPreference.findUnique({
+    //   where: { userId },
+    // });
 
-    if (!preferences) {
-      return null;
-    }
+    // Return default preferences for now
+    const defaultPreferences: NotificationPreferences = {
+      preferences: {
+        email: {
+          enabled: true,
+          frequency: 'immediate' as const,
+          categories: [NotificationCategory.BUDGET, NotificationCategory.GOAL],
+        },
+        sms: {
+          enabled: false,
+          categories: [],
+          emergencyOnly: true,
+        },
+        push: {
+          enabled: true,
+          categories: [NotificationCategory.BUDGET, NotificationCategory.GOAL],
+        },
+        inApp: {
+          enabled: true,
+          categories: [NotificationCategory.BUDGET],
+        },
+      },
+    };
 
-    const result = preferences.preferences as NotificationPreferences;
-    
-    // Cache preferences
-    await cacheManager.set(cacheKey, result, CacheTTL.HOUR);
-
-    return result;
+    await cacheManager.set(cacheKey, defaultPreferences, 60 * 60 * 24);
+    return defaultPreferences;
   }
 
   /**
@@ -738,10 +780,10 @@ export class NotificationService {
    */
   public async updateUserPreferences(
     userId: string,
-    preferences: Partial<NotificationPreferences>
+    preferences: Partial<NotificationPreferences>,
   ): Promise<NotificationPreferences> {
-    const current = await this.getUserPreferences(userId) || DEFAULT_PREFERENCES;
-    
+    const current = (await this.getUserPreferences(userId)) || DEFAULT_PREFERENCES;
+
     const updated = {
       ...current,
       ...preferences,
@@ -797,7 +839,7 @@ export class NotificationService {
   private async checkDuplication(userId: string, key: string): Promise<boolean> {
     const cacheKey = `notification:dedup:${userId}:${key}`;
     const exists = await redisClient.get(cacheKey);
-    
+
     if (exists) {
       return true;
     }
@@ -812,7 +854,7 @@ export class NotificationService {
    */
   private determineChannels(
     notification: NotificationData,
-    preferences: NotificationPreferences
+    preferences: NotificationPreferences,
   ): NotificationChannel[] {
     const channels: NotificationChannel[] = [];
 
@@ -826,8 +868,7 @@ export class NotificationService {
     const currentHour = now.getHours();
 
     // Email channel
-    if (preferences.email.enabled && 
-        preferences.email.categories.includes(notification.category)) {
+    if (preferences.email.enabled && preferences.email.categories.includes(notification.category)) {
       const inQuietHours = this.isInQuietHours(currentHour, preferences.email.quietHours);
       if (!inQuietHours || notification.priority === 'CRITICAL') {
         channels.push('EMAIL');
@@ -835,8 +876,7 @@ export class NotificationService {
     }
 
     // Push channel
-    if (preferences.push.enabled && 
-        preferences.push.categories.includes(notification.category)) {
+    if (preferences.push.enabled && preferences.push.categories.includes(notification.category)) {
       const inQuietHours = this.isInQuietHours(currentHour, preferences.push.quietHours);
       if (!inQuietHours || notification.priority === 'CRITICAL') {
         channels.push('PUSH');
@@ -844,14 +884,12 @@ export class NotificationService {
     }
 
     // In-app channel (always included if enabled)
-    if (preferences.inApp.enabled && 
-        preferences.inApp.categories.includes(notification.category)) {
+    if (preferences.inApp.enabled && preferences.inApp.categories.includes(notification.category)) {
       channels.push('IN_APP');
     }
 
     // SMS channel (only for critical or if emergency only is false)
-    if (preferences.sms.enabled && 
-        preferences.sms.categories.includes(notification.category)) {
+    if (preferences.sms.enabled && preferences.sms.categories.includes(notification.category)) {
       if (notification.priority === 'CRITICAL' || !preferences.sms.emergencyOnly) {
         channels.push('SMS');
       }
@@ -865,7 +903,7 @@ export class NotificationService {
    */
   private isInQuietHours(
     currentHour: number,
-    quietHours?: { start: string; end: string }
+    quietHours?: { start: string; end: string },
   ): boolean {
     if (!quietHours) return false;
 
@@ -885,11 +923,16 @@ export class NotificationService {
    */
   private getPriorityValue(priority?: NotificationPriority): number {
     switch (priority) {
-      case 'CRITICAL': return 1;
-      case 'HIGH': return 2;
-      case 'MEDIUM': return 3;
-      case 'LOW': return 4;
-      default: return 3;
+      case 'CRITICAL':
+        return 1;
+      case NotificationPriority.HIGH:
+        return 2;
+      case NotificationPriority.MEDIUM:
+        return 3;
+      case NotificationPriority.LOW:
+        return 4;
+      default:
+        return 3;
     }
   }
 
@@ -898,36 +941,52 @@ export class NotificationService {
    */
   private async scheduleRecurringJobs(): Promise<void> {
     // Weekly summaries (Mondays at 9 AM)
-    await notificationQueue.add('weekly-summary', {}, {
-      repeat: {
-        cron: '0 9 * * 1',
-        tz: 'Australia/Sydney',
+    await notificationQueue.add(
+      'weekly-summary',
+      {},
+      {
+        repeat: {
+          cron: '0 9 * * 1',
+          tz: 'Australia/Sydney',
+        },
       },
-    });
+    );
 
     // Monthly reports (1st of month at 9 AM)
-    await notificationQueue.add('monthly-report', {}, {
-      repeat: {
-        cron: '0 9 1 * *',
-        tz: 'Australia/Sydney',
+    await notificationQueue.add(
+      'monthly-report',
+      {},
+      {
+        repeat: {
+          cron: '0 9 1 * *',
+          tz: 'Australia/Sydney',
+        },
       },
-    });
+    );
 
     // Tax deadline checks (daily at 10 AM)
-    await notificationQueue.add('tax-deadline-check', {}, {
-      repeat: {
-        cron: '0 10 * * *',
-        tz: 'Australia/Sydney',
+    await notificationQueue.add(
+      'tax-deadline-check',
+      {},
+      {
+        repeat: {
+          cron: '0 10 * * *',
+          tz: 'Australia/Sydney',
+        },
       },
-    });
+    );
 
     // Budget period end checks (daily at 6 PM)
-    await notificationQueue.add('budget-check', {}, {
-      repeat: {
-        cron: '0 18 * * *',
-        tz: 'Australia/Sydney',
+    await notificationQueue.add(
+      'budget-check',
+      {},
+      {
+        repeat: {
+          cron: '0 18 * * *',
+          tz: 'Australia/Sydney',
+        },
       },
-    });
+    );
 
     logger.info('Recurring notification jobs scheduled');
   }
@@ -936,9 +995,10 @@ export class NotificationService {
    * Send notification digest
    */
   private async sendDigest(userId: string, type: 'daily' | 'weekly'): Promise<void> {
-    const since = type === 'daily' 
-      ? new Date(Date.now() - 24 * 60 * 60 * 1000)
-      : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const since =
+      type === 'daily'
+        ? new Date(Date.now() - 24 * 60 * 60 * 1000)
+        : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
     const notifications = await prisma.notification.findMany({
       where: {
@@ -946,10 +1006,7 @@ export class NotificationService {
         createdAt: { gte: since },
         isRead: false,
       },
-      orderBy: [
-        { priority: 'asc' },
-        { createdAt: 'desc' },
-      ],
+      orderBy: [{ priority: 'asc' }, { createdAt: 'desc' }],
     });
 
     if (notifications.length === 0) return;
@@ -962,38 +1019,44 @@ export class NotificationService {
     if (!user) return;
 
     // Group notifications by category
-    const grouped = notifications.reduce((acc, notif) => {
-      const category = notif.category || 'OTHER';
-      if (!acc[category]) acc[category] = [];
-      acc[category].push(notif);
-      return acc;
-    }, {} as Record<string, typeof notifications>);
+    const grouped = notifications.reduce(
+      (acc, notif) => {
+        const category = notif.category || 'OTHER';
+        if (!acc[category]) acc[category] = [];
+        acc[category].push(notif);
+        return acc;
+      },
+      {} as Record<string, typeof notifications>,
+    );
 
     // Send digest email
-    await emailService.send({
-      to: user.email,
-      subject: `Your ${type} notification digest`,
-      template: EmailType.WEEKLY_SUMMARY, // Reuse template
-      templateData: {
-        name: user.name,
-        digestType: type,
-        notificationCount: notifications.length,
-        groups: Object.entries(grouped).map(([category, notifs]) => ({
-          category,
-          notifications: notifs.map(n => ({
-            title: n.title,
-            message: n.message,
-            time: formatInTimeZone(n.createdAt, 'Australia/Sydney', 'MMM d, h:mm a'),
-            actionUrl: n.actionUrl,
+    await emailService.send(
+      {
+        to: user.email,
+        subject: `Your ${type} notification digest`,
+        template: EmailType.WEEKLY_SUMMARY, // Reuse template
+        templateData: {
+          name: user.name,
+          digestType: type,
+          notificationCount: notifications.length,
+          groups: Object.entries(grouped).map(([category, notifs]) => ({
+            category,
+            notifications: notifs.map((n) => ({
+              title: n.title,
+              message: n.message,
+              time: formatInTimeZone(n.createdAt, 'Australia/Sydney', 'MMM d, h:mm a'),
+              actionUrl: n.actionUrl,
+            })),
           })),
-        })),
+        },
       },
-    }, userId);
+      userId,
+    );
 
     // Mark notifications as delivered in digest
     await prisma.notification.updateMany({
       where: {
-        id: { in: notifications.map(n => n.id) },
+        id: { in: notifications.map((n) => n.id) },
       },
       data: {
         metadata: {
@@ -1014,10 +1077,7 @@ export class NotificationService {
         userId,
         isRead: false,
         expiresAt: {
-          OR: [
-            { gte: new Date() },
-            { equals: null },
-          ],
+          OR: [{ gte: new Date() }, { equals: null }],
         },
       },
     });
@@ -1049,7 +1109,7 @@ export class NotificationService {
       limit?: number;
       category?: NotificationCategory;
       unreadOnly?: boolean;
-    } = {}
+    } = {},
   ): Promise<{
     notifications: any[];
     pagination: any;
@@ -1060,10 +1120,7 @@ export class NotificationService {
     const where: any = {
       userId,
       expiresAt: {
-        OR: [
-          { gte: new Date() },
-          { equals: null },
-        ],
+        OR: [{ gte: new Date() }, { equals: null }],
       },
     };
 
@@ -1077,11 +1134,7 @@ export class NotificationService {
     const [notifications, total] = await Promise.all([
       prisma.notification.findMany({
         where,
-        orderBy: [
-          { isRead: 'asc' },
-          { priority: 'asc' },
-          { createdAt: 'desc' },
-        ],
+        orderBy: [{ isRead: 'asc' }, { priority: 'asc' }, { createdAt: 'desc' }],
         skip,
         take: limit,
       }),
@@ -1108,19 +1161,19 @@ export const notificationService = NotificationService.getInstance();
 export const notificationTemplates = {
   goalProgress: (goal: any, progress: number) => ({
     title: '📊 Goal Progress Update',
-    message: `You're ${progress}% of the way to your "${goal.name}" goal!`,
+    message: `You're ${progress}% of the way to your "${goal.title}" goal!`,
   }),
-  
+
   budgetWarning: (budget: any, percentage: number) => ({
     title: '⚠️ Budget Warning',
     message: `You've used ${percentage}% of your "${budget.name}" budget.`,
   }),
-  
+
   taxDeadline: (type: string, days: number) => ({
     title: '📅 Tax Deadline Reminder',
     message: `Your ${type} is due in ${days} days.`,
   }),
-  
+
   loginAlert: (device: string, location: string) => ({
     title: '🔐 New Login Detected',
     message: `Your account was accessed from ${device} in ${location}.`,

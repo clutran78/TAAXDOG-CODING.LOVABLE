@@ -229,11 +229,11 @@ ${JSON.stringify(alert.metadata, null, 2)}
   }
 
   clearResolvedAlerts() {
-    for (const [id, alert] of this.alerts) {
+    this.alerts.forEach((alert, id) => {
       if (alert.resolved) {
         this.alerts.delete(id);
       }
-    }
+    });
   }
 
   // Integration with resource monitor

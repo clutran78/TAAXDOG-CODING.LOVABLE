@@ -170,13 +170,12 @@ function shouldPersistMetrics(metrics: EndpointMetrics): boolean {
  */
 async function persistMetricsAsync(metrics: EndpointMetrics): Promise<void> {
   try {
-    // Skip persisting if apiMetric model doesn't exist yet
+    // Skip persisting - apiMetric model doesn't exist yet
     // This prevents errors during migration phase
-    if (!prisma.apiMetric) {
-      logger.debug('apiMetric model not available, skipping persistence');
-      return;
-    }
+    logger.debug('apiMetric model not available, skipping persistence');
+    return;
 
+    /* TODO: Implement when apiMetric model is added to schema
     const avgDuration = metrics.totalDuration / metrics.totalRequests;
     const errorRate = metrics.failedRequests / metrics.totalRequests;
 
@@ -195,6 +194,7 @@ async function persistMetricsAsync(metrics: EndpointMetrics): Promise<void> {
         recordedAt: new Date(),
       },
     });
+    */
   } catch (error) {
     // Don't let database errors crash the API
     // This could happen if the apiMetric table doesn't exist yet
@@ -211,9 +211,9 @@ async function persistMetricsAsync(metrics: EndpointMetrics): Promise<void> {
 export function getCurrentMetrics(): Record<string, EndpointMetrics> {
   const result: Record<string, EndpointMetrics> = {};
 
-  for (const [key, metrics] of metricsCache.entries()) {
+  metricsCache.forEach((metrics, key) => {
     result[key] = { ...metrics };
-  }
+  });
 
   return result;
 }
@@ -242,7 +242,7 @@ export function getEndpointMetrics(endpoint: string, method?: string): EndpointM
     lastReset: new Date(),
   };
 
-  for (const [key, metrics] of metricsCache.entries()) {
+  metricsCache.forEach((metrics, key) => {
     if (metrics.endpoint === endpoint) {
       combined.totalRequests += metrics.totalRequests;
       combined.successfulRequests += metrics.successfulRequests;
@@ -261,7 +261,7 @@ export function getEndpointMetrics(endpoint: string, method?: string): EndpointM
         .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
         .slice(0, 100);
     }
-  }
+  });
 
   return combined.totalRequests > 0 ? combined : null;
 }
@@ -277,7 +277,7 @@ export async function getHealthMetrics() {
     let totalDuration = 0;
     const errorRates: number[] = [];
 
-    for (const metrics of metricsCache.values()) {
+    metricsCache.forEach((metrics) => {
       totalRequests += metrics.totalRequests;
       totalFailures += metrics.failedRequests;
       totalDuration += metrics.totalDuration;
@@ -285,7 +285,7 @@ export async function getHealthMetrics() {
       if (metrics.totalRequests > 0) {
         errorRates.push(metrics.failedRequests / metrics.totalRequests);
       }
-    }
+    });
 
     const overallErrorRate = totalRequests > 0 ? totalFailures / totalRequests : 0;
     const averageResponseTime = totalRequests > 0 ? totalDuration / totalRequests : 0;
@@ -361,11 +361,11 @@ export function resetEndpointMetrics(endpoint: string, method?: string): void {
     metricsCache.delete(key);
   } else {
     // Reset all methods for the endpoint
-    for (const key of metricsCache.keys()) {
+    metricsCache.forEach((value, key) => {
       if (key.endsWith(`:${endpoint}`)) {
         metricsCache.delete(key);
       }
-    }
+    });
   }
 }
 

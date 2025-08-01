@@ -1,10 +1,11 @@
 import prisma from '../prisma';
 import { logger } from '../logger';
+import { Decimal } from '@prisma/client/runtime/library';
 
 export class GoalService {
   static async updateProgress(goalId: string, amount: number) {
     try {
-      const goal = await prisma.goals.findUnique({
+      const goal = await prisma.goal.findUnique({
         where: { id: goalId },
       });
 
@@ -12,21 +13,20 @@ export class GoalService {
         throw new Error('Goal not found');
       }
 
-      const updatedGoal = await prisma.goals.update({
+      const updatedGoal = await prisma.goal.update({
         where: { id: goalId },
         data: {
-          current_amount: goal.current_amount + amount,
-          updated_at: new Date(),
+          currentAmount: goal.currentAmount.add(amount),
+          updatedAt: new Date(),
         },
       });
 
       // Check if goal is completed
-      if (updatedGoal.current_amount >= updatedGoal.target_amount) {
-        await prisma.goals.update({
+      if (updatedGoal.currentAmount.gte(updatedGoal.targetAmount)) {
+        await prisma.goal.update({
           where: { id: goalId },
           data: {
             status: 'COMPLETED',
-            completed_at: new Date(),
           },
         });
       }
@@ -39,18 +39,18 @@ export class GoalService {
   }
 
   static async getGoalsByUserId(userId: string) {
-    return prisma.goals.findMany({
-      where: { user_id: userId },
-      orderBy: { created_at: 'desc' },
+    return prisma.goal.findMany({
+      where: { userId: userId },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
   static async createGoal(userId: string, data: any) {
-    return prisma.goals.create({
+    return prisma.goal.create({
       data: {
         ...data,
-        user_id: userId,
-        current_amount: 0,
+        userId: userId,
+        currentAmount: 0,
         status: 'ACTIVE',
       },
     });

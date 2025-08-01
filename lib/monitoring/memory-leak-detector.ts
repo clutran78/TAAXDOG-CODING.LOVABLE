@@ -23,7 +23,7 @@ interface MemoryLeakReport {
 export class MemoryLeakDetector extends EventEmitter {
   private snapshots: HeapSnapshot[] = [];
   private isMonitoring = false;
-  private monitoringInterval: NodeJS.Timer | null = null;
+  private monitoringInterval: NodeJS.Timeout | null = null;
 
   // Configuration
   private readonly config = {

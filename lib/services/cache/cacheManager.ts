@@ -228,6 +228,30 @@ export class CacheManager {
   }
 
   /**
+   * Get a value by key
+   */
+  async get<T = any>(key: string): Promise<T | null> {
+    if (!this.cache) return null;
+    return await this.cache.get(key);
+  }
+
+  /**
+   * Delete a single key
+   */
+  async del(key: string): Promise<void> {
+    if (!this.cache) return;
+    await this.cache.del(key);
+  }
+
+  /**
+   * Delete keys matching a pattern
+   */
+  async delPattern(pattern: string): Promise<void> {
+    if (!this.cache) return;
+    await this.cache.delPattern(pattern);
+  }
+
+  /**
    * Clear all caches (use with caution)
    */
   async clearAll(): Promise<void> {
