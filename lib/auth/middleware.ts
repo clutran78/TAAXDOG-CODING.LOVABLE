@@ -1,12 +1,13 @@
 import { NextApiRequest, NextApiResponse, NextApiHandler } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth';
-import { Role, AuthEvent } from '@prisma/client';
+import { Role } from '@prisma/client';
 import prisma from '../prisma';
 import { verifyJWT, getClientIP, logAuthEvent } from './auth-utils';
 import { csrfProtection } from './csrf-protection';
 import { apiRateLimiter } from './rate-limiter';
 import { logger } from '@/lib/logger';
+import { AUTH_EVENTS } from '@/lib/constants/auth.constants';
 
 // Type for authenticated request
 export interface AuthenticatedRequest extends NextApiRequest {
@@ -32,7 +33,7 @@ export function withAuth(
       const session = await getServerSession(req, res, authOptions);
 
       if (!session || !session.user) {
-        await logAuthEvent('unknown', AuthEvent.SUSPICIOUS_ACTIVITY, {
+        await logAuthEvent('unknown', AUTH_EVENTS.SUSPICIOUS_ACTIVITY, {
           reason: 'Unauthorized access attempt',
           path: req.url,
           success: false,
@@ -58,7 +59,7 @@ export function withAuth(
 
       // Check if account is locked
       if (user.lockedUntil && user.lockedUntil > new Date()) {
-        await logAuthEvent(user.id, AuthEvent.ACCOUNT_LOCKED, {
+        await logAuthEvent(user.id, AUTH_EVENTS.ACCOUNT_LOCKED, {
           reason: 'Account locked',
           lockedUntil: user.lockedUntil,
           success: false,
@@ -79,7 +80,7 @@ export function withAuth(
 
       // Check role permissions
       if (options?.allowedRoles && !options.allowedRoles.includes(user.role)) {
-        await logAuthEvent(user.id, AuthEvent.SUSPICIOUS_ACTIVITY, {
+        await logAuthEvent(user.id, AUTH_EVENTS.SUSPICIOUS_ACTIVITY, {
           reason: 'Insufficient permissions',
           requiredRoles: options.allowedRoles,
           userRole: user.role,
@@ -141,7 +142,7 @@ export function withRateLimit(
       // Log rate limit violation
       const session = await getServerSession(req, res, authOptions);
       if (session?.user?.id) {
-        await logAuthEvent(session.user.id, AuthEvent.SUSPICIOUS_ACTIVITY, {
+        await logAuthEvent(session.user.id, AUTH_EVENTS.SUSPICIOUS_ACTIVITY, {
           reason: 'Rate limit exceeded',
           endpoint: req.url,
           success: false,
@@ -207,7 +208,7 @@ export function withAPIKey(handler: NextApiHandler, serviceName: string) {
     const isValidKey = await validateAPIKey(apiKey, serviceName);
 
     if (!isValidKey) {
-      await logAuthEvent('unknown', AuthEvent.SUSPICIOUS_ACTIVITY, {
+      await logAuthEvent('unknown', AUTH_EVENTS.SUSPICIOUS_ACTIVITY, {
         reason: 'Invalid API key',
         service: serviceName,
         success: false,
@@ -252,7 +253,7 @@ export function withCSRF(handler: NextApiHandler) {
       const isValid = csrfToken === Buffer.from(expectedToken).toString('base64');
 
       if (!isValid) {
-        await logAuthEvent(session.user.id, AuthEvent.SUSPICIOUS_ACTIVITY, {
+        await logAuthEvent(session.user.id, AUTH_EVENTS.SUSPICIOUS_ACTIVITY, {
           reason: 'Invalid CSRF token',
           endpoint: req.url,
           success: false,

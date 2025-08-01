@@ -132,6 +132,7 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
+  data         String?  @db.Text
   createdAt    DateTime @default(now())
   
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -495,7 +496,12 @@ enum AuthEvent {
   TWO_FACTOR_SUCCESS
   TWO_FACTOR_FAILED
   SESSION_EXPIRED
+  SESSION_CREATED
+  SESSION_INVALIDATED
+  SESSION_TIMEOUT
+  SESSION_ACTIVITY
   SUSPICIOUS_ACTIVITY
+  TOKEN_REFRESH
 }
 
 enum Plan {

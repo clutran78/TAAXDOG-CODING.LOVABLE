@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/pages/api/auth/[...nextauth]';
+import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 
@@ -42,9 +42,9 @@ function checkRateLimit(userId: string, limit: number = 60): boolean {
 }
 
 // Simple security middleware for BASIQ endpoints
-export async function withBasiqSecurity(
+export function withBasiqSecurity(
   handler: (req: AuthenticatedRequest, res: NextApiResponse) => Promise<void>,
-): (req: NextApiRequest, res: NextApiResponse) => Promise<void> {
+) {
   return async (req: NextApiRequest, res: NextApiResponse): Promise<void> => {
     try {
       // Check authentication

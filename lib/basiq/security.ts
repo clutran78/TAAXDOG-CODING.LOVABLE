@@ -48,7 +48,7 @@ export class EncryptionService {
     let encrypted = cipher.update(text, 'utf8', 'hex');
     encrypted += cipher.final('hex');
 
-    const authTag = cipher.getAuthTag();
+    const authTag = (cipher as any).getAuthTag();
 
     return {
       encrypted,
@@ -65,7 +65,7 @@ export class EncryptionService {
       Buffer.from(encryptedData.iv, 'hex'),
     );
 
-    decipher.setAuthTag(Buffer.from(encryptedData.authTag, 'hex'));
+    (decipher as any).setAuthTag(Buffer.from(encryptedData.authTag, 'hex'));
 
     let decrypted = decipher.update(encryptedData.encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');

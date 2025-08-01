@@ -1,15 +1,6 @@
 import prisma from '../prisma';
 import { logger } from '@/lib/logger';
-import {
-  getBasiqConfiguration,
-  buildBasiqUrl,
-  BASIQ_ENDPOINTS,
-  ConnectionStatus,
-  ConsentStatus,
-  TRANSACTION_CATEGORIES,
-  TAX_CATEGORIES,
-  BasiqRequestOptions,
-} from './config';
+import { BASIQ_CONFIG } from './config';
 
 export class BasiqService {
   private accessToken: string | null = null;
@@ -21,15 +12,14 @@ export class BasiqService {
       return this.accessToken;
     }
 
-    const config = getBasiqConfiguration();
-    const authHeader = Buffer.from(config.apiKey).toString('base64');
+    const authHeader = Buffer.from(BASIQ_CONFIG.API_KEY).toString('base64');
 
-    const response = await fetch(buildBasiqUrl(BASIQ_ENDPOINTS.TOKEN), {
+    const response = await fetch(`${BASIQ_CONFIG.BASE_URL}${BASIQ_CONFIG.ENDPOINTS.TOKEN}`, {
       method: 'POST',
       headers: {
         Authorization: `Basic ${authHeader}`,
         'Content-Type': 'application/x-www-form-urlencoded',
-        'basiq-version': config.version,
+        'basiq-version': '3.0',
       },
       body: 'grant_type=client_credentials',
     });
@@ -42,11 +32,20 @@ export class BasiqService {
     this.accessToken = data.access_token;
     this.tokenExpiry = new Date(Date.now() + data.expires_in * 1000);
 
+    if (!this.accessToken) {
+      throw new Error('Failed to authenticate with BASIQ API');
+    }
+
     return this.accessToken;
   }
 
   // Make authenticated request to BASIQ
-  private async makeRequest(options: BasiqRequestOptions): Promise<any> {
+  private async makeRequest(options: {
+    url: string;
+    method?: string;
+    params?: any;
+    body?: any;
+  }): Promise<any> {
     const token = await this.authenticate();
     const config = getBasiqConfiguration();
 
@@ -60,7 +59,7 @@ export class BasiqService {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'basiq-version': config.version,
+        'basiq-version': '3.0',
         ...options.headers,
       },
       body: options.body ? JSON.stringify(options.body) : undefined,

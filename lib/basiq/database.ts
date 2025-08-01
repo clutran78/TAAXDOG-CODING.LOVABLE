@@ -157,22 +157,22 @@ export class BasiqDatabase {
     return accounts.map((account) => {
       const transactions = account.bank_transactions || [];
       const businessExpenses = transactions
-        .filter((t) => t.is_business_expense && t.amount < 0)
-        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+        .filter((t) => t.is_business_expense && Number(t.amount) < 0)
+        .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
       const personalExpenses = transactions
-        .filter((t) => !t.is_business_expense && t.amount < 0)
-        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+        .filter((t) => !t.is_business_expense && Number(t.amount) < 0)
+        .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
 
       return {
         accountId: account.basiq_account_id,
-        accountName: account.account_name || account.account_holder,
-        institutionName: account.institution_name,
-        balance: account.balance_current,
-        availableBalance: account.balance_available,
-        accountType: account.account_type,
-        bsb: account.bsb,
-        accountNumber: account.account_number,
-        lastSynced: account.last_synced,
+        accountName: account.account_name || account.account_holder || 'Bank Account',
+        institutionName: account.institution_name || 'Unknown Bank',
+        balance: Number(account.balance_current || 0),
+        availableBalance: Number(account.balance_available || 0),
+        accountType: account.account_type || 'transaction',
+        bsb: account.bsb || undefined,
+        accountNumber: account.account_number || '',
+        lastSynced: account.last_synced || new Date(),
         transactionCount: transactions.length,
         businessExpenseTotal: businessExpenses,
         personalExpenseTotal: personalExpenses,
@@ -287,7 +287,7 @@ export class BasiqDatabase {
     } = {};
 
     for (const transaction of transactions) {
-      const amount = transaction.amount;
+      const amount = Number(transaction.amount);
       const isExpense = amount < 0;
       const absAmount = Math.abs(amount);
 
@@ -307,9 +307,9 @@ export class BasiqDatabase {
         }
         categorizedExpenses[category].total += absAmount;
         categorizedExpenses[category].count += 1;
-        categorizedExpenses[category].gst += transaction.gst_amount || 0;
+        categorizedExpenses[category].gst += Number(transaction.gst_amount || 0);
 
-        gstTotal += transaction.gst_amount || 0;
+        gstTotal += Number(transaction.gst_amount || 0);
       } else {
         totalIncome += absAmount;
       }

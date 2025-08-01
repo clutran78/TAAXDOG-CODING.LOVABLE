@@ -5,7 +5,7 @@ import prisma from '@/lib/prisma';
 import crypto from 'crypto';
 import { logger } from '@/lib/logger';
 import { getClientIP } from './auth-utils';
-import { AuthEvent, Role } from '@prisma/client';
+import { Role, AuthEvent } from '@prisma/client';
 import type { Session } from 'next-auth';
 import { addDays, addHours, addMinutes, differenceInMinutes } from 'date-fns';
 
@@ -686,8 +686,18 @@ export async function withSessionValidation(
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  // Get detailed session data
-  const sessionData = await sessionManager.getSession(session.id);
+  // Get detailed session data by user ID
+  const sessions = await prisma.session.findMany({
+    where: { userId: session.user.id },
+    orderBy: { createdAt: 'desc' },
+    take: 1,
+  });
+
+  if (!sessions.length) {
+    return res.status(401).json({ error: 'No active session' });
+  }
+
+  const sessionData = await sessionManager.getSession(sessions[0].id);
 
   if (!sessionData) {
     return res.status(401).json({ error: 'Session expired' });
