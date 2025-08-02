@@ -3,8 +3,7 @@
 import { Modal } from 'react-bootstrap';
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { getData } from '@/services/api/apiController';
-import { formatCurrency } from '@/services/helperFunction.js';
+import { apiRequest } from '@/lib/api-request';
 
 interface ExpenseCategory {
   name: string;
@@ -16,7 +15,6 @@ interface ExpenseCategoriesModalProps {
   show: boolean;
   handleClose: () => void;
 }
-
 interface Expense {
   date: string;
   description?: string;
@@ -26,139 +24,135 @@ interface Expense {
   amount: string;
 }
 
+const formatCurrency = (amount: number) => `$${amount.toFixed(2)}`;
+
 const ExpenseCategoriesModal: React.FC<ExpenseCategoriesModalProps> = ({ show, handleClose }) => {
+  const { data: session } = useSession();
+  const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [totalExpenses, setTotalExpenses] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const { data: session } = useSession();
 
   useEffect(() => {
-    if (show && session?.user) {
+    if (show) {
       loadExpenseCategories();
     }
-  }, [show, session]);
+  }, [show]);
 
   const loadExpenseCategories = async () => {
     try {
       setLoading(true);
 
+      if (!session?.user) {
+        console.error('No authenticated user found. Cannot fetch user-specific data.');
+        setLoading(false);
+        return;
+      }
+
       // Fetch transactions from API
-      const response = await getData('/api/banking/transactions');
-      const transactions = response.data || [];
-
-      // Filter for expense transactions (negative amounts)
-      const expenses = transactions.filter((t: any) => parseFloat(t.amount) < 0);
-
-      // Calculate total expenses
-      const total = expenses.reduce(
-        (sum: number, t: any) => sum + Math.abs(parseFloat(t.amount)),
-        0,
-      );
-      setTotalExpenses(total);
-
-      // Group by category
-      const categoryMap: { [key: string]: number } = {};
-      expenses.forEach((expense: any) => {
-        const category = expense.category || 'Other';
-        const amount = Math.abs(parseFloat(expense.amount));
-        categoryMap[category] = (categoryMap[category] || 0) + amount;
+      const response = await apiRequest('/api/banking/transactions', {
+        method: 'GET',
       });
 
-      // Convert to array and calculate percentages
-      const categoryData: ExpenseCategory[] = Object.entries(categoryMap)
+      const transactions = response.transactions || [];
+
+      // Filter for expenses (negative amounts)
+      const expenseTransactions = transactions.filter(
+        (tx: any) => (typeof tx.amount === 'string' ? parseFloat(tx.amount) : tx.amount) < 0,
+      );
+
+      const total = expenseTransactions.reduce(
+        (sum: number, tx: any) =>
+          sum + Math.abs(typeof tx.amount === 'string' ? parseFloat(tx.amount) : tx.amount),
+        0,
+      );
+
+      const categoryTotals: { [key: string]: number } = {};
+      expenseTransactions.forEach((tx: any) => {
+        const category = tx.category || 'Uncategorized';
+        categoryTotals[category] =
+          (categoryTotals[category] || 0) +
+          Math.abs(typeof tx.amount === 'string' ? parseFloat(tx.amount) : tx.amount);
+      });
+
+      const sortedCategories = Object.entries(categoryTotals)
+        .sort((a, b) => b[1] - a[1])
         .map(([name, amount]) => ({
           name,
           amount,
-          percentage: total > 0 ? (amount / total) * 100 : 0,
-        }))
-        .sort((a, b) => b.amount - a.amount);
+          percentage: (amount / total) * 100,
+        }));
 
-      setCategories(categoryData);
+      setTotalExpenses(total);
+      setCategories(sortedCategories);
+      setLoading(false);
     } catch (error) {
-      console.error('Error loading expense categories:', error);
-    } finally {
+      console.error('Failed to load expense categories:', error);
       setLoading(false);
     }
   };
-
-  const filteredCategories = categories.filter((category) =>
-    category.name.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
 
   return (
     <Modal
       show={show}
       onHide={handleClose}
-      size="lg"
+      className="modal-lg"
     >
-      <Modal.Header closeButton>
-        <Modal.Title>Expense Categories</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <div className="mb-4">
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Search categories..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
+      <div className="modal-header">
+        <h5 className="modal-title">
+          <i className="fas fa-chart-pie text-danger me-2"></i>Expense Categories
+        </h5>
+        <button
+          type="button"
+          className="btn-close"
+          onClick={handleClose}
+        ></button>
+      </div>
 
+      <div className="modal-body">
         {loading ? (
-          <div className="text-center p-4">
+          <div className="text-center p-5">
             <div
-              className="spinner-border"
+              className="spinner-border text-primary"
               role="status"
             >
               <span className="visually-hidden">Loading...</span>
             </div>
+            <p className="mt-3">Loading expense data...</p>
+          </div>
+        ) : categories.length === 0 ? (
+          <div className="alert alert-info">
+            <i className="fas fa-info-circle me-2"></i>No expense categories found.
           </div>
         ) : (
           <>
-            <div className="mb-3">
-              <h5>Total Expenses: {formatCurrency(totalExpenses)}</h5>
-            </div>
-
-            <div className="expense-categories-list">
-              {filteredCategories.length === 0 ? (
-                <p className="text-muted">No categories found</p>
-              ) : (
-                filteredCategories.map((category) => (
-                  <div
-                    key={category.name}
-                    className="category-item mb-3 p-3 border rounded"
-                  >
-                    <div className="d-flex justify-content-between align-items-center">
-                      <div>
-                        <h6 className="mb-1">{category.name}</h6>
-                        <div
-                          className="progress"
-                          style={{ width: '200px', height: '10px' }}
-                        >
-                          <div
-                            className="progress-bar bg-primary"
-                            role="progressbar"
-                            style={{ width: `${category.percentage}%` }}
-                            aria-valuenow={category.percentage}
-                            aria-valuemin={0}
-                            aria-valuemax={100}
-                          ></div>
-                        </div>
-                      </div>
-                      <div className="text-end">
-                        <div className="fw-bold">{formatCurrency(category.amount)}</div>
-                        <small className="text-muted">{category.percentage.toFixed(1)}%</small>
-                      </div>
-                    </div>
+            <h5 className="mb-3">Total Expenses: {formatCurrency(totalExpenses)}</h5>
+            <ul className="list-group">
+              {categories.map((category, index) => (
+                <li
+                  key={index}
+                  className="list-group-item d-flex justify-content-between align-items-center"
+                >
+                  <div>
+                    <strong>{category.name}</strong>
+                    <div className="text-muted small">{category.percentage.toFixed(1)}%</div>
                   </div>
-                ))
-              )}
-            </div>
+                  <span className="text-danger">{formatCurrency(category.amount)}</span>
+                </li>
+              ))}
+            </ul>
           </>
         )}
-      </Modal.Body>
+      </div>
+
+      <div className="modal-footer">
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={handleClose}
+        >
+          Close
+        </button>
+      </div>
     </Modal>
   );
 };

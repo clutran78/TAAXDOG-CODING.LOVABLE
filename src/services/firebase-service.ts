@@ -1,130 +1,104 @@
-/**
- * API Service Layer
- * This replaces the Firebase service after migration to PostgreSQL
- */
+// This file is deprecated - Firebase has been replaced with PostgreSQL/Prisma
+// All functions have been migrated to use API routes instead
+// TODO: Remove this file once all references are updated
 
-import { getData, postData, putData, deleteData } from '@/services/api/apiController';
+import { Transaction } from '@/lib/types/transactions';
+import { Expense } from '@/lib/types/expenses';
+import { showToast } from './helperFunction';
+import { Goal } from '@/lib/types/goal';
 
-// Bank Transactions
-export async function fetchBankTransactions() {
-  try {
-    const response = await getData('/api/banking/transactions');
-    return response.data || [];
-  } catch (error) {
-    console.error('Error fetching bank transactions:', error);
-    return [];
-  }
-}
+export const subscribeToAuthState = (
+  onAuthSuccess: (userId: string) => void,
+  onAuthFail: () => void,
+): void => {
+  // Deprecated: Use NextAuth session instead
+  console.warn('subscribeToAuthState is deprecated. Use NextAuth session instead.');
+};
 
-// Goals
-export async function fetchGoals() {
-  try {
-    const response = await getData('/api/goals');
-    return response.data || [];
-  } catch (error) {
-    console.error('Error fetching goals:', error);
-    return [];
-  }
-}
+export const fetchIncomeTransactions = async () => {
+  console.warn('fetchIncomeTransactions is deprecated. Use API routes instead.');
+  return { sources: [], total: 0 };
+};
 
-// Subscriptions
-export async function fetchSubscriptions() {
-  try {
-    // For now, return mock data as subscription tracking might not be implemented yet
-    return [
-      {
-        id: '1',
-        name: 'Netflix',
-        amount: 15.99,
-        isActive: true,
-        nextBillingDate: new Date().toISOString(),
-      },
-      {
-        id: '2',
-        name: 'Spotify',
-        amount: 9.99,
-        isActive: true,
-        nextBillingDate: new Date().toISOString(),
-      },
-    ];
-  } catch (error) {
-    console.error('Error fetching subscriptions:', error);
-    return [];
-  }
-}
+export const fetchUserExpenses = async (): Promise<Expense[]> => {
+  console.warn('fetchUserExpenses is deprecated. Use API routes instead.');
+  return [];
+};
 
-// Financial Summary Calculator
-export function calculateFinancialSummary(transactions: any[]) {
-  const totalIncome = transactions
-    .filter((t) => t.type === 'income' || t.amount > 0)
-    .reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)), 0);
+export const fetchSubscriptions = (): Promise<any[]> => {
+  console.warn('fetchSubscriptions is deprecated. Use API routes instead.');
+  return Promise.resolve([]);
+};
 
-  const totalExpenses = transactions
-    .filter((t) => t.type === 'expense' || t.amount < 0)
-    .reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)), 0);
+export const fetchTransactionsByCategory = async (category: string) => {
+  console.warn('fetchTransactionsByCategory is deprecated. Use API routes instead.');
+  return [];
+};
 
-  const netBalance = totalIncome - totalExpenses;
+export const fetchUserGoals = (): Promise<Goal[]> => {
+  console.warn('fetchUserGoals is deprecated. Use API routes instead.');
+  return Promise.resolve([]);
+};
 
+export const deleteGoal = async (goalId: string) => {
+  console.warn('deleteGoal is deprecated. Use API routes instead.');
+  showToast('Please use the API endpoint to delete goals', 'warning');
+};
+
+export const updateGoal = async (goalId: string, updatedData: Partial<Goal>) => {
+  console.warn('updateGoal is deprecated. Use API routes instead.');
+  showToast('Please use the API endpoint to update goals', 'warning');
+};
+
+export const getUserTaxProfile = () => {
+  console.warn('getUserTaxProfile is deprecated. Use API routes instead.');
+  return Promise.resolve(null);
+};
+
+export const getReceiptStats = () => {
+  console.warn('getReceiptStats is deprecated. Use API routes instead.');
+  return Promise.resolve({
+    totalReceipts: 0,
+    businessReceipts: 0,
+    personalReceipts: 0,
+    totalAmount: 0,
+  });
+};
+
+export const createGoal = async (data: any) => {
+  console.warn('createGoal is deprecated. Use API routes instead.');
+  showToast('Please use the API endpoint to create goals', 'warning');
+};
+
+export const fetchBankTransactions = async (): Promise<any[]> => {
+  console.warn('fetchBankTransactions is deprecated. Use API routes instead.');
+  return [];
+};
+
+export const fetchGoals = async (): Promise<Goal[]> => {
+  console.warn('fetchGoals is deprecated. Use API routes instead.');
+  return [];
+};
+
+export const updateGoalProgress = async (goalId: string, progress: number) => {
+  console.warn('updateGoalProgress is deprecated. Use API routes instead.');
+  showToast('Please use the API endpoint to update goal progress', 'warning');
+};
+
+export const fetchReceiptStats = async (userId?: string) => {
+  console.warn('fetchReceiptStats is deprecated. Use API routes instead.');
   return {
-    totalIncome,
-    totalExpenses,
-    netBalance,
+    totalReceipts: 0,
+    businessReceipts: 0,
+    personalReceipts: 0,
+    totalAmount: 0,
+    totalSpent: 0,
+    matchedReceipts: 0,
+    averageAmount: '$0.00',
   };
-}
+};
 
-// User Profile
-export async function fetchUserProfile() {
-  try {
-    const response = await getData('/api/user/settings');
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching user profile:', error);
-    return null;
-  }
-}
-
-// Update Goal
-export async function updateGoal(goalId: string, updates: any) {
-  try {
-    const response = await putData(`/api/goals/${goalId}`, updates);
-    return response.data;
-  } catch (error) {
-    console.error('Error updating goal:', error);
-    throw error;
-  }
-}
-
-// Create Goal
-export async function createGoal(goalData: any) {
-  try {
-    const response = await postData('/api/goals', goalData);
-    return response.data;
-  } catch (error) {
-    console.error('Error creating goal:', error);
-    throw error;
-  }
-}
-
-// Delete Goal
-export async function deleteGoal(goalId: string) {
-  try {
-    await deleteData(`/api/goals/${goalId}`);
-    return true;
-  } catch (error) {
-    console.error('Error deleting goal:', error);
-    throw error;
-  }
-}
-
-// Update Goal Progress
-export async function updateGoalProgress(goalId: string, newAmount: number) {
-  try {
-    const response = await putData(`/api/goals/${goalId}/progress`, {
-      currentAmount: newAmount,
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error updating goal progress:', error);
-    throw error;
-  }
-}
+export const fetchTaxProfile = async (userId?: string) => {
+  console.warn('fetchTaxProfile is deprecated. Use API routes instead.');
+  return null;
+};

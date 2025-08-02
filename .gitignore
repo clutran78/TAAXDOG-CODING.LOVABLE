@@ -155,3 +155,10 @@ deployment.yml
 # Next.js build artifacts
 .next/
 
+# Backup directories
+src_backup*/
+*_backup*/
+
+# Reference repositories
+taax-dog-main-reference/
+

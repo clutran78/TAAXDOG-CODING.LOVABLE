@@ -3,7 +3,7 @@ import { withRateLimit } from './rateLimiter';
 import { withSecurityHeaders } from './securityHeaders';
 import { withValidation } from './validation';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 
 export interface SecurityConfig {
   rateLimit?: 'auth' | 'goals' | 'receipts' | 'general';

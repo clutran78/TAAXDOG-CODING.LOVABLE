@@ -1,10 +1,10 @@
 'use client';
 import { Goal } from '@/lib/types/goal';
-import { showToast } from '@/services/helperFunction.js';
-import { createGoal, updateGoal } from '@/services/firebase-service';
+import { showToast } from '@/services/helperFunction';
 import { useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import { Modal, Button } from 'react-bootstrap';
+import { apiRequest } from '@/lib/api-request';
 
 interface Props {
   show: boolean;
@@ -72,37 +72,37 @@ const AddGoalModal = ({ show, onClose, onAdd, goalToEdit, editGoalId }: Props) =
     try {
       if (!session?.user) {
         showToast('User not authenticated', 'danger');
-        setLoading(false);
         return;
       }
 
-      const goal = {
-        ...goalToEdit,
-        name,
-        description,
+      const goalData = {
+        title: name,
         category,
         currentAmount: parseFloat(currentAmount || '0'),
         targetAmount: parseFloat(targetAmount || '0'),
-        dueDate,
-        userId: session.user.id,
-        updatedAt: new Date().toISOString(),
-        createdAt: goalToEdit?.createdAt || new Date().toISOString(),
+        targetDate: new Date(dueDate).toISOString(),
       };
 
       if (editGoalId) {
-        await updateGoal(editGoalId, goal);
+        await apiRequest(`/api/goals/${editGoalId}`, {
+          method: 'PUT',
+          body: goalData,
+        });
         showToast('Goal updated successfully', 'success');
       } else {
-        await createGoal(goal);
+        await apiRequest('/api/goals', {
+          method: 'POST',
+          body: goalData,
+        });
         showToast('Goal added successfully', 'success');
       }
 
       onAdd();
       onClose();
       resetForm();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      showToast('Error adding goal', 'danger');
+      showToast(err.message || 'Error adding goal', 'danger');
     } finally {
       setLoading(false);
     }

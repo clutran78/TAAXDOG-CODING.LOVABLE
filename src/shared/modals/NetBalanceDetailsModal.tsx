@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import NetIncomeModal from './NetIncomeModal';
-import { loadIncomeDetails } from '@/services/helperFunction.js';
+import { loadIncomeDetails } from '@/services/helperFunction';
 import TotalExpensesModal from './ExpenseCategoriesModal';
 import { useDarkMode } from '@/providers/dark-mode-provider';
 

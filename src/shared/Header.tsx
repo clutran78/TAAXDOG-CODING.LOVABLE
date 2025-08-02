@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { setupBankConnectionHandlers } from '@/services/helperFunction.js';
+import { setupBankConnectionHandlers } from '@/services/helperFunction';
 import { useRouter } from 'next/navigation';
 import { logout } from './signOut';
 import { useDarkMode } from '@/providers/dark-mode-provider';

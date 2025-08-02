@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Sidebar from '@/components/layout/Sidebar';
+import Sidebar from '@/components/sidebar';
 import Header from '@/shared/Header';
 import GlobalWrapper from '@/shared/GlobalWrapper';
 import MobileSidebar from '@/components/mobile-sidebar';
@@ -20,13 +20,10 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       <div className="container-fluid">
         <div className="row">
           <Sidebar
-            open={!isSidebarCollapsed}
-            setOpen={(open) => setIsSidebarCollapsed(!open)}
+            isCollapsed={isSidebarCollapsed}
+            onToggleSidebar={toggleSidebar}
           />
-          <MobileSidebar 
-            isOpen={isSidebarCollapsed}
-            onClose={() => setIsSidebarCollapsed(true)}
-          />
+          <MobileSidebar />
 
           {/* Global Toast Element */}
           <div

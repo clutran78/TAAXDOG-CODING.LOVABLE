@@ -1,26 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../../auth/[...nextauth]/route'
-import { PrismaClient } from '@prisma/client'
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient();
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    
+    const session = await getServerSession(authOptions);
+
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = session.user.id
+    const userId = session.user.id;
 
     const userSettings = await prisma.userSettings.findUnique({
-      where: { userId }
-    })
+      where: { userId },
+    });
 
     if (!userSettings) {
       // Return default settings if none exist
@@ -30,96 +27,77 @@ export async function GET(request: NextRequest) {
           push: true,
           weeklyReports: true,
           goalReminders: true,
-          transactionAlerts: true
+          transactionAlerts: true,
         },
         privacy: {
           dataSharing: false,
           analyticsTracking: true,
-          marketingEmails: false
+          marketingEmails: false,
         },
         preferences: {
           currency: 'AUD',
           dateFormat: 'DD/MM/YYYY',
           timeZone: 'Australia/Sydney',
-          language: 'en-AU'
+          language: 'en-AU',
         },
         security: {
           twoFactorEnabled: false,
-          sessionTimeout: 30
-        }
-      })
+          sessionTimeout: 30,
+        },
+      });
     }
 
-    return NextResponse.json(userSettings.settings)
-
+    return NextResponse.json(userSettings.settings);
   } catch (error) {
-    console.error('User settings GET API error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    console.error('User settings GET API error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   } finally {
-    await prisma.$disconnect()
+    await prisma.$disconnect();
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    
+    const session = await getServerSession(authOptions);
+
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = session.user.id
-    const body = await request.json()
+    const userId = session.user.id;
+    const body = await request.json();
 
-    const {
-      notifications,
-      privacy,
-      preferences,
-      security
-    } = body
+    const { notifications, privacy, preferences, security } = body;
 
     // Validate settings structure
     if (!notifications || !privacy || !preferences || !security) {
-      return NextResponse.json(
-        { error: 'Invalid settings structure' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Invalid settings structure' }, { status: 400 });
     }
 
     const settingsData = {
       notifications,
       privacy,
       preferences,
-      security
-    }
+      security,
+    };
 
     const updatedSettings = await prisma.userSettings.upsert({
       where: { userId },
       update: {
         settings: settingsData,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       },
       create: {
         userId,
-        settings: settingsData
-      }
-    })
+        settings: settingsData,
+      },
+    });
 
-    return NextResponse.json(updatedSettings.settings)
-
+    return NextResponse.json(updatedSettings.settings);
   } catch (error) {
-    console.error('User settings PUT API error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    console.error('User settings PUT API error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   } finally {
-    await prisma.$disconnect()
+    await prisma.$disconnect();
   }
 }

@@ -1,36 +1,32 @@
 'use client';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-
-interface DarkModeContextType {
+interface DarkModeContextProps {
   darkMode: boolean;
   toggleDarkMode: () => void;
 }
 
-const DarkModeContext = createContext<DarkModeContextType | undefined>(undefined);
+const DarkModeContext = createContext<DarkModeContextProps>({
+  darkMode: false,
+  toggleDarkMode: () => {},
+});
 
 export const DarkModeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
-    // Check for saved dark mode preference
-    const savedDarkMode = localStorage.getItem('darkMode');
-    if (savedDarkMode) {
-      setDarkMode(savedDarkMode === 'true');
-    }
+    const savedPreference = localStorage.getItem('darkMode') === 'true';
+    setDarkMode(savedPreference);
+    document.body.classList.toggle('dark-mode', savedPreference);
   }, []);
 
   const toggleDarkMode = () => {
-    const newDarkMode = !darkMode;
-    setDarkMode(newDarkMode);
-    localStorage.setItem('darkMode', String(newDarkMode));
-
-    // Update document class for Bootstrap dark mode
-    if (newDarkMode) {
-      document.documentElement.setAttribute('data-bs-theme', 'dark');
-    } else {
-      document.documentElement.removeAttribute('data-bs-theme');
-    }
+    setDarkMode((prevMode) => {
+      const newMode = !prevMode;
+      localStorage.setItem('darkMode', newMode.toString());
+      document.body.classList.toggle('dark-mode', newMode);
+      return newMode;
+    });
   };
 
   return (
@@ -40,10 +36,4 @@ export const DarkModeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   );
 };
 
-export const useDarkMode = () => {
-  const context = useContext(DarkModeContext);
-  if (context === undefined) {
-    throw new Error('useDarkMode must be used within a DarkModeProvider');
-  }
-  return context;
-};
+export const useDarkMode = () => useContext(DarkModeContext);

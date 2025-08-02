@@ -32,5 +32,17 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/**/*"],
-  "exclude": ["node_modules", "playwright.config.ts", "playwright/**/*", "tests/**/*", "e2e/**/*", "scripts/**/*", "**/*.disabled", "**/*.disabled/**/*", "taax-dog-main-reference/**/*"]
+  "exclude": [
+    "node_modules",
+    "playwright.config.ts",
+    "playwright/**/*",
+    "tests/**/*",
+    "e2e/**/*",
+    "scripts/**/*",
+    "**/*.disabled",
+    "**/*.disabled/**/*",
+    "taax-dog-main-reference/**/*",
+    "next-frontend/**/*",
+    "src_backup*/**/*"
+  ]
 }
