@@ -65,12 +65,12 @@ export async function POST(request: NextRequest) {
     // Log the successful password reset
     await prisma.auditLog.create({
       data: {
-        action: 'PASSWORD_RESET',
+        event: 'PASSWORD_RESET',
         userId: user.id,
-        details: JSON.stringify({
+        metadata: {
           email: user.email,
           timestamp: new Date().toISOString(),
-        }),
+        },
         ipAddress:
           request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
         userAgent: request.headers.get('user-agent') || 'unknown',
