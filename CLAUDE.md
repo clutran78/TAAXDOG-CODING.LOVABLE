@@ -89,6 +89,11 @@ npm run db:seed            # Seed database with initial data
 npm run db:studio          # Open Prisma Studio GUI
 npm run db:reset           # Reset database (drops all data)
 npm run setup              # Run automated database setup script
+
+# Prisma-specific commands
+npx prisma format          # Format schema file
+npx prisma validate        # Validate schema syntax
+npx prisma db pull         # Pull schema from existing database
 ```
 
 ### Testing Commands
@@ -98,15 +103,29 @@ npm test                   # Run all Jest tests
 npm run test:watch         # Run tests in watch mode
 npm run test:coverage      # Run tests with coverage report (70% threshold)
 npm run test:ci            # Run tests in CI mode with coverage
+
+# Running specific tests
 npm test [filename]        # Run specific test file
+npm test ComponentName     # Run tests matching pattern
 npm test -- --watch [path] # Run tests in watch mode for specific file
+npm test -- --clearCache   # Clear Jest cache when tests behave unexpectedly
+npm test -- --testNamePattern="should validate email" # Run tests by name
+npm test -- --testPathPattern="auth" # Run tests in specific path
 ```
 
-### Deployment
+### Deployment & Validation
 
 ```bash
 npm run deploy             # Run deployment script (scripts/deploy.sh)
+npm run deploy:validate    # Validate deployment configuration
 npm run postinstall        # Auto-runs after npm install (generates Prisma client)
+
+# Docker development
+docker-compose up          # Start all services with Docker
+docker-compose up -d       # Start in detached mode
+docker-compose down        # Stop all services
+docker-compose logs -f     # Follow logs
+docker-compose exec app bash # Access app container
 ```
 
 ## High-Level Architecture
@@ -249,21 +268,25 @@ export async function POST(request: NextRequest) {
 
 1. **Unified Architecture**: Next.js App Router for both frontend and API
    (migrated from hybrid Flask/Next.js)
-2. **Multi-Provider Strategy**: Fallback providers for AI and banking services
-3. **Event-Driven Updates**: Webhooks for real-time state synchronization
-4. **Security-First**: Multiple authentication/authorization layers
-5. **Cost Optimization**: AI response caching, token tracking
-6. **Australian-First Design**: All features comply with Australian regulations
+2. **Database Migration**: Migrated from Firebase to PostgreSQL with Prisma ORM
+3. **Multi-Provider Strategy**: Fallback providers for AI and banking services
+4. **Event-Driven Updates**: Webhooks for real-time state synchronization
+5. **Security-First**: Multiple authentication/authorization layers
+6. **Cost Optimization**: AI response caching, token tracking
+7. **Australian-First Design**: All features comply with Australian regulations
+8. **Containerization**: Docker with multi-stage builds for optimized deployment
 
 ## Next.js Configuration Details
 
 - **App Router**: Using experimental App Router (not Pages Router)
-- **Runtime**: Node.js 18+ required
+- **Runtime**: Node.js 18+ required (>=18.0.0 <25.0.0)
 - **Image Optimization**: Disabled in development
 - **TypeScript**: Strict mode enabled with custom paths
 - **Bundle Optimization**: Custom webpack config with polyfills for DigitalOcean
 - **Middleware**: Edge runtime for auth and security checks
 - **Cookie Security**: Overrides cookie package to v0.7.2 for security
+- **API Routes**: All use App Router route handlers (not Pages API)
+- **Jest Configuration**: Uses next/jest with custom module mapping
 
 ## UI Component Stack
 
@@ -464,12 +487,13 @@ After running database seed (`npm run db:seed`), use these credentials:
 
 ### Testing Infrastructure
 
-- **Framework**: Jest 29.7 with TypeScript support
+- **Framework**: Jest with Next.js configuration (uses next/jest)
 - **Component Testing**: React Testing Library with custom test utilities
 - **Test Structure**:
   - Unit tests: Colocated with source files (`*.test.ts`, `*.test.tsx`)
   - Integration tests: `__tests__/integration/`
-  - E2E tests: Playwright setup available
+  - API tests: `src/app/api/__tests__/`
+  - Component tests: `src/components/__tests__/`
   - Mock files: `__mocks__/` directory
 - **Coverage Requirements**: 70% threshold for all metrics (statements,
   branches, functions, lines)
@@ -477,12 +501,17 @@ After running database seed (`npm run db:seed`), use these credentials:
   - Global mocks in `jest.setup.js` (NextAuth, router, fetch)
   - Custom matchers and utilities
   - Module path aliases matching tsconfig
-- **Running Tests**:
+  - Test environment: `jest-environment-jsdom`
+- **Test Patterns**:
+
   ```bash
-  npm test                    # Run all tests
-  npm run test:watch         # Watch mode
-  npm run test:coverage      # Coverage report
-  npm test ComponentName     # Test specific file/pattern
+  # Test file naming
+  *.test.ts, *.test.tsx      # Unit tests
+  *.spec.ts, *.spec.tsx      # Integration tests
+
+  # Test directories
+  <rootDir>/src/**/__tests__/**/*
+  <rootDir>/tests/**/*
   ```
 
 ## Quick Troubleshooting
@@ -494,6 +523,8 @@ After running database seed (`npm run db:seed`), use these credentials:
 - **Build failures**: Clear `.next` directory and run `npm run build`
 - **Test failures**: Clear Jest cache with `npm test -- --clearCache`
 - **Docker issues**: Run `docker-compose build --no-cache`
+- **Module not found**: Delete `node_modules` and run `npm ci`
+- **Prisma client issues**: Run `npx prisma generate`
 
 ### Performance Issues
 
@@ -501,6 +532,22 @@ After running database seed (`npm run db:seed`), use these credentials:
 - Review database queries: `npm run test:db-performance`
 - Monitor with Sentry dashboard
 - Check for memory leaks in long-running operations
+
+### Debugging Commands
+
+```bash
+# Check Node version compatibility
+node --version             # Should be >=18.0.0 <25.0.0
+
+# Validate environment
+npx prisma validate        # Check Prisma schema
+npm run type-check         # Check TypeScript types
+npm run lint               # Check ESLint issues
+
+# Database debugging
+npx prisma db pull         # Pull current DB state
+npx prisma migrate status  # Check migration status
+```
 
 ## Running Single Tests
 
