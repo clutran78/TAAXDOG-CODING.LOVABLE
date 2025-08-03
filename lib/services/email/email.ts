@@ -451,7 +451,7 @@ export async function sendPasswordResetEmail(
   // Use NEXTAUTH_URL as primary, APP_URL as secondary fallback
   const appUrl =
     process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://dev.taxreturnpro.com.au';
-  const resetUrl = `${appUrl}/auth/reset-password?token=${token}`;
+  const resetUrl = `${appUrl}/reset-password?token=${token}`;
   logger.info('[Email] Generating password reset URL:', { appUrl, resetUrl });
   const template = templates.passwordReset(name, resetUrl);
 
