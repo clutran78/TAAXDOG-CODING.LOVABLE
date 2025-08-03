@@ -437,8 +437,8 @@ export const authOptions: NextAuthOptions = {
           return `${baseUrl}/dashboard`;
         }
 
-        // Special handling for auth pages
-        if (url.includes('/auth/login') || url === baseUrl || url === '/') {
+        // Special handling for auth pages - redirect to dashboard after login
+        if (url.includes('/login') || url === baseUrl || url === '/') {
           return `${baseUrl}/dashboard`;
         }
 
