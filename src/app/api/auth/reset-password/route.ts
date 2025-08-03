@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
         passwordResetExpires: null,
         // Reset failed login attempts on successful password reset
         failedLoginAttempts: 0,
-        lockoutUntil: null,
+        lockedUntil: null,
       },
     });
 
