@@ -7,16 +7,13 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Copy package files first for better caching
-COPY package.json package-lock.json* ./
-COPY yarn.lock* pnpm-lock.yaml* ./
+COPY package.json package-lock.json ./
 
-# Install dependencies based on lockfile
-RUN \
-  if [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
-  elif [ -f package-lock.json ]; then npm ci; \
-  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm install --frozen-lockfile; \
-  else echo "Lockfile not found." && exit 1; \
-  fi
+# Copy Prisma schema for dependency installation (needed for postinstall)
+COPY prisma ./prisma
+
+# Install dependencies using npm
+RUN npm ci
 
 # Stage 2: Builder
 FROM node:18-alpine AS builder
@@ -28,15 +25,14 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy application source
 COPY . .
 
-# Copy Prisma schema for generation
-COPY prisma ./prisma
-
-# Generate Prisma Client
+# Generate Prisma Client (schema already copied from previous stage)
 RUN npx prisma generate
 
 # Build Next.js application
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+# Set a dummy DATABASE_URL for build time to prevent API route pre-rendering errors
+ENV DATABASE_URL="postgresql://dummy:dummy@dummy:5432/dummy"
 
 # Build and output standalone for smaller image
 RUN npm run build
@@ -63,12 +59,16 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 # Copy static files
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy public directory if it exists
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+# Copy public directory if it exists (create empty one if needed)
+RUN mkdir -p public
 
 # Copy Prisma files for runtime
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+
+# Copy polyfills and other necessary files
+COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
+COPY --from=builder --chown=nextjs:nodejs /app/healthcheck.js ./healthcheck.js
 
 # Create necessary directories with proper permissions
 RUN mkdir -p logs uploads && \
@@ -91,5 +91,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
 
-# Start the application
+# Start the application using the standalone server
 CMD ["node", "server.js"]
