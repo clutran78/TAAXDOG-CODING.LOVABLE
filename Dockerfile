@@ -2,8 +2,8 @@
 
 # Stage 1: Dependencies
 FROM node:18-alpine AS deps
-# Install system dependencies
-RUN apk add --no-cache libc6-compat
+# Install system dependencies including OpenSSL for Prisma
+RUN apk add --no-cache libc6-compat openssl openssl-dev
 WORKDIR /app
 
 # Copy package files first for better caching
@@ -25,7 +25,8 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy application source
 COPY . .
 
-# Generate Prisma Client (schema already copied from previous stage)
+# Generate Prisma Client for Alpine Linux platform
+ENV PRISMA_CLI_BINARY_TARGETS="linux-musl"
 RUN npx prisma generate
 
 # Build Next.js application
@@ -41,8 +42,8 @@ RUN npm run build
 FROM node:18-alpine AS runner
 WORKDIR /app
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+# Install dumb-init and OpenSSL for proper signal handling and Prisma support
+RUN apk add --no-cache dumb-init openssl openssl-dev
 
 # Create non-root user and group
 RUN addgroup --system --gid 1001 nodejs && \
