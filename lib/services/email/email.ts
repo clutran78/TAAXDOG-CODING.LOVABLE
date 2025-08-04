@@ -14,11 +14,14 @@ const emailConfig = {
 };
 
 // Initialize SendGrid if API key is provided
-if (process.env.SENDGRID_API_KEY && process.env.SENDGRID_API_KEY.startsWith('SG.')) {
-  logger.info('Initializing SendGrid with valid API key');
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-} else if (process.env.SENDGRID_API_KEY) {
-  logger.warn('Warning: SendGrid API key format may be invalid');
+if (process.env.SENDGRID_API_KEY) {
+  // More flexible validation - accept keys that start with SG. or are at least 50 characters
+  if (process.env.SENDGRID_API_KEY.startsWith('SG.') || process.env.SENDGRID_API_KEY.length >= 50) {
+    logger.info('Initializing SendGrid with API key');
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  } else {
+    logger.warn('Warning: SendGrid API key format may be invalid (too short or incorrect format)');
+  }
 } else {
   logger.info('SendGrid API key not configured');
 }
@@ -41,8 +44,8 @@ function getEmailProvider(): EmailProvider {
 
   // Check if SendGrid is configured and preferred
   if (process.env.EMAIL_PROVIDER === 'sendgrid' && process.env.SENDGRID_API_KEY) {
-    // Validate SendGrid API key format
-    if (process.env.SENDGRID_API_KEY.startsWith('SG.')) {
+    // More flexible validation - accept keys that start with SG. or are at least 50 characters
+    if (process.env.SENDGRID_API_KEY.startsWith('SG.') || process.env.SENDGRID_API_KEY.length >= 50) {
       logger.info('[Email] ✅ Using SendGrid provider');
       return 'sendgrid';
     } else {
