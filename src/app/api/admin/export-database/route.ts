@@ -7,7 +7,7 @@ import path from 'path';
 // Security: Only allow in development or with admin token
 const ADMIN_TOKEN = process.env.ADMIN_EXPORT_TOKEN || 'dev-only-token';
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<Response> {
   try {
     // Check authorization
     const authHeader = request.headers.get('authorization');
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const dumpFile = `/tmp/database_export_${timestamp}.dump`;
 
-    return new Promise((resolve) => {
+    return new Promise<Response>((resolve) => {
       // Use pg_dump to create database export
       const pgDump = spawn('pg_dump', [
         '-h', host,
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
             }, 5000);
 
             resolve(response);
-          } catch (error) {
+          } catch (error: any) {
             console.error('Error streaming file:', error);
             resolve(NextResponse.json({ 
               error: 'Failed to stream export file',
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
       });
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Database export error:', error);
     return NextResponse.json({ 
       error: 'Internal server error',
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
 }
 
 // GET endpoint to check if export is available
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<Response> {
   const authHeader = request.headers.get('authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
